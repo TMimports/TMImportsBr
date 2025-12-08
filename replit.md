@@ -140,6 +140,13 @@ Para contas fixas (luz, aluguel, etc):
 - Textos em branco
 - Detalhes em verde-neon (energia elétrica)
 
+## Segurança
+
+- **Proteção CSRF:** Todos os formulários POST incluem token CSRF via csrf-csrf middleware
+- **Upload de Arquivos:** Validação de tipo MIME (imagens e PDFs), limite de 10MB, sanitização de nomes
+- **Senhas:** Hash com bcryptjs
+- **Sessões:** Express-session com cookie seguro
+
 ## Mudanças Recentes
 
 - **08/12/2024:** Criação inicial do sistema completo
@@ -149,3 +156,5 @@ Para contas fixas (luz, aluguel, etc):
   - Sistema de vendas com fluxo de aprovação
   - Módulo financeiro completo
   - Conciliação bancária
+  - Proteção CSRF em todos os formulários
+  - Validação de uploads (tipo, tamanho, nome)
