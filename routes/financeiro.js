@@ -4,8 +4,12 @@ const { Op } = require('sequelize');
 const { canAccessFinanceiro, isSuperAdmin } = require('../middleware/auth');
 const { ContaReceber, ContaPagar, LancamentoBancario, Venda, Anexo } = require('../models');
 const multer = require('multer');
+const { validateCsrf } = require('../middleware/csrf');
 
-const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+const fs = require('fs');
+const path = require('path');
+
+const allowedMimeTypes = ['image/jpeg', 'image/png', 'application/pdf'];
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => {
@@ -13,6 +17,9 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + '-' + sanitizedName);
   }
 });
+
+const memoryStorage = multer.memoryStorage();
+
 const fileFilter = (req, file, cb) => {
   if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
@@ -21,6 +28,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
+const uploadToMemory = multer({ storage: memoryStorage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.get('/contas-receber', canAccessFinanceiro, async (req, res) => {
   try {
@@ -294,18 +302,31 @@ router.get('/conciliacao', canAccessFinanceiro, async (req, res) => {
   }
 });
 
-router.post('/conciliacao', isSuperAdmin, async (req, res) => {
+router.post('/conciliacao', uploadToMemory.single('anexo'), validateCsrf, isSuperAdmin, async (req, res) => {
   try {
     const { data, descricao, valor, tipo, conta_texto } = req.body;
     
-    await LancamentoBancario.create({
+    const lancamentoData = {
       data: new Date(data),
       descricao,
       valor: parseFloat(valor),
       tipo,
       conta_texto,
       status_conciliacao: 'PENDENTE'
-    });
+    };
+    
+    if (req.file) {
+      const sanitizedName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+      const filename = Date.now() + '-' + sanitizedName;
+      const filepath = path.join('uploads', filename);
+      
+      fs.writeFileSync(filepath, req.file.buffer);
+      
+      lancamentoData.anexo_path = filename;
+      lancamentoData.anexo_nome = req.file.originalname;
+    }
+    
+    await LancamentoBancario.create(lancamentoData);
 
     res.redirect('/financeiro/conciliacao');
   } catch (error) {

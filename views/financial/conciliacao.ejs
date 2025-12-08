@@ -43,6 +43,7 @@
                     <th>Valor</th>
                     <th>Tipo</th>
                     <th>Conta</th>
+                    <th>Extrato</th>
                     <th>Vinculado a</th>
                     <th>Status</th>
                     <th>Ações</th>
@@ -50,7 +51,7 @@
                 </thead>
                 <tbody>
                   <% if (lancamentos.length === 0) { %>
-                    <tr><td colspan="8" class="empty-state">Nenhum lançamento bancário</td></tr>
+                    <tr><td colspan="9" class="empty-state">Nenhum lançamento bancário</td></tr>
                   <% } else { %>
                     <% lancamentos.forEach(lanc => { %>
                       <tr>
@@ -65,6 +66,15 @@
                           </span>
                         </td>
                         <td><%= lanc.conta_texto || '-' %></td>
+                        <td>
+                          <% if (lanc.anexo_path) { %>
+                            <a href="/uploads/<%= lanc.anexo_path %>" target="_blank" class="btn btn-sm btn-info" title="Ver Extrato">
+                              <i class="fas fa-file-pdf"></i> <%= lanc.anexo_nome ? lanc.anexo_nome.substring(0, 15) + '...' : 'Ver' %>
+                            </a>
+                          <% } else { %>
+                            <span style="color: var(--text-secondary);">-</span>
+                          <% } %>
+                        </td>
                         <td>
                           <% if (lanc.ContaReceber) { %>
                             <span class="badge badge-info">Conta a Receber #<%= lanc.ContaReceber.id %></span>
@@ -121,7 +131,7 @@
         <h3 class="modal-title">Novo Lançamento Bancário</h3>
         <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
       </div>
-      <form action="/financeiro/conciliacao" method="POST">
+      <form action="/financeiro/conciliacao" method="POST" enctype="multipart/form-data">
         <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-row">
@@ -150,6 +160,13 @@
               <label class="form-label">Conta</label>
               <input type="text" name="conta_texto" class="form-control" placeholder="Ex: Banco do Brasil, Caixa...">
             </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label"><i class="fas fa-file-upload"></i> Anexar Extrato Bancário</label>
+            <input type="file" name="anexo" class="form-control" accept=".pdf,.jpg,.jpeg,.png" style="padding: 8px;">
+            <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+              Formatos aceitos: PDF, JPG, PNG (máx. 10MB)
+            </small>
           </div>
         </div>
         <div class="modal-footer">

@@ -43,6 +43,14 @@ const LancamentoBancario = sequelize.define('LancamentoBancario', {
     type: DataTypes.BOOLEAN,
     defaultValue: false,
   },
+  anexo_path: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  anexo_nome: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   tableName: 'lancamentos_bancarios',
   timestamps: true,

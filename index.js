@@ -73,7 +73,8 @@ const uploadRoutes = [
   { method: 'POST', path: '/vendas' },
   { method: 'POST', pattern: /^\/vendas\/\d+\/anexos$/ },
   { method: 'POST', path: '/produtos' },
-  { method: 'POST', pattern: /^\/produtos\/\d+\/anexos$/ }
+  { method: 'POST', pattern: /^\/produtos\/\d+\/anexos$/ },
+  { method: 'POST', path: '/financeiro/conciliacao' }
 ];
 
 function isUploadRoute(method, path) {
@@ -157,6 +158,14 @@ async function initDatabase() {
       console.log('Column primeiro_acesso added successfully');
     } catch (alterError) {
       console.log('Column primeiro_acesso already exists or table not ready');
+    }
+    
+    try {
+      await sequelize.query("ALTER TABLE lancamentos_bancarios ADD COLUMN anexo_path TEXT;", { type: QueryTypes.RAW });
+      await sequelize.query("ALTER TABLE lancamentos_bancarios ADD COLUMN anexo_nome TEXT;", { type: QueryTypes.RAW });
+      console.log('Columns anexo_path and anexo_nome added successfully');
+    } catch (alterError) {
+      console.log('Columns anexo already exist or table not ready');
     }
     
     await sequelize.sync();
