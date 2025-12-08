@@ -20,16 +20,27 @@
           </button>
         </div>
 
-        <form class="search-bar" method="GET">
-          <input type="text" name="search" class="form-control" placeholder="Pesquisar cliente..." value="<%= filters.search || '' %>">
-          <select name="status" class="form-control">
+        <form class="search-bar" method="GET" style="flex-wrap: wrap; gap: 10px;">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar cliente..." value="<%= filters.search || '' %>" style="min-width: 200px;">
+          <select name="status" class="form-control" style="min-width: 150px;">
             <option value="">Todos Status</option>
             <option value="PENDENTE" <%= filters.status === 'PENDENTE' ? 'selected' : '' %>>Pendente</option>
             <option value="APROVADA" <%= filters.status === 'APROVADA' ? 'selected' : '' %>>Aprovada</option>
             <option value="CONCLUIDA" <%= filters.status === 'CONCLUIDA' ? 'selected' : '' %>>Concluída</option>
             <option value="CANCELADA" <%= filters.status === 'CANCELADA' ? 'selected' : '' %>>Cancelada</option>
           </select>
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <label style="color: var(--text-secondary); font-size: 0.85rem;">De:</label>
+            <input type="date" name="data_inicio" class="form-control" style="min-width: 140px;" value="<%= filters.periodo ? filters.periodo.split(',')[0] : '' %>">
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <label style="color: var(--text-secondary); font-size: 0.85rem;">Até:</label>
+            <input type="date" name="data_fim" class="form-control" style="min-width: 140px;" value="<%= filters.periodo ? filters.periodo.split(',')[1] : '' %>">
+          </div>
           <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+          <% if (filters.search || filters.status || filters.periodo) { %>
+            <a href="/vendas" class="btn btn-warning" title="Limpar filtros"><i class="fas fa-times"></i></a>
+          <% } %>
         </form>
 
         <div class="card">
@@ -72,6 +83,11 @@
                         </td>
                         <td>
                           <div class="actions">
+                            <% if (user.perfil === 'SUPER_ADMIN') { %>
+                              <a href="/vendas/<%= venda.id %>/detalhes" class="btn btn-sm btn-primary" title="Ver Detalhes">
+                                <i class="fas fa-eye"></i>
+                              </a>
+                            <% } %>
                             <% if (venda.status === 'PENDENTE' && (user.perfil === 'SUPER_ADMIN' || venda.vendedor_id === user.id)) { %>
                               <button class="btn btn-sm btn-secondary" onclick='openEditVendaModal(<%= JSON.stringify(venda) %>)'>
                                 <i class="fas fa-edit"></i>
@@ -153,16 +169,22 @@
           
           <h4 style="color: var(--orange); margin: 20px 0 15px;">Itens da Venda</h4>
           <div id="itensContainer">
-            <div class="item-row" style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;">
+            <div class="item-row" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;">
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label">Produto</label>
-                <select class="form-control item-produto" onchange="updatePrice(this)">
+                <select class="form-control item-produto" onchange="updatePriceAndColor(this)">
                   <option value="">Selecione...</option>
                   <% produtos.forEach(prod => { %>
-                    <option value="<%= prod.id %>" data-preco="<%= prod.preco_venda %>">
+                    <option value="<%= prod.id %>" data-preco="<%= prod.preco_venda %>" data-cor="<%= prod.cor || '' %>" data-tipo="<%= prod.tipo %>">
                       <%= prod.nome_modelo || prod.nome_produto %> (<%= prod.tipo %>) - <%= formatCurrency(prod.preco_venda) %>
                     </option>
                   <% }) %>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Cor</label>
+                <select class="form-control item-cor">
+                  <option value="">Selecione produto</option>
                 </select>
               </div>
               <div class="form-group" style="margin-bottom: 0;">
@@ -220,23 +242,55 @@
   <script>
     const produtos = <%- JSON.stringify(produtos) %>;
     
-    function updatePrice(select) {
+    function getAvailableColors(produtoId) {
+      const produto = produtos.find(p => p.id == produtoId);
+      if (!produto) return [];
+      if (produto.tipo === 'SERVICO' || produto.tipo === 'PECA') return [];
+      const coresDisponiveis = produtos
+        .filter(p => (p.nome_modelo === produto.nome_modelo || p.nome_produto === produto.nome_produto) && p.tipo === produto.tipo && p.cor)
+        .map(p => p.cor)
+        .filter((cor, idx, arr) => arr.indexOf(cor) === idx);
+      if (coresDisponiveis.length === 0 && produto.cor) {
+        coresDisponiveis.push(produto.cor);
+      }
+      return coresDisponiveis;
+    }
+    
+    function updatePriceAndColor(select) {
       const option = select.options[select.selectedIndex];
       const preco = option.dataset.preco || 0;
       const row = select.closest('.item-row');
       row.querySelector('.item-preco').value = preco;
+      
+      const produtoId = select.value;
+      const corSelect = row.querySelector('.item-cor');
+      const cores = getAvailableColors(produtoId);
+      
+      if (cores.length > 0) {
+        corSelect.innerHTML = '<option value="">Selecione a cor...</option>' + 
+          cores.map(cor => `<option value="${cor}">${cor}</option>`).join('');
+        corSelect.disabled = false;
+      } else {
+        corSelect.innerHTML = '<option value="">N/A</option>';
+        corSelect.disabled = true;
+      }
     }
     
     function addItem() {
       const container = document.getElementById('itensContainer');
       const row = document.createElement('div');
       row.className = 'item-row';
-      row.style = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;';
+      row.style = 'display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;';
       row.innerHTML = `
         <div class="form-group" style="margin-bottom: 0;">
-          <select class="form-control item-produto" onchange="updatePrice(this)">
+          <select class="form-control item-produto" onchange="updatePriceAndColor(this)">
             <option value="">Selecione...</option>
-            ${produtos.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}">${p.nome_modelo || p.nome_produto} (${p.tipo})</option>`).join('')}
+            ${produtos.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}" data-cor="${p.cor || ''}" data-tipo="${p.tipo}">${p.nome_modelo || p.nome_produto} (${p.tipo})</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <select class="form-control item-cor">
+            <option value="">Selecione produto</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom: 0;">
@@ -260,14 +314,15 @@
     }
     
     document.getElementById('vendaForm').addEventListener('submit', function(e) {
-      const rows = document.querySelectorAll('.item-row');
+      const rows = document.querySelectorAll('#vendaForm .item-row');
       const itens = [];
       rows.forEach(row => {
         const produto = row.querySelector('.item-produto').value;
+        const cor = row.querySelector('.item-cor').value;
         const qtd = row.querySelector('.item-qtd').value;
         const preco = row.querySelector('.item-preco').value;
         if (produto) {
-          itens.push({ produto_id: produto, quantidade: qtd, preco_unitario: preco });
+          itens.push({ produto_id: produto, quantidade: qtd, preco_unitario: preco, cor_escolhida: cor || null });
         }
       });
       document.getElementById('itensInput').value = JSON.stringify(itens);

@@ -25,6 +25,10 @@ const ItemVenda = sequelize.define('ItemVenda', {
     allowNull: false,
     defaultValue: 0,
   },
+  cor_escolhida: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   tableName: 'itens_venda',
   timestamps: true,

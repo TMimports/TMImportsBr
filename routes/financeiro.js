@@ -24,18 +24,24 @@ const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 102
 
 router.get('/contas-receber', canAccessFinanceiro, async (req, res) => {
   try {
-    const { search, status, periodo } = req.query;
+    const { search, status, data_inicio, data_fim } = req.query;
     let where = { arquivado: false };
     
     if (status) where.status = status;
     if (search) {
       where.cliente_nome = { [Op.like]: `%${search}%` };
     }
-    if (periodo) {
-      const [inicio, fim] = periodo.split(',');
-      if (inicio && fim) {
-        where.data_vencimento = { [Op.between]: [new Date(inicio), new Date(fim)] };
-      }
+    
+    let periodo = '';
+    if (data_inicio && data_fim) {
+      where.data_vencimento = { [Op.between]: [new Date(data_inicio), new Date(data_fim + 'T23:59:59')] };
+      periodo = `${data_inicio},${data_fim}`;
+    } else if (data_inicio) {
+      where.data_vencimento = { [Op.gte]: new Date(data_inicio) };
+      periodo = `${data_inicio},`;
+    } else if (data_fim) {
+      where.data_vencimento = { [Op.lte]: new Date(data_fim + 'T23:59:59') };
+      periodo = `,${data_fim}`;
     }
 
     const contas = await ContaReceber.findAll({
@@ -108,7 +114,7 @@ router.post('/contas-receber/:id/delete', isSuperAdmin, async (req, res) => {
 
 router.get('/contas-pagar', canAccessFinanceiro, async (req, res) => {
   try {
-    const { search, status, tipo_conta, periodo } = req.query;
+    const { search, status, tipo_conta, data_inicio, data_fim } = req.query;
     let where = { arquivado: false };
     
     if (status) where.status = status;
@@ -119,11 +125,17 @@ router.get('/contas-pagar', canAccessFinanceiro, async (req, res) => {
         { fornecedor: { [Op.like]: `%${search}%` } }
       ];
     }
-    if (periodo) {
-      const [inicio, fim] = periodo.split(',');
-      if (inicio && fim) {
-        where.data_vencimento = { [Op.between]: [new Date(inicio), new Date(fim)] };
-      }
+    
+    let periodo = '';
+    if (data_inicio && data_fim) {
+      where.data_vencimento = { [Op.between]: [new Date(data_inicio), new Date(data_fim + 'T23:59:59')] };
+      periodo = `${data_inicio},${data_fim}`;
+    } else if (data_inicio) {
+      where.data_vencimento = { [Op.gte]: new Date(data_inicio) };
+      periodo = `${data_inicio},`;
+    } else if (data_fim) {
+      where.data_vencimento = { [Op.lte]: new Date(data_fim + 'T23:59:59') };
+      periodo = `,${data_fim}`;
     }
 
     const contas = await ContaPagar.findAll({

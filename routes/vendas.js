@@ -24,7 +24,7 @@ const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 102
 
 router.get('/', isAuthenticated, async (req, res) => {
   try {
-    const { search, status, periodo } = req.query;
+    const { search, status, data_inicio, data_fim } = req.query;
     let where = {};
     
     if (req.session.user.perfil === 'VENDEDOR') {
@@ -37,6 +37,18 @@ router.get('/', isAuthenticated, async (req, res) => {
         { cliente_nome: { [Op.like]: `%${search}%` } },
         { cliente_email: { [Op.like]: `%${search}%` } }
       ];
+    }
+    
+    let periodo = '';
+    if (data_inicio && data_fim) {
+      where.createdAt = { [Op.between]: [new Date(data_inicio + 'T00:00:00'), new Date(data_fim + 'T23:59:59')] };
+      periodo = `${data_inicio},${data_fim}`;
+    } else if (data_inicio) {
+      where.createdAt = { [Op.gte]: new Date(data_inicio + 'T00:00:00') };
+      periodo = `${data_inicio},`;
+    } else if (data_fim) {
+      where.createdAt = { [Op.lte]: new Date(data_fim + 'T23:59:59') };
+      periodo = `,${data_fim}`;
     }
 
     const vendas = await Venda.findAll({
@@ -66,6 +78,44 @@ router.get('/', isAuthenticated, async (req, res) => {
   } catch (error) {
     console.error('Sales error:', error);
     res.render('error', { message: 'Erro ao carregar vendas.', user: req.session.user });
+  }
+});
+
+router.get('/:id/detalhes', isSuperAdmin, async (req, res) => {
+  try {
+    const venda = await Venda.findByPk(req.params.id, {
+      include: [
+        { model: Usuario, as: 'vendedor' },
+        { model: Estoque },
+        { model: Subestoque },
+        { model: ItemVenda, include: [{ model: Produto }] },
+        { model: AnexoVenda }
+      ]
+    });
+
+    if (!venda) {
+      return res.redirect('/vendas?error=2');
+    }
+
+    const contaReceber = await ContaReceber.findOne({ where: { venda_id: venda.id } });
+    
+    let chassisVinculados = [];
+    if (venda.chassi_selecionado) {
+      try {
+        const chassisIds = JSON.parse(venda.chassi_selecionado);
+        chassisVinculados = await Chassi.findAll({ where: { id: chassisIds } });
+      } catch (e) {}
+    }
+
+    res.render('sales/show', {
+      user: req.session.user,
+      venda,
+      contaReceber,
+      chassisVinculados
+    });
+  } catch (error) {
+    console.error('Sale details error:', error);
+    res.render('error', { message: 'Erro ao carregar detalhes da venda.', user: req.session.user });
   }
 });
 
@@ -104,7 +154,8 @@ router.post('/', isAuthenticated, upload.array('anexos', 5), async (req, res) =>
         venda_id: venda.id,
         produto_id: parseInt(item.produto_id),
         quantidade: parseInt(item.quantidade) || 1,
-        preco_unitario: parseFloat(item.preco_unitario) || 0
+        preco_unitario: parseFloat(item.preco_unitario) || 0,
+        cor_escolhida: item.cor_escolhida || null
       });
     }
 
@@ -169,7 +220,8 @@ router.post('/:id/update', isAuthenticated, async (req, res) => {
         venda_id: venda.id,
         produto_id: parseInt(item.produto_id),
         quantidade: parseInt(item.quantidade) || 1,
-        preco_unitario: parseFloat(item.preco_unitario) || 0
+        preco_unitario: parseFloat(item.preco_unitario) || 0,
+        cor_escolhida: item.cor_escolhida || null
       });
     }
 

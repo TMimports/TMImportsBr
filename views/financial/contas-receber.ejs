@@ -17,16 +17,27 @@
           <h1 class="page-title">Contas a Receber</h1>
         </div>
 
-        <form class="search-bar" method="GET">
-          <input type="text" name="search" class="form-control" placeholder="Pesquisar cliente..." value="<%= filters.search || '' %>">
-          <select name="status" class="form-control">
+        <form class="search-bar" method="GET" style="flex-wrap: wrap; gap: 10px;">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar cliente..." value="<%= filters.search || '' %>" style="min-width: 180px;">
+          <select name="status" class="form-control" style="min-width: 130px;">
             <option value="">Todos Status</option>
             <option value="EM_ABERTO" <%= filters.status === 'EM_ABERTO' ? 'selected' : '' %>>Em Aberto</option>
             <option value="RECEBIDO" <%= filters.status === 'RECEBIDO' ? 'selected' : '' %>>Recebido</option>
             <option value="ATRASADO" <%= filters.status === 'ATRASADO' ? 'selected' : '' %>>Atrasado</option>
             <option value="CANCELADO" <%= filters.status === 'CANCELADO' ? 'selected' : '' %>>Cancelado</option>
           </select>
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <label style="color: var(--text-secondary); font-size: 0.85rem;">De:</label>
+            <input type="date" name="data_inicio" class="form-control" style="min-width: 140px;" value="<%= filters.periodo ? filters.periodo.split(',')[0] : '' %>">
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <label style="color: var(--text-secondary); font-size: 0.85rem;">Até:</label>
+            <input type="date" name="data_fim" class="form-control" style="min-width: 140px;" value="<%= filters.periodo ? filters.periodo.split(',')[1] : '' %>">
+          </div>
           <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+          <% if (filters.search || filters.status || filters.periodo) { %>
+            <a href="/financeiro/contas-receber" class="btn btn-warning" title="Limpar filtros"><i class="fas fa-times"></i></a>
+          <% } %>
         </form>
 
         <div class="card">

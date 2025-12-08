@@ -22,21 +22,32 @@
           <% } %>
         </div>
 
-        <form class="search-bar" method="GET">
-          <input type="text" name="search" class="form-control" placeholder="Pesquisar descrição/fornecedor..." value="<%= filters.search || '' %>">
-          <select name="status" class="form-control">
+        <form class="search-bar" method="GET" style="flex-wrap: wrap; gap: 10px;">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar descrição/fornecedor..." value="<%= filters.search || '' %>" style="min-width: 180px;">
+          <select name="status" class="form-control" style="min-width: 120px;">
             <option value="">Todos Status</option>
             <option value="PENDENTE" <%= filters.status === 'PENDENTE' ? 'selected' : '' %>>Pendente</option>
             <option value="PAGO" <%= filters.status === 'PAGO' ? 'selected' : '' %>>Pago</option>
             <option value="CANCELADO" <%= filters.status === 'CANCELADO' ? 'selected' : '' %>>Cancelado</option>
           </select>
-          <select name="tipo_conta" class="form-control">
+          <select name="tipo_conta" class="form-control" style="min-width: 120px;">
             <option value="">Todos Tipos</option>
             <option value="FIXA" <%= filters.tipo_conta === 'FIXA' ? 'selected' : '' %>>Fixa</option>
             <option value="VARIAVEL" <%= filters.tipo_conta === 'VARIAVEL' ? 'selected' : '' %>>Variável</option>
             <option value="UNICA" <%= filters.tipo_conta === 'UNICA' ? 'selected' : '' %>>Única</option>
           </select>
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <label style="color: var(--text-secondary); font-size: 0.85rem;">De:</label>
+            <input type="date" name="data_inicio" class="form-control" style="min-width: 140px;" value="<%= filters.periodo ? filters.periodo.split(',')[0] : '' %>">
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <label style="color: var(--text-secondary); font-size: 0.85rem;">Até:</label>
+            <input type="date" name="data_fim" class="form-control" style="min-width: 140px;" value="<%= filters.periodo ? filters.periodo.split(',')[1] : '' %>">
+          </div>
           <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+          <% if (filters.search || filters.status || filters.tipo_conta || filters.periodo) { %>
+            <a href="/financeiro/contas-pagar" class="btn btn-warning" title="Limpar filtros"><i class="fas fa-times"></i></a>
+          <% } %>
         </form>
 
         <div class="card">
