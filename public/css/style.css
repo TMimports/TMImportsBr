@@ -596,6 +596,17 @@ select.form-control {
   letter-spacing: 2px;
 }
 
+.login-logo {
+  max-width: 200px;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+.sidebar-logo {
+  max-width: 150px;
+  height: auto;
+}
+
 .login-form .btn {
   width: 100%;
   padding: 14px;
