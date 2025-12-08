@@ -159,6 +159,12 @@ Quando um novo usuário é cadastrado:
 
 ## Mudanças Recentes
 
+- **08/12/2024:** Anexo de extrato bancário na conciliação
+  - SUPER ADMIN pode anexar extrato bancário (PDF/JPG/PNG) aos lançamentos
+  - Arquivos são armazenados em memória até validação CSRF passar
+  - Somente após autenticação o arquivo é salvo no disco
+  - Visualização do anexo disponível na tabela de conciliação
+  
 - **08/12/2024:** Correção de erros e melhorias de segurança
   - Corrigido erro CSRF em formulários com upload de arquivos (multipart/form-data)
   - Middleware CSRF refatorado para validar após processamento do multer
