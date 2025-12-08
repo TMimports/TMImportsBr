@@ -119,12 +119,22 @@ Ao iniciar pela primeira vez, o sistema cria automaticamente um SUPER ADMIN:
    - **Concluir** a venda (dá baixa no estoque, marca chassi como vendido, gera conta a receber)
    - Cancelar a venda
 
-## Contas Recorrentes
+## Contas Recorrentes (Mensais)
 
 Para contas fixas (luz, aluguel, etc):
-1. Marque o tipo como "Fixa"
-2. Ative a opção "Gerar contas para os próximos 12 meses"
-3. O sistema criará automaticamente as contas mensais
+1. Marque o tipo como "Fixa (Mensal)"
+2. Ative a opção "Gerar parcelas mensais até dezembro"
+3. O sistema exibirá todas as parcelas do mês selecionado até dezembro
+4. Você pode **editar a data e o valor** de cada parcela individualmente
+5. Ao salvar, todas as parcelas serão criadas com os valores personalizados
+
+## Primeiro Acesso (Definir Senha)
+
+Quando um novo usuário é cadastrado:
+1. O SUPER ADMIN define uma **senha temporária** para o usuário
+2. No primeiro login, o usuário é redirecionado para definir sua **própria senha**
+3. Após definir a senha, o usuário pode acessar o sistema normalmente
+4. O SUPER ADMIN pode **resetar a senha** de qualquer usuário a qualquer momento
 
 ## Tecnologias
 
