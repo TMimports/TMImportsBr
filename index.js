@@ -1,9 +1,9 @@
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
-const crypto = require('crypto');
 const { sequelize, Usuario } = require('./models');
 const { isAuthenticated } = require('./middleware/auth');
+const { csrfTokenMiddleware, validateCsrf } = require('./middleware/csrf');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -46,11 +46,6 @@ app.use(session({
   }
 }));
 
-// CSRF Protection - Session-based
-function generateCsrfToken() {
-  return crypto.randomBytes(32).toString('hex');
-}
-
 // Variáveis globais para views
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
@@ -67,33 +62,26 @@ app.use((req, res, next) => {
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
-  if (!req.session.csrfToken) {
-    req.session.csrfToken = generateCsrfToken();
-  }
-  res.locals.csrfToken = req.session.csrfToken;
-
   next();
 });
 
-// CSRF Validation Middleware
-function csrfProtection(req, res, next) {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+// CSRF Token middleware - gera e disponibiliza token
+app.use(csrfTokenMiddleware);
+
+// Validação CSRF apenas para rotas sem upload de arquivos
+// Rotas com upload usam validateCsrf diretamente após o multer
+app.use((req, res, next) => {
+  if (req.path === '/login' || ['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
   
-  const token = req.body._csrf || req.headers['x-csrf-token'];
-  if (!token || token !== req.session.csrfToken) {
-    return res.status(403).render('error', { 
-      message: 'Erro de segurança: Token CSRF inválido.', 
-      user: req.session ? req.session.user : null 
-    });
+  const contentType = req.headers['content-type'] || '';
+  if (contentType.includes('multipart/form-data')) {
+    return next();
   }
-  next();
-}
-
-// Excluir login da proteção CSRF
-app.post('/login', (req, res, next) => next());
-app.use(csrfProtection);
+  
+  validateCsrf(req, res, next);
+});
 
 // Rotas principais
 app.use('/', authRoutes);

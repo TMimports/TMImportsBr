@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const { isAuthenticated, isSuperAdmin } = require('../middleware/auth');
+const { validateCsrf } = require('../middleware/csrf');
 const { Venda, ItemVenda, AnexoVenda, Produto, Usuario, Estoque, Subestoque, ItemEstoque, Chassi, ContaReceber } = require('../models');
 const multer = require('multer');
 
@@ -119,7 +120,7 @@ router.get('/:id/detalhes', isSuperAdmin, async (req, res) => {
   }
 });
 
-router.post('/', isAuthenticated, upload.array('anexos', 5), async (req, res) => {
+router.post('/', isAuthenticated, upload.array('anexos', 5), validateCsrf, async (req, res) => {
   try {
     const { cliente_nome, cliente_telefone, cliente_email, estoque_id, subestoque_id, desconto, forma_pagamento, itens } = req.body;
     
@@ -389,7 +390,7 @@ router.get('/:id/anexos', async (req, res) => {
   }
 });
 
-router.post('/:id/anexos', isAuthenticated, upload.single('arquivo'), async (req, res) => {
+router.post('/:id/anexos', isAuthenticated, upload.single('arquivo'), validateCsrf, async (req, res) => {
   try {
     if (req.file) {
       await AnexoVenda.create({

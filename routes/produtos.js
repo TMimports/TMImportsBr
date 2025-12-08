@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const { isAdmin } = require('../middleware/auth');
+const { validateCsrf } = require('../middleware/csrf');
 const { Produto, ItemEstoque, Estoque, Subestoque, Anexo } = require('../models');
 const multer = require('multer');
 const path = require('path');
@@ -62,7 +63,7 @@ router.get('/', isAdmin, async (req, res) => {
   }
 });
 
-router.post('/', isAdmin, upload.single('anexo'), async (req, res) => {
+router.post('/', isAdmin, upload.single('anexo'), validateCsrf, async (req, res) => {
   try {
     const { tipo, item, nome_modelo, cor, nome_produto, descricao, categoria, preco_venda, estoque_id, subestoque_id, quantidade_inicial } = req.body;
     
@@ -158,7 +159,7 @@ router.get('/:id/anexos', isAdmin, async (req, res) => {
   }
 });
 
-router.post('/:id/anexos', isAdmin, upload.single('arquivo'), async (req, res) => {
+router.post('/:id/anexos', isAdmin, upload.single('arquivo'), validateCsrf, async (req, res) => {
   try {
     if (req.file) {
       await Anexo.create({
