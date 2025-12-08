@@ -36,6 +36,10 @@ const Usuario = sequelize.define('Usuario', {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
   },
+  primeiro_acesso: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
 }, {
   tableName: 'usuarios',
   timestamps: true,

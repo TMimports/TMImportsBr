@@ -152,6 +152,13 @@ async function initDatabase() {
       }
     }
     
+    try {
+      await sequelize.query("ALTER TABLE usuarios ADD COLUMN primeiro_acesso INTEGER DEFAULT 1;", { type: QueryTypes.RAW });
+      console.log('Column primeiro_acesso added successfully');
+    } catch (alterError) {
+      console.log('Column primeiro_acesso already exists or table not ready');
+    }
+    
     await sequelize.sync();
     console.log('Database synchronized');
 
@@ -163,11 +170,14 @@ async function initDatabase() {
         email: 'admin@teclemotos.com',
         senha_hash,
         perfil: 'SUPER_ADMIN',
-        ativo: true
+        ativo: true,
+        primeiro_acesso: false
       });
       console.log('Default SUPER ADMIN created:');
       console.log('Email: admin@teclemotos.com');
       console.log('Password: admin123');
+    } else {
+      await Usuario.update({ primeiro_acesso: false }, { where: { email: 'admin@teclemotos.com' } });
     }
   } catch (error) {
     console.error('Database initialization error:', error);

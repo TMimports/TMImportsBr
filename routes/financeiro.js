@@ -156,39 +156,49 @@ router.get('/contas-pagar', canAccessFinanceiro, async (req, res) => {
 
 router.post('/contas-pagar', isSuperAdmin, async (req, res) => {
   try {
-    const { descricao, valor, data_vencimento, fornecedor, categoria, tipo_conta, recorrencia_ativa } = req.body;
+    const { descricao, valor, data_vencimento, fornecedor, categoria, tipo_conta, recorrencia_ativa, parcelas } = req.body;
     
     const isRecorrente = tipo_conta === 'FIXA' && recorrencia_ativa === 'on';
     
-    const conta = await ContaPagar.create({
-      descricao,
-      valor: parseFloat(valor),
-      data_vencimento: new Date(data_vencimento),
-      fornecedor,
-      categoria,
-      tipo_conta,
-      recorrencia_ativa: isRecorrente,
-      status: 'PENDENTE'
-    });
-
-    if (isRecorrente) {
-      const dataBase = new Date(data_vencimento);
-      for (let i = 1; i <= 11; i++) {
-        const novaData = new Date(dataBase);
-        novaData.setMonth(novaData.getMonth() + i);
-        
+    if (isRecorrente && parcelas && Object.keys(parcelas).length > 0) {
+      const parcelasArray = Object.values(parcelas);
+      
+      const primeiraConta = await ContaPagar.create({
+        descricao,
+        valor: parseFloat(parcelasArray[0].valor || valor),
+        data_vencimento: new Date(parcelasArray[0].data || data_vencimento),
+        fornecedor,
+        categoria,
+        tipo_conta,
+        recorrencia_ativa: true,
+        status: 'PENDENTE'
+      });
+      
+      for (let i = 1; i < parcelasArray.length; i++) {
+        const parcela = parcelasArray[i];
         await ContaPagar.create({
           descricao,
-          valor: parseFloat(valor),
-          data_vencimento: novaData,
+          valor: parseFloat(parcela.valor || valor),
+          data_vencimento: new Date(parcela.data),
           fornecedor,
           categoria,
           tipo_conta,
           recorrencia_ativa: false,
-          recorrencia_parent_id: conta.id,
+          recorrencia_parent_id: primeiraConta.id,
           status: 'PENDENTE'
         });
       }
+    } else {
+      await ContaPagar.create({
+        descricao,
+        valor: parseFloat(valor),
+        data_vencimento: new Date(data_vencimento),
+        fornecedor,
+        categoria,
+        tipo_conta,
+        recorrencia_ativa: false,
+        status: 'PENDENTE'
+      });
     }
 
     res.redirect('/financeiro/contas-pagar');

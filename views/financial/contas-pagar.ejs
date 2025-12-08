@@ -130,26 +130,26 @@
   </div>
 
   <div class="modal-overlay" id="createModal">
-    <div class="modal">
+    <div class="modal" style="max-width: 700px;">
       <div class="modal-header">
         <h3 class="modal-title">Nova Conta a Pagar</h3>
         <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
       </div>
-      <form action="/financeiro/contas-pagar" method="POST">
+      <form action="/financeiro/contas-pagar" method="POST" id="formContaPagar">
         <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Descrição *</label>
-            <input type="text" name="descricao" class="form-control" placeholder="Ex: Conta de Luz, Aluguel..." required>
+            <input type="text" name="descricao" id="descricao_base" class="form-control" placeholder="Ex: Conta de Luz, Aluguel..." required>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Valor *</label>
-              <input type="number" name="valor" class="form-control" step="0.01" min="0" required>
+              <label class="form-label">Valor Base *</label>
+              <input type="number" name="valor" id="valor_base" class="form-control" step="0.01" min="0" required>
             </div>
             <div class="form-group">
-              <label class="form-label">Data de Vencimento *</label>
-              <input type="date" name="data_vencimento" class="form-control" required>
+              <label class="form-label">Data de Vencimento Inicial *</label>
+              <input type="date" name="data_vencimento" id="data_base" class="form-control" required>
             </div>
           </div>
           <div class="form-row">
@@ -165,7 +165,7 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Tipo de Conta *</label>
-              <select name="tipo_conta" class="form-control" required onchange="toggleRecorrencia(this.value)">
+              <select name="tipo_conta" id="tipo_conta" class="form-control" required onchange="toggleRecorrencia(this.value)">
                 <option value="UNICA">Única</option>
                 <option value="FIXA">Fixa (Mensal)</option>
                 <option value="VARIAVEL">Variável</option>
@@ -174,10 +174,20 @@
             <div class="form-group" id="recorrenciaGroup" style="display: none;">
               <label class="form-label">Recorrência</label>
               <div class="checkbox-group">
-                <input type="checkbox" name="recorrencia_ativa" id="recorrencia_ativa">
-                <label for="recorrencia_ativa">Gerar contas para os próximos 12 meses</label>
+                <input type="checkbox" name="recorrencia_ativa" id="recorrencia_ativa" onchange="gerarParcelas()">
+                <label for="recorrencia_ativa">Gerar parcelas mensais até dezembro</label>
               </div>
             </div>
+          </div>
+          
+          <div id="parcelasContainer" style="display: none; margin-top: 20px;">
+            <h4 style="color: var(--accent-color); margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+              <i class="fas fa-calendar-alt"></i> Parcelas Mensais
+            </h4>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 15px;">
+              Edite as datas e valores de cada parcela conforme necessário:
+            </p>
+            <div id="parcelasList" style="max-height: 300px; overflow-y: auto;"></div>
           </div>
         </div>
         <div class="modal-footer">
@@ -232,9 +242,94 @@
 
   <script src="/js/app.js"></script>
   <script>
+    const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+    
     function toggleRecorrencia(tipo) {
       document.getElementById('recorrenciaGroup').style.display = tipo === 'FIXA' ? 'block' : 'none';
+      if (tipo !== 'FIXA') {
+        document.getElementById('recorrencia_ativa').checked = false;
+        document.getElementById('parcelasContainer').style.display = 'none';
+        document.getElementById('parcelasList').innerHTML = '';
+      }
     }
+    
+    function gerarParcelas() {
+      const checkbox = document.getElementById('recorrencia_ativa');
+      const container = document.getElementById('parcelasContainer');
+      const lista = document.getElementById('parcelasList');
+      
+      if (!checkbox.checked) {
+        container.style.display = 'none';
+        lista.innerHTML = '';
+        return;
+      }
+      
+      const dataBase = document.getElementById('data_base').value;
+      const valorBase = document.getElementById('valor_base').value || 0;
+      
+      if (!dataBase) {
+        alert('Por favor, selecione a data de vencimento inicial primeiro.');
+        checkbox.checked = false;
+        return;
+      }
+      
+      const dataInicial = new Date(dataBase + 'T12:00:00');
+      const mesInicial = dataInicial.getMonth();
+      const anoInicial = dataInicial.getFullYear();
+      const diaVencimento = dataInicial.getDate();
+      
+      const numParcelas = 12 - mesInicial;
+      
+      lista.innerHTML = '';
+      
+      for (let i = 0; i < numParcelas; i++) {
+        const mesAtual = mesInicial + i;
+        const anoAtual = anoInicial;
+        
+        const ultimoDiaMes = new Date(anoAtual, mesAtual + 1, 0).getDate();
+        const diaFinal = Math.min(diaVencimento, ultimoDiaMes);
+        
+        const dataVenc = new Date(anoAtual, mesAtual, diaFinal);
+        const dataFormatada = dataVenc.toISOString().split('T')[0];
+        
+        const parcelaHtml = `
+          <div class="form-row" style="margin-bottom: 10px; padding: 10px; background: var(--card-bg); border-radius: 8px; border-left: 3px solid var(--accent-color);">
+            <div style="flex: 0 0 100px; display: flex; align-items: center;">
+              <span style="color: var(--accent-color); font-weight: bold;">${i + 1}/${numParcelas}</span>
+              <span style="margin-left: 10px; color: var(--text-secondary);">${meses[mesAtual]}</span>
+            </div>
+            <div class="form-group" style="flex: 1; margin: 0 10px;">
+              <input type="date" name="parcelas[${i}][data]" class="form-control" value="${dataFormatada}" style="padding: 8px;">
+            </div>
+            <div class="form-group" style="flex: 1; margin: 0;">
+              <div style="position: relative;">
+                <span style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);">R$</span>
+                <input type="number" name="parcelas[${i}][valor]" class="form-control" step="0.01" min="0" value="${valorBase}" style="padding: 8px; padding-left: 35px;">
+              </div>
+            </div>
+          </div>
+        `;
+        lista.innerHTML += parcelaHtml;
+      }
+      
+      container.style.display = 'block';
+    }
+    
+    document.getElementById('data_base').addEventListener('change', function() {
+      if (document.getElementById('recorrencia_ativa').checked) {
+        gerarParcelas();
+      }
+    });
+    
+    document.getElementById('valor_base').addEventListener('input', function() {
+      if (document.getElementById('recorrencia_ativa').checked) {
+        const novoValor = this.value;
+        document.querySelectorAll('input[name^="parcelas"][name$="[valor]"]').forEach(input => {
+          input.value = novoValor;
+        });
+      }
+    });
     
     function openEditModal(conta) {
       document.getElementById('editForm').action = '/financeiro/contas-pagar/' + conta.id + '/update';

@@ -70,6 +70,9 @@
                             <button class="btn btn-sm btn-secondary" onclick='openEditModal(<%= JSON.stringify(u) %>)'>
                               <i class="fas fa-edit"></i>
                             </button>
+                            <button class="btn btn-sm btn-info" onclick='openResetSenhaModal(<%= JSON.stringify(u) %>)' title="Resetar Senha">
+                              <i class="fas fa-key"></i>
+                            </button>
                             <form action="/usuarios/<%= u.id %>/toggle" method="POST" style="display:inline;">
                               <%- include('../partials/csrf') %>
                               <button type="submit" class="btn btn-sm btn-<%= u.ativo ? 'warning' : 'success' %>" title="<%= u.ativo ? 'Desativar' : 'Ativar' %>">
@@ -114,8 +117,11 @@
             <input type="email" name="email" class="form-control" required>
           </div>
           <div class="form-group">
-            <label class="form-label">Senha *</label>
-            <input type="password" name="senha" class="form-control" required minlength="6">
+            <label class="form-label">Senha Temporária *</label>
+            <input type="password" name="senha" class="form-control" required minlength="6" placeholder="Senha para primeiro acesso">
+            <small style="color: var(--text-secondary); display: block; margin-top: 5px;">
+              <i class="fas fa-info-circle"></i> O usuário poderá definir sua própria senha no primeiro login.
+            </small>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -187,6 +193,37 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="resetSenhaModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fas fa-key"></i> Resetar Senha</h3>
+        <button class="modal-close" onclick="closeModal('resetSenhaModal')">&times;</button>
+      </div>
+      <form id="resetSenhaForm" method="POST">
+        <%- include('../partials/csrf') %>
+        <div class="modal-body">
+          <p style="color: var(--text-secondary); margin-bottom: 15px;">
+            Definir nova senha temporária para: <strong id="reset_nome_usuario"></strong>
+          </p>
+          <div class="form-group">
+            <label class="form-label">Nova Senha Temporária *</label>
+            <input type="password" name="nova_senha" class="form-control" required minlength="6" placeholder="Mínimo 6 caracteres">
+          </div>
+          <div style="background: var(--card-bg); padding: 15px; border-radius: 8px;">
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">
+              <i class="fas fa-info-circle" style="color: var(--accent-color);"></i>
+              O usuário será solicitado a definir sua própria senha no próximo login.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('resetSenhaModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Resetar Senha</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="/js/app.js"></script>
   <script>
     function openEditModal(u) {
@@ -196,6 +233,12 @@
       document.getElementById('edit_perfil').value = u.perfil || 'VENDEDOR';
       document.getElementById('edit_telefone').value = u.telefone || '';
       openModal('editModal');
+    }
+    
+    function openResetSenhaModal(u) {
+      document.getElementById('resetSenhaForm').action = '/usuarios/' + u.id + '/reset-senha';
+      document.getElementById('reset_nome_usuario').textContent = u.nome;
+      openModal('resetSenhaModal');
     }
   </script>
 </body>

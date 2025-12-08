@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Definir Senha - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-page">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-logo">
+        <img src="/images/logo.png" alt="Tecle Motos" style="max-width: 180px; margin-bottom: 20px;">
+      </div>
+      
+      <h2 style="color: var(--accent-color); text-align: center; margin-bottom: 10px;">
+        <i class="fas fa-key"></i> Primeiro Acesso
+      </h2>
+      <p style="color: var(--text-secondary); text-align: center; margin-bottom: 25px; font-size: 0.9rem;">
+        Bem-vindo(a), <strong><%= usuario.nome %></strong>!<br>
+        Por favor, defina sua senha de acesso.
+      </p>
+      
+      <% if (error) { %>
+        <div class="alert alert-danger" style="margin-bottom: 15px;">
+          <i class="fas fa-exclamation-circle"></i> <%= error %>
+        </div>
+      <% } %>
+      
+      <form action="/primeiro-acesso" method="POST">
+        <%- include('../partials/csrf') %>
+        <input type="hidden" name="usuario_id" value="<%= usuario.id %>">
+        
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-lock"></i> Nova Senha</label>
+          <input type="password" name="nova_senha" class="form-control" placeholder="Digite sua nova senha" required minlength="6" autocomplete="new-password">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label"><i class="fas fa-lock"></i> Confirmar Senha</label>
+          <input type="password" name="confirmar_senha" class="form-control" placeholder="Confirme sua nova senha" required minlength="6" autocomplete="new-password">
+        </div>
+        
+        <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">
+            <i class="fas fa-info-circle" style="color: var(--accent-color);"></i>
+            A senha deve ter no minimo 6 caracteres.
+          </p>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fas fa-check"></i> Definir Senha e Entrar
+        </button>
+      </form>
+    </div>
+    
+    <p class="login-footer">
+      <i class="fas fa-bolt"></i> Energia que move voce
+    </p>
+  </div>
+</body>
+</html>

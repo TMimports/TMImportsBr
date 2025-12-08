@@ -50,7 +50,8 @@ router.post('/', isSuperAdmin, async (req, res) => {
       senha_hash,
       perfil,
       telefone,
-      ativo: true
+      ativo: true,
+      primeiro_acesso: true
     });
 
     res.redirect('/usuarios');
@@ -98,6 +99,28 @@ router.post('/:id/delete', isSuperAdmin, async (req, res) => {
     await Usuario.destroy({ where: { id: req.params.id } });
     res.redirect('/usuarios');
   } catch (error) {
+    res.redirect('/usuarios?error=1');
+  }
+});
+
+router.post('/:id/reset-senha', isSuperAdmin, async (req, res) => {
+  try {
+    const { nova_senha } = req.body;
+    
+    if (!nova_senha || nova_senha.length < 6) {
+      return res.redirect('/usuarios?error=senha');
+    }
+    
+    const senha_hash = await Usuario.hashPassword(nova_senha);
+    
+    await Usuario.update({
+      senha_hash,
+      primeiro_acesso: true
+    }, { where: { id: req.params.id } });
+    
+    res.redirect('/usuarios');
+  } catch (error) {
+    console.error('Reset senha error:', error);
     res.redirect('/usuarios?error=1');
   }
 });
