@@ -68,15 +68,30 @@ app.use((req, res, next) => {
 // CSRF Token middleware - gera e disponibiliza token
 app.use(csrfTokenMiddleware);
 
-// Validação CSRF apenas para rotas sem upload de arquivos
-// Rotas com upload usam validateCsrf diretamente após o multer
+// Lista de rotas que usam upload de arquivos (validação CSRF após multer)
+const uploadRoutes = [
+  { method: 'POST', path: '/vendas' },
+  { method: 'POST', pattern: /^\/vendas\/\d+\/anexos$/ },
+  { method: 'POST', path: '/produtos' },
+  { method: 'POST', pattern: /^\/produtos\/\d+\/anexos$/ }
+];
+
+function isUploadRoute(method, path) {
+  return uploadRoutes.some(route => {
+    if (route.method !== method) return false;
+    if (route.path) return route.path === path;
+    if (route.pattern) return route.pattern.test(path);
+    return false;
+  });
+}
+
+// Validação CSRF global (exceto rotas de upload que validam após multer)
 app.use((req, res, next) => {
   if (req.path === '/login' || ['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
   
-  const contentType = req.headers['content-type'] || '';
-  if (contentType.includes('multipart/form-data')) {
+  if (isUploadRoute(req.method, req.path)) {
     return next();
   }
   
