@@ -77,11 +77,13 @@
                                 <i class="fas fa-edit"></i>
                               </button>
                               <form action="/vendas/<%= venda.id %>/cancelar" method="POST" style="display:inline;" onsubmit="return confirm('Cancelar venda?')">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-warning"><i class="fas fa-ban"></i></button>
                               </form>
                             <% } %>
                             <% if (user.perfil === 'SUPER_ADMIN') { %>
                               <form action="/vendas/<%= venda.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Excluir venda?')">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                               </form>
                             <% } %>
@@ -109,6 +111,7 @@
         <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
       </div>
       <form action="/vendas" method="POST" enctype="multipart/form-data" id="vendaForm">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <h4 style="color: var(--orange); margin-bottom: 15px;">Dados do Cliente</h4>
           <div class="form-row">
@@ -271,7 +274,9 @@
     });
     
     function viewAnexos(vendaId) {
-      fetch('/vendas/' + vendaId + '/anexos')
+      fetch('/vendas/' + vendaId + '/anexos', {
+        headers: { 'x-csrf-token': getCsrfToken() }
+      })
         .then(r => r.json())
         .then(anexos => {
           if (anexos.length === 0) {

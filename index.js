@@ -1,6 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const { doubleCsrf } = require('csrf-csrf');
 const { sequelize, Usuario } = require('./models');
 const { isAuthenticated } = require('./middleware/auth');
 
@@ -36,9 +37,21 @@ app.use(session({
   saveUninitialized: false,
   cookie: { 
     secure: false,
-    maxAge: 24 * 60 * 60 * 1000
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'strict'
   }
 }));
+
+const { doubleCsrfProtection, generateToken } = doubleCsrf({
+  getSecret: () => process.env.CSRF_SECRET || 'tecle-motos-csrf-secret-2024',
+  cookieName: 'x-csrf-token',
+  cookieOptions: {
+    sameSite: 'strict',
+    secure: false,
+    httpOnly: true
+  },
+  getTokenFromRequest: (req) => req.body._csrf || req.headers['x-csrf-token']
+});
 
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
@@ -49,8 +62,18 @@ app.use((req, res, next) => {
     if (!date) return '-';
     return new Date(date).toLocaleDateString('pt-BR');
   };
+  if (req.method === 'GET') {
+    try {
+      res.locals.csrfToken = generateToken(req, res);
+    } catch (e) {
+      res.locals.csrfToken = '';
+    }
+  }
   next();
 });
+
+app.post('/login', (req, res, next) => next());
+app.use(doubleCsrfProtection);
 
 app.use('/', authRoutes);
 app.use('/dashboard', dashboardRoutes);

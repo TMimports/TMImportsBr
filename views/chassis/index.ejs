@@ -76,6 +76,7 @@
                             </button>
                             <% if (ch.status === 'CADASTRADO') { %>
                               <form action="/chassi/<%= ch.id %>/liberar" method="POST" style="display:inline;">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-success" title="Liberar">
                                   <i class="fas fa-check"></i>
                                 </button>
@@ -83,12 +84,14 @@
                             <% } %>
                             <% if (ch.status !== 'VENDIDO') { %>
                               <form action="/chassi/<%= ch.id %>/inativar" method="POST" style="display:inline;">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-warning" title="Inativar">
                                   <i class="fas fa-ban"></i>
                                 </button>
                               </form>
                             <% } %>
                             <form action="/chassi/<%= ch.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Confirma exclusão?')">
+                              <%- include('../partials/csrf') %>
                               <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                             </form>
                           </div>
@@ -112,6 +115,7 @@
         <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
       </div>
       <form action="/chassi" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-row">
             <div class="form-group">
@@ -170,6 +174,7 @@
         <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
       </div>
       <form id="editForm" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-row">
             <div class="form-group">

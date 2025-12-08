@@ -108,12 +108,14 @@
                 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                   <form action="/vendas/<%= venda.id %>/concluir" method="POST" style="display: inline;">
+                    <%- include('../partials/csrf') %>
                     <input type="hidden" name="chassis_selecionados" id="chassiInput-<%= venda.id %>" value="[]">
                     <button type="submit" class="btn btn-success">
                       <i class="fas fa-check"></i> Concluir Venda
                     </button>
                   </form>
                   <form action="/vendas/<%= venda.id %>/cancelar" method="POST" style="display: inline;" onsubmit="return confirm('Cancelar esta venda?')">
+                    <%- include('../partials/csrf') %>
                     <button type="submit" class="btn btn-danger">
                       <i class="fas fa-times"></i> Cancelar Venda
                     </button>
@@ -130,7 +132,9 @@
   <script src="/js/app.js"></script>
   <script>
     function loadChassis(vendaId) {
-      fetch('/chassi/api/disponiveis')
+      fetch('/chassi/api/disponiveis', {
+        headers: { 'x-csrf-token': getCsrfToken() }
+      })
         .then(r => r.json())
         .then(chassis => {
           const container = document.getElementById('chassiSelect-' + vendaId);

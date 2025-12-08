@@ -1,3 +1,8 @@
+function getCsrfToken() {
+  const csrfInput = document.querySelector('input[name="_csrf"]');
+  return csrfInput ? csrfInput.value : '';
+}
+
 function openModal(modalId) {
   document.getElementById(modalId).classList.add('active');
   document.body.style.overflow = 'hidden';

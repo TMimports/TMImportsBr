@@ -91,11 +91,13 @@
                                 </button>
                               <% } %>
                               <form action="/financeiro/conciliacao/<%= lanc.id %>/arquivar" method="POST" style="display:inline;">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-warning" title="Arquivar">
                                   <i class="fas fa-archive"></i>
                                 </button>
                               </form>
                               <form action="/financeiro/conciliacao/<%= lanc.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Excluir lançamento?')">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                               </form>
                             <% } %>
@@ -120,6 +122,7 @@
         <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
       </div>
       <form action="/financeiro/conciliacao" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-row">
             <div class="form-group">
@@ -164,6 +167,7 @@
         <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
       </div>
       <form id="editForm" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-row">
             <div class="form-group">
@@ -208,6 +212,7 @@
         <button class="modal-close" onclick="closeModal('conciliarModal')">&times;</button>
       </div>
       <form id="conciliarForm" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Vincular a Conta a Receber</label>

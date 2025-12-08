@@ -21,7 +21,8 @@
         </div>
       <% } %>
       
-      <form action="/login" method="POST" class="login-form">
+      <form action="/login" method="POST" class="login-form" autocomplete="on">
+        <%- include('../partials/csrf') %>
         <div class="form-group">
           <label class="form-label" for="email">
             <i class="fas fa-envelope"></i> Email

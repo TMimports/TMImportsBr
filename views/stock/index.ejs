@@ -58,6 +58,7 @@
                         <i class="fas fa-edit"></i>
                       </button>
                       <form action="/estoque/estoques/<%= estoque.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Confirma exclusão?')">
+                        <%- include('../partials/csrf') %>
                         <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                       </form>
                     </div>
@@ -89,6 +90,7 @@
                     </div>
                     <div class="actions">
                       <form action="/estoque/subestoques/<%= sub.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Confirma exclusão?')">
+                        <%- include('../partials/csrf') %>
                         <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                       </form>
                     </div>
@@ -142,6 +144,7 @@
                               <i class="fas fa-minus"></i> Baixa
                             </button>
                             <form action="/estoque/itens/<%= item.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Confirma exclusão?')">
+                              <%- include('../partials/csrf') %>
                               <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                             </form>
                           </div>
@@ -165,6 +168,7 @@
         <button class="modal-close" onclick="closeModal('estoqueModal')">&times;</button>
       </div>
       <form action="/estoque/estoques" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Nome do Estoque *</label>
@@ -186,6 +190,7 @@
         <button class="modal-close" onclick="closeModal('subestoqueModal')">&times;</button>
       </div>
       <form action="/estoque/subestoques" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Estoque *</label>
@@ -216,6 +221,7 @@
         <button class="modal-close" onclick="closeModal('itemModal')">&times;</button>
       </div>
       <form action="/estoque/itens" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Produto *</label>
@@ -274,6 +280,7 @@
         <button class="modal-close" onclick="closeModal('editItemModal')">&times;</button>
       </div>
       <form id="editItemForm" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-row">
             <div class="form-group">
@@ -301,6 +308,7 @@
         <button class="modal-close" onclick="closeModal('baixaModal')">&times;</button>
       </div>
       <form id="baixaForm" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Quantidade a dar baixa *</label>

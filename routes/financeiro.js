@@ -5,11 +5,22 @@ const { canAccessFinanceiro, isSuperAdmin } = require('../middleware/auth');
 const { ContaReceber, ContaPagar, LancamentoBancario, Venda, Anexo } = require('../models');
 const multer = require('multer');
 
+const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+  filename: (req, file, cb) => {
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    cb(null, Date.now() + '-' + sanitizedName);
+  }
 });
-const upload = multer({ storage });
+const fileFilter = (req, file, cb) => {
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Tipo de arquivo não permitido'), false);
+  }
+};
+const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.get('/contas-receber', canAccessFinanceiro, async (req, res) => {
   try {

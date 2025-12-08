@@ -70,17 +70,20 @@
                               </button>
                               <% if (conta.status !== 'RECEBIDO') { %>
                                 <form action="/financeiro/contas-receber/<%= conta.id %>/baixa" method="POST" style="display:inline;">
+                                  <%- include('../partials/csrf') %>
                                   <button type="submit" class="btn btn-sm btn-success" title="Dar Baixa">
                                     <i class="fas fa-check"></i>
                                   </button>
                                 </form>
                               <% } %>
                               <form action="/financeiro/contas-receber/<%= conta.id %>/arquivar" method="POST" style="display:inline;">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-warning" title="Arquivar">
                                   <i class="fas fa-archive"></i>
                                 </button>
                               </form>
                               <form action="/financeiro/contas-receber/<%= conta.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Excluir conta?')">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                               </form>
                             <% } %>
@@ -105,6 +108,7 @@
         <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
       </div>
       <form id="editForm" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Data de Vencimento</label>

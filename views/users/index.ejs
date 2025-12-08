@@ -71,12 +71,14 @@
                               <i class="fas fa-edit"></i>
                             </button>
                             <form action="/usuarios/<%= u.id %>/toggle" method="POST" style="display:inline;">
+                              <%- include('../partials/csrf') %>
                               <button type="submit" class="btn btn-sm btn-<%= u.ativo ? 'warning' : 'success' %>" title="<%= u.ativo ? 'Desativar' : 'Ativar' %>">
                                 <i class="fas fa-<%= u.ativo ? 'ban' : 'check' %>"></i>
                               </button>
                             </form>
                             <% if (u.id !== user.id) { %>
                               <form action="/usuarios/<%= u.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Excluir usuário?')">
+                                <%- include('../partials/csrf') %>
                                 <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
                               </form>
                             <% } %>
@@ -101,6 +103,7 @@
         <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
       </div>
       <form action="/usuarios" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Nome Completo *</label>
@@ -146,6 +149,7 @@
         <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
       </div>
       <form id="editForm" method="POST">
+        <%- include('../partials/csrf') %>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Nome Completo</label>
