@@ -149,6 +149,13 @@ Para contas fixas (luz, aluguel, etc):
 
 ## Mudanças Recentes
 
+- **08/12/2024:** Melhorias no sistema de vendas e financeiro
+  - Vendedores podem escolher cor do produto ao criar vendas (campo cor_escolhida)
+  - SUPER ADMIN tem visualização completa de vendas concluídas (rota /vendas/:id/detalhes)
+  - Filtro por período (calendário) nas telas de vendas, contas a receber e a pagar
+  - Correção na sincronização do banco de dados (removido alter: true para evitar conflitos SQLite)
+  - Proteção CSRF simplificada usando sessões
+  
 - **08/12/2024:** Criação inicial do sistema completo
   - Sistema de autenticação com 4 perfis
   - Dashboard principal com gráficos
