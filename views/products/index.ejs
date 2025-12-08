@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Produtos - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title">Produtos / Serviços</h1>
+          <button class="btn btn-primary" onclick="openModal('createModal')">
+            <i class="fas fa-plus"></i> Novo Cadastro
+          </button>
+        </div>
+
+        <form class="search-bar" method="GET">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar..." value="<%= filters.search || '' %>">
+          <select name="tipo" class="form-control">
+            <option value="">Todos os Tipos</option>
+            <option value="MOTO" <%= filters.tipo === 'MOTO' ? 'selected' : '' %>>Moto</option>
+            <option value="SCOOTER" <%= filters.tipo === 'SCOOTER' ? 'selected' : '' %>>Scooter</option>
+            <option value="PECA" <%= filters.tipo === 'PECA' ? 'selected' : '' %>>Peça</option>
+            <option value="SERVICO" <%= filters.tipo === 'SERVICO' ? 'selected' : '' %>>Serviço</option>
+          </select>
+          <select name="categoria" class="form-control">
+            <option value="">Todas as Categorias</option>
+            <% categorias.forEach(cat => { %>
+              <option value="<%= cat %>" <%= filters.categoria === cat ? 'selected' : '' %>><%= cat %></option>
+            <% }) %>
+          </select>
+          <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+        </form>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Item</th>
+                    <th>Modelo / Nome</th>
+                    <th>Cor</th>
+                    <th>Categoria</th>
+                    <th>Preço</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (produtos.length === 0) { %>
+                    <tr><td colspan="7" class="empty-state">Nenhum produto cadastrado</td></tr>
+                  <% } else { %>
+                    <% produtos.forEach(produto => { %>
+                      <tr>
+                        <td>
+                          <span class="badge badge-<%= produto.tipo === 'MOTO' || produto.tipo === 'SCOOTER' ? 'success' : (produto.tipo === 'SERVICO' ? 'info' : 'warning') %>">
+                            <%= produto.tipo %>
+                          </span>
+                        </td>
+                        <td><%= produto.item || '-' %></td>
+                        <td><%= produto.nome_modelo || produto.nome_produto || '-' %></td>
+                        <td><%= produto.cor || '-' %></td>
+                        <td><%= produto.categoria || '-' %></td>
+                        <td><%= formatCurrency(produto.preco_venda) %></td>
+                        <td>
+                          <div class="actions">
+                            <button class="btn btn-sm btn-secondary" onclick='openEditModal(<%= JSON.stringify(produto) %>)'>
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <form action="/produtos/<%= produto.id %>/archive" method="POST" style="display:inline;">
+                              <button type="submit" class="btn btn-sm btn-warning" title="Arquivar">
+                                <i class="fas fa-archive"></i>
+                              </button>
+                            </form>
+                            <form action="/produtos/<%= produto.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Deseja excluir este produto?')">
+                              <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash"></i>
+                              </button>
+                            </form>
+                            <button class="btn btn-sm btn-secondary" onclick="openAnexoModal('produto', <%= produto.id %>)">
+                              <i class="fas fa-paperclip"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="createModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Novo Produto / Serviço</h3>
+        <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+      </div>
+      <form action="/produtos" method="POST" enctype="multipart/form-data">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Tipo *</label>
+              <select name="tipo" class="form-control" required onchange="toggleFields(this.value)">
+                <option value="">Selecione...</option>
+                <option value="MOTO">Moto</option>
+                <option value="SCOOTER">Scooter</option>
+                <option value="PECA">Peça</option>
+                <option value="SERVICO">Serviço</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Item</label>
+              <input type="text" name="item" class="form-control" placeholder="Ex: Moto, Scooter, Capacete...">
+            </div>
+          </div>
+          
+          <div class="form-row" id="vehicleFields">
+            <div class="form-group">
+              <label class="form-label">Modelo</label>
+              <input type="text" name="nome_modelo" class="form-control" placeholder="Ex: TM13, TM Monaco">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cor</label>
+              <input type="text" name="cor" class="form-control" placeholder="Ex: Vermelho, Preto">
+            </div>
+          </div>
+          
+          <div class="form-row" id="productFields" style="display:none;">
+            <div class="form-group">
+              <label class="form-label">Nome do Produto/Serviço</label>
+              <input type="text" name="nome_produto" class="form-control" placeholder="Ex: Capacete X, Revisão 1000km">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Descrição</label>
+            <textarea name="descricao" class="form-control" rows="3" placeholder="Descrição detalhada..."></textarea>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Categoria</label>
+              <input type="text" name="categoria" class="form-control" placeholder="Ex: Moto, Peça Elétrica...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Preço de Venda *</label>
+              <input type="number" name="preco_venda" class="form-control" step="0.01" min="0" required>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Estoque Inicial</label>
+              <select name="estoque_id" class="form-control">
+                <option value="">Selecione o estoque...</option>
+                <% estoques.forEach(est => { %>
+                  <option value="<%= est.id %>"><%= est.nome_estoque %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Subestoque</label>
+              <select name="subestoque_id" class="form-control">
+                <option value="">Nenhum</option>
+                <% subestoques.forEach(sub => { %>
+                  <option value="<%= sub.id %>"><%= sub.nome_subestoque %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Quantidade Inicial</label>
+              <input type="number" name="quantidade_inicial" class="form-control" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Anexo</label>
+              <input type="file" name="anexo" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Produto</h3>
+        <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+      </div>
+      <form id="editForm" method="POST">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" id="edit_tipo" class="form-control" required>
+                <option value="MOTO">Moto</option>
+                <option value="SCOOTER">Scooter</option>
+                <option value="PECA">Peça</option>
+                <option value="SERVICO">Serviço</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Item</label>
+              <input type="text" name="item" id="edit_item" class="form-control">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Modelo</label>
+              <input type="text" name="nome_modelo" id="edit_nome_modelo" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cor</label>
+              <input type="text" name="cor" id="edit_cor" class="form-control">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nome do Produto/Serviço</label>
+            <input type="text" name="nome_produto" id="edit_nome_produto" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição</label>
+            <textarea name="descricao" id="edit_descricao" class="form-control" rows="3"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Categoria</label>
+              <input type="text" name="categoria" id="edit_categoria" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Preço de Venda</label>
+              <input type="number" name="preco_venda" id="edit_preco_venda" class="form-control" step="0.01" min="0" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    function toggleFields(tipo) {
+      const vehicleFields = document.getElementById('vehicleFields');
+      const productFields = document.getElementById('productFields');
+      if (tipo === 'MOTO' || tipo === 'SCOOTER') {
+        vehicleFields.style.display = 'grid';
+        productFields.style.display = 'none';
+      } else {
+        vehicleFields.style.display = 'none';
+        productFields.style.display = 'grid';
+      }
+    }
+    
+    function openEditModal(produto) {
+      document.getElementById('editForm').action = '/produtos/' + produto.id + '/update';
+      document.getElementById('edit_tipo').value = produto.tipo || '';
+      document.getElementById('edit_item').value = produto.item || '';
+      document.getElementById('edit_nome_modelo').value = produto.nome_modelo || '';
+      document.getElementById('edit_cor').value = produto.cor || '';
+      document.getElementById('edit_nome_produto').value = produto.nome_produto || '';
+      document.getElementById('edit_descricao').value = produto.descricao || '';
+      document.getElementById('edit_categoria').value = produto.categoria || '';
+      document.getElementById('edit_preco_venda').value = produto.preco_venda || 0;
+      openModal('editModal');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendas - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title">Vendas</h1>
+          <button class="btn btn-primary" onclick="openModal('createModal')">
+            <i class="fas fa-plus"></i> Nova Venda
+          </button>
+        </div>
+
+        <form class="search-bar" method="GET">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar cliente..." value="<%= filters.search || '' %>">
+          <select name="status" class="form-control">
+            <option value="">Todos Status</option>
+            <option value="PENDENTE" <%= filters.status === 'PENDENTE' ? 'selected' : '' %>>Pendente</option>
+            <option value="APROVADA" <%= filters.status === 'APROVADA' ? 'selected' : '' %>>Aprovada</option>
+            <option value="CONCLUIDA" <%= filters.status === 'CONCLUIDA' ? 'selected' : '' %>>Concluída</option>
+            <option value="CANCELADA" <%= filters.status === 'CANCELADA' ? 'selected' : '' %>>Cancelada</option>
+          </select>
+          <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+        </form>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Cliente</th>
+                    <th>Vendedor</th>
+                    <th>Data</th>
+                    <th>Valor Total</th>
+                    <th>Pagamento</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (vendas.length === 0) { %>
+                    <tr><td colspan="8" class="empty-state">Nenhuma venda encontrada</td></tr>
+                  <% } else { %>
+                    <% vendas.forEach(venda => { %>
+                      <tr>
+                        <td><%= venda.id %></td>
+                        <td>
+                          <strong><%= venda.cliente_nome %></strong>
+                          <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                            <%= venda.cliente_telefone || '' %>
+                          </div>
+                        </td>
+                        <td><%= venda.vendedor ? venda.vendedor.nome : '-' %></td>
+                        <td><%= formatDate(venda.data_venda) %></td>
+                        <td><strong><%= formatCurrency(venda.valor_total) %></strong></td>
+                        <td><%= venda.forma_pagamento || '-' %></td>
+                        <td>
+                          <span class="badge badge-<%= venda.status === 'CONCLUIDA' ? 'success' : (venda.status === 'PENDENTE' ? 'warning' : (venda.status === 'APROVADA' ? 'info' : 'danger')) %>">
+                            <%= venda.status %>
+                          </span>
+                        </td>
+                        <td>
+                          <div class="actions">
+                            <% if (venda.status === 'PENDENTE' && (user.perfil === 'SUPER_ADMIN' || venda.vendedor_id === user.id)) { %>
+                              <button class="btn btn-sm btn-secondary" onclick='openEditVendaModal(<%= JSON.stringify(venda) %>)'>
+                                <i class="fas fa-edit"></i>
+                              </button>
+                              <form action="/vendas/<%= venda.id %>/cancelar" method="POST" style="display:inline;" onsubmit="return confirm('Cancelar venda?')">
+                                <button type="submit" class="btn btn-sm btn-warning"><i class="fas fa-ban"></i></button>
+                              </form>
+                            <% } %>
+                            <% if (user.perfil === 'SUPER_ADMIN') { %>
+                              <form action="/vendas/<%= venda.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Excluir venda?')">
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                              </form>
+                            <% } %>
+                            <button class="btn btn-sm btn-secondary" onclick="viewAnexos(<%= venda.id %>)">
+                              <i class="fas fa-paperclip"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="createModal">
+    <div class="modal" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Nova Venda</h3>
+        <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+      </div>
+      <form action="/vendas" method="POST" enctype="multipart/form-data" id="vendaForm">
+        <div class="modal-body">
+          <h4 style="color: var(--orange); margin-bottom: 15px;">Dados do Cliente</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nome do Cliente *</label>
+              <input type="text" name="cliente_nome" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefone</label>
+              <input type="text" name="cliente_telefone" class="form-control">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" name="cliente_email" class="form-control">
+          </div>
+          
+          <h4 style="color: var(--orange); margin: 20px 0 15px;">Estoque</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Estoque de Consumo</label>
+              <select name="estoque_id" class="form-control">
+                <option value="">Selecione...</option>
+                <% estoques.forEach(est => { %>
+                  <option value="<%= est.id %>"><%= est.nome_estoque %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Subestoque</label>
+              <select name="subestoque_id" class="form-control">
+                <option value="">Nenhum</option>
+                <% subestoques.forEach(sub => { %>
+                  <option value="<%= sub.id %>"><%= sub.nome_subestoque %></option>
+                <% }) %>
+              </select>
+            </div>
+          </div>
+          
+          <h4 style="color: var(--orange); margin: 20px 0 15px;">Itens da Venda</h4>
+          <div id="itensContainer">
+            <div class="item-row" style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Produto</label>
+                <select class="form-control item-produto" onchange="updatePrice(this)">
+                  <option value="">Selecione...</option>
+                  <% produtos.forEach(prod => { %>
+                    <option value="<%= prod.id %>" data-preco="<%= prod.preco_venda %>">
+                      <%= prod.nome_modelo || prod.nome_produto %> (<%= prod.tipo %>) - <%= formatCurrency(prod.preco_venda) %>
+                    </option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Qtd</label>
+                <input type="number" class="form-control item-qtd" value="1" min="1">
+              </div>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Preço Unit.</label>
+                <input type="number" class="form-control item-preco" step="0.01" min="0">
+              </div>
+              <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(this)" style="height: 45px;">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary" onclick="addItem()" style="margin-top: 10px;">
+            <i class="fas fa-plus"></i> Adicionar Item
+          </button>
+          <input type="hidden" name="itens" id="itensInput">
+          
+          <h4 style="color: var(--orange); margin: 20px 0 15px;">Pagamento</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Desconto (R$)</label>
+              <input type="number" name="desconto" class="form-control" step="0.01" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Forma de Pagamento</label>
+              <select name="forma_pagamento" class="form-control">
+                <option value="">Selecione...</option>
+                <option value="PIX">PIX</option>
+                <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                <option value="CARTAO_DEBITO">Cartão de Débito</option>
+                <option value="DINHEIRO">Dinheiro</option>
+                <option value="BOLETO">Boleto</option>
+                <option value="FINANCIAMENTO">Financiamento</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Anexos</label>
+            <input type="file" name="anexos" class="form-control" multiple>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Criar Venda</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    const produtos = <%- JSON.stringify(produtos) %>;
+    
+    function updatePrice(select) {
+      const option = select.options[select.selectedIndex];
+      const preco = option.dataset.preco || 0;
+      const row = select.closest('.item-row');
+      row.querySelector('.item-preco').value = preco;
+    }
+    
+    function addItem() {
+      const container = document.getElementById('itensContainer');
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.style = 'display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;';
+      row.innerHTML = `
+        <div class="form-group" style="margin-bottom: 0;">
+          <select class="form-control item-produto" onchange="updatePrice(this)">
+            <option value="">Selecione...</option>
+            ${produtos.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}">${p.nome_modelo || p.nome_produto} (${p.tipo})</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <input type="number" class="form-control item-qtd" value="1" min="1">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <input type="number" class="form-control item-preco" step="0.01" min="0">
+        </div>
+        <button type="button" class="btn btn-danger btn-sm" onclick="removeItem(this)" style="height: 45px;">
+          <i class="fas fa-times"></i>
+        </button>
+      `;
+      container.appendChild(row);
+    }
+    
+    function removeItem(btn) {
+      const container = document.getElementById('itensContainer');
+      if (container.children.length > 1) {
+        btn.closest('.item-row').remove();
+      }
+    }
+    
+    document.getElementById('vendaForm').addEventListener('submit', function(e) {
+      const rows = document.querySelectorAll('.item-row');
+      const itens = [];
+      rows.forEach(row => {
+        const produto = row.querySelector('.item-produto').value;
+        const qtd = row.querySelector('.item-qtd').value;
+        const preco = row.querySelector('.item-preco').value;
+        if (produto) {
+          itens.push({ produto_id: produto, quantidade: qtd, preco_unitario: preco });
+        }
+      });
+      document.getElementById('itensInput').value = JSON.stringify(itens);
+    });
+    
+    function viewAnexos(vendaId) {
+      fetch('/vendas/' + vendaId + '/anexos')
+        .then(r => r.json())
+        .then(anexos => {
+          if (anexos.length === 0) {
+            alert('Nenhum anexo encontrado.');
+          } else {
+            let msg = 'Anexos:\n';
+            anexos.forEach(a => { msg += '- ' + (a.nome_arquivo || a.caminho_arquivo) + '\n'; });
+            alert(msg);
+          }
+        });
+    }
+    
+    function openEditVendaModal(venda) {
+      alert('Edição disponível apenas via exclusão e recriação para vendas complexas.');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conciliação Bancária - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title">Conciliação Bancária</h1>
+          <% if (user.perfil === 'SUPER_ADMIN') { %>
+            <button class="btn btn-primary" onclick="openModal('createModal')">
+              <i class="fas fa-plus"></i> Novo Lançamento
+            </button>
+          <% } %>
+        </div>
+
+        <form class="search-bar" method="GET">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar descrição..." value="<%= filters.search || '' %>">
+          <select name="status" class="form-control">
+            <option value="">Todos Status</option>
+            <option value="PENDENTE" <%= filters.status === 'PENDENTE' ? 'selected' : '' %>>Pendente</option>
+            <option value="CONCILIADO" <%= filters.status === 'CONCILIADO' ? 'selected' : '' %>>Conciliado</option>
+          </select>
+          <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+        </form>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Descrição</th>
+                    <th>Valor</th>
+                    <th>Tipo</th>
+                    <th>Conta</th>
+                    <th>Vinculado a</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (lancamentos.length === 0) { %>
+                    <tr><td colspan="8" class="empty-state">Nenhum lançamento bancário</td></tr>
+                  <% } else { %>
+                    <% lancamentos.forEach(lanc => { %>
+                      <tr>
+                        <td><%= formatDate(lanc.data) %></td>
+                        <td><strong><%= lanc.descricao %></strong></td>
+                        <td style="color: <%= lanc.tipo === 'CREDITO' ? 'var(--success)' : 'var(--danger)' %>; font-weight: bold;">
+                          <%= lanc.tipo === 'CREDITO' ? '+' : '-' %> <%= formatCurrency(lanc.valor) %>
+                        </td>
+                        <td>
+                          <span class="badge badge-<%= lanc.tipo === 'CREDITO' ? 'success' : 'danger' %>">
+                            <%= lanc.tipo %>
+                          </span>
+                        </td>
+                        <td><%= lanc.conta_texto || '-' %></td>
+                        <td>
+                          <% if (lanc.ContaReceber) { %>
+                            <span class="badge badge-info">Conta a Receber #<%= lanc.ContaReceber.id %></span>
+                          <% } else if (lanc.ContaPagar) { %>
+                            <span class="badge badge-warning">Conta a Pagar #<%= lanc.ContaPagar.id %></span>
+                          <% } else { %>
+                            -
+                          <% } %>
+                        </td>
+                        <td>
+                          <span class="badge badge-<%= lanc.status_conciliacao === 'CONCILIADO' ? 'success' : 'warning' %>">
+                            <%= lanc.status_conciliacao %>
+                          </span>
+                        </td>
+                        <td>
+                          <div class="actions">
+                            <% if (user.perfil === 'SUPER_ADMIN') { %>
+                              <button class="btn btn-sm btn-secondary" onclick='openEditModal(<%= JSON.stringify(lanc) %>)'>
+                                <i class="fas fa-edit"></i>
+                              </button>
+                              <% if (lanc.status_conciliacao !== 'CONCILIADO') { %>
+                                <button class="btn btn-sm btn-success" onclick='openConciliarModal(<%= lanc.id %>)' title="Conciliar">
+                                  <i class="fas fa-link"></i>
+                                </button>
+                              <% } %>
+                              <form action="/financeiro/conciliacao/<%= lanc.id %>/arquivar" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-warning" title="Arquivar">
+                                  <i class="fas fa-archive"></i>
+                                </button>
+                              </form>
+                              <form action="/financeiro/conciliacao/<%= lanc.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Excluir lançamento?')">
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                              </form>
+                            <% } %>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="createModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Novo Lançamento Bancário</h3>
+        <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+      </div>
+      <form action="/financeiro/conciliacao" method="POST">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data *</label>
+              <input type="date" name="data" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo *</label>
+              <select name="tipo" class="form-control" required>
+                <option value="CREDITO">Crédito (Entrada)</option>
+                <option value="DEBITO">Débito (Saída)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição *</label>
+            <input type="text" name="descricao" class="form-control" placeholder="Descrição do lançamento" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor *</label>
+              <input type="number" name="valor" class="form-control" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Conta</label>
+              <input type="text" name="conta_texto" class="form-control" placeholder="Ex: Banco do Brasil, Caixa...">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Lançamento</h3>
+        <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+      </div>
+      <form id="editForm" method="POST">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data</label>
+              <input type="date" name="data" id="edit_data" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo</label>
+              <select name="tipo" id="edit_tipo" class="form-control" required>
+                <option value="CREDITO">Crédito</option>
+                <option value="DEBITO">Débito</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição</label>
+            <input type="text" name="descricao" id="edit_descricao" class="form-control" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor</label>
+              <input type="number" name="valor" id="edit_valor" class="form-control" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Conta</label>
+              <input type="text" name="conta_texto" id="edit_conta" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="conciliarModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Conciliar Lançamento</h3>
+        <button class="modal-close" onclick="closeModal('conciliarModal')">&times;</button>
+      </div>
+      <form id="conciliarForm" method="POST">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Vincular a Conta a Receber</label>
+            <select name="conta_receber_id" class="form-control">
+              <option value="">Nenhum</option>
+              <% contasReceber.forEach(c => { %>
+                <option value="<%= c.id %>">#<%= c.id %> - <%= c.cliente_nome %> - <%= formatCurrency(c.valor) %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vincular a Conta a Pagar</label>
+            <select name="conta_pagar_id" class="form-control">
+              <option value="">Nenhum</option>
+              <% contasPagar.forEach(c => { %>
+                <option value="<%= c.id %>">#<%= c.id %> - <%= c.descricao %> - <%= formatCurrency(c.valor) %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('conciliarModal')">Cancelar</button>
+          <button type="submit" class="btn btn-success">Conciliar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    function openEditModal(lanc) {
+      document.getElementById('editForm').action = '/financeiro/conciliacao/' + lanc.id + '/update';
+      document.getElementById('edit_data').value = lanc.data ? lanc.data.split('T')[0] : '';
+      document.getElementById('edit_tipo').value = lanc.tipo || 'CREDITO';
+      document.getElementById('edit_descricao').value = lanc.descricao || '';
+      document.getElementById('edit_valor').value = lanc.valor || 0;
+      document.getElementById('edit_conta').value = lanc.conta_texto || '';
+      openModal('editModal');
+    }
+    
+    function openConciliarModal(lancId) {
+      document.getElementById('conciliarForm').action = '/financeiro/conciliacao/' + lancId + '/conciliar';
+      openModal('conciliarModal');
+    }
+  </script>
+</body>
+</html>

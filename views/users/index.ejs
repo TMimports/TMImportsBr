@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuários - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title">Gestão de Usuários</h1>
+          <button class="btn btn-primary" onclick="openModal('createModal')">
+            <i class="fas fa-user-plus"></i> Novo Usuário
+          </button>
+        </div>
+
+        <form class="search-bar" method="GET">
+          <input type="text" name="search" class="form-control" placeholder="Pesquisar nome/email..." value="<%= filters.search || '' %>">
+          <select name="perfil" class="form-control">
+            <option value="">Todos Perfis</option>
+            <option value="SUPER_ADMIN" <%= filters.perfil === 'SUPER_ADMIN' ? 'selected' : '' %>>Super Admin</option>
+            <option value="ADMIN" <%= filters.perfil === 'ADMIN' ? 'selected' : '' %>>Admin</option>
+            <option value="VENDEDOR" <%= filters.perfil === 'VENDEDOR' ? 'selected' : '' %>>Vendedor</option>
+            <option value="CONTADOR" <%= filters.perfil === 'CONTADOR' ? 'selected' : '' %>>Contador</option>
+          </select>
+          <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+        </form>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Perfil</th>
+                    <th>Telefone</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (usuarios.length === 0) { %>
+                    <tr><td colspan="6" class="empty-state">Nenhum usuário encontrado</td></tr>
+                  <% } else { %>
+                    <% usuarios.forEach(u => { %>
+                      <tr>
+                        <td><strong><%= u.nome %></strong></td>
+                        <td><%= u.email %></td>
+                        <td>
+                          <span class="badge badge-<%= u.perfil === 'SUPER_ADMIN' ? 'success' : (u.perfil === 'ADMIN' ? 'info' : (u.perfil === 'VENDEDOR' ? 'warning' : 'secondary')) %>">
+                            <%= u.perfil.replace('_', ' ') %>
+                          </span>
+                        </td>
+                        <td><%= u.telefone || '-' %></td>
+                        <td>
+                          <span class="badge badge-<%= u.ativo ? 'success' : 'danger' %>">
+                            <%= u.ativo ? 'ATIVO' : 'INATIVO' %>
+                          </span>
+                        </td>
+                        <td>
+                          <div class="actions">
+                            <button class="btn btn-sm btn-secondary" onclick='openEditModal(<%= JSON.stringify(u) %>)'>
+                              <i class="fas fa-edit"></i>
+                            </button>
+                            <form action="/usuarios/<%= u.id %>/toggle" method="POST" style="display:inline;">
+                              <button type="submit" class="btn btn-sm btn-<%= u.ativo ? 'warning' : 'success' %>" title="<%= u.ativo ? 'Desativar' : 'Ativar' %>">
+                                <i class="fas fa-<%= u.ativo ? 'ban' : 'check' %>"></i>
+                              </button>
+                            </form>
+                            <% if (u.id !== user.id) { %>
+                              <form action="/usuarios/<%= u.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Excluir usuário?')">
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                              </form>
+                            <% } %>
+                          </div>
+                        </td>
+                      </tr>
+                    <% }) %>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="createModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Novo Usuário</h3>
+        <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+      </div>
+      <form action="/usuarios" method="POST">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Nome Completo *</label>
+            <input type="text" name="nome" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email *</label>
+            <input type="email" name="email" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Senha *</label>
+            <input type="password" name="senha" class="form-control" required minlength="6">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Perfil *</label>
+              <select name="perfil" class="form-control" required>
+                <option value="">Selecione...</option>
+                <option value="SUPER_ADMIN">Super Admin</option>
+                <option value="ADMIN">Admin</option>
+                <option value="VENDEDOR">Vendedor</option>
+                <option value="CONTADOR">Contador</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefone</label>
+              <input type="text" name="telefone" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('createModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Usuário</h3>
+        <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+      </div>
+      <form id="editForm" method="POST">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Nome Completo</label>
+            <input type="text" name="nome" id="edit_nome" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" id="edit_email" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nova Senha (deixe em branco para manter)</label>
+            <input type="password" name="senha" class="form-control" minlength="6">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Perfil</label>
+              <select name="perfil" id="edit_perfil" class="form-control" required>
+                <option value="SUPER_ADMIN">Super Admin</option>
+                <option value="ADMIN">Admin</option>
+                <option value="VENDEDOR">Vendedor</option>
+                <option value="CONTADOR">Contador</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefone</label>
+              <input type="text" name="telefone" id="edit_telefone" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    function openEditModal(u) {
+      document.getElementById('editForm').action = '/usuarios/' + u.id + '/update';
+      document.getElementById('edit_nome').value = u.nome || '';
+      document.getElementById('edit_email').value = u.email || '';
+      document.getElementById('edit_perfil').value = u.perfil || 'VENDEDOR';
+      document.getElementById('edit_telefone').value = u.telefone || '';
+      openModal('editModal');
+    }
+  </script>
+</body>
+</html>

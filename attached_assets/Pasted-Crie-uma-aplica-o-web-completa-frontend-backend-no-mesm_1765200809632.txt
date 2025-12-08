@@ -1,0 +1,418 @@
+Crie uma aplicação web completa (frontend + backend no mesmo projeto) chamada
+“Tecle Motos – Dashboard de Mobilidade Elétrica”, para gestão de motos e scooters elétricas, peças e serviços.
+
+O objetivo é ter um dashboard profissional, funcional e sem bugs, com:
+
+Login separado para cada perfil.
+Dashboard principal para SUPER ADMIN.
+Cadastros completos de produtos, estoque, vendas e serviços.
+Financeiro com contas a receber, contas a pagar (incluindo recorrentes) e conciliação bancária.
+Fluxo de venda com vendedor pendente e SUPER ADMIN escolhendo chassi e dando baixa em estoque.
+1. Tecnologias e requisitos gerais (pensado para Replit)
+Backend: Node.js + Express, em um único servidor (index.js ou server.js).
+Banco de dados: SQLite com ORM (Sequelize).
+Frontend:
+Views com EJS (templates do Express).
+CSS moderno (pode usar Tailwind via CDN ou CSS próprio).
+package.json com:
+json
+Copy
+{
+  "scripts": {
+    "start": "node index.js"
+  }
+}
+Requisitos:
+
+Nada de React/build complexo, para evitar problemas no Replit.
+Código organizado em rotas, modelos, views.
+Comentários explicando como rodar (npm install, npm start) e como criar o primeiro SUPER ADMIN.
+Tema visual:
+
+Inspirado na identidade da Tecle Motos:
+Fundo preto/grafite.
+Destaques em laranja (como o logo).
+Textos em branco e detalhes verde-neon remetendo a energia elétrica.
+Layout:
+Sidebar com ícones (Dashboard, Financeiro, Cadastros, Estoque, Vendas, Serviços, Usuários, Conciliação).
+Topbar com nome da empresa e usuário logado.
+2. Perfis de usuário e permissões
+Criar sistema de autenticação com perfis:
+
+SUPER ADMIN
+Acesso total a todo o sistema.
+Acessa Dashboard principal com gráficos e previsões.
+Autoriza e conclui vendas.
+Cadastra e gerencia usuários.
+Cadastra produtos, estoques, subestoques, chassi, serviços.
+Acessa Financeiro (contas a receber/pagar) e conciliação bancária.
+ADMIN
+Acesso a cadastro de produtos / itens / serviços.
+Acesso a cadastro de estoque e subestoque.
+Sem acesso ao Dashboard principal.
+Não conclui venda, não escolhe chassi, não mexe em financeiro.
+VENDEDOR
+Tem dashboard próprio de vendas (quantas vendas fez por período).
+Pode cadastrar vendas (somente suas).
+Pode consultar estoque e subestoques (somente leitura).
+Não tem acesso ao dashboard principal, nem ao financeiro.
+Não pode escolher chassi, nem concluir venda.
+CONTADOR
+Acesso leitura ao Financeiro (Contas a Receber, Contas a Pagar, Conciliação).
+Acesso a relatórios financeiros e conciliação bancária.
+Não altera cadastros nem vendas.
+Login:
+
+Tela de login (email + senha).
+Redirecionar:
+SUPER ADMIN → Dashboard principal.
+ADMIN → tela de cadastros (produtos/estoque).
+VENDEDOR → dashboard de vendedor + módulo vendas/consulta estoque.
+CONTADOR → telas financeiras/relatórios.
+3. Estrutura de dados (Sequelize – nomes claros)
+Crie modelos Sequelize com este nome de tabela/campos (podem ser resumidos):
+
+3.1 Usuários
+Usuario (tabela usuarios):
+
+id
+nome
+email
+senha_hash
+perfil (SUPER_ADMIN, ADMIN, VENDEDOR, CONTADOR)
+telefone
+ativo (BOOLEAN)
+3.2 Produtos / Itens / Serviços
+Produto (tabela produtos):
+
+id
+tipo (MOTO, SCOOTER, PECA, SERVICO)
+item (STRING) – ex: “Moto”, “Item”, “Serviço”
+nome_modelo (STRING) – ex: TM13, TM Monaco (para motos/scooters)
+cor (STRING)
+nome_produto (STRING) – ex: “Capacete X”, “Revisão 1.000km”
+descricao (TEXT)
+categoria (STRING) – ex: “Moto”, “Scooter”, “Peça Elétrica”, “Serviço Manutenção”
+preco_venda (DECIMAL)
+ativo (BOOLEAN)
+Explicação:
+
+Para MOTO/SCOOTER:
+tipo = 'MOTO' ou 'SCOOTER'
+nome_modelo e cor são importantes.
+Para itens/peças:
+tipo = 'PECA', nome_produto = “Capacete”, “Banco” etc.
+Para serviços:
+tipo = 'SERVICO', nome_produto = “Manutenção”, “Revisão” etc.
+3.3 Estoque e Subestoque
+Estoque (tabela estoques):
+
+id
+nome_estoque
+Subestoque (tabela subestoques):
+
+id
+nome_subestoque
+estoque_id
+ItemEstoque (tabela itens_estoque):
+
+id
+produto_id
+estoque_id
+subestoque_id
+quantidade
+quantidade_minima
+ativo (BOOLEAN)
+3.4 Chassi (somente SUPER ADMIN)
+Chassi (tabela chassis):
+
+id
+modelo (STRING – ex: “TM13”)
+cor (STRING)
+numero_chassi (STRING, único)
+estoque_id (opcional, quando alocado)
+subestoque_id (opcional)
+status (CADASTRADO, LIBERADO, VENDIDO, INATIVO)
+3.5 Vendas
+Venda (tabela vendas):
+
+id
+vendedor_id (FK Usuario)
+cliente_nome
+cliente_telefone
+cliente_email
+data_venda
+desconto (DECIMAL)
+valor_total (DECIMAL)
+forma_pagamento (STRING – Pix, Cartão, Dinheiro etc.)
+estoque_id_consumido
+subestoque_id_consumido
+status (PENDENTE, APROVADA, CONCLUIDA, CANCELADA)
+ItemVenda (tabela itens_venda):
+
+id
+venda_id
+produto_id
+quantidade
+preco_unitario
+AnexoVenda (tabela anexos_venda):
+
+id
+venda_id
+caminho_arquivo (STRING – link ou nome de arquivo)
+3.6 Contas a Receber
+ContaReceber (tabela contas_receber):
+
+id
+venda_id (FK Venda, UNIQUE – uma venda gera uma conta)
+cliente_nome
+valor
+data_vencimento
+data_pagamento (opcional)
+forma_pagamento
+origem (PRODUTO, PECA, SERVICO, ou combinação)
+status (EM_ABERTO, RECEBIDO, ATRASADO, CANCELADO)
+TODAS as vendas concluídas pelo SUPER ADMIN devem aparecer automaticamente aqui.
+
+3.7 Contas a Pagar (incluindo recorrentes)
+ContaPagar (tabela contas_pagar):
+
+id
+descricao
+valor
+data_vencimento
+data_pagamento (opcional)
+fornecedor
+categoria (ex: “Luz”, “Aluguel”, “Internet”)
+tipo_conta (FIXA, VARIAVEL, UNICA)
+recorrencia_ativa (BOOLEAN)
+status (PENDENTE, PAGO, CANCELADO)
+Regra de conta fixa/recorrente:
+
+Se tipo_conta = 'FIXA' e recorrencia_ativa = true, então:
+Quando o SUPER ADMIN cadastrar, por exemplo:
+Conta de luz com vencimento em 01/02/2026,
+O sistema deve criar automaticamente as contas para os próximos meses na mesma data:
+01/03/2026, 01/04/2026, etc. (pode ser, por exemplo, +6 ou +12 meses).
+Sempre com botão de Editar, Dar baixa (marcar como PAGO), Arquivar e Delete.
+3.8 Conciliação Bancária
+LancamentoBancario (tabela lancamentos_bancarios):
+
+id
+data
+descricao
+valor
+tipo (CREDITO, DEBITO)
+conta_texto
+status_conciliacao (PENDENTE, CONCILIADO)
+conta_receber_id (opcional)
+conta_pagar_id (opcional)
+Acesso:
+
+SUPER ADMIN e CONTADOR.
+4. Fluxo de trabalho – Vendas e Chassi
+4.1 Vendedor
+Acessa Dashboard do Vendedor:
+Gráfico simples de vendas por período.
+Número de vendas pendentes, aprovadas, concluídas.
+Acessa Cadastro de Venda:
+Campos:
+Cliente: nome, telefone, email.
+Escolher estoque e subestoque de onde o produto será consumido.
+Itens:
+Selecionar produto (moto, scooter, peça ou serviço).
+Para produtos moto/scooter: escolher modelo e cor (isso vem do produto).
+Quantidade.
+Preço unitário.
+Desconto.
+Forma de pagamento.
+Campo de anexos (link/arquivo).
+O vendedor NÃO vê nem escolhe chassi.
+A venda criada fica com status PENDENTE.
+O vendedor pode:
+Editar enquanto pendente.
+Cancelar enquanto pendente.
+Reenviar/“marcar como pronta” para aprovação.
+Em todas as vendas do vendedor:
+Botões: Editar, Dar baixa (se for cancelamento), Lixeira/Delete, Ver anexos.
+4.2 SUPER ADMIN – Aprovação e chassi
+Tela “Vendas Pendentes”:
+Lista de todas as vendas com:
+vendedor,
+cliente,
+estoque/subestoque consumido,
+itens (modelo, cor, quantidade),
+valor total, forma de pagamento.
+SUPER ADMIN pode:
+Editar o pedido (ajustar quantidade, preço, desconto).
+Adicionar/selecionar Chassi para cada moto/scooter:
+Ver chassis disponíveis (status LIBERADO) daquele modelo/cor/estoque.
+Escolher chassi para cada unidade (se o controle for individual).
+Concluir a venda:
+Mudar status para CONCLUIDA.
+Subtrair a quantidade do estoque/subestoque selecionado na venda.
+Subtrair/atualizar o(s) chassi(s): mudar status do chassi para VENDIDO.
+Criar automaticamente o registro em Contas a Receber com os dados da venda.
+Também pode Cancelar venda.
+5. Cadastros – Produtos, Itens, Serviços
+5.1 Cadastro de Produtos (SUPER ADMIN e ADMIN)
+Na tela de Cadastro de Produtos, em estilo painel profissional:
+
+Seção “Configuração básica”:
+Tipo de cadastro: Item, Produto, Serviço.
+Para motos/scooters:
+Item: Moto ou Scooter.
+Cadastro de modelo (ex: TM13, TM Monaco etc.).
+Cadastro de cores (ex: Vermelho, Preto).
+Para itens/peças:
+Item: Capacete, banco, painel….
+Para serviços:
+Serviços: Manutenção, Revisão….
+Campos:
+tipo (MOTO / SCOOTER / PECA / SERVICO),
+nome_modelo,
+cor,
+nome_produto (quando for peça/serviço),
+categoria,
+preco_venda,
+estoque inicial (opcional) + escolha de estoque/subestoque inicial.
+Botões:
+
+Salvar/Cadastrar.
+Editar.
+Arquivar (inativar).
+Lixeira/Delete.
+Anexos (ex: manual técnico da moto, ficha técnica).
+5.2 Cadastro de Estoque e Subestoque (SUPER ADMIN e ADMIN)
+Cadastro de estoques:
+Ex: “Showroom”, “Depósito principal”.
+Cadastro de subestoques ligados a cada estoque:
+Ex: “Subestoque A – Showroom”, “Subestoque B – Depósito”.
+Para cada estoque/subestoque:
+Registrar produtos e suas quantidades.
+Botões: Editar, Baixa manual, Lixeira, Anexos (nota fiscal, por ex.).
+Em todas as telas de estoque e vendas, incluir área de pesquisa:
+Pesquisar por produto, modelo, cor, código, fornecedor, etc.
+6. Financeiro detalhado
+6.1 Contas a Receber (ligado às vendas concluídas)
+Origem: sempre que o SUPER ADMIN concluir uma venda:
+Criar/atualizar registro em contas_receber.
+Listagem:
+Mostrar:
+Cliente,
+Valor,
+Data de vencimento,
+Forma de pagamento,
+Origem (produto/peça/serviço),
+Status.
+Botões por linha:
+Editar (vencimento, forma de pagamento),
+Dar baixa (marcar como RECEBIDO, registrar data_pagamento),
+Arquivar,
+Lixeira/Delete,
+Anexos (ex.: comprovante de pagamento).
+6.2 Contas a Pagar (fixas, variáveis, únicas, com recorrência)
+Cadastro de contas a pagar:
+Campos:
+descrição,
+valor,
+data_vencimento,
+fornecedor,
+categoria,
+tipo_conta (FIXA, VARIAVEL, UNICA),
+recorrencia_ativa (checkbox para contas fixas).
+Regra de recorrência:
+Se tipo_conta = FIXA e recorrencia_ativa = true:
+Ao salvar uma conta com data_vencimento, o sistema deve criar automaticamente as próximas contas com datas de vencimento mês a mês:
+Exemplo:
+Cadastrou “Conta de Luz – 01/02/2026”,
+Sistema gera: 01/03/2026, 01/04/2026, 01/05/2026 etc.
+Listagem:
+Filtros por:
+tipo_conta,
+status,
+período.
+Botões:
+Editar,
+Dar baixa (PAGO),
+Arquivar,
+Lixeira/Delete,
+Anexos (boletos, notas).
+6.3 Conciliação Bancária (SUPER ADMIN e CONTADOR)
+Tela de conciliação:
+Cadastro de lançamentos:
+data, descrição, valor, tipo (crédito/débito), conta_texto.
+Possibilidade de relacionar:
+A uma Conta a Receber,
+Ou a uma Conta a Pagar.
+Status: PENDENTE / CONCILIADO.
+Botões:
+Editar,
+Conciliar (marcar como conciliado + vincular),
+Arquivar,
+Lixeira/Delete,
+Anexos (extrato bancário em PDF, por exemplo).
+7. Dashboard principal (apenas SUPER ADMIN) – Gráficos e previsões
+Criar um dashboard bem profissional, com:
+
+Cards principais:
+Saldo estimado de caixa (Receber – Pagar).
+Total de vendas do mês.
+Total em Contas a Receber em aberto.
+Total em Contas a Pagar pendentes.
+Número de vendas pendentes de aprovação.
+Itens com estoque baixo.
+Gráficos:
+Gráfico de barras: vendas por dia/semana.
+Gráfico de pizza/donut: composição de faturamento (produtos x serviços x peças).
+Gráfico de linha: evolução de saldo (previsão futura com base nas contas a receber e pagar já cadastradas).
+Usar dados de contas a receber/pagar para estimar projeção de caixa para os próximos meses.
+Listas rápidas:
+Próximas contas a pagar.
+Próximas contas a receber.
+Últimas vendas concluídas.
+Itens com estoque crítico.
+8. Comportamento de telas de cadastro (UX)
+Ao clicar em ações de cadastro/edição (produto, venda, conta, estoque, serviço, usuário):
+Abrir modal/aba sobreposta em vez de trocar a página inteira.
+Essa área/modal de cadastro:
+Não deve sumir quando o usuário clicar fora.
+Só fecha quando:
+Clicar em Concluir / Salvar,
+Clicar em Fechar ou Cancelar explícito.
+Após salvar:
+Atualizar a lista (pode recarregar a página ou atualizar via JS simples).
+9. Padrão de botões em todas as áreas
+Em todas as áreas de preenchimento/listagem (produtos, estoque, vendas, chassi, contas, conciliação, serviços, usuários):
+
+Incluir SEMPRE:
+Editar,
+Dar baixa (quando aplicável: contas, vendas pendentes),
+Lixeira/Delete,
+Arquivar (para não perder histórico),
+Anexos (upload ou link de arquivos).
+Em formulários:
+Salvar/Concluir,
+Cancelar,
+Fechar.
+10. Pesquisa em todas as áreas principais
+Nas telas de:
+
+Estoque,
+Vendas,
+Produtos,
+Contas a Receber,
+Contas a Pagar,
+Conciliação,
+incluir campo de pesquisa/filtro por:
+
+Produto/modelo/cor,
+Cliente/fornecedor,
+Status,
+Período.
+Implemente todo o projeto (models Sequelize, rotas Express, views EJS e CSS) seguindo exatamente esses requisitos, garantindo:
+
+Fluxo correto: vendedor cria venda → pendente → super admin escolhe chassi + conclui → baixa estoque/chassi → cria Contas a Receber automaticamente.
+Contas a Pagar com contas fixas recorrentes criando lançamentos futuros automaticamente.
+Dashboard principal profissional, com gráficos e previsões de caixa.
+Perfis separados (Super Admin, Admin, Vendedor, Contador) com acesso apenas às áreas descritas.

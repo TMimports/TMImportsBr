@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard do Vendedor - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title">Meu Dashboard</h1>
+          <a href="/vendas" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nova Venda
+          </a>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card highlight">
+            <div class="stat-icon orange">
+              <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stat-value"><%= totalVendasMes %></div>
+            <div class="stat-label">Vendas Concluídas no Mês</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon green">
+              <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="stat-value"><%= formatCurrency(valorTotalMes) %></div>
+            <div class="stat-label">Valor Total Vendido no Mês</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon yellow">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-value"><%= vendasPendentes %></div>
+            <div class="stat-label">Vendas Pendentes</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon blue">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-value"><%= vendasAprovadas %></div>
+            <div class="stat-label">Vendas Aprovadas</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-container">
+            <div class="chart-title">Minhas Vendas por Dia (Últimos 7 dias)</div>
+            <canvas id="vendasDiaChart" height="200"></canvas>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-list"></i> Minhas Últimas Vendas</h3>
+            </div>
+            <div class="card-body">
+              <% if (ultimasVendas.length === 0) { %>
+                <div class="empty-state">
+                  <i class="fas fa-inbox"></i>
+                  <p>Nenhuma venda registrada</p>
+                </div>
+              <% } else { %>
+                <% ultimasVendas.forEach(venda => { %>
+                  <div class="list-item">
+                    <div>
+                      <strong><%= venda.cliente_nome %></strong>
+                      <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                        <%= formatDate(venda.data_venda) %> - 
+                        <span class="badge badge-<%= venda.status === 'CONCLUIDA' ? 'success' : (venda.status === 'PENDENTE' ? 'warning' : (venda.status === 'APROVADA' ? 'info' : 'danger')) %>">
+                          <%= venda.status %>
+                        </span>
+                      </div>
+                    </div>
+                    <div style="color: var(--orange); font-weight: 600;">
+                      <%= formatCurrency(venda.valor_total) %>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const vendasPorDia = <%- vendasPorDia %>;
+    
+    new Chart(document.getElementById('vendasDiaChart'), {
+      type: 'bar',
+      data: {
+        labels: vendasPorDia.map(v => v.dia),
+        datasets: [{
+          label: 'Vendas',
+          data: vendasPorDia.map(v => v.total),
+          backgroundColor: '#ff6b35',
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { 
+            beginAtZero: true,
+            ticks: { stepSize: 1, color: '#b0b0b0' },
+            grid: { color: '#444' }
+          },
+          x: { 
+            grid: { display: false },
+            ticks: { color: '#b0b0b0' }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

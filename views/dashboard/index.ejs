@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title">Dashboard Principal</h1>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card highlight">
+            <div class="stat-icon green">
+              <i class="fas fa-wallet"></i>
+            </div>
+            <div class="stat-value"><%= formatCurrency(saldoEstimado) %></div>
+            <div class="stat-label">Saldo Estimado de Caixa</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon orange">
+              <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stat-value"><%= formatCurrency(totalVendasMes) %></div>
+            <div class="stat-label">Vendas do Mês</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon blue">
+              <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div class="stat-value"><%= formatCurrency(totalReceberAberto) %></div>
+            <div class="stat-label">A Receber (Em Aberto)</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon red">
+              <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="stat-value"><%= formatCurrency(totalPagarPendente) %></div>
+            <div class="stat-label">A Pagar (Pendentes)</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon yellow">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-value"><%= vendasPendentes %></div>
+            <div class="stat-label">Vendas Pendentes de Aprovação</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon red">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-value"><%= estoqueCritico.length %></div>
+            <div class="stat-label">Itens com Estoque Baixo</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="chart-container">
+            <div class="chart-title">Vendas por Dia (Últimos 7 dias)</div>
+            <canvas id="vendasDiaChart" height="200"></canvas>
+          </div>
+          
+          <div class="chart-container">
+            <div class="chart-title">Composição do Faturamento</div>
+            <canvas id="composicaoChart" height="200"></canvas>
+          </div>
+          
+          <div class="chart-container" style="grid-column: 1 / -1;">
+            <div class="chart-title">Projeção de Caixa (Próximos 6 meses)</div>
+            <canvas id="projecaoChart" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-file-invoice-dollar"></i> Próximas Contas a Pagar</h3>
+            </div>
+            <div class="card-body">
+              <% if (proximasContasPagar.length === 0) { %>
+                <div class="empty-state">
+                  <i class="fas fa-check-circle"></i>
+                  <p>Nenhuma conta pendente</p>
+                </div>
+              <% } else { %>
+                <% proximasContasPagar.forEach(conta => { %>
+                  <div class="list-item">
+                    <div>
+                      <strong><%= conta.descricao %></strong>
+                      <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                        Vence em <%= formatDate(conta.data_vencimento) %>
+                      </div>
+                    </div>
+                    <div style="color: var(--danger); font-weight: 600;">
+                      <%= formatCurrency(conta.valor) %>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-hand-holding-usd"></i> Próximas Contas a Receber</h3>
+            </div>
+            <div class="card-body">
+              <% if (proximasContasReceber.length === 0) { %>
+                <div class="empty-state">
+                  <i class="fas fa-inbox"></i>
+                  <p>Nenhuma conta a receber</p>
+                </div>
+              <% } else { %>
+                <% proximasContasReceber.forEach(conta => { %>
+                  <div class="list-item">
+                    <div>
+                      <strong><%= conta.cliente_nome %></strong>
+                      <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                        Vence em <%= formatDate(conta.data_vencimento) %>
+                      </div>
+                    </div>
+                    <div style="color: var(--success); font-weight: 600;">
+                      <%= formatCurrency(conta.valor) %>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-shopping-cart"></i> Últimas Vendas Concluídas</h3>
+            </div>
+            <div class="card-body">
+              <% if (ultimasVendas.length === 0) { %>
+                <div class="empty-state">
+                  <i class="fas fa-store-slash"></i>
+                  <p>Nenhuma venda concluída</p>
+                </div>
+              <% } else { %>
+                <% ultimasVendas.forEach(venda => { %>
+                  <div class="list-item">
+                    <div>
+                      <strong><%= venda.cliente_nome %></strong>
+                      <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                        Por <%= venda.vendedor ? venda.vendedor.nome : 'N/A' %> em <%= formatDate(venda.data_venda) %>
+                      </div>
+                    </div>
+                    <div style="color: var(--orange); font-weight: 600;">
+                      <%= formatCurrency(venda.valor_total) %>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-exclamation-triangle"></i> Estoque Crítico</h3>
+            </div>
+            <div class="card-body">
+              <% if (estoqueCritico.length === 0) { %>
+                <div class="empty-state">
+                  <i class="fas fa-check-circle"></i>
+                  <p>Estoque em níveis normais</p>
+                </div>
+              <% } else { %>
+                <% estoqueCritico.slice(0, 5).forEach(item => { %>
+                  <div class="list-item critical-stock">
+                    <div>
+                      <strong><%= item.Produto ? (item.Produto.nome_modelo || item.Produto.nome_produto) : 'Produto' %></strong>
+                      <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                        Mínimo: <%= item.quantidade_minima %>
+                      </div>
+                    </div>
+                    <div style="color: var(--danger); font-weight: 600;">
+                      Atual: <%= item.quantidade %>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const vendasPorDia = <%- vendasPorDia %>;
+    const composicaoFaturamento = <%- composicaoFaturamento %>;
+    const projecaoCaixa = <%- projecaoCaixa %>;
+
+    new Chart(document.getElementById('vendasDiaChart'), {
+      type: 'bar',
+      data: {
+        labels: vendasPorDia.map(v => v.dia),
+        datasets: [{
+          label: 'Vendas (R$)',
+          data: vendasPorDia.map(v => v.total),
+          backgroundColor: '#ff6b35',
+          borderRadius: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { 
+            beginAtZero: true,
+            grid: { color: '#444' },
+            ticks: { color: '#b0b0b0' }
+          },
+          x: { 
+            grid: { display: false },
+            ticks: { color: '#b0b0b0' }
+          }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('composicaoChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Motos', 'Scooters', 'Peças', 'Serviços'],
+        datasets: [{
+          data: [
+            composicaoFaturamento.MOTO,
+            composicaoFaturamento.SCOOTER,
+            composicaoFaturamento.PECA,
+            composicaoFaturamento.SERVICO
+          ],
+          backgroundColor: ['#ff6b35', '#39ff14', '#33b5e5', '#ffbb33']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { 
+            position: 'bottom',
+            labels: { color: '#b0b0b0' }
+          }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('projecaoChart'), {
+      type: 'line',
+      data: {
+        labels: projecaoCaixa.map(p => p.mes),
+        datasets: [{
+          label: 'Saldo Projetado',
+          data: projecaoCaixa.map(p => p.saldo),
+          borderColor: '#39ff14',
+          backgroundColor: 'rgba(57, 255, 20, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { 
+            grid: { color: '#444' },
+            ticks: { color: '#b0b0b0' }
+          },
+          x: { 
+            grid: { display: false },
+            ticks: { color: '#b0b0b0' }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
