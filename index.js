@@ -1,7 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
-const { doubleCsrf } = require('csrf-csrf');
+const crypto = require('crypto');
 const { sequelize, Usuario } = require('./models');
 const { isAuthenticated } = require('./middleware/auth');
 
@@ -46,21 +46,10 @@ app.use(session({
   }
 }));
 
-// CSRF Protection
-const csrfConfig = doubleCsrf({
-  getSecret: () => process.env.CSRF_SECRET || 'tecle-motos-csrf-secret-2024',
-  cookieName: 'csrf_token',
-  cookieOptions: {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: false,
-    path: '/'
-  },
-  size: 64,
-  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
-  getTokenFromRequest: (req) => req.body._csrf || req.headers['x-csrf-token']
-});
-const { generateToken, doubleCsrfProtection } = csrfConfig;
+// CSRF Protection - Session-based
+function generateCsrfToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
 
 // Variáveis globais para views
 app.use((req, res, next) => {
@@ -78,14 +67,33 @@ app.use((req, res, next) => {
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
-  res.locals.csrfToken = generateToken(req, res);
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = generateCsrfToken();
+  }
+  res.locals.csrfToken = req.session.csrfToken;
 
   next();
 });
 
+// CSRF Validation Middleware
+function csrfProtection(req, res, next) {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+  
+  const token = req.body._csrf || req.headers['x-csrf-token'];
+  if (!token || token !== req.session.csrfToken) {
+    return res.status(403).render('error', { 
+      message: 'Erro de segurança: Token CSRF inválido.', 
+      user: req.session ? req.session.user : null 
+    });
+  }
+  next();
+}
+
 // Excluir login da proteção CSRF
 app.post('/login', (req, res, next) => next());
-app.use(doubleCsrfProtection);
+app.use(csrfProtection);
 
 // Rotas principais
 app.use('/', authRoutes);
@@ -130,7 +138,7 @@ app.use((req, res) => {
 // Inicialização do banco e usuário padrão
 async function initDatabase() {
   try {
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
     console.log('Database synchronized');
 
     const adminExists = await Usuario.findOne({ where: { perfil: 'SUPER_ADMIN' } });
