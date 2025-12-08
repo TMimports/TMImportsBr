@@ -138,6 +138,17 @@ app.use((req, res) => {
 // Inicialização do banco e usuário padrão
 async function initDatabase() {
   try {
+    const { QueryTypes } = require('sequelize');
+    
+    try {
+      await sequelize.query("ALTER TABLE itens_venda ADD COLUMN cor_escolhida TEXT;", { type: QueryTypes.RAW });
+      console.log('Column cor_escolhida added successfully');
+    } catch (alterError) {
+      if (!alterError.message.includes('duplicate column')) {
+        console.log('Column cor_escolhida already exists or table not ready');
+      }
+    }
+    
     await sequelize.sync();
     console.log('Database synchronized');
 
