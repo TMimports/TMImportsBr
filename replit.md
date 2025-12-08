@@ -142,13 +142,19 @@ Para contas fixas (luz, aluguel, etc):
 
 ## Segurança
 
-- **Proteção CSRF:** Todos os formulários POST incluem token CSRF via csrf-csrf middleware
+- **Proteção CSRF:** Middleware personalizado em middleware/csrf.js com validação após multer para rotas de upload
 - **Upload de Arquivos:** Validação de tipo MIME (imagens e PDFs), limite de 10MB, sanitização de nomes
 - **Senhas:** Hash com bcryptjs
 - **Sessões:** Express-session com cookie seguro
 
 ## Mudanças Recentes
 
+- **08/12/2024:** Correção de erros e melhorias de segurança
+  - Corrigido erro CSRF em formulários com upload de arquivos (multipart/form-data)
+  - Middleware CSRF refatorado para validar após processamento do multer
+  - Exclusão CSRF específica por rota (não mais por content-type global)
+  - Logo Tecle Motos adicionada na tela de login e menu lateral
+  
 - **08/12/2024:** Melhorias no sistema de vendas e financeiro
   - Vendedores podem escolher cor do produto ao criar vendas (campo cor_escolhida)
   - SUPER ADMIN tem visualização completa de vendas concluídas (rota /vendas/:id/detalhes)
