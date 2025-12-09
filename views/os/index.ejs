@@ -1,99 +1,120 @@
-<%- include('../partials/header') %>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ordens de Serviço - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title"><i class="fas fa-tools"></i> Ordens de Serviço</h1>
+          <a href="/ordens-servico/nova" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nova OS
+          </a>
+        </div>
 
-<div class="content-header">
-  <h1><i class="fas fa-tools"></i> Ordens de Serviço</h1>
-  <a href="/ordens-servico/nova" class="btn btn-primary">
-    <i class="fas fa-plus"></i> Nova OS
-  </a>
-</div>
-
-<div class="card">
-  <div class="card-header">
-    <form method="GET" class="filter-form">
-      <div class="filter-row">
-        <input type="text" name="search" placeholder="Buscar por código, cliente ou placa..." 
-               value="<%= filters.search || '' %>" class="form-control">
-        <select name="status" class="form-control">
-          <option value="">Todos os Status</option>
-          <option value="ABERTA" <%= filters.status === 'ABERTA' ? 'selected' : '' %>>Aberta</option>
-          <option value="EM_EXECUCAO" <%= filters.status === 'EM_EXECUCAO' ? 'selected' : '' %>>Em Execução</option>
-          <option value="AGUARDANDO_APROVACAO" <%= filters.status === 'AGUARDANDO_APROVACAO' ? 'selected' : '' %>>Aguardando Aprovação</option>
-          <option value="APROVADA" <%= filters.status === 'APROVADA' ? 'selected' : '' %>>Aprovada</option>
-          <option value="CONCLUIDA" <%= filters.status === 'CONCLUIDA' ? 'selected' : '' %>>Concluída</option>
-          <option value="CANCELADA" <%= filters.status === 'CANCELADA' ? 'selected' : '' %>>Cancelada</option>
-        </select>
-        <input type="date" name="data_inicio" value="<%= filters.data_inicio || '' %>" class="form-control">
-        <input type="date" name="data_fim" value="<%= filters.data_fim || '' %>" class="form-control">
-        <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
-        <a href="/ordens-servico" class="btn btn-outline"><i class="fas fa-times"></i></a>
+        <div class="card">
+          <div class="card-header">
+            <form method="GET" class="search-bar" style="flex-wrap: wrap; gap: 10px;">
+              <input type="text" name="search" placeholder="Buscar por código, cliente ou placa..." 
+                     value="<%= filters.search || '' %>" class="form-control" style="min-width: 200px;">
+              <select name="status" class="form-control" style="min-width: 150px;">
+                <option value="">Todos os Status</option>
+                <option value="ABERTA" <%= filters.status === 'ABERTA' ? 'selected' : '' %>>Aberta</option>
+                <option value="EM_EXECUCAO" <%= filters.status === 'EM_EXECUCAO' ? 'selected' : '' %>>Em Execução</option>
+                <option value="AGUARDANDO_APROVACAO" <%= filters.status === 'AGUARDANDO_APROVACAO' ? 'selected' : '' %>>Aguardando Aprovação</option>
+                <option value="APROVADA" <%= filters.status === 'APROVADA' ? 'selected' : '' %>>Aprovada</option>
+                <option value="CONCLUIDA" <%= filters.status === 'CONCLUIDA' ? 'selected' : '' %>>Concluída</option>
+                <option value="CANCELADA" <%= filters.status === 'CANCELADA' ? 'selected' : '' %>>Cancelada</option>
+              </select>
+              <div style="display: flex; align-items: center; gap: 5px;">
+                <label style="color: var(--text-secondary); font-size: 0.85rem;">De:</label>
+                <input type="date" name="data_inicio" value="<%= filters.data_inicio || '' %>" class="form-control" style="min-width: 140px;">
+              </div>
+              <div style="display: flex; align-items: center; gap: 5px;">
+                <label style="color: var(--text-secondary); font-size: 0.85rem;">Até:</label>
+                <input type="date" name="data_fim" value="<%= filters.data_fim || '' %>" class="form-control" style="min-width: 140px;">
+              </div>
+              <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i></button>
+              <a href="/ordens-servico" class="btn btn-outline"><i class="fas fa-times"></i></a>
+            </form>
+          </div>
+          
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Cliente</th>
+                  <th>Veículo</th>
+                  <th>Entrada</th>
+                  <th>Previsão</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% if (ordensServico.length === 0) { %>
+                  <tr>
+                    <td colspan="8" class="text-center">Nenhuma ordem de serviço encontrada</td>
+                  </tr>
+                <% } %>
+                <% ordensServico.forEach(os => { %>
+                  <tr>
+                    <td><strong><%= os.codigo %></strong></td>
+                    <td><%= os.cliente_nome %></td>
+                    <td><%= os.veiculo_modelo %> <% if (os.veiculo_placa) { %>(<%= os.veiculo_placa %>)<% } %></td>
+                    <td><%= new Date(os.data_entrada).toLocaleDateString('pt-BR') %></td>
+                    <td>
+                      <% if (os.data_prevista_entrega) { %>
+                        <%= new Date(os.data_prevista_entrega).toLocaleDateString('pt-BR') %>
+                      <% } else { %>
+                        -
+                      <% } %>
+                    </td>
+                    <td>R$ <%= parseFloat(os.total || 0).toFixed(2).replace('.', ',') %></td>
+                    <td>
+                      <% 
+                        let statusClass = '';
+                        let statusText = os.status;
+                        switch(os.status) {
+                          case 'ABERTA': statusClass = 'status-pending'; statusText = 'Aberta'; break;
+                          case 'EM_EXECUCAO': statusClass = 'status-progress'; statusText = 'Em Execução'; break;
+                          case 'AGUARDANDO_APROVACAO': statusClass = 'status-warning'; statusText = 'Aguardando'; break;
+                          case 'APROVADA': statusClass = 'status-info'; statusText = 'Aprovada'; break;
+                          case 'CONCLUIDA': statusClass = 'status-completed'; statusText = 'Concluída'; break;
+                          case 'CANCELADA': statusClass = 'status-cancelled'; statusText = 'Cancelada'; break;
+                        }
+                      %>
+                      <span class="status-badge <%= statusClass %>"><%= statusText %></span>
+                    </td>
+                    <td>
+                      <a href="/ordens-servico/<%= os.id %>" class="btn btn-sm btn-info" title="Ver detalhes">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <% if (os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA') { %>
+                        <a href="/ordens-servico/<%= os.id %>/editar" class="btn btn-sm btn-warning" title="Editar">
+                          <i class="fas fa-edit"></i>
+                        </a>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
-    </form>
+    </div>
   </div>
-  
-  <div class="card-body">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Código</th>
-          <th>Cliente</th>
-          <th>Veículo</th>
-          <th>Entrada</th>
-          <th>Previsão</th>
-          <th>Total</th>
-          <th>Status</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% if (ordensServico.length === 0) { %>
-          <tr>
-            <td colspan="8" class="text-center">Nenhuma ordem de serviço encontrada</td>
-          </tr>
-        <% } %>
-        <% ordensServico.forEach(os => { %>
-          <tr>
-            <td><strong><%= os.codigo %></strong></td>
-            <td><%= os.cliente_nome %></td>
-            <td><%= os.veiculo_modelo %> <% if (os.veiculo_placa) { %>(<%= os.veiculo_placa %>)<% } %></td>
-            <td><%= new Date(os.data_entrada).toLocaleDateString('pt-BR') %></td>
-            <td>
-              <% if (os.data_prevista_entrega) { %>
-                <%= new Date(os.data_prevista_entrega).toLocaleDateString('pt-BR') %>
-              <% } else { %>
-                -
-              <% } %>
-            </td>
-            <td>R$ <%= parseFloat(os.total || 0).toFixed(2).replace('.', ',') %></td>
-            <td>
-              <% 
-                let statusClass = '';
-                let statusText = os.status;
-                switch(os.status) {
-                  case 'ABERTA': statusClass = 'status-pending'; statusText = 'Aberta'; break;
-                  case 'EM_EXECUCAO': statusClass = 'status-progress'; statusText = 'Em Execução'; break;
-                  case 'AGUARDANDO_APROVACAO': statusClass = 'status-warning'; statusText = 'Aguardando Aprovação'; break;
-                  case 'APROVADA': statusClass = 'status-info'; statusText = 'Aprovada'; break;
-                  case 'CONCLUIDA': statusClass = 'status-completed'; statusText = 'Concluída'; break;
-                  case 'CANCELADA': statusClass = 'status-cancelled'; statusText = 'Cancelada'; break;
-                }
-              %>
-              <span class="status-badge <%= statusClass %>"><%= statusText %></span>
-            </td>
-            <td>
-              <a href="/ordens-servico/<%= os.id %>" class="btn btn-sm btn-info" title="Ver detalhes">
-                <i class="fas fa-eye"></i>
-              </a>
-              <% if (os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA') { %>
-                <a href="/ordens-servico/<%= os.id %>/editar" class="btn btn-sm btn-warning" title="Editar">
-                  <i class="fas fa-edit"></i>
-                </a>
-              <% } %>
-            </td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<%- include('../partials/footer') %>
+  <script src="/js/app.js"></script>
+</body>
+</html>

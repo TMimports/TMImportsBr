@@ -1,203 +1,224 @@
-<%- include('../partials/header') %>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= orcamento.codigo %> - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title"><i class="fas fa-file-invoice-dollar"></i> <%= orcamento.codigo %></h1>
+          <div style="display: flex; gap: 10px;">
+            <a href="/orcamentos/<%= orcamento.id %>/imprimir" class="btn btn-secondary" target="_blank">
+              <i class="fas fa-print"></i> Imprimir
+            </a>
+            <% if (orcamento.status === 'RASCUNHO') { %>
+              <form method="POST" action="/orcamentos/<%= orcamento.id %>/enviar" style="display: inline;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-paper-plane"></i> Enviar ao Cliente
+                </button>
+              </form>
+            <% } %>
+            <% if ((orcamento.status === 'RASCUNHO' || orcamento.status === 'ENVIADO') && user.perfil === 'SUPER_ADMIN') { %>
+              <form method="POST" action="/orcamentos/<%= orcamento.id %>/aprovar" style="display: inline;">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="submit" class="btn btn-success">
+                  <i class="fas fa-check"></i> Aprovar
+                </button>
+              </form>
+            <% } %>
+            <a href="/orcamentos" class="btn btn-outline">
+              <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+          </div>
+        </div>
 
-<div class="content-header">
-  <h1><i class="fas fa-file-invoice-dollar"></i> <%= orcamento.codigo %></h1>
-  <div class="header-actions">
-    <a href="/orcamentos/<%= orcamento.id %>/imprimir" class="btn btn-secondary" target="_blank">
-      <i class="fas fa-print"></i> Imprimir
-    </a>
-    <% if (orcamento.status === 'RASCUNHO') { %>
-      <form method="POST" action="/orcamentos/<%= orcamento.id %>/enviar" style="display: inline;">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-paper-plane"></i> Enviar ao Cliente
-        </button>
-      </form>
-    <% } %>
-    <% if ((orcamento.status === 'RASCUNHO' || orcamento.status === 'ENVIADO') && user.perfil === 'SUPER_ADMIN') { %>
-      <form method="POST" action="/orcamentos/<%= orcamento.id %>/aprovar" style="display: inline;">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button type="submit" class="btn btn-success">
-          <i class="fas fa-check"></i> Aprovar
-        </button>
-      </form>
-    <% } %>
-    <a href="/orcamentos" class="btn btn-outline">
-      <i class="fas fa-arrow-left"></i> Voltar
-    </a>
-  </div>
-</div>
+        <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+          <% 
+            let statusClass = '';
+            let statusText = orcamento.status;
+            switch(orcamento.status) {
+              case 'RASCUNHO': statusClass = 'status-pending'; statusText = 'Rascunho'; break;
+              case 'ENVIADO': statusClass = 'status-progress'; statusText = 'Enviado'; break;
+              case 'APROVADO': statusClass = 'status-completed'; statusText = 'Aprovado'; break;
+              case 'EXPIRADO': statusClass = 'status-cancelled'; statusText = 'Expirado'; break;
+              case 'CANCELADO': statusClass = 'status-cancelled'; statusText = 'Cancelado'; break;
+            }
+          %>
+          <span class="status-badge <%= statusClass %>" style="font-size: 1.1rem; padding: 8px 16px;"><%= statusText %></span>
+          
+          <% 
+            const now = new Date();
+            const validade = new Date(orcamento.data_validade);
+            const diasRestantes = Math.ceil((validade - now) / (1000 * 60 * 60 * 24));
+          %>
+          <% if (orcamento.status !== 'APROVADO' && orcamento.status !== 'CANCELADO' && orcamento.status !== 'EXPIRADO') { %>
+            <% if (diasRestantes > 0) { %>
+              <span style="color: var(--success); display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-clock"></i> Válido por mais <%= diasRestantes %> dia(s)
+              </span>
+            <% } else { %>
+              <span style="color: var(--danger); display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-exclamation-triangle"></i> Orçamento expirado
+              </span>
+            <% } %>
+          <% } %>
+          
+          <% if (orcamento.origem_tipo === 'VENDA') { %>
+            <a href="/vendas/<%= orcamento.origem_id %>" class="btn btn-sm btn-info">
+              <i class="fas fa-shopping-cart"></i> Ver Venda
+            </a>
+          <% } else { %>
+            <a href="/ordens-servico/<%= orcamento.origem_id %>" class="btn btn-sm btn-info">
+              <i class="fas fa-tools"></i> Ver OS
+            </a>
+          <% } %>
+        </div>
 
-<div class="status-bar">
-  <% 
-    let statusClass = '';
-    let statusText = orcamento.status;
-    switch(orcamento.status) {
-      case 'RASCUNHO': statusClass = 'status-pending'; statusText = 'Rascunho'; break;
-      case 'ENVIADO': statusClass = 'status-progress'; statusText = 'Enviado'; break;
-      case 'APROVADO': statusClass = 'status-completed'; statusText = 'Aprovado'; break;
-      case 'EXPIRADO': statusClass = 'status-cancelled'; statusText = 'Expirado'; break;
-      case 'CANCELADO': statusClass = 'status-cancelled'; statusText = 'Cancelado'; break;
-    }
-  %>
-  <span class="status-badge <%= statusClass %> large"><%= statusText %></span>
-  
-  <% 
-    const now = new Date();
-    const validade = new Date(orcamento.data_validade);
-    const diasRestantes = Math.ceil((validade - now) / (1000 * 60 * 60 * 24));
-  %>
-  <% if (orcamento.status !== 'APROVADO' && orcamento.status !== 'CANCELADO' && orcamento.status !== 'EXPIRADO') { %>
-    <% if (diasRestantes > 0) { %>
-      <span class="validity-info">
-        <i class="fas fa-clock"></i> Válido por mais <%= diasRestantes %> dia(s)
-      </span>
-    <% } else { %>
-      <span class="validity-info text-danger">
-        <i class="fas fa-exclamation-triangle"></i> Orçamento expirado
-      </span>
-    <% } %>
-  <% } %>
-  
-  <span class="origin-info">
-    <% if (orcamento.origem_tipo === 'VENDA') { %>
-      <a href="/vendas/<%= orcamento.origem_id %>"><i class="fas fa-shopping-cart"></i> Ver Venda</a>
-    <% } else { %>
-      <a href="/ordens-servico/<%= orcamento.origem_id %>"><i class="fas fa-tools"></i> Ver OS</a>
-    <% } %>
-  </span>
-</div>
+        <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-user"></i> Cliente</h3>
+            </div>
+            <div class="card-body">
+              <div class="info-row" style="margin-bottom: 10px;">
+                <label style="color: var(--text-secondary); display: block;">Nome:</label>
+                <span style="color: var(--text-primary);"><%= orcamento.cliente_nome %></span>
+              </div>
+              <% if (orcamento.cliente_cpf_cnpj) { %>
+              <div class="info-row" style="margin-bottom: 10px;">
+                <label style="color: var(--text-secondary); display: block;">CPF/CNPJ:</label>
+                <span style="color: var(--text-primary);"><%= orcamento.cliente_cpf_cnpj %></span>
+              </div>
+              <% } %>
+              <% if (orcamento.cliente_telefone) { %>
+              <div class="info-row" style="margin-bottom: 10px;">
+                <label style="color: var(--text-secondary); display: block;">Telefone:</label>
+                <span style="color: var(--text-primary);"><%= orcamento.cliente_telefone %></span>
+              </div>
+              <% } %>
+              <% if (orcamento.cliente_email) { %>
+              <div class="info-row" style="margin-bottom: 10px;">
+                <label style="color: var(--text-secondary); display: block;">Email:</label>
+                <span style="color: var(--text-primary);"><%= orcamento.cliente_email %></span>
+              </div>
+              <% } %>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-info-circle"></i> Informações</h3>
+            </div>
+            <div class="card-body">
+              <div class="info-row" style="margin-bottom: 10px;">
+                <label style="color: var(--text-secondary); display: block;">Emissão:</label>
+                <span style="color: var(--text-primary);"><%= new Date(orcamento.data_emissao).toLocaleDateString('pt-BR') %></span>
+              </div>
+              <div class="info-row" style="margin-bottom: 10px;">
+                <label style="color: var(--text-secondary); display: block;">Validade:</label>
+                <span style="color: var(--text-primary);"><%= new Date(orcamento.data_validade).toLocaleDateString('pt-BR') %></span>
+              </div>
+              <div class="info-row" style="margin-bottom: 10px;">
+                <label style="color: var(--text-secondary); display: block;">Vendedor:</label>
+                <span style="color: var(--text-primary);"><%= orcamento.vendedor ? orcamento.vendedor.nome : '-' %></span>
+              </div>
+              <% if (orcamento.aprovado_em) { %>
+              <div class="info-row" style="margin-bottom: 10px;">
+                <label style="color: var(--text-secondary); display: block;">Aprovado em:</label>
+                <span style="color: var(--text-primary);"><%= new Date(orcamento.aprovado_em).toLocaleDateString('pt-BR') %> por <%= orcamento.aprovado_por %></span>
+              </div>
+              <% } %>
+            </div>
+          </div>
+        </div>
 
-<div class="form-grid">
-  <div class="card">
-    <div class="card-header">
-      <h3><i class="fas fa-user"></i> Cliente</h3>
-    </div>
-    <div class="card-body">
-      <div class="info-row">
-        <label>Nome:</label>
-        <span><%= orcamento.cliente_nome %></span>
-      </div>
-      <% if (orcamento.cliente_cpf_cnpj) { %>
-      <div class="info-row">
-        <label>CPF/CNPJ:</label>
-        <span><%= orcamento.cliente_cpf_cnpj %></span>
-      </div>
-      <% } %>
-      <% if (orcamento.cliente_telefone) { %>
-      <div class="info-row">
-        <label>Telefone:</label>
-        <span><%= orcamento.cliente_telefone %></span>
-      </div>
-      <% } %>
-      <% if (orcamento.cliente_email) { %>
-      <div class="info-row">
-        <label>Email:</label>
-        <span><%= orcamento.cliente_email %></span>
-      </div>
-      <% } %>
-    </div>
-  </div>
-  
-  <div class="card">
-    <div class="card-header">
-      <h3><i class="fas fa-info-circle"></i> Informações</h3>
-    </div>
-    <div class="card-body">
-      <div class="info-row">
-        <label>Emissão:</label>
-        <span><%= new Date(orcamento.data_emissao).toLocaleDateString('pt-BR') %></span>
-      </div>
-      <div class="info-row">
-        <label>Validade:</label>
-        <span><%= new Date(orcamento.data_validade).toLocaleDateString('pt-BR') %></span>
-      </div>
-      <div class="info-row">
-        <label>Vendedor:</label>
-        <span><%= orcamento.vendedor ? orcamento.vendedor.nome : '-' %></span>
-      </div>
-      <% if (orcamento.aprovado_em) { %>
-      <div class="info-row">
-        <label>Aprovado em:</label>
-        <span><%= new Date(orcamento.aprovado_em).toLocaleDateString('pt-BR') %> por <%= orcamento.aprovado_por %></span>
-      </div>
-      <% } %>
-    </div>
-  </div>
-</div>
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header">
+            <h3><i class="fas fa-list"></i> Itens</h3>
+          </div>
+          <div class="card-body">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Descrição</th>
+                    <th>Qtd</th>
+                    <th>Preço Unit.</th>
+                    <th>Desconto</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% if (!orcamento.itens || orcamento.itens.length === 0) { %>
+                    <tr>
+                      <td colspan="6" class="text-center">Nenhum item</td>
+                    </tr>
+                  <% } else { %>
+                    <% orcamento.itens.forEach(item => { %>
+                      <tr>
+                        <td>
+                          <% 
+                            let tipoLabel = item.tipo_item;
+                            if (item.tipo_item === 'PRODUTO') tipoLabel = 'Produto';
+                            else if (item.tipo_item === 'SERVICO') tipoLabel = 'Serviço';
+                            else if (item.tipo_item === 'MAO_DE_OBRA') tipoLabel = 'Mão de Obra';
+                          %>
+                          <%= tipoLabel %>
+                        </td>
+                        <td><%= item.descricao %></td>
+                        <td><%= item.quantidade %></td>
+                        <td>R$ <%= parseFloat(item.preco_unitario).toFixed(2).replace('.', ',') %></td>
+                        <td class="text-danger">- R$ <%= parseFloat(item.desconto || 0).toFixed(2).replace('.', ',') %></td>
+                        <td>R$ <%= parseFloat(item.total).toFixed(2).replace('.', ',') %></td>
+                      </tr>
+                    <% }) %>
+                  <% } %>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="4"></td>
+                    <td><strong>Subtotal:</strong></td>
+                    <td><strong>R$ <%= parseFloat(orcamento.subtotal || 0).toFixed(2).replace('.', ',') %></strong></td>
+                  </tr>
+                  <tr>
+                    <td colspan="4"></td>
+                    <td><strong>Desconto Total:</strong></td>
+                    <td><strong class="text-danger">- R$ <%= parseFloat(orcamento.desconto_total || 0).toFixed(2).replace('.', ',') %></strong></td>
+                  </tr>
+                  <tr>
+                    <td colspan="4"></td>
+                    <td><strong>Total:</strong></td>
+                    <td><strong class="text-success" style="font-size: 1.2rem;">R$ <%= parseFloat(orcamento.total || 0).toFixed(2).replace('.', ',') %></strong></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
 
-<div class="card">
-  <div class="card-header">
-    <h3><i class="fas fa-list"></i> Itens</h3>
-  </div>
-  <div class="card-body">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Tipo</th>
-          <th>Descrição</th>
-          <th>Qtd</th>
-          <th>Preço Unit.</th>
-          <th>Desconto</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% if (!orcamento.itens || orcamento.itens.length === 0) { %>
-          <tr>
-            <td colspan="6" class="text-center">Nenhum item</td>
-          </tr>
-        <% } else { %>
-          <% orcamento.itens.forEach(item => { %>
-            <tr>
-              <td>
-                <% 
-                  let tipoLabel = item.tipo_item;
-                  if (item.tipo_item === 'PRODUTO') tipoLabel = 'Produto';
-                  else if (item.tipo_item === 'SERVICO') tipoLabel = 'Serviço';
-                  else if (item.tipo_item === 'MAO_DE_OBRA') tipoLabel = 'Mão de Obra';
-                %>
-                <%= tipoLabel %>
-              </td>
-              <td><%= item.descricao %></td>
-              <td><%= item.quantidade %></td>
-              <td>R$ <%= parseFloat(item.preco_unitario).toFixed(2).replace('.', ',') %></td>
-              <td class="text-danger">- R$ <%= parseFloat(item.desconto || 0).toFixed(2).replace('.', ',') %></td>
-              <td>R$ <%= parseFloat(item.total).toFixed(2).replace('.', ',') %></td>
-            </tr>
-          <% }) %>
+        <% if (orcamento.observacoes) { %>
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header">
+            <h3><i class="fas fa-sticky-note"></i> Observações</h3>
+          </div>
+          <div class="card-body">
+            <p style="color: var(--text-primary);"><%= orcamento.observacoes %></p>
+          </div>
+        </div>
         <% } %>
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="4"></td>
-          <td><strong>Subtotal:</strong></td>
-          <td><strong>R$ <%= parseFloat(orcamento.subtotal || 0).toFixed(2).replace('.', ',') %></strong></td>
-        </tr>
-        <tr>
-          <td colspan="4"></td>
-          <td><strong>Desconto Total:</strong></td>
-          <td><strong class="text-danger">- R$ <%= parseFloat(orcamento.desconto_total || 0).toFixed(2).replace('.', ',') %></strong></td>
-        </tr>
-        <tr>
-          <td colspan="4"></td>
-          <td><strong>Total:</strong></td>
-          <td><strong class="text-success text-large">R$ <%= parseFloat(orcamento.total || 0).toFixed(2).replace('.', ',') %></strong></td>
-        </tr>
-      </tfoot>
-    </table>
+      </div>
+    </div>
   </div>
-</div>
-
-<% if (orcamento.observacoes) { %>
-<div class="card">
-  <div class="card-header">
-    <h3><i class="fas fa-sticky-note"></i> Observações</h3>
-  </div>
-  <div class="card-body">
-    <p><%= orcamento.observacoes %></p>
-  </div>
-</div>
-<% } %>
-
-<%- include('../partials/footer') %>
+  <script src="/js/app.js"></script>
+</body>
+</html>
