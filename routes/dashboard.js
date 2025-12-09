@@ -22,12 +22,12 @@ router.get('/', isSuperAdmin, async (req, res) => {
     const totalVendasMes = vendasMes.reduce((sum, v) => sum + parseFloat(v.valor_total || 0), 0);
 
     const contasReceberAberto = await ContaReceber.findAll({
-      where: { status: 'EM_ABERTO' }
+      where: { status: 'EM_ABERTO', arquivado: false }
     });
     const totalReceberAberto = contasReceberAberto.reduce((sum, c) => sum + parseFloat(c.valor || 0), 0);
 
     const contasPagarPendentes = await ContaPagar.findAll({
-      where: { status: 'PENDENTE' }
+      where: { status: 'PENDENTE', arquivado: false }
     });
     const totalPagarPendente = contasPagarPendentes.reduce((sum, c) => sum + parseFloat(c.valor || 0), 0);
 
@@ -55,6 +55,7 @@ router.get('/', isSuperAdmin, async (req, res) => {
     const proximasContasPagar = await ContaPagar.findAll({
       where: { 
         status: 'PENDENTE',
+        arquivado: false,
         data_vencimento: { [Op.gte]: hoje }
       },
       order: [['data_vencimento', 'ASC']],
@@ -64,6 +65,7 @@ router.get('/', isSuperAdmin, async (req, res) => {
     const proximasContasReceber = await ContaReceber.findAll({
       where: { 
         status: 'EM_ABERTO',
+        arquivado: false,
         data_vencimento: { [Op.gte]: hoje }
       },
       order: [['data_vencimento', 'ASC']],
@@ -116,12 +118,14 @@ router.get('/', isSuperAdmin, async (req, res) => {
       const receberMes = await ContaReceber.findAll({
         where: {
           status: 'EM_ABERTO',
+          arquivado: false,
           data_vencimento: { [Op.between]: [mesProjecao, fimMesProjecao] }
         }
       });
       const pagarMes = await ContaPagar.findAll({
         where: {
           status: 'PENDENTE',
+          arquivado: false,
           data_vencimento: { [Op.between]: [mesProjecao, fimMesProjecao] }
         }
       });
