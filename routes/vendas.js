@@ -468,4 +468,45 @@ router.post('/:id/gerar-orcamento', isAuthenticated, async (req, res) => {
   }
 });
 
+router.get('/:id/imprimir', isAuthenticated, async (req, res) => {
+  try {
+    const venda = await Venda.findByPk(req.params.id, {
+      include: [
+        { model: Usuario, as: 'vendedor', attributes: ['nome'] },
+        { model: ItemVenda, include: [{ model: Produto }] },
+        { model: Chassi }
+      ]
+    });
+    
+    if (!venda) {
+      return res.render('error', { message: 'Venda não encontrada', user: req.session.user });
+    }
+    
+    res.render('sales/imprimir', { venda, user: req.session.user });
+  } catch (error) {
+    console.error('Print sale error:', error);
+    res.render('error', { message: 'Erro ao imprimir venda', user: req.session.user });
+  }
+});
+
+router.get('/:id/recibo', isAuthenticated, async (req, res) => {
+  try {
+    const venda = await Venda.findByPk(req.params.id, {
+      include: [
+        { model: Usuario, as: 'vendedor', attributes: ['nome'] },
+        { model: ItemVenda, include: [{ model: Produto }] }
+      ]
+    });
+    
+    if (!venda) {
+      return res.render('error', { message: 'Venda não encontrada', user: req.session.user });
+    }
+    
+    res.render('sales/recibo', { venda, user: req.session.user });
+  } catch (error) {
+    console.error('Receipt sale error:', error);
+    res.render('error', { message: 'Erro ao gerar recibo', user: req.session.user });
+  }
+});
+
 module.exports = router;

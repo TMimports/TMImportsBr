@@ -17,9 +17,17 @@
           <h1 class="page-title">
             <i class="fas fa-receipt"></i> Venda #<%= venda.id %>
           </h1>
-          <a href="/vendas" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Voltar
-          </a>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="/vendas/<%= venda.id %>/imprimir" class="btn btn-secondary" target="_blank">
+              <i class="fas fa-print"></i> Imprimir
+            </a>
+            <a href="/vendas/<%= venda.id %>/recibo" class="btn btn-info" target="_blank">
+              <i class="fas fa-receipt"></i> Recibo
+            </a>
+            <a href="/vendas" class="btn btn-outline">
+              <i class="fas fa-arrow-left"></i> Voltar
+            </a>
+          </div>
         </div>
 
         <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">

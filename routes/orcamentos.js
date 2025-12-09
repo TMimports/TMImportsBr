@@ -15,6 +15,94 @@ const canAccessOrcamento = (req, res, next) => {
   next();
 };
 
+router.get('/novo', canAccessOrcamento, async (req, res) => {
+  try {
+    const produtos = await Produto.findAll({ 
+      where: { ativo: true },
+      order: [['nome_modelo', 'ASC'], ['nome_produto', 'ASC']]
+    });
+    
+    res.render('orcamentos/form', { 
+      orcamento: null,
+      produtos,
+      user: req.session.user,
+      csrfToken: req.session.csrfToken
+    });
+  } catch (error) {
+    console.error('New quotation form error:', error);
+    res.render('error', { message: 'Erro ao carregar formulário', user: req.session.user });
+  }
+});
+
+router.post('/novo', canAccessOrcamento, async (req, res) => {
+  try {
+    const { 
+      cliente_nome, cliente_cpf_cnpj, cliente_telefone, cliente_email, cliente_endereco,
+      observacoes, itens 
+    } = req.body;
+    
+    const parsedItens = typeof itens === 'string' ? JSON.parse(itens) : itens;
+    
+    let subtotal = 0;
+    let desconto_total = 0;
+    
+    if (parsedItens && parsedItens.length > 0) {
+      parsedItens.forEach(item => {
+        subtotal += item.preco_unitario * item.quantidade;
+        desconto_total += item.desconto || 0;
+      });
+    }
+    
+    const total = subtotal - desconto_total;
+    
+    const count = await Orcamento.count();
+    const codigo = `ORC-${String(count + 1).padStart(5, '0')}`;
+    
+    const dataEmissao = new Date();
+    const dataValidade = new Date();
+    dataValidade.setDate(dataValidade.getDate() + 7);
+    
+    const orcamento = await Orcamento.create({
+      codigo,
+      origem_tipo: 'AVULSO',
+      origem_id: null,
+      cliente_nome,
+      cliente_cpf_cnpj,
+      cliente_telefone,
+      cliente_email,
+      cliente_endereco,
+      subtotal,
+      desconto_total,
+      total,
+      data_emissao: dataEmissao,
+      data_validade: dataValidade,
+      status: 'RASCUNHO',
+      observacoes,
+      vendedor_id: req.session.user.id
+    });
+    
+    if (parsedItens && parsedItens.length > 0) {
+      for (const item of parsedItens) {
+        await ItemOrcamento.create({
+          orcamento_id: orcamento.id,
+          produto_id: item.produto_id || null,
+          tipo_item: item.tipo_item || 'SERVICO',
+          descricao: item.descricao,
+          quantidade: item.quantidade,
+          preco_unitario: item.preco_unitario,
+          desconto: item.desconto || 0,
+          total: (item.preco_unitario * item.quantidade) - (item.desconto || 0)
+        });
+      }
+    }
+    
+    res.redirect('/orcamentos/' + orcamento.id);
+  } catch (error) {
+    console.error('Create quotation error:', error);
+    res.render('error', { message: 'Erro ao criar orçamento: ' + error.message, user: req.session.user });
+  }
+});
+
 router.get('/', canAccessOrcamento, async (req, res) => {
   try {
     const { search, status, origem_tipo, data_inicio, data_fim } = req.query;

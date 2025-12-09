@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recibo de Venda - Tecle Motos</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #333; background: #fff; padding: 20px; max-width: 400px; margin: 0 auto; }
+    .header { text-align: center; border-bottom: 2px dashed #333; padding-bottom: 15px; margin-bottom: 15px; }
+    .logo-text { font-size: 20px; font-weight: bold; }
+    .logo-sub { font-size: 10px; color: #666; }
+    .doc-title { font-size: 16px; font-weight: bold; margin-top: 10px; }
+    .info-section { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px dashed #ccc; }
+    .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .info-row label { color: #666; }
+    .items-section { margin-bottom: 15px; }
+    .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; }
+    .item-desc { flex: 1; }
+    .totals { border-top: 2px solid #333; padding-top: 10px; margin-top: 10px; }
+    .total-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .total-final { font-size: 16px; font-weight: bold; background: #333; color: #fff; padding: 8px; margin-top: 5px; }
+    .payment { background: #f5f5f5; padding: 8px; margin-top: 10px; font-size: 11px; }
+    .signature { margin-top: 30px; text-align: center; }
+    .signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; font-size: 10px; }
+    .footer { margin-top: 20px; text-align: center; font-size: 10px; color: #666; border-top: 2px dashed #333; padding-top: 10px; }
+    @media print { body { padding: 10px; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom: 20px; text-align: center;">
+    <button onclick="window.print()" style="background: #FF6B35; color: #fff; border: none; padding: 8px 16px; cursor: pointer; border-radius: 5px;">Imprimir</button>
+    <button onclick="window.close()" style="background: #666; color: #fff; border: none; padding: 8px 16px; cursor: pointer; border-radius: 5px; margin-left: 10px;">Fechar</button>
+  </div>
+
+  <div class="header">
+    <div class="logo-text">TECLE MOTOS</div>
+    <div class="logo-sub">Motos e Scooters Elétricas</div>
+    <div class="doc-title">RECIBO DE VENDA</div>
+  </div>
+
+  <div class="info-section">
+    <div class="info-row">
+      <label>Venda:</label>
+      <span><strong>#<%= venda.id %></strong></span>
+    </div>
+    <div class="info-row">
+      <label>Data:</label>
+      <span><%= new Date().toLocaleDateString('pt-BR') %></span>
+    </div>
+    <div class="info-row">
+      <label>Cliente:</label>
+      <span><%= venda.cliente_nome %></span>
+    </div>
+    <% if (venda.cliente_cpf_cnpj) { %>
+    <div class="info-row">
+      <label>CPF/CNPJ:</label>
+      <span><%= venda.cliente_cpf_cnpj %></span>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="items-section">
+    <div style="font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">ITENS</div>
+    <% if (venda.ItemVendas && venda.ItemVendas.length > 0) { %>
+      <% venda.ItemVendas.forEach(item => { %>
+        <div class="item-row">
+          <span class="item-desc"><%= item.quantidade %>x <%= item.Produto ? (item.Produto.nome_modelo || item.Produto.nome_produto || 'Produto') : 'Item' %></span>
+          <span>R$ <%= (parseFloat(item.preco_unitario) * parseInt(item.quantidade)).toFixed(2).replace('.', ',') %></span>
+        </div>
+      <% }) %>
+    <% } %>
+  </div>
+
+  <div class="totals">
+    <% if (venda.desconto && parseFloat(venda.desconto) > 0) { %>
+    <div class="total-row">
+      <span>Desconto:</span>
+      <span>- R$ <%= parseFloat(venda.desconto).toFixed(2).replace('.', ',') %></span>
+    </div>
+    <% } %>
+    <div class="total-row total-final">
+      <span>TOTAL:</span>
+      <span>R$ <%= parseFloat(venda.total || 0).toFixed(2).replace('.', ',') %></span>
+    </div>
+  </div>
+
+  <div class="payment">
+    <strong>Pagamento:</strong> <%= venda.forma_pagamento || 'Não informado' %>
+    <% if (venda.parcelas && venda.parcelas > 1) { %> (<%= venda.parcelas %>x)<% } %>
+  </div>
+
+  <div class="signature">
+    <div class="signature-line">Assinatura do Cliente</div>
+  </div>
+
+  <div class="footer">
+    <p>Tecle Motos - Motos e Scooters Elétricas</p>
+    <p><%= new Date().toLocaleString('pt-BR') %></p>
+    <p>Obrigado pela preferência!</p>
+  </div>
+</body>
+</html>

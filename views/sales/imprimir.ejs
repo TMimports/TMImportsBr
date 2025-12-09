@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Venda - Tecle Motos</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #333; background: #fff; padding: 20px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #FF6B35; padding-bottom: 15px; margin-bottom: 20px; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-text { font-size: 24px; font-weight: bold; color: #FF6B35; }
+    .logo-sub { font-size: 10px; color: #666; }
+    .doc-info { text-align: right; }
+    .doc-info h2 { font-size: 18px; color: #FF6B35; margin-bottom: 5px; }
+    .doc-info p { margin: 3px 0; }
+    .section { margin-bottom: 20px; }
+    .section-title { background: #333; color: #fff; padding: 8px 15px; font-size: 14px; font-weight: bold; margin-bottom: 10px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 15px; }
+    .info-row { margin-bottom: 8px; }
+    .info-row label { color: #666; font-size: 10px; display: block; }
+    .info-row span { font-size: 12px; font-weight: 500; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+    th { background: #f5f5f5; border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 11px; }
+    td { border: 1px solid #ddd; padding: 8px; font-size: 11px; }
+    .text-right { text-align: right; }
+    .totals { margin-top: 20px; }
+    .totals table { width: 300px; margin-left: auto; }
+    .totals td { border: none; padding: 5px 10px; }
+    .totals .total-row { font-size: 14px; font-weight: bold; background: #FF6B35; color: #fff; }
+    .signature-area { margin-top: 40px; display: flex; justify-content: space-between; }
+    .signature-box { width: 45%; text-align: center; }
+    .signature-line { border-top: 1px solid #333; margin-top: 50px; padding-top: 5px; font-size: 11px; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+    .status-pendente { background: #ffc107; color: #000; }
+    .status-aprovada { background: #17a2b8; color: #fff; }
+    .status-concluida { background: #28a745; color: #fff; }
+    .status-cancelada { background: #dc3545; color: #fff; }
+    .footer { margin-top: 30px; text-align: center; color: #666; font-size: 10px; border-top: 1px solid #ddd; padding-top: 15px; }
+    .payment-info { background: #f9f9f9; padding: 10px 15px; border-left: 4px solid #28a745; margin: 10px 15px; }
+    @media print { body { padding: 10px; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom: 20px; text-align: right;">
+    <button onclick="window.print()" style="background: #FF6B35; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px;">
+      <i class="fas fa-print"></i> Imprimir
+    </button>
+    <button onclick="window.close()" style="background: #666; color: #fff; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; margin-left: 10px;">
+      Fechar
+    </button>
+  </div>
+
+  <div class="header">
+    <div class="logo">
+      <div>
+        <div class="logo-text">TECLE MOTOS</div>
+        <div class="logo-sub">Motos e Scooters Elétricas</div>
+      </div>
+    </div>
+    <div class="doc-info">
+      <h2>NOTA DE VENDA</h2>
+      <p><strong>#<%= venda.id %></strong></p>
+      <p>Data: <%= new Date(venda.createdAt).toLocaleDateString('pt-BR') %></p>
+      <% 
+        let statusClass = 'status-pendente';
+        let statusText = venda.status;
+        if (venda.status === 'APROVADA') { statusClass = 'status-aprovada'; statusText = 'Aprovada'; }
+        else if (venda.status === 'CONCLUIDA') { statusClass = 'status-concluida'; statusText = 'Concluída'; }
+        else if (venda.status === 'CANCELADA') { statusClass = 'status-cancelada'; statusText = 'Cancelada'; }
+        else if (venda.status === 'PENDENTE') { statusText = 'Pendente'; }
+      %>
+      <span class="status-badge <%= statusClass %>"><%= statusText %></span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">DADOS DO CLIENTE</div>
+    <div class="info-grid">
+      <div class="info-row">
+        <label>Nome</label>
+        <span><%= venda.cliente_nome %></span>
+      </div>
+      <div class="info-row">
+        <label>CPF/CNPJ</label>
+        <span><%= venda.cliente_cpf_cnpj || '-' %></span>
+      </div>
+      <div class="info-row">
+        <label>Telefone</label>
+        <span><%= venda.cliente_telefone || '-' %></span>
+      </div>
+      <div class="info-row">
+        <label>Email</label>
+        <span><%= venda.cliente_email || '-' %></span>
+      </div>
+    </div>
+    <div style="padding: 0 15px;">
+      <div class="info-row">
+        <label>Endereço</label>
+        <span><%= venda.cliente_endereco || '-' %></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">ITENS DA VENDA</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th>Cor</th>
+          <th class="text-right">Qtd</th>
+          <th class="text-right">Preço Unit.</th>
+          <th class="text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (venda.ItemVendas && venda.ItemVendas.length > 0) { %>
+          <% venda.ItemVendas.forEach(item => { %>
+            <tr>
+              <td><%= item.Produto ? (item.Produto.nome_modelo || item.Produto.nome_produto || 'Produto') : 'Item' %></td>
+              <td><%= item.cor_escolhida || '-' %></td>
+              <td class="text-right"><%= item.quantidade %></td>
+              <td class="text-right">R$ <%= parseFloat(item.preco_unitario).toFixed(2).replace('.', ',') %></td>
+              <td class="text-right">R$ <%= (parseFloat(item.preco_unitario) * parseInt(item.quantidade)).toFixed(2).replace('.', ',') %></td>
+            </tr>
+          <% }) %>
+        <% } else { %>
+          <tr><td colspan="5" style="text-align: center;">Nenhum item</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <% if (venda.Chassi) { %>
+  <div class="section">
+    <div class="section-title">CHASSI DO VEÍCULO</div>
+    <div class="info-grid">
+      <div class="info-row">
+        <label>Número do Chassi</label>
+        <span><%= venda.Chassi.numero %></span>
+      </div>
+      <div class="info-row">
+        <label>Cor</label>
+        <span><%= venda.Chassi.cor || '-' %></span>
+      </div>
+    </div>
+  </div>
+  <% } %>
+
+  <div class="section">
+    <div class="section-title">PAGAMENTO</div>
+    <div class="payment-info">
+      <strong>Forma de Pagamento:</strong> <%= venda.forma_pagamento || '-' %>
+      <% if (venda.parcelas && venda.parcelas > 1) { %>
+        <br><strong>Parcelas:</strong> <%= venda.parcelas %>x
+      <% } %>
+    </div>
+  </div>
+
+  <div class="totals">
+    <table>
+      <% if (venda.desconto && parseFloat(venda.desconto) > 0) { %>
+      <tr>
+        <td>Desconto:</td>
+        <td class="text-right">- R$ <%= parseFloat(venda.desconto).toFixed(2).replace('.', ',') %></td>
+      </tr>
+      <% } %>
+      <tr class="total-row">
+        <td>TOTAL:</td>
+        <td class="text-right">R$ <%= parseFloat(venda.total || 0).toFixed(2).replace('.', ',') %></td>
+      </tr>
+    </table>
+  </div>
+
+  <% if (venda.observacoes) { %>
+  <div class="section" style="margin-top: 20px;">
+    <div class="section-title">OBSERVAÇÕES</div>
+    <div class="payment-info" style="border-left-color: #FF6B35;">
+      <%= venda.observacoes %>
+    </div>
+  </div>
+  <% } %>
+
+  <div class="signature-area">
+    <div class="signature-box">
+      <div class="signature-line">Vendedor</div>
+    </div>
+    <div class="signature-box">
+      <div class="signature-line">Cliente</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>Tecle Motos - Motos e Scooters Elétricas</p>
+    <p>Documento gerado em <%= new Date().toLocaleString('pt-BR') %></p>
+  </div>
+</body>
+</html>

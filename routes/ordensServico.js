@@ -380,4 +380,45 @@ router.post('/:id/status', isSuperAdmin, async (req, res) => {
   }
 });
 
+router.get('/:id/imprimir', canAccessOS, async (req, res) => {
+  try {
+    const ordemServico = await OrdemServico.findByPk(req.params.id, {
+      include: [
+        { model: Usuario, as: 'vendedor', attributes: ['nome'] },
+        { model: Usuario, as: 'responsavelTecnico', attributes: ['nome'] },
+        { model: ItemOrdemServico, as: 'itens', include: [{ model: Produto }] }
+      ]
+    });
+    
+    if (!ordemServico) {
+      return res.render('error', { message: 'OS não encontrada', user: req.session.user });
+    }
+    
+    res.render('os/imprimir', { ordemServico, user: req.session.user });
+  } catch (error) {
+    console.error('Print OS error:', error);
+    res.render('error', { message: 'Erro ao imprimir OS', user: req.session.user });
+  }
+});
+
+router.get('/:id/recibo', canAccessOS, async (req, res) => {
+  try {
+    const ordemServico = await OrdemServico.findByPk(req.params.id, {
+      include: [
+        { model: Usuario, as: 'vendedor', attributes: ['nome'] },
+        { model: ItemOrdemServico, as: 'itens' }
+      ]
+    });
+    
+    if (!ordemServico) {
+      return res.render('error', { message: 'OS não encontrada', user: req.session.user });
+    }
+    
+    res.render('os/recibo', { ordemServico, user: req.session.user });
+  } catch (error) {
+    console.error('Receipt OS error:', error);
+    res.render('error', { message: 'Erro ao gerar recibo', user: req.session.user });
+  }
+});
+
 module.exports = router;
