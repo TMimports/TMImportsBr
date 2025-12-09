@@ -1,0 +1,149 @@
+✅ Resumo Atualizado – Estoque e Vendas (Com Chassi no Cadastro)
+
+1. Estrutura de Estoque e Permissões
+
+Existem 2 galpões (Recreio e Campo Grande), que funcionam como centros de distribuição.
+
+O usuário do galpão é o Super Administrador e pode ver todos os estoques (galpões, lojas próprias e franquias).
+
+Todas as lojas (próprias e franquias) podem ver o estoque dos galpões.
+
+Lojas próprias (mesmo dono do galpão) podem ver o estoque umas das outras.
+
+Franquias só veem o próprio estoque + estoque dos galpões.
+
+Lojas próprias recebem consignado (motos/peças pertencem ao mesmo dono).
+
+Franquias pagam antecipadamente antes de receber produtos.
+
+Todos os pedidos de moto/peça são feitos diretamente ao galpão.
+
+
+
+---
+
+2. Regras de Transferência
+
+Lojas do mesmo dono podem transferir estoque entre si.
+
+Franquias não podem transferir entre si.
+
+Lojas próprias e franquias não transferem entre si.
+
+O galpão não participa de transferências entre lojas do mesmo dono.
+
+
+
+---
+
+3. Estrutura e Cadastro de Produtos
+
+3.1 Motos
+
+No momento do cadastro, são registrados:
+
+Modelo
+
+Cor
+
+Quantidade
+
+Capacidade da bateria
+
+Valor de custo, lucro e valor de venda
+
+Chassi (agora obrigatório no cadastro)
+
+Código do Motor (também no cadastro)
+
+
+
+3.2 Peças
+
+Código
+
+Nome
+
+Quantidade
+
+Características técnicas
+
+Valor de custo, lucro e valor unitário
+
+
+Consulta de estoque sempre por Modelo + Cor.
+
+
+---
+
+4. Fluxo de Venda (com aprovação do Gerente da Loja)
+
+1. O vendedor cria:
+
+Orçamento
+
+Pedido de venda
+
+OS (ordem de serviço)
+
+
+
+2. O pedido de venda vai automaticamente para o Gerente da loja (Administrador da unidade).
+
+
+3. O Gerente:
+
+Analisa e aprova/reprova
+
+Libera a venda
+
+Finaliza faturamento
+
+Registra forma de pagamento
+
+
+
+4. Após aprovação:
+
+O sistema baixa o estoque
+
+Emite recibo/nota
+
+Calcula comissão do vendedor
+
+
+
+
+Como o chassi já está cadastrado no estoque, a seleção é imediata.
+
+
+---
+
+5. Orçamentos (Venda e Serviço)
+
+O orçamento é unificado e serve tanto para:
+
+Vendas (motos e peças)
+
+Serviços (revisão, instalação etc.)
+
+
+Pode ser convertido em Pedido de Venda ou em OS.
+
+
+
+---
+
+6. Regras Essenciais
+
+Galpão tem visão total; lojas têm visão limitada conforme dono.
+
+Chassi e motor agora fazem parte do cadastro inicial da moto.
+
+Estoque baixa somente após aprovação do gerente da loja.
+
+Franquias devem pagar antes para receber qualquer produto.
+
+Lojas próprias funcionam em consignação.
+
+Todas as solicitações de estoque são feitas ao galpão.

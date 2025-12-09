@@ -174,6 +174,15 @@ async function initDatabase() {
       console.log('Columns anexo already exist or table not ready');
     }
     
+    try {
+      await sequelize.query("ALTER TABLE produtos ADD COLUMN chassi TEXT;", { type: QueryTypes.RAW });
+      await sequelize.query("ALTER TABLE produtos ADD COLUMN codigo_motor TEXT;", { type: QueryTypes.RAW });
+      await sequelize.query("ALTER TABLE produtos ADD COLUMN capacidade_bateria TEXT;", { type: QueryTypes.RAW });
+      console.log('Columns chassi, codigo_motor, capacidade_bateria added to produtos');
+    } catch (alterError) {
+      console.log('Product columns already exist or table not ready');
+    }
+    
     await sequelize.sync();
     console.log('Database synchronized');
 

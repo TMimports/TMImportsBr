@@ -210,7 +210,8 @@
     id: p.id,
     nome: p.nome_modelo || p.nome_produto || 'Sem nome',
     preco_venda: p.preco_venda,
-    tipo: p.tipo
+    tipo: p.tipo,
+    chassi: p.chassi || ''
   }))) %>;
   let itens = [];
 
@@ -225,6 +226,32 @@
     total: parseFloat(i.total)
   }))) %>;
   <% } %>
+  
+  function getFilteredProducts(tipoItem) {
+    if (tipoItem === 'MOTO') {
+      return produtos.filter(p => p.tipo === 'MOTO' || p.tipo === 'SCOOTER');
+    } else if (tipoItem === 'PRODUTO') {
+      return produtos.filter(p => p.tipo === 'PECA' || p.tipo === 'PRODUTO');
+    } else if (tipoItem === 'SERVICO') {
+      return produtos.filter(p => p.tipo === 'SERVICO');
+    }
+    return produtos;
+  }
+  
+  function buildProductOptions(tipoItem, selectedId) {
+    let filtered = getFilteredProducts(tipoItem);
+    if (selectedId) {
+      const selectedProduct = produtos.find(p => p.id == selectedId);
+      if (selectedProduct && !filtered.find(p => p.id == selectedId)) {
+        filtered = [selectedProduct, ...filtered];
+      }
+    }
+    return '<option value="">-- Manual --</option>' + 
+      filtered.map(p => {
+        const chassiInfo = p.chassi ? ` - Chassi: ${p.chassi}` : '';
+        return `<option value="${p.id}" ${p.id == selectedId ? 'selected' : ''}>${p.nome}${chassiInfo}</option>`;
+      }).join('');
+  }
 
   function renderItens() {
     const tbody = document.getElementById('itensList');
@@ -241,16 +268,16 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>
-          <select onchange="updateItem(${index}, 'tipo_item', this.value)" class="form-control form-control-sm">
+          <select onchange="updateItemType(${index}, this.value)" class="form-control form-control-sm">
+            <option value="MOTO" ${item.tipo_item === 'MOTO' ? 'selected' : ''}>Moto</option>
             <option value="PRODUTO" ${item.tipo_item === 'PRODUTO' ? 'selected' : ''}>Produto</option>
             <option value="SERVICO" ${item.tipo_item === 'SERVICO' ? 'selected' : ''}>Serviço</option>
             <option value="MAO_DE_OBRA" ${item.tipo_item === 'MAO_DE_OBRA' ? 'selected' : ''}>Mão de Obra</option>
           </select>
         </td>
         <td>
-          <select onchange="selectProduto(${index}, this.value)" class="form-control form-control-sm">
-            <option value="">-- Manual --</option>
-            ${produtos.map(p => `<option value="${p.id}" ${item.produto_id == p.id ? 'selected' : ''}>${p.nome}</option>`).join('')}
+          <select onchange="selectProduto(${index}, this.value)" class="form-control form-control-sm" id="prodSelect_${index}">
+            ${buildProductOptions(item.tipo_item, item.produto_id)}
           </select>
         </td>
         <td>
@@ -303,15 +330,22 @@
     itens[index].total = (itens[index].preco_unitario * itens[index].quantidade) - itens[index].desconto;
     renderItens();
   }
+  
+  function updateItemType(index, tipoItem) {
+    itens[index].tipo_item = tipoItem;
+    itens[index].produto_id = null;
+    itens[index].descricao = '';
+    itens[index].preco_unitario = 0;
+    renderItens();
+  }
 
   function selectProduto(index, produtoId) {
     if (produtoId) {
       const produto = produtos.find(p => p.id == produtoId);
       if (produto) {
         itens[index].produto_id = produto.id;
-        itens[index].descricao = produto.nome;
+        itens[index].descricao = produto.nome + (produto.chassi ? ' - Chassi: ' + produto.chassi : '');
         itens[index].preco_unitario = parseFloat(produto.preco_venda);
-        itens[index].tipo_item = produto.tipo === 'SERVICO' ? 'SERVICO' : 'PRODUTO';
         itens[index].total = (itens[index].preco_unitario * itens[index].quantidade) - itens[index].desconto;
       }
     } else {

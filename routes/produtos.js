@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
-const { isAdmin } = require('../middleware/auth');
+const { isAdmin, isAuthenticated } = require('../middleware/auth');
 const { validateCsrf } = require('../middleware/csrf');
 const { Produto, ItemEstoque, Estoque, Subestoque, Anexo } = require('../models');
 const multer = require('multer');
@@ -65,7 +65,7 @@ router.get('/', isAdmin, async (req, res) => {
 
 router.post('/', isAdmin, upload.single('anexo'), validateCsrf, async (req, res) => {
   try {
-    const { tipo, item, nome_modelo, cor, nome_produto, descricao, categoria, preco_venda, estoque_id, subestoque_id, quantidade_inicial } = req.body;
+    const { tipo, item, nome_modelo, cor, nome_produto, descricao, categoria, preco_venda, estoque_id, subestoque_id, quantidade_inicial, chassi, codigo_motor, capacidade_bateria } = req.body;
     
     const produto = await Produto.create({
       tipo,
@@ -76,6 +76,9 @@ router.post('/', isAdmin, upload.single('anexo'), validateCsrf, async (req, res)
       descricao,
       categoria,
       preco_venda: parseFloat(preco_venda) || 0,
+      chassi: chassi || null,
+      codigo_motor: codigo_motor || null,
+      capacidade_bateria: capacidade_bateria || null,
       ativo: true
     });
 
@@ -108,7 +111,7 @@ router.post('/', isAdmin, upload.single('anexo'), validateCsrf, async (req, res)
 
 router.post('/:id/update', isAdmin, async (req, res) => {
   try {
-    const { tipo, item, nome_modelo, cor, nome_produto, descricao, categoria, preco_venda } = req.body;
+    const { tipo, item, nome_modelo, cor, nome_produto, descricao, categoria, preco_venda, chassi, codigo_motor, capacidade_bateria } = req.body;
     
     await Produto.update({
       tipo,
@@ -118,7 +121,10 @@ router.post('/:id/update', isAdmin, async (req, res) => {
       nome_produto,
       descricao,
       categoria,
-      preco_venda: parseFloat(preco_venda) || 0
+      preco_venda: parseFloat(preco_venda) || 0,
+      chassi: chassi || null,
+      codigo_motor: codigo_motor || null,
+      capacidade_bateria: capacidade_bateria || null
     }, { where: { id: req.params.id } });
 
     res.redirect('/produtos');
@@ -172,6 +178,31 @@ router.post('/:id/anexos', isAdmin, upload.single('arquivo'), validateCsrf, asyn
     res.redirect('/produtos');
   } catch (error) {
     res.redirect('/produtos?error=1');
+  }
+});
+
+router.get('/api/por-tipo/:tipo', isAuthenticated, async (req, res) => {
+  try {
+    const { tipo } = req.params;
+    let where = { ativo: true };
+    
+    if (tipo === 'MOTO') {
+      where.tipo = { [Op.in]: ['MOTO', 'SCOOTER'] };
+    } else if (tipo === 'PRODUTO') {
+      where.tipo = { [Op.in]: ['PECA', 'PRODUTO'] };
+    } else if (tipo === 'SERVICO') {
+      where.tipo = 'SERVICO';
+    }
+    
+    const produtos = await Produto.findAll({ 
+      where,
+      order: [['nome_modelo', 'ASC'], ['nome_produto', 'ASC']]
+    });
+    
+    res.json(produtos);
+  } catch (error) {
+    console.error('API produtos por tipo error:', error);
+    res.json([]);
   }
 });
 

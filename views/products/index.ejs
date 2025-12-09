@@ -140,6 +140,24 @@
             </div>
           </div>
           
+          <div class="form-row" id="motoFields" style="display:none;">
+            <div class="form-group">
+              <label class="form-label">Chassi</label>
+              <input type="text" name="chassi" class="form-control" placeholder="Número do chassi">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Código do Motor</label>
+              <input type="text" name="codigo_motor" class="form-control" placeholder="Código do motor">
+            </div>
+          </div>
+          
+          <div class="form-row" id="motoFields2" style="display:none;">
+            <div class="form-group">
+              <label class="form-label">Capacidade da Bateria</label>
+              <input type="text" name="capacidade_bateria" class="form-control" placeholder="Ex: 72V 40Ah">
+            </div>
+          </div>
+          
           <div class="form-row" id="productFields" style="display:none;">
             <div class="form-group">
               <label class="form-label">Nome do Produto/Serviço</label>
@@ -227,7 +245,7 @@
               <input type="text" name="item" id="edit_item" class="form-control">
             </div>
           </div>
-          <div class="form-row">
+          <div class="form-row" id="edit_vehicleFields">
             <div class="form-group">
               <label class="form-label">Modelo</label>
               <input type="text" name="nome_modelo" id="edit_nome_modelo" class="form-control">
@@ -237,7 +255,23 @@
               <input type="text" name="cor" id="edit_cor" class="form-control">
             </div>
           </div>
-          <div class="form-group">
+          <div class="form-row" id="edit_motoFields">
+            <div class="form-group">
+              <label class="form-label">Chassi</label>
+              <input type="text" name="chassi" id="edit_chassi" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Código do Motor</label>
+              <input type="text" name="codigo_motor" id="edit_codigo_motor" class="form-control">
+            </div>
+          </div>
+          <div class="form-row" id="edit_motoFields2">
+            <div class="form-group">
+              <label class="form-label">Capacidade da Bateria</label>
+              <input type="text" name="capacidade_bateria" id="edit_capacidade_bateria" class="form-control">
+            </div>
+          </div>
+          <div class="form-group" id="edit_productFields">
             <label class="form-label">Nome do Produto/Serviço</label>
             <input type="text" name="nome_produto" id="edit_nome_produto" class="form-control">
           </div>
@@ -269,12 +303,43 @@
     function toggleFields(tipo) {
       const vehicleFields = document.getElementById('vehicleFields');
       const productFields = document.getElementById('productFields');
+      const motoFields = document.getElementById('motoFields');
+      const motoFields2 = document.getElementById('motoFields2');
+      
       if (tipo === 'MOTO' || tipo === 'SCOOTER') {
         vehicleFields.style.display = 'grid';
+        motoFields.style.display = 'grid';
+        motoFields2.style.display = 'grid';
+        productFields.style.display = 'none';
+      } else if (tipo === 'PECA' || tipo === 'PRODUTO') {
+        vehicleFields.style.display = 'none';
+        motoFields.style.display = 'none';
+        motoFields2.style.display = 'none';
+        productFields.style.display = 'grid';
+      } else {
+        vehicleFields.style.display = 'none';
+        motoFields.style.display = 'none';
+        motoFields2.style.display = 'none';
+        productFields.style.display = 'grid';
+      }
+    }
+    
+    function toggleEditFields(tipo) {
+      const vehicleFields = document.getElementById('edit_vehicleFields');
+      const productFields = document.getElementById('edit_productFields');
+      const motoFields = document.getElementById('edit_motoFields');
+      const motoFields2 = document.getElementById('edit_motoFields2');
+      
+      if (tipo === 'MOTO' || tipo === 'SCOOTER') {
+        vehicleFields.style.display = 'grid';
+        motoFields.style.display = 'grid';
+        motoFields2.style.display = 'grid';
         productFields.style.display = 'none';
       } else {
         vehicleFields.style.display = 'none';
-        productFields.style.display = 'grid';
+        motoFields.style.display = 'none';
+        motoFields2.style.display = 'none';
+        productFields.style.display = 'block';
       }
     }
     
@@ -288,8 +353,17 @@
       document.getElementById('edit_descricao').value = produto.descricao || '';
       document.getElementById('edit_categoria').value = produto.categoria || '';
       document.getElementById('edit_preco_venda').value = produto.preco_venda || 0;
+      document.getElementById('edit_chassi').value = produto.chassi || '';
+      document.getElementById('edit_codigo_motor').value = produto.codigo_motor || '';
+      document.getElementById('edit_capacidade_bateria').value = produto.capacidade_bateria || '';
+      
+      toggleEditFields(produto.tipo);
       openModal('editModal');
     }
+    
+    document.getElementById('edit_tipo').addEventListener('change', function() {
+      toggleEditFields(this.value);
+    });
   </script>
 </body>
 </html>

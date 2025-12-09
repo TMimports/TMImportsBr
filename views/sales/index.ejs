@@ -169,16 +169,20 @@
           
           <h4 style="color: var(--orange); margin: 20px 0 15px;">Itens da Venda</h4>
           <div id="itensContainer">
-            <div class="item-row" style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;">
+            <div class="item-row" style="display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;">
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label">Tipo</label>
+                <select class="form-control item-tipo" onchange="filterProdutosByTipo(this)">
+                  <option value="">Todos</option>
+                  <option value="MOTO">Moto</option>
+                  <option value="PRODUTO">Produto</option>
+                  <option value="SERVICO">Serviço</option>
+                </select>
+              </div>
               <div class="form-group" style="margin-bottom: 0;">
                 <label class="form-label">Produto</label>
                 <select class="form-control item-produto" onchange="updatePriceAndColor(this)">
-                  <option value="">Selecione...</option>
-                  <% produtos.forEach(prod => { %>
-                    <option value="<%= prod.id %>" data-preco="<%= prod.preco_venda %>" data-cor="<%= prod.cor || '' %>" data-tipo="<%= prod.tipo %>">
-                      <%= prod.nome_modelo || prod.nome_produto %> (<%= prod.tipo %>) - <%= formatCurrency(prod.preco_venda) %>
-                    </option>
-                  <% }) %>
+                  <option value="">Selecione o tipo primeiro...</option>
                 </select>
               </div>
               <div class="form-group" style="margin-bottom: 0;">
@@ -242,6 +246,33 @@
   <script>
     const produtos = <%- JSON.stringify(produtos) %>;
     
+    function filterProdutosByTipo(tipoSelect) {
+      const tipo = tipoSelect.value;
+      const row = tipoSelect.closest('.item-row');
+      const produtoSelect = row.querySelector('.item-produto');
+      const corSelect = row.querySelector('.item-cor');
+      
+      let filteredProducts = produtos;
+      
+      if (tipo === 'MOTO') {
+        filteredProducts = produtos.filter(p => p.tipo === 'MOTO' || p.tipo === 'SCOOTER');
+      } else if (tipo === 'PRODUTO') {
+        filteredProducts = produtos.filter(p => p.tipo === 'PECA' || p.tipo === 'PRODUTO');
+      } else if (tipo === 'SERVICO') {
+        filteredProducts = produtos.filter(p => p.tipo === 'SERVICO');
+      }
+      
+      produtoSelect.innerHTML = '<option value="">Selecione...</option>' +
+        filteredProducts.map(p => {
+          const nome = p.nome_modelo || p.nome_produto || p.item || 'Produto';
+          const chassiInfo = p.chassi ? ` - Chassi: ${p.chassi}` : '';
+          return `<option value="${p.id}" data-preco="${p.preco_venda}" data-cor="${p.cor || ''}" data-tipo="${p.tipo}">${nome} (${p.tipo})${chassiInfo} - R$ ${parseFloat(p.preco_venda).toFixed(2)}</option>`;
+        }).join('');
+      
+      corSelect.innerHTML = '<option value="">Selecione produto</option>';
+      row.querySelector('.item-preco').value = '';
+    }
+    
     function getAvailableColors(produtoId) {
       const produto = produtos.find(p => p.id == produtoId);
       if (!produto) return [];
@@ -280,12 +311,19 @@
       const container = document.getElementById('itensContainer');
       const row = document.createElement('div');
       row.className = 'item-row';
-      row.style = 'display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;';
+      row.style = 'display: grid; grid-template-columns: 1fr 2fr 1fr 1fr 1fr auto; gap: 10px; margin-bottom: 10px; align-items: end;';
       row.innerHTML = `
         <div class="form-group" style="margin-bottom: 0;">
+          <select class="form-control item-tipo" onchange="filterProdutosByTipo(this)">
+            <option value="">Todos</option>
+            <option value="MOTO">Moto</option>
+            <option value="PRODUTO">Produto</option>
+            <option value="SERVICO">Serviço</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
           <select class="form-control item-produto" onchange="updatePriceAndColor(this)">
-            <option value="">Selecione...</option>
-            ${produtos.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}" data-cor="${p.cor || ''}" data-tipo="${p.tipo}">${p.nome_modelo || p.nome_produto} (${p.tipo})</option>`).join('')}
+            <option value="">Selecione o tipo primeiro...</option>
           </select>
         </div>
         <div class="form-group" style="margin-bottom: 0;">

@@ -183,6 +183,18 @@ Quando um novo usuário é cadastrado:
 
 ## Mudanças Recentes
 
+- **09/12/2024:** Filtro por tipo de item em vendas, orçamentos e OS
+  - Cadastro de produtos agora inclui campos: chassi, código do motor e capacidade da bateria para motos
+  - Filtro por tipo (Moto, Produto, Serviço) nos formulários de venda, orçamento e OS
+  - Ao selecionar um tipo, apenas produtos daquela categoria são exibidos
+  - Motos exibem o número do chassi na seleção para fácil identificação
+  - API `/produtos/api/por-tipo/:tipo` para buscar produtos filtrados
+  
+- **09/12/2024:** Botões de exclusão em Orçamentos e OS
+  - SUPER ADMIN pode excluir orçamentos e ordens de serviço
+  - Exclusão em cascata de itens relacionados
+  - Confirmação antes de excluir
+
 - **08/12/2024:** Anexo de extrato bancário na conciliação
   - SUPER ADMIN pode anexar extrato bancário (PDF/JPG/PNG) aos lançamentos
   - Arquivos são armazenados em memória até validação CSRF passar

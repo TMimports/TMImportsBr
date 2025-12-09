@@ -8,7 +8,7 @@ const Produto = sequelize.define('Produto', {
     autoIncrement: true,
   },
   tipo: {
-    type: DataTypes.ENUM('MOTO', 'SCOOTER', 'PECA', 'SERVICO'),
+    type: DataTypes.STRING,
     allowNull: false,
   },
   item: {
@@ -39,6 +39,18 @@ const Produto = sequelize.define('Produto', {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
     defaultValue: 0,
+  },
+  chassi: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  codigo_motor: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  capacidade_bateria: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   ativo: {
     type: DataTypes.BOOLEAN,
