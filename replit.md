@@ -32,6 +32,16 @@ Ao iniciar pela primeira vez, o sistema cria automaticamente um SUPER ADMIN:
 
 **IMPORTANTE:** Altere a senha após o primeiro login!
 
+### Personalizando o SUPER ADMIN
+
+Você pode definir suas próprias credenciais usando variáveis de ambiente:
+
+- **ADMIN_EMAIL:** Email do administrador (ex: seuemail@empresa.com)
+- **ADMIN_SENHA:** Senha inicial do administrador
+- **ADMIN_NOME:** Nome do administrador
+
+Para aplicar, configure as variáveis de ambiente antes de iniciar o sistema pela primeira vez (ou delete o banco de dados para recriar).
+
 ## Perfis de Usuário
 
 ### SUPER ADMIN

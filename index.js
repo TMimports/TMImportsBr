@@ -188,20 +188,22 @@ async function initDatabase() {
 
     const adminExists = await Usuario.findOne({ where: { perfil: 'SUPER_ADMIN' } });
     if (!adminExists) {
-      const senha_hash = await Usuario.hashPassword('admin123');
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@teclemotos.com';
+      const adminSenha = process.env.ADMIN_SENHA || 'admin123';
+      const adminNome = process.env.ADMIN_NOME || 'Super Admin';
+      
+      const senha_hash = await Usuario.hashPassword(adminSenha);
       await Usuario.create({
-        nome: 'Super Admin',
-        email: 'admin@teclemotos.com',
+        nome: adminNome,
+        email: adminEmail,
         senha_hash,
         perfil: 'SUPER_ADMIN',
         ativo: true,
         primeiro_acesso: false
       });
       console.log('Default SUPER ADMIN created:');
-      console.log('Email: admin@teclemotos.com');
-      console.log('Password: admin123');
-    } else {
-      await Usuario.update({ primeiro_acesso: false }, { where: { email: 'admin@teclemotos.com' } });
+      console.log('Email:', adminEmail);
+      console.log('Password:', adminSenha);
     }
   } catch (error) {
     console.error('Database initialization error:', error);

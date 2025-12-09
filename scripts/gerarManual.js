@@ -63,14 +63,20 @@ doc.moveDown(2);
 doc.fontSize(22).fillColor(orange).text('2. Credenciais de Acesso');
 doc.moveDown();
 doc.fontSize(11).fillColor('#333');
-doc.text('Ao iniciar o sistema pela primeira vez, um usuário SUPER ADMIN é criado automaticamente:');
+doc.text('Ao iniciar o sistema pela primeira vez, um usuário SUPER ADMIN é criado automaticamente.');
 doc.moveDown();
+doc.text('Credenciais padrão:');
 doc.font('Helvetica-Bold').text('Email: ', { continued: true });
 doc.font('Helvetica').text('admin@teclemotos.com');
 doc.font('Helvetica-Bold').text('Senha: ', { continued: true });
 doc.font('Helvetica').text('admin123');
 doc.moveDown();
 doc.fillColor('#cc0000').text('IMPORTANTE: Altere a senha após o primeiro login!');
+doc.moveDown();
+doc.fillColor('#333').text('Para personalizar o SUPER ADMIN, configure estas variáveis de ambiente:');
+doc.text('• ADMIN_EMAIL - Email do administrador');
+doc.text('• ADMIN_SENHA - Senha inicial');
+doc.text('• ADMIN_NOME - Nome do administrador');
 
 doc.addPage();
 
