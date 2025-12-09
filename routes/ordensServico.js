@@ -421,4 +421,24 @@ router.get('/:id/recibo', canAccessOS, async (req, res) => {
   }
 });
 
+router.post('/:id/delete', isSuperAdmin, async (req, res) => {
+  try {
+    const { Orcamento, ItemOrcamento } = require('../models');
+    
+    const orcamentos = await Orcamento.findAll({ where: { origem_tipo: 'ORDEM_SERVICO', origem_id: req.params.id } });
+    for (const orc of orcamentos) {
+      await ItemOrcamento.destroy({ where: { orcamento_id: orc.id } });
+    }
+    await Orcamento.destroy({ where: { origem_tipo: 'ORDEM_SERVICO', origem_id: req.params.id } });
+    
+    await ItemOrdemServico.destroy({ where: { ordem_servico_id: req.params.id } });
+    await OrdemServico.destroy({ where: { id: req.params.id } });
+    
+    res.redirect('/ordens-servico');
+  } catch (error) {
+    console.error('Delete OS error:', error);
+    res.redirect('/ordens-servico?error=1');
+  }
+});
+
 module.exports = router;

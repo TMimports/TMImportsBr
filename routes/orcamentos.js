@@ -291,4 +291,15 @@ router.post('/:id/cancelar', canAccessOrcamento, async (req, res) => {
   }
 });
 
+router.post('/:id/delete', isSuperAdmin, async (req, res) => {
+  try {
+    await ItemOrcamento.destroy({ where: { orcamento_id: req.params.id } });
+    await Orcamento.destroy({ where: { id: req.params.id } });
+    res.redirect('/orcamentos');
+  } catch (error) {
+    console.error('Delete quotation error:', error);
+    res.redirect('/orcamentos?error=1');
+  }
+});
+
 module.exports = router;

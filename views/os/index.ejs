@@ -97,14 +97,24 @@
                       <span class="status-badge <%= statusClass %>"><%= statusText %></span>
                     </td>
                     <td>
-                      <a href="/ordens-servico/<%= os.id %>" class="btn btn-sm btn-info" title="Ver detalhes">
-                        <i class="fas fa-eye"></i>
-                      </a>
-                      <% if (os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA') { %>
-                        <a href="/ordens-servico/<%= os.id %>/editar" class="btn btn-sm btn-warning" title="Editar">
-                          <i class="fas fa-edit"></i>
+                      <div class="actions">
+                        <a href="/ordens-servico/<%= os.id %>" class="btn btn-sm btn-info" title="Ver detalhes">
+                          <i class="fas fa-eye"></i>
                         </a>
-                      <% } %>
+                        <% if (os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA') { %>
+                          <a href="/ordens-servico/<%= os.id %>/editar" class="btn btn-sm btn-warning" title="Editar">
+                            <i class="fas fa-edit"></i>
+                          </a>
+                        <% } %>
+                        <% if (user.perfil === 'SUPER_ADMIN') { %>
+                          <form action="/ordens-servico/<%= os.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('Excluir ordem de serviço?')">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <button type="submit" class="btn btn-sm btn-danger" title="Excluir">
+                              <i class="fas fa-trash"></i>
+                            </button>
+                          </form>
+                        <% } %>
+                      </div>
                     </td>
                   </tr>
                 <% }) %>
