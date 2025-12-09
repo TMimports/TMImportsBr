@@ -12,12 +12,13 @@ const Orcamento = sequelize.define('Orcamento', {
     unique: true
   },
   origem_tipo: {
-    type: DataTypes.ENUM('VENDA', 'ORDEM_SERVICO'),
-    allowNull: false
+    type: DataTypes.ENUM('VENDA', 'ORDEM_SERVICO', 'INDEPENDENTE'),
+    allowNull: false,
+    defaultValue: 'INDEPENDENTE'
   },
   origem_id: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: true
   },
   cliente_nome: {
     type: DataTypes.STRING,
