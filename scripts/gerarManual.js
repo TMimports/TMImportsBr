@@ -18,7 +18,7 @@ const green = '#00ff88';
 
 doc.image(logoPath, 200, 50, { width: 200 });
 
-doc.moveDown(8);
+doc.y = 280;
 doc.fontSize(28).fillColor(orange).text('Manual do Sistema', { align: 'center' });
 doc.fontSize(16).fillColor('#666').text('Dashboard de Mobilidade Elétrica', { align: 'center' });
 doc.moveDown(2);
