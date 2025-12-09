@@ -1,0 +1,320 @@
+<%- include('../partials/header') %>
+
+<div class="content-header">
+  <h1><i class="fas fa-tools"></i> <%= ordemServico ? 'Editar OS ' + ordemServico.codigo : 'Nova Ordem de Serviço' %></h1>
+  <a href="/ordens-servico" class="btn btn-outline">
+    <i class="fas fa-arrow-left"></i> Voltar
+  </a>
+</div>
+
+<form method="POST" action="<%= ordemServico ? '/ordens-servico/' + ordemServico.id : '/ordens-servico' %>" id="osForm">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  
+  <div class="form-grid">
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-user"></i> Dados do Cliente</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group col-6">
+            <label>Nome do Cliente *</label>
+            <input type="text" name="cliente_nome" class="form-control" required
+                   value="<%= ordemServico ? ordemServico.cliente_nome : '' %>">
+          </div>
+          <div class="form-group col-6">
+            <label>CPF/CNPJ</label>
+            <input type="text" name="cliente_cpf_cnpj" class="form-control"
+                   value="<%= ordemServico ? ordemServico.cliente_cpf_cnpj : '' %>">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-6">
+            <label>Telefone</label>
+            <input type="text" name="cliente_telefone" class="form-control"
+                   value="<%= ordemServico ? ordemServico.cliente_telefone : '' %>">
+          </div>
+          <div class="form-group col-6">
+            <label>Email</label>
+            <input type="email" name="cliente_email" class="form-control"
+                   value="<%= ordemServico ? ordemServico.cliente_email : '' %>">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Endereço</label>
+          <textarea name="cliente_endereco" class="form-control" rows="2"><%= ordemServico ? ordemServico.cliente_endereco : '' %></textarea>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-motorcycle"></i> Dados do Veículo</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group col-6">
+            <label>Modelo</label>
+            <input type="text" name="veiculo_modelo" class="form-control"
+                   value="<%= ordemServico ? ordemServico.veiculo_modelo : '' %>">
+          </div>
+          <div class="form-group col-6">
+            <label>Placa</label>
+            <input type="text" name="veiculo_placa" class="form-control"
+                   value="<%= ordemServico ? ordemServico.veiculo_placa : '' %>">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col-4">
+            <label>Chassi</label>
+            <input type="text" name="veiculo_chassi" class="form-control"
+                   value="<%= ordemServico ? ordemServico.veiculo_chassi : '' %>">
+          </div>
+          <div class="form-group col-4">
+            <label>Cor</label>
+            <input type="text" name="veiculo_cor" class="form-control"
+                   value="<%= ordemServico ? ordemServico.veiculo_cor : '' %>">
+          </div>
+          <div class="form-group col-4">
+            <label>KM</label>
+            <input type="number" name="veiculo_km" class="form-control"
+                   value="<%= ordemServico ? ordemServico.veiculo_km : '' %>">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-wrench"></i> Serviço</h3>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <div class="form-group col-6">
+          <label>Descrição do Problema *</label>
+          <textarea name="descricao_problema" class="form-control" rows="3" required><%= ordemServico ? ordemServico.descricao_problema : '' %></textarea>
+        </div>
+        <div class="form-group col-6">
+          <label>Diagnóstico</label>
+          <textarea name="diagnostico" class="form-control" rows="3"><%= ordemServico ? ordemServico.diagnostico : '' %></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col-4">
+          <label>Data Prevista de Entrega</label>
+          <input type="date" name="data_prevista_entrega" class="form-control"
+                 value="<%= ordemServico && ordemServico.data_prevista_entrega ? new Date(ordemServico.data_prevista_entrega).toISOString().split('T')[0] : '' %>">
+        </div>
+        <div class="form-group col-4">
+          <label>Responsável Técnico</label>
+          <select name="responsavel_tecnico_id" class="form-control">
+            <option value="">Selecione...</option>
+            <% tecnicos.forEach(t => { %>
+              <option value="<%= t.id %>" <%= ordemServico && ordemServico.responsavel_tecnico_id == t.id ? 'selected' : '' %>>
+                <%= t.nome %>
+              </option>
+            <% }) %>
+          </select>
+        </div>
+        <% if (ordemServico && user.perfil === 'SUPER_ADMIN') { %>
+        <div class="form-group col-4">
+          <label>Status</label>
+          <select name="status" class="form-control">
+            <option value="ABERTA" <%= ordemServico.status === 'ABERTA' ? 'selected' : '' %>>Aberta</option>
+            <option value="EM_EXECUCAO" <%= ordemServico.status === 'EM_EXECUCAO' ? 'selected' : '' %>>Em Execução</option>
+            <option value="AGUARDANDO_APROVACAO" <%= ordemServico.status === 'AGUARDANDO_APROVACAO' ? 'selected' : '' %>>Aguardando Aprovação</option>
+            <option value="APROVADA" <%= ordemServico.status === 'APROVADA' ? 'selected' : '' %>>Aprovada</option>
+            <option value="CONCLUIDA" <%= ordemServico.status === 'CONCLUIDA' ? 'selected' : '' %>>Concluída</option>
+            <option value="CANCELADA" <%= ordemServico.status === 'CANCELADA' ? 'selected' : '' %>>Cancelada</option>
+          </select>
+        </div>
+        <% } %>
+      </div>
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea name="observacoes" class="form-control" rows="2"><%= ordemServico ? ordemServico.observacoes : '' %></textarea>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-list"></i> Itens (Produtos e Serviços)</h3>
+      <button type="button" class="btn btn-sm btn-primary" onclick="addItem()">
+        <i class="fas fa-plus"></i> Adicionar Item
+      </button>
+    </div>
+    <div class="card-body">
+      <table class="data-table" id="itensTable">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Produto/Serviço</th>
+            <th>Descrição</th>
+            <th>Qtd</th>
+            <th>Preço Unit.</th>
+            <th>Desconto</th>
+            <th>Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="itensList">
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5"></td>
+            <td><strong>Subtotal:</strong></td>
+            <td><strong id="subtotal">R$ 0,00</strong></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="5"></td>
+            <td><strong>Desconto:</strong></td>
+            <td><strong id="descontoTotal">R$ 0,00</strong></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="5"></td>
+            <td><strong>Total:</strong></td>
+            <td><strong id="total" class="text-success">R$ 0,00</strong></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  
+  <input type="hidden" name="itens" id="itensInput">
+  
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">
+      <i class="fas fa-save"></i> Salvar
+    </button>
+    <a href="/ordens-servico" class="btn btn-outline">Cancelar</a>
+  </div>
+</form>
+
+<script>
+const produtos = <%- JSON.stringify(produtos) %>;
+let itens = [];
+
+<% if (ordemServico && ordemServico.itens) { %>
+itens = <%- JSON.stringify(ordemServico.itens.map(i => ({
+  produto_id: i.produto_id,
+  tipo_item: i.tipo_item,
+  descricao: i.descricao,
+  quantidade: i.quantidade,
+  preco_unitario: parseFloat(i.preco_unitario),
+  desconto: parseFloat(i.desconto || 0),
+  total: parseFloat(i.total)
+}))) %>;
+<% } %>
+
+function renderItens() {
+  const tbody = document.getElementById('itensList');
+  tbody.innerHTML = '';
+  
+  let subtotal = 0;
+  let descontoTotal = 0;
+  
+  itens.forEach((item, index) => {
+    const itemTotal = (item.preco_unitario * item.quantidade) - item.desconto;
+    subtotal += item.preco_unitario * item.quantidade;
+    descontoTotal += item.desconto;
+    
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <select onchange="updateItem(${index}, 'tipo_item', this.value)" class="form-control form-control-sm">
+          <option value="PRODUTO" ${item.tipo_item === 'PRODUTO' ? 'selected' : ''}>Produto</option>
+          <option value="SERVICO" ${item.tipo_item === 'SERVICO' ? 'selected' : ''}>Serviço</option>
+          <option value="MAO_DE_OBRA" ${item.tipo_item === 'MAO_DE_OBRA' ? 'selected' : ''}>Mão de Obra</option>
+        </select>
+      </td>
+      <td>
+        <select onchange="selectProduto(${index}, this.value)" class="form-control form-control-sm">
+          <option value="">-- Manual --</option>
+          ${produtos.map(p => `<option value="${p.id}" ${item.produto_id == p.id ? 'selected' : ''}>${p.nome}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <input type="text" value="${item.descricao}" onchange="updateItem(${index}, 'descricao', this.value)" 
+               class="form-control form-control-sm">
+      </td>
+      <td>
+        <input type="number" value="${item.quantidade}" min="1" onchange="updateItem(${index}, 'quantidade', parseInt(this.value))" 
+               class="form-control form-control-sm" style="width: 60px">
+      </td>
+      <td>
+        <input type="number" value="${item.preco_unitario.toFixed(2)}" step="0.01" onchange="updateItem(${index}, 'preco_unitario', parseFloat(this.value))" 
+               class="form-control form-control-sm" style="width: 100px">
+      </td>
+      <td>
+        <input type="number" value="${item.desconto.toFixed(2)}" step="0.01" onchange="updateItem(${index}, 'desconto', parseFloat(this.value))" 
+               class="form-control form-control-sm" style="width: 80px">
+      </td>
+      <td>R$ ${itemTotal.toFixed(2).replace('.', ',')}</td>
+      <td>
+        <button type="button" onclick="removeItem(${index})" class="btn btn-sm btn-danger">
+          <i class="fas fa-trash"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  
+  document.getElementById('subtotal').textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
+  document.getElementById('descontoTotal').textContent = 'R$ ' + descontoTotal.toFixed(2).replace('.', ',');
+  document.getElementById('total').textContent = 'R$ ' + (subtotal - descontoTotal).toFixed(2).replace('.', ',');
+  document.getElementById('itensInput').value = JSON.stringify(itens);
+}
+
+function addItem() {
+  itens.push({
+    produto_id: null,
+    tipo_item: 'SERVICO',
+    descricao: '',
+    quantidade: 1,
+    preco_unitario: 0,
+    desconto: 0,
+    total: 0
+  });
+  renderItens();
+}
+
+function updateItem(index, field, value) {
+  itens[index][field] = value;
+  itens[index].total = (itens[index].preco_unitario * itens[index].quantidade) - itens[index].desconto;
+  renderItens();
+}
+
+function selectProduto(index, produtoId) {
+  if (produtoId) {
+    const produto = produtos.find(p => p.id == produtoId);
+    if (produto) {
+      itens[index].produto_id = produto.id;
+      itens[index].descricao = produto.nome;
+      itens[index].preco_unitario = parseFloat(produto.preco_venda);
+      itens[index].tipo_item = produto.tipo === 'SERVICO' ? 'SERVICO' : 'PRODUTO';
+      itens[index].total = (itens[index].preco_unitario * itens[index].quantidade) - itens[index].desconto;
+    }
+  } else {
+    itens[index].produto_id = null;
+  }
+  renderItens();
+}
+
+function removeItem(index) {
+  itens.splice(index, 1);
+  renderItens();
+}
+
+document.getElementById('osForm').addEventListener('submit', function(e) {
+  document.getElementById('itensInput').value = JSON.stringify(itens);
+});
+
+renderItens();
+</script>
+
+<%- include('../partials/footer') %>

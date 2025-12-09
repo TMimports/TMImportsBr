@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const { isAuthenticated } = require('../middleware/auth');
-const { Venda, ItemVenda, Produto, Usuario, Estoque, Subestoque, ItemEstoque } = require('../models');
+const { Venda, ItemVenda, Produto, Usuario, Estoque, Subestoque, ItemEstoque, OrdemServico, Orcamento } = require('../models');
 
 function isVendedor(req, res, next) {
   if (req.session && req.session.user && req.session.user.perfil === 'VENDEDOR') {
@@ -57,6 +57,18 @@ router.get('/dashboard', isVendedor, async (req, res) => {
       include: [{ model: ItemVenda, include: [{ model: Produto }] }]
     });
 
+    const ordensServico = await OrdemServico.count({
+      where: { vendedor_id: vendedorId }
+    });
+    
+    const osAbertas = await OrdemServico.count({
+      where: { vendedor_id: vendedorId, status: { [Op.in]: ['ABERTA', 'EM_EXECUCAO'] } }
+    });
+    
+    const orcamentosAtivos = await Orcamento.count({
+      where: { vendedor_id: vendedorId, status: { [Op.in]: ['RASCUNHO', 'ENVIADO'] } }
+    });
+
     res.render('vendedor/dashboard', {
       user: req.session.user,
       totalVendasMes,
@@ -64,7 +76,10 @@ router.get('/dashboard', isVendedor, async (req, res) => {
       vendasPendentes,
       vendasAprovadas,
       ultimasVendas,
-      vendasPorDia: JSON.stringify(vendasPorDia)
+      vendasPorDia: JSON.stringify(vendasPorDia),
+      ordensServico,
+      osAbertas,
+      orcamentosAtivos
     });
   } catch (error) {
     console.error('Vendor dashboard error:', error);

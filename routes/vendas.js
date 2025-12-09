@@ -405,4 +405,67 @@ router.post('/:id/anexos', isAuthenticated, upload.single('arquivo'), validateCs
   }
 });
 
+router.post('/:id/gerar-orcamento', isAuthenticated, async (req, res) => {
+  try {
+    const { Orcamento, ItemOrcamento } = require('../models');
+    
+    const venda = await Venda.findByPk(req.params.id, {
+      include: [{ model: ItemVenda, include: [{ model: Produto }] }]
+    });
+    
+    if (!venda) {
+      return res.redirect('/vendas?error=1');
+    }
+    
+    const dataValidade = new Date();
+    dataValidade.setDate(dataValidade.getDate() + 7);
+    
+    let subtotal = 0;
+    let descontoTotal = parseFloat(venda.desconto || 0);
+    
+    for (const item of venda.ItemVendas) {
+      subtotal += parseFloat(item.preco_unitario) * parseInt(item.quantidade);
+    }
+    
+    const orcamento = await Orcamento.create({
+      origem_tipo: 'VENDA',
+      origem_id: venda.id,
+      cliente_nome: venda.cliente_nome,
+      cliente_telefone: venda.cliente_telefone,
+      cliente_email: venda.cliente_email,
+      data_validade: dataValidade,
+      subtotal: subtotal,
+      desconto_total: descontoTotal,
+      total: subtotal - descontoTotal,
+      status: 'RASCUNHO',
+      vendedor_id: req.session.user.id
+    });
+    
+    for (const item of venda.ItemVendas) {
+      const itemTotal = parseFloat(item.preco_unitario) * parseInt(item.quantidade);
+      let descricao = 'Item';
+      if (item.Produto) {
+        descricao = item.Produto.nome_modelo || item.Produto.nome_produto || item.Produto.item || 'Produto';
+      }
+      await ItemOrcamento.create({
+        orcamento_id: orcamento.id,
+        produto_id: item.produto_id,
+        tipo_item: item.Produto ? (item.Produto.tipo === 'SERVICO' ? 'SERVICO' : 'PRODUTO') : 'PRODUTO',
+        descricao: descricao,
+        quantidade: item.quantidade,
+        preco_unitario: item.preco_unitario,
+        desconto: 0,
+        total: itemTotal
+      });
+    }
+    
+    await Venda.update({ status: 'AGUARDANDO_APROVACAO' }, { where: { id: venda.id } });
+    
+    res.redirect('/orcamentos/' + orcamento.id);
+  } catch (error) {
+    console.error('Generate quotation from sale error:', error);
+    res.redirect('/vendas/' + req.params.id + '?error=1');
+  }
+});
+
 module.exports = router;

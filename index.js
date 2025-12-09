@@ -14,6 +14,8 @@ const vendasRoutes = require('./routes/vendas');
 const vendedorRoutes = require('./routes/vendedor');
 const financeiroRoutes = require('./routes/financeiro');
 const usuariosRoutes = require('./routes/usuarios');
+const ordensServicoRoutes = require('./routes/ordensServico');
+const orcamentosRoutes = require('./routes/orcamentos');
 
 const app = express();
 const PORT = 5000;
@@ -109,6 +111,8 @@ app.use('/vendas', vendasRoutes);
 app.use('/vendedor', vendedorRoutes);
 app.use('/financeiro', financeiroRoutes);
 app.use('/usuarios', usuariosRoutes);
+app.use('/ordens-servico', ordensServicoRoutes);
+app.use('/orcamentos', orcamentosRoutes);
 
 // Rota raiz: redireciona conforme perfil
 app.get('/', (req, res) => {

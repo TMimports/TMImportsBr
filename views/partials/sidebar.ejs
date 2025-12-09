@@ -21,6 +21,18 @@
         <i class="fas fa-search"></i>
         Consultar Estoque
       </a>
+      <a href="/vendas" class="nav-item">
+        <i class="fas fa-shopping-cart"></i>
+        Minhas Vendas
+      </a>
+      <a href="/ordens-servico" class="nav-item">
+        <i class="fas fa-tools"></i>
+        Minhas OS
+      </a>
+      <a href="/orcamentos" class="nav-item">
+        <i class="fas fa-file-invoice-dollar"></i>
+        Meus Orçamentos
+      </a>
     <% } %>
     
     <% if (user && (user.perfil === 'SUPER_ADMIN' || user.perfil === 'ADMIN')) { %>
@@ -47,6 +59,14 @@
       <a href="/vendas" class="nav-item">
         <i class="fas fa-shopping-cart"></i>
         Vendas
+      </a>
+      <a href="/ordens-servico" class="nav-item">
+        <i class="fas fa-tools"></i>
+        Ordens de Serviço
+      </a>
+      <a href="/orcamentos" class="nav-item">
+        <i class="fas fa-file-invoice-dollar"></i>
+        Orçamentos
       </a>
     <% } %>
     

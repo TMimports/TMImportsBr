@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orçamento <%= orcamento.codigo %> - Tecle Motos</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      color: #333;
+      background: #fff;
+      padding: 20px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid #FF6B35;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .logo img {
+      height: 60px;
+    }
+    
+    .logo-text {
+      font-size: 24px;
+      font-weight: bold;
+      color: #FF6B35;
+    }
+    
+    .logo-sub {
+      font-size: 10px;
+      color: #666;
+    }
+    
+    .doc-info {
+      text-align: right;
+    }
+    
+    .doc-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .doc-code {
+      font-size: 16px;
+      color: #FF6B35;
+      font-weight: bold;
+    }
+    
+    .validity {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 8px 15px;
+      border-radius: 5px;
+      margin-top: 5px;
+      font-size: 11px;
+    }
+    
+    .validity.expired {
+      background: #f8d7da;
+      border-color: #dc3545;
+      color: #721c24;
+    }
+    
+    .section {
+      margin-bottom: 20px;
+    }
+    
+    .section-title {
+      background: #f5f5f5;
+      padding: 8px 12px;
+      font-weight: bold;
+      border-left: 4px solid #FF6B35;
+      margin-bottom: 10px;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    .info-box {
+      border: 1px solid #ddd;
+      padding: 12px;
+      border-radius: 5px;
+    }
+    
+    .info-row {
+      display: flex;
+      margin-bottom: 5px;
+    }
+    
+    .info-row label {
+      font-weight: bold;
+      width: 100px;
+      flex-shrink: 0;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    
+    th {
+      background: #333;
+      color: #fff;
+      font-weight: bold;
+    }
+    
+    tr:nth-child(even) {
+      background: #f9f9f9;
+    }
+    
+    .text-right {
+      text-align: right;
+    }
+    
+    .totals {
+      width: 300px;
+      margin-left: auto;
+    }
+    
+    .totals td {
+      padding: 5px 10px;
+    }
+    
+    .totals .total-row {
+      background: #FF6B35;
+      color: #fff;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    
+    .discount {
+      color: #dc3545;
+    }
+    
+    .footer {
+      margin-top: 40px;
+      border-top: 1px solid #ddd;
+      padding-top: 15px;
+    }
+    
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 50px;
+    }
+    
+    .signature-box {
+      width: 200px;
+      text-align: center;
+    }
+    
+    .signature-line {
+      border-top: 1px solid #333;
+      margin-bottom: 5px;
+    }
+    
+    .terms {
+      font-size: 10px;
+      color: #666;
+      margin-top: 20px;
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 5px;
+    }
+    
+    @media print {
+      body {
+        padding: 0;
+      }
+      
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="margin-bottom: 20px;">
+    <button onclick="window.print()" style="padding: 10px 20px; background: #FF6B35; color: #fff; border: none; border-radius: 5px; cursor: pointer;">
+      Imprimir
+    </button>
+    <button onclick="window.close()" style="padding: 10px 20px; background: #666; color: #fff; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+      Fechar
+    </button>
+  </div>
+  
+  <div class="header">
+    <div class="logo">
+      <div>
+        <div class="logo-text">TECLE MOTOS</div>
+        <div class="logo-sub">Mobilidade Elétrica</div>
+      </div>
+    </div>
+    <div class="doc-info">
+      <div class="doc-title">ORÇAMENTO</div>
+      <div class="doc-code"><%= orcamento.codigo %></div>
+      <div class="validity <%= orcamento.status === 'EXPIRADO' ? 'expired' : '' %>">
+        <strong>Validade:</strong> <%= new Date(orcamento.data_validade).toLocaleDateString('pt-BR') %>
+        <% if (orcamento.status === 'EXPIRADO') { %>(EXPIRADO)<% } %>
+      </div>
+    </div>
+  </div>
+  
+  <div class="info-grid">
+    <div class="info-box">
+      <div class="section-title">Cliente</div>
+      <div class="info-row">
+        <label>Nome:</label>
+        <span><%= orcamento.cliente_nome %></span>
+      </div>
+      <% if (orcamento.cliente_cpf_cnpj) { %>
+      <div class="info-row">
+        <label>CPF/CNPJ:</label>
+        <span><%= orcamento.cliente_cpf_cnpj %></span>
+      </div>
+      <% } %>
+      <% if (orcamento.cliente_telefone) { %>
+      <div class="info-row">
+        <label>Telefone:</label>
+        <span><%= orcamento.cliente_telefone %></span>
+      </div>
+      <% } %>
+      <% if (orcamento.cliente_email) { %>
+      <div class="info-row">
+        <label>Email:</label>
+        <span><%= orcamento.cliente_email %></span>
+      </div>
+      <% } %>
+      <% if (orcamento.cliente_endereco) { %>
+      <div class="info-row">
+        <label>Endereço:</label>
+        <span><%= orcamento.cliente_endereco %></span>
+      </div>
+      <% } %>
+    </div>
+    
+    <div class="info-box">
+      <div class="section-title">Informações</div>
+      <div class="info-row">
+        <label>Emissão:</label>
+        <span><%= new Date(orcamento.data_emissao).toLocaleDateString('pt-BR') %></span>
+      </div>
+      <div class="info-row">
+        <label>Validade:</label>
+        <span><%= new Date(orcamento.data_validade).toLocaleDateString('pt-BR') %></span>
+      </div>
+      <div class="info-row">
+        <label>Vendedor:</label>
+        <span><%= orcamento.vendedor ? orcamento.vendedor.nome : '-' %></span>
+      </div>
+      <div class="info-row">
+        <label>Origem:</label>
+        <span><%= orcamento.origem_tipo === 'VENDA' ? 'Venda' : 'Ordem de Serviço' %></span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <div class="section-title">Itens do Orçamento</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 80px;">Tipo</th>
+          <th>Descrição</th>
+          <th style="width: 60px;">Qtd</th>
+          <th style="width: 100px;">Preço Unit.</th>
+          <th style="width: 80px;">Desconto</th>
+          <th style="width: 100px;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% orcamento.itens.forEach(item => { %>
+          <tr>
+            <td>
+              <% 
+                let tipoLabel = item.tipo_item;
+                if (item.tipo_item === 'PRODUTO') tipoLabel = 'Produto';
+                else if (item.tipo_item === 'SERVICO') tipoLabel = 'Serviço';
+                else if (item.tipo_item === 'MAO_DE_OBRA') tipoLabel = 'Mão de Obra';
+              %>
+              <%= tipoLabel %>
+            </td>
+            <td><%= item.descricao %></td>
+            <td class="text-right"><%= item.quantidade %></td>
+            <td class="text-right">R$ <%= parseFloat(item.preco_unitario).toFixed(2).replace('.', ',') %></td>
+            <td class="text-right discount">- R$ <%= parseFloat(item.desconto || 0).toFixed(2).replace('.', ',') %></td>
+            <td class="text-right">R$ <%= parseFloat(item.total).toFixed(2).replace('.', ',') %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    
+    <table class="totals">
+      <tr>
+        <td>Subtotal:</td>
+        <td class="text-right">R$ <%= parseFloat(orcamento.subtotal || 0).toFixed(2).replace('.', ',') %></td>
+      </tr>
+      <% if (parseFloat(orcamento.desconto_total || 0) > 0) { %>
+      <tr>
+        <td>Desconto:</td>
+        <td class="text-right discount">- R$ <%= parseFloat(orcamento.desconto_total || 0).toFixed(2).replace('.', ',') %></td>
+      </tr>
+      <% } %>
+      <tr class="total-row">
+        <td>TOTAL:</td>
+        <td class="text-right">R$ <%= parseFloat(orcamento.total || 0).toFixed(2).replace('.', ',') %></td>
+      </tr>
+    </table>
+  </div>
+  
+  <% if (orcamento.observacoes) { %>
+  <div class="section">
+    <div class="section-title">Observações</div>
+    <p><%= orcamento.observacoes %></p>
+  </div>
+  <% } %>
+  
+  <div class="terms">
+    <strong>Condições:</strong>
+    <ul>
+      <li>Este orçamento tem validade de 7 (sete) dias a partir da data de emissão.</li>
+      <li>Os preços e condições estão sujeitos a alterações após o vencimento.</li>
+      <li>A aprovação deste orçamento implica na concordância com os termos e condições apresentados.</li>
+      <li>Prazo de entrega a combinar após aprovação do orçamento.</li>
+    </ul>
+  </div>
+  
+  <div class="signatures">
+    <div class="signature-box">
+      <div class="signature-line"></div>
+      <div>Tecle Motos</div>
+    </div>
+    <div class="signature-box">
+      <div class="signature-line"></div>
+      <div>Cliente</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -54,6 +54,33 @@
             <div class="stat-label">Vendas Aprovadas</div>
           </div>
         </div>
+        
+        <div class="stats-grid" style="margin-top: 20px;">
+          <div class="stat-card">
+            <div class="stat-icon purple">
+              <i class="fas fa-tools"></i>
+            </div>
+            <div class="stat-value"><%= osAbertas || 0 %></div>
+            <div class="stat-label">OS em Andamento</div>
+          </div>
+          
+          <div class="stat-card">
+            <div class="stat-icon cyan">
+              <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="stat-value"><%= orcamentosAtivos || 0 %></div>
+            <div class="stat-label">Orçamentos Ativos</div>
+          </div>
+          
+          <div class="stat-card quick-actions">
+            <a href="/ordens-servico/nova" class="quick-action">
+              <i class="fas fa-plus-circle"></i> Nova OS
+            </a>
+            <a href="/vendedor/estoque" class="quick-action">
+              <i class="fas fa-search"></i> Consultar Estoque
+            </a>
+          </div>
+        </div>
 
         <div class="charts-grid">
           <div class="chart-container">

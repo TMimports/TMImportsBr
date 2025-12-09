@@ -12,6 +12,10 @@ const ContaReceber = require('./ContaReceber');
 const ContaPagar = require('./ContaPagar');
 const LancamentoBancario = require('./LancamentoBancario');
 const Anexo = require('./Anexo');
+const OrdemServico = require('./OrdemServico');
+const ItemOrdemServico = require('./ItemOrdemServico');
+const Orcamento = require('./Orcamento');
+const ItemOrcamento = require('./ItemOrcamento');
 
 Subestoque.belongsTo(Estoque, { foreignKey: 'estoque_id' });
 Estoque.hasMany(Subestoque, { foreignKey: 'estoque_id' });
@@ -43,6 +47,17 @@ Venda.hasOne(ContaReceber, { foreignKey: 'venda_id' });
 LancamentoBancario.belongsTo(ContaReceber, { foreignKey: 'conta_receber_id' });
 LancamentoBancario.belongsTo(ContaPagar, { foreignKey: 'conta_pagar_id' });
 
+OrdemServico.belongsTo(Usuario, { foreignKey: 'vendedor_id', as: 'vendedor' });
+OrdemServico.belongsTo(Usuario, { foreignKey: 'responsavel_tecnico_id', as: 'responsavelTecnico' });
+OrdemServico.hasMany(ItemOrdemServico, { foreignKey: 'ordem_servico_id', as: 'itens' });
+ItemOrdemServico.belongsTo(OrdemServico, { foreignKey: 'ordem_servico_id' });
+ItemOrdemServico.belongsTo(Produto, { foreignKey: 'produto_id' });
+
+Orcamento.belongsTo(Usuario, { foreignKey: 'vendedor_id', as: 'vendedor' });
+Orcamento.hasMany(ItemOrcamento, { foreignKey: 'orcamento_id', as: 'itens' });
+ItemOrcamento.belongsTo(Orcamento, { foreignKey: 'orcamento_id' });
+ItemOrcamento.belongsTo(Produto, { foreignKey: 'produto_id' });
+
 module.exports = {
   sequelize,
   Usuario,
@@ -58,4 +73,8 @@ module.exports = {
   ContaPagar,
   LancamentoBancario,
   Anexo,
+  OrdemServico,
+  ItemOrdemServico,
+  Orcamento,
+  ItemOrcamento,
 };

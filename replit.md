@@ -9,6 +9,8 @@ Este é um sistema de dashboard profissional desenvolvido para a Tecle Motos, co
 - Controle de estoque e subestoques
 - Gestão de chassi (com rastreamento individual)
 - Sistema de vendas com fluxo de aprovação
+- **Ordens de Serviço (OS)** com gestão completa de serviços
+- **Sistema de Orçamentos** com validade de 7 dias e documento para impressão
 - Financeiro (contas a receber, a pagar, conciliação bancária)
 - Dashboard com gráficos e projeções
 
@@ -46,10 +48,12 @@ Ao iniciar pela primeira vez, o sistema cria automaticamente um SUPER ADMIN:
 - Sem acesso ao financeiro
 
 ### VENDEDOR
-- Dashboard próprio de vendas
+- Dashboard próprio com indicadores de vendas, OS e orçamentos
 - Cadastra e edita suas vendas (status pendente)
+- Cria e gerencia Ordens de Serviço (OS)
+- Gera orçamentos a partir de vendas e OS
 - Consulta estoque (somente leitura)
-- Não escolhe chassi nem conclui venda
+- Não escolhe chassi nem conclui venda/OS
 
 ### CONTADOR
 - Acesso somente leitura ao financeiro
@@ -111,13 +115,33 @@ Ao iniciar pela primeira vez, o sistema cria automaticamente um SUPER ADMIN:
 ## Fluxo de Vendas
 
 1. **Vendedor** cria venda com cliente, produtos e forma de pagamento
-2. Venda fica com status **PENDENTE**
-3. **SUPER ADMIN** visualiza vendas pendentes
-4. SUPER ADMIN pode:
+2. Vendedor pode **gerar orçamento** com validade de 7 dias
+3. Venda fica com status **PENDENTE** ou **AGUARDANDO_APROVACAO**
+4. **SUPER ADMIN** visualiza vendas pendentes
+5. SUPER ADMIN pode:
    - Editar a venda
+   - Aprovar orçamento
    - Selecionar chassi para motos/scooters
    - **Concluir** a venda (dá baixa no estoque, marca chassi como vendido, gera conta a receber)
    - Cancelar a venda
+
+## Ordens de Serviço (OS)
+
+1. **Vendedor ou Admin** cria OS com dados do cliente, veículo e problema
+2. Adiciona itens: produtos (peças), serviços ou mão de obra com preços e descontos
+3. Pode **gerar orçamento** com validade de 7 dias para aprovação do cliente
+4. Status da OS: ABERTA → EM_EXECUCAO → AGUARDANDO_APROVACAO → APROVADA → CONCLUIDA
+5. **SUPER ADMIN** conclui a OS (baixa estoque de produtos utilizados)
+6. **Regra de negócio:** OS pode incluir vendas de produtos, mas Vendas não incluem OS
+
+## Sistema de Orçamentos
+
+- Orçamentos podem ser gerados a partir de **Vendas** ou **Ordens de Serviço**
+- Validade automática de **7 dias** a partir da emissão
+- Inclui todos os descontos aplicados pelo vendedor
+- Documento formatado para **impressão** com dados do cliente e itens
+- Status: RASCUNHO → ENVIADO → APROVADO (ou EXPIRADO após 7 dias)
+- Orçamentos expirados não podem ser aprovados
 
 ## Contas Recorrentes (Mensais)
 
