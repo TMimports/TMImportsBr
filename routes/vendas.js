@@ -254,11 +254,24 @@ router.post('/:id/cancelar', isAuthenticated, async (req, res) => {
 
 router.post('/:id/delete', isSuperAdmin, async (req, res) => {
   try {
+    console.log('Deleting sale ID:', req.params.id);
+    
+    // Verificar se existem orçamentos vinculados
+    const { Orcamento } = require('../models');
+    await Orcamento.destroy({ where: { origem_tipo: 'VENDA', origem_id: req.params.id } });
+    
+    // Verificar se existem contas a receber vinculadas
+    const { ContaReceber } = require('../models');
+    await ContaReceber.destroy({ where: { venda_id: req.params.id } });
+    
     await ItemVenda.destroy({ where: { venda_id: req.params.id } });
     await AnexoVenda.destroy({ where: { venda_id: req.params.id } });
     await Venda.destroy({ where: { id: req.params.id } });
+    
+    console.log('Sale deleted successfully');
     res.redirect('/vendas');
   } catch (error) {
+    console.error('Delete sale error:', error);
     res.redirect('/vendas?error=1');
   }
 });
