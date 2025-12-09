@@ -165,7 +165,8 @@
               <td>
                 <% if (item.tipo_item === 'PRODUTO') { %>Produto<% } 
                    else if (item.tipo_item === 'SERVICO') { %>Serviço<% } 
-                   else { %>Mão de Obra<% } %>
+                   else if (item.tipo_item === 'MOTO') { %>Moto<% } 
+                   else { %>Outro<% } %>
               </td>
               <td><%= item.descricao %></td>
               <td class="text-right"><%= item.quantidade %></td>
