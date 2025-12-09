@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual Tecle Motos - Guia Completo</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Arial, sans-serif; 
+      background: #fff; 
+      color: #333; 
+      line-height: 1.6;
+      padding: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .no-print { 
+      background: #FF6B35; 
+      color: #fff; 
+      padding: 15px 30px; 
+      border: none; 
+      border-radius: 8px; 
+      font-size: 16px; 
+      cursor: pointer; 
+      margin-bottom: 30px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .no-print:hover { background: #e55a2b; }
+    
+    .header {
+      text-align: center;
+      padding: 30px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-radius: 15px;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      color: #FF6B35;
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+    .header p {
+      color: #fff;
+      font-size: 18px;
+    }
+    .header .logo {
+      font-size: 60px;
+      color: #FF6B35;
+      margin-bottom: 15px;
+    }
+    
+    .toc {
+      background: #f8f9fa;
+      padding: 25px;
+      border-radius: 10px;
+      margin-bottom: 40px;
+    }
+    .toc h2 {
+      color: #FF6B35;
+      margin-bottom: 15px;
+      font-size: 22px;
+    }
+    .toc ul {
+      list-style: none;
+      columns: 2;
+    }
+    .toc li {
+      padding: 8px 0;
+      border-bottom: 1px dashed #ddd;
+    }
+    .toc a {
+      color: #333;
+      text-decoration: none;
+    }
+    .toc a:hover { color: #FF6B35; }
+    
+    .section {
+      margin-bottom: 50px;
+      page-break-inside: avoid;
+    }
+    .section-title {
+      background: #FF6B35;
+      color: #fff;
+      padding: 15px 25px;
+      border-radius: 10px 10px 0 0;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .section-content {
+      background: #f8f9fa;
+      padding: 25px;
+      border-radius: 0 0 10px 10px;
+      border: 1px solid #eee;
+      border-top: none;
+    }
+    
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .step-number {
+      background: #FF6B35;
+      color: #fff;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .step-content h4 {
+      color: #1a1a2e;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+    .step-content p {
+      color: #666;
+    }
+    
+    .mockup {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 15px 0;
+      color: #fff;
+    }
+    .mockup-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #333;
+    }
+    .mockup-header .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .mockup-header .dot.red { background: #ff5f56; }
+    .mockup-header .dot.yellow { background: #ffbd2e; }
+    .mockup-header .dot.green { background: #27ca40; }
+    .mockup-sidebar {
+      display: inline-block;
+      background: #16213e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-right: 20px;
+      vertical-align: top;
+      width: 180px;
+    }
+    .mockup-sidebar-item {
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+    .mockup-sidebar-item.active {
+      background: #FF6B35;
+    }
+    .mockup-sidebar-item i {
+      width: 20px;
+    }
+    .mockup-main {
+      display: inline-block;
+      vertical-align: top;
+      width: calc(100% - 220px);
+    }
+    .mockup-card {
+      background: #2d2d44;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .mockup-btn {
+      background: #FF6B35;
+      color: #fff;
+      padding: 8px 15px;
+      border-radius: 5px;
+      display: inline-block;
+      font-size: 13px;
+    }
+    .mockup-input {
+      background: #3d3d5c;
+      border: 1px solid #555;
+      padding: 8px 12px;
+      border-radius: 5px;
+      color: #fff;
+      margin: 5px 0;
+      display: block;
+      width: 100%;
+    }
+    
+    .info-box {
+      background: #e7f3ff;
+      border-left: 4px solid #2196F3;
+      padding: 15px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 15px 0;
+    }
+    .info-box.warning {
+      background: #fff3e0;
+      border-left-color: #ff9800;
+    }
+    .info-box.success {
+      background: #e8f5e9;
+      border-left-color: #4caf50;
+    }
+    
+    .profile-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    .profile-table th, .profile-table td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+    }
+    .profile-table th {
+      background: #1a1a2e;
+      color: #fff;
+    }
+    .profile-table tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+    
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      margin: 15px 0;
+    }
+    .flow-item {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+    }
+    .flow-item.highlight {
+      background: #FF6B35;
+    }
+    .flow-arrow {
+      color: #FF6B35;
+      font-size: 24px;
+    }
+    
+    .shortcut-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin: 15px 0;
+    }
+    .shortcut-card {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .shortcut-icon {
+      background: #FF6B35;
+      color: #fff;
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 30px;
+      background: #1a1a2e;
+      border-radius: 15px;
+      color: #fff;
+      margin-top: 50px;
+    }
+    .footer h3 {
+      color: #FF6B35;
+      margin-bottom: 10px;
+    }
+    
+    @media print {
+      .no-print { display: none; }
+      body { padding: 20px; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <button class="no-print" onclick="window.print()">
+    <i class="fas fa-file-pdf"></i> Salvar como PDF
+  </button>
+
+  <div class="header">
+    <div class="logo"><i class="fas fa-motorcycle"></i></div>
+    <h1>TECLE MOTOS</h1>
+    <p>Manual Completo do Sistema de Gestao</p>
+  </div>
+
+  <div class="toc">
+    <h2><i class="fas fa-list"></i> Indice</h2>
+    <ul>
+      <li><a href="#acesso">1. Acesso ao Sistema</a></li>
+      <li><a href="#perfis">2. Perfis de Usuario</a></li>
+      <li><a href="#dashboard">3. Dashboard</a></li>
+      <li><a href="#vendas">4. Vendas</a></li>
+      <li><a href="#os">5. Ordens de Servico</a></li>
+      <li><a href="#orcamentos">6. Orcamentos</a></li>
+      <li><a href="#produtos">7. Produtos</a></li>
+      <li><a href="#estoque">8. Estoque e Chassi</a></li>
+      <li><a href="#financeiro">9. Financeiro</a></li>
+      <li><a href="#dicas">10. Dicas Rapidas</a></li>
+    </ul>
+  </div>
+
+  <!-- SECAO 1: ACESSO -->
+  <div class="section" id="acesso">
+    <div class="section-title">
+      <i class="fas fa-key"></i> 1. Acesso ao Sistema
+    </div>
+    <div class="section-content">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h4>Abra o Sistema</h4>
+          <p>Acesse o endereco do sistema no seu navegador</p>
+        </div>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h4>Digite suas Credenciais</h4>
+          <p>Primeiro acesso: <strong>admin@teclemotos.com</strong> / <strong>admin123</strong></p>
+        </div>
+      </div>
+
+      <div class="mockup">
+        <div class="mockup-header">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span style="margin-left: 20px; color: #888;">Tecle Motos - Login</span>
+        </div>
+        <div style="text-align: center; padding: 30px;">
+          <div style="font-size: 40px; color: #FF6B35; margin-bottom: 20px;"><i class="fas fa-motorcycle"></i></div>
+          <h2 style="color: #FF6B35; margin-bottom: 20px;">TECLE MOTOS</h2>
+          <input type="text" class="mockup-input" placeholder="Email" style="max-width: 300px; margin: 10px auto;">
+          <input type="password" class="mockup-input" placeholder="Senha" style="max-width: 300px; margin: 10px auto;">
+          <div style="margin-top: 15px;">
+            <span class="mockup-btn"><i class="fas fa-sign-in-alt"></i> Entrar</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box warning">
+        <strong><i class="fas fa-exclamation-triangle"></i> Importante:</strong> Troque a senha padrao apos o primeiro acesso para maior seguranca!
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 2: PERFIS -->
+  <div class="section" id="perfis">
+    <div class="section-title">
+      <i class="fas fa-users"></i> 2. Perfis de Usuario
+    </div>
+    <div class="section-content">
+      <table class="profile-table">
+        <thead>
+          <tr>
+            <th>Perfil</th>
+            <th>Permissoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong><i class="fas fa-crown" style="color: #FF6B35;"></i> SUPER ADMIN</strong></td>
+            <td>Acesso total: dashboard, vendas, financeiro, usuarios, aprovar e concluir vendas/OS</td>
+          </tr>
+          <tr>
+            <td><strong><i class="fas fa-user-cog" style="color: #2196F3;"></i> ADMIN</strong></td>
+            <td>Cadastrar produtos, gerenciar estoque e subestoque</td>
+          </tr>
+          <tr>
+            <td><strong><i class="fas fa-user-tag" style="color: #4caf50;"></i> VENDEDOR</strong></td>
+            <td>Criar vendas, OS e orcamentos. Ver seu proprio dashboard de vendas</td>
+          </tr>
+          <tr>
+            <td><strong><i class="fas fa-calculator" style="color: #9c27b0;"></i> CONTADOR</strong></td>
+            <td>Visualizar financeiro (somente leitura)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECAO 3: DASHBOARD -->
+  <div class="section" id="dashboard">
+    <div class="section-title">
+      <i class="fas fa-chart-line"></i> 3. Dashboard
+    </div>
+    <div class="section-content">
+      <p style="margin-bottom: 15px;">O Dashboard mostra um resumo geral do seu negocio:</p>
+      
+      <div class="mockup">
+        <div class="mockup-header">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span style="margin-left: 20px; color: #888;">Dashboard</span>
+        </div>
+        <div class="mockup-sidebar">
+          <div class="mockup-sidebar-item active"><i class="fas fa-home"></i> Dashboard</div>
+          <div class="mockup-sidebar-item"><i class="fas fa-shopping-cart"></i> Vendas</div>
+          <div class="mockup-sidebar-item"><i class="fas fa-tools"></i> OS</div>
+          <div class="mockup-sidebar-item"><i class="fas fa-box"></i> Produtos</div>
+          <div class="mockup-sidebar-item"><i class="fas fa-warehouse"></i> Estoque</div>
+          <div class="mockup-sidebar-item"><i class="fas fa-dollar-sign"></i> Financeiro</div>
+        </div>
+        <div class="mockup-main">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+            <div class="mockup-card" style="text-align: center;">
+              <div style="font-size: 24px; color: #FF6B35;">R$ 45.000</div>
+              <div style="color: #888; font-size: 12px;">Vendas do Mes</div>
+            </div>
+            <div class="mockup-card" style="text-align: center;">
+              <div style="font-size: 24px; color: #4caf50;">12</div>
+              <div style="color: #888; font-size: 12px;">Vendas Concluidas</div>
+            </div>
+            <div class="mockup-card" style="text-align: center;">
+              <div style="font-size: 24px; color: #2196F3;">5</div>
+              <div style="color: #888; font-size: 12px;">OS Abertas</div>
+            </div>
+          </div>
+          <div class="mockup-card">
+            <div style="color: #888; font-size: 12px; margin-bottom: 10px;">Grafico de Vendas</div>
+            <div style="height: 60px; background: linear-gradient(90deg, #FF6B35 20%, #4caf50 40%, #2196F3 60%, #FF6B35 80%); border-radius: 5px; opacity: 0.3;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 4: VENDAS -->
+  <div class="section" id="vendas">
+    <div class="section-title">
+      <i class="fas fa-shopping-cart"></i> 4. Vendas
+    </div>
+    <div class="section-content">
+      <h3 style="margin-bottom: 15px; color: #1a1a2e;">Como Criar uma Venda</h3>
+      
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h4>Acesse o Menu Vendas</h4>
+          <p>Clique em <strong>Vendas</strong> no menu lateral, depois em <strong>Nova Venda</strong></p>
+        </div>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h4>Preencha os Dados do Cliente</h4>
+          <p>Nome, telefone, email, CPF/CNPJ e endereco</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h4>Adicione os Produtos</h4>
+          <p>Selecione o produto, escolha a cor e quantidade. Clique em <strong>+</strong> para mais itens</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <h4>Forma de Pagamento</h4>
+          <p>Escolha: Dinheiro, Cartao, PIX, Financiamento, etc.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">5</div>
+        <div class="step-content">
+          <h4>Salvar</h4>
+          <p>A venda ficara como <strong>PENDENTE</strong> aguardando aprovacao</p>
+        </div>
+      </div>
+
+      <div class="info-box success">
+        <strong><i class="fas fa-check-circle"></i> Fluxo da Venda:</strong>
+      </div>
+      
+      <div class="flow-diagram">
+        <div class="flow-item">Vendedor Cria</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item">Pendente</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item">Admin Aprova</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item">Seleciona Chassi</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item highlight">Concluida</div>
+      </div>
+
+      <h3 style="margin: 25px 0 15px; color: #1a1a2e;">Imprimir Documentos</h3>
+      
+      <div class="step">
+        <div class="step-number"><i class="fas fa-print"></i></div>
+        <div class="step-content">
+          <h4>Na tela de detalhes da venda</h4>
+          <p>Clique em <strong>Imprimir</strong> para nota completa ou <strong>Recibo</strong> para recibo simples</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 5: OS -->
+  <div class="section" id="os">
+    <div class="section-title">
+      <i class="fas fa-tools"></i> 5. Ordens de Servico (OS)
+    </div>
+    <div class="section-content">
+      <h3 style="margin-bottom: 15px; color: #1a1a2e;">Como Criar uma OS</h3>
+      
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h4>Menu > Ordens de Servico > Nova OS</h4>
+          <p>Acesse o menu lateral e clique em Nova OS</p>
+        </div>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h4>Dados do Cliente e Veiculo</h4>
+          <p>Preencha: nome, telefone, placa, modelo e cor do veiculo</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h4>Descreva o Problema</h4>
+          <p>Informe o problema relatado pelo cliente</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <h4>Adicione Itens</h4>
+          <p>Pecas, servicos ou mao de obra com valores e descontos</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">5</div>
+        <div class="step-content">
+          <h4>Salvar</h4>
+          <p>A OS ficara com status <strong>ABERTA</strong></p>
+        </div>
+      </div>
+
+      <div class="flow-diagram">
+        <div class="flow-item">ABERTA</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item">EM EXECUCAO</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item highlight">CONCLUIDA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 6: ORCAMENTOS -->
+  <div class="section" id="orcamentos">
+    <div class="section-title">
+      <i class="fas fa-file-invoice-dollar"></i> 6. Orcamentos
+    </div>
+    <div class="section-content">
+      <h3 style="margin-bottom: 15px; color: #1a1a2e;">Criar Orcamento Independente</h3>
+      
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h4>Menu > Orcamentos > Novo Orcamento</h4>
+          <p>Clique no botao verde "Novo Orcamento"</p>
+        </div>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h4>Escolha a Origem</h4>
+          <p><strong>Independente</strong> (avulso), <strong>Venda</strong> ou <strong>Ordem de Servico</strong></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h4>Preencha Cliente e Itens</h4>
+          <p>Adicione produtos/servicos com quantidades e valores</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <h4>Salvar e Imprimir</h4>
+          <p>O orcamento tera validade de <strong>7 dias</strong></p>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong><i class="fas fa-info-circle"></i> Dica:</strong> Voce tambem pode gerar orcamento diretamente de uma Venda ou OS clicando em "Gerar Orcamento" na tela de detalhes.
+      </div>
+
+      <div class="mockup">
+        <div class="mockup-header">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span style="margin-left: 20px; color: #888;">Orcamento para Impressao</span>
+        </div>
+        <div style="background: #fff; color: #333; padding: 20px; border-radius: 5px;">
+          <div style="text-align: center; border-bottom: 2px solid #FF6B35; padding-bottom: 10px; margin-bottom: 15px;">
+            <div style="font-size: 20px; font-weight: bold; color: #FF6B35;">TECLE MOTOS</div>
+            <div style="font-size: 12px;">ORCAMENTO</div>
+          </div>
+          <div style="font-size: 12px;">
+            <p><strong>Cliente:</strong> Joao Silva</p>
+            <p><strong>Data:</strong> 09/12/2024</p>
+            <p><strong>Validade:</strong> 16/12/2024</p>
+          </div>
+          <table style="width: 100%; margin-top: 15px; font-size: 11px; border-collapse: collapse;">
+            <tr style="background: #f5f5f5;">
+              <th style="padding: 8px; border: 1px solid #ddd;">Item</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Qtd</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Valor</th>
+            </tr>
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd;">Scooter Eletrica</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">1</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">R$ 8.500,00</td>
+            </tr>
+          </table>
+          <div style="text-align: right; margin-top: 15px; font-size: 16px; font-weight: bold; color: #FF6B35;">
+            TOTAL: R$ 8.500,00
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 7: PRODUTOS -->
+  <div class="section" id="produtos">
+    <div class="section-title">
+      <i class="fas fa-box"></i> 7. Produtos
+    </div>
+    <div class="section-content">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h4>Menu > Produtos > Novo Produto</h4>
+          <p>Acesse a listagem de produtos e clique em Novo</p>
+        </div>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h4>Escolha o Tipo</h4>
+          <p><strong>Moto</strong>, <strong>Scooter</strong>, <strong>Peca</strong> ou <strong>Servico</strong></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h4>Preencha os Detalhes</h4>
+          <p>Nome, preco de custo, preco de venda, cores disponiveis</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <h4>Salvar</h4>
+          <p>O produto estara disponivel para vendas e OS</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 8: ESTOQUE -->
+  <div class="section" id="estoque">
+    <div class="section-title">
+      <i class="fas fa-warehouse"></i> 8. Estoque e Chassi
+    </div>
+    <div class="section-content">
+      <h3 style="margin-bottom: 15px; color: #1a1a2e;">Gestao de Estoque</h3>
+      <p style="margin-bottom: 15px;">O estoque e baixado automaticamente quando vendas ou OS sao concluidas.</p>
+      
+      <h3 style="margin: 25px 0 15px; color: #1a1a2e;">Cadastro de Chassi</h3>
+      <p style="margin-bottom: 15px;">Cada moto/scooter precisa ter seu chassi cadastrado individualmente.</p>
+      
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h4>Menu > Chassi > Novo Chassi</h4>
+          <p>Cadastre o numero do chassi e a cor do veiculo</p>
+        </div>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h4>Vincule ao Produto</h4>
+          <p>Selecione qual moto ou scooter corresponde ao chassi</p>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <strong><i class="fas fa-info-circle"></i> Nota:</strong> Ao concluir uma venda de moto/scooter, o SUPER ADMIN deve selecionar qual chassi sera vendido.
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 9: FINANCEIRO -->
+  <div class="section" id="financeiro">
+    <div class="section-title">
+      <i class="fas fa-dollar-sign"></i> 9. Financeiro
+    </div>
+    <div class="section-content">
+      <h3 style="margin-bottom: 15px; color: #1a1a2e;">Contas a Receber</h3>
+      <p style="margin-bottom: 15px;">Sao geradas automaticamente quando uma venda e concluida.</p>
+      
+      <h3 style="margin: 25px 0 15px; color: #1a1a2e;">Contas a Pagar</h3>
+      
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h4>Menu > Financeiro > Contas a Pagar</h4>
+          <p>Visualize e cadastre contas a pagar</p>
+        </div>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h4>Nova Conta</h4>
+          <p>Preencha: fornecedor, valor, vencimento, categoria</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h4>Contas Fixas Mensais</h4>
+          <p>Marque "Fixa (Mensal)" para gerar parcelas automaticas ate dezembro</p>
+        </div>
+      </div>
+
+      <h3 style="margin: 25px 0 15px; color: #1a1a2e;">Conciliacao Bancaria</h3>
+      <p>Adicione lancamentos bancarios e anexe extratos para controle.</p>
+    </div>
+  </div>
+
+  <!-- SECAO 10: DICAS -->
+  <div class="section" id="dicas">
+    <div class="section-title">
+      <i class="fas fa-lightbulb"></i> 10. Dicas Rapidas
+    </div>
+    <div class="section-content">
+      <div class="shortcut-grid">
+        <div class="shortcut-card">
+          <div class="shortcut-icon"><i class="fas fa-home"></i></div>
+          <div>
+            <strong>Dashboard</strong>
+            <p style="color: #666; font-size: 12px;">Menu > Dashboard</p>
+          </div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-icon"><i class="fas fa-user-plus"></i></div>
+          <div>
+            <strong>Novo Usuario</strong>
+            <p style="color: #666; font-size: 12px;">Menu > Usuarios > Novo</p>
+          </div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-icon"><i class="fas fa-calendar"></i></div>
+          <div>
+            <strong>Filtrar por Data</strong>
+            <p style="color: #666; font-size: 12px;">Use o calendario nas listagens</p>
+          </div>
+        </div>
+        <div class="shortcut-card">
+          <div class="shortcut-icon"><i class="fas fa-print"></i></div>
+          <div>
+            <strong>Imprimir</strong>
+            <p style="color: #666; font-size: 12px;">Botoes na tela de detalhes</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box success" style="margin-top: 25px;">
+        <strong><i class="fas fa-check-circle"></i> Resumo do Fluxo Principal:</strong>
+      </div>
+      
+      <div class="flow-diagram" style="background: #f8f9fa;">
+        <div class="flow-item">Vendedor cria venda</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item">Admin aprova</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item">Seleciona chassi</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item">Conclui</div>
+        <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+        <div class="flow-item highlight">Baixa estoque + Gera conta</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <h3><i class="fas fa-motorcycle"></i> TECLE MOTOS</h3>
+    <p>Sistema de Gestao de Mobilidade Eletrica</p>
+    <p style="margin-top: 10px; color: #888;">Manual gerado em Dezembro 2024</p>
+  </div>
+
+</body>
+</html>
