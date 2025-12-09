@@ -39,12 +39,14 @@ app.use((req, res, next) => {
 // Sessão
 app.use(session({
   secret: process.env.SESSION_SECRET || 'tecle-motos-secret-key-2024',
-  resave: false,
+  resave: true,
   saveUninitialized: false,
+  rolling: true,
   cookie: { 
-    secure: false,                  // true somente se usar HTTPS
-    maxAge: 24 * 60 * 60 * 1000,    // 1 dia
-    sameSite: 'strict'
+    secure: false,
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'lax',
+    httpOnly: true
   }
 }));
 
