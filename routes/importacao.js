@@ -30,13 +30,17 @@ const upload = multer({
 });
 
 function identificarTipo(row) {
-  const nome = (row.nome || row.Nome || row.NOME || row.descricao || row.Descricao || '').toLowerCase();
-  const tipo = (row.tipo || row.Tipo || row.TIPO || '').toUpperCase();
-  const categoria = (row.categoria || row.Categoria || row.CATEGORIA || '').toLowerCase();
+  const nome = String(row['Descrição'] || row.descricao || row.Descricao || row.nome || row.Nome || '').toLowerCase();
+  const tipo = String(row.tipo || row.Tipo || row.TIPO || '').toUpperCase();
+  const categoria = String(row['Categoria do produto'] || row.categoria || row.Categoria || '').toLowerCase();
   
   if (tipo === 'MOTO' || tipo === 'SCOOTER') return 'MOTO';
   if (tipo === 'PECA' || tipo === 'PRODUTO') return 'PRODUTO';
-  if (tipo === 'SERVICO') return 'SERVICO';
+  if (tipo === 'SERVICO' || tipo === 'SERVIÇO') return 'SERVICO';
+  
+  if (categoria.includes('serviço') || categoria.includes('servico') || categoria === 'serviço' || categoria === 'servico') {
+    return 'SERVICO';
+  }
   
   if (nome.includes('moto') || nome.includes('scooter') || nome.includes('bike') || 
       nome.includes('eletrica') || nome.includes('elétrica') || categoria.includes('moto') ||
@@ -46,8 +50,7 @@ function identificarTipo(row) {
   
   if (nome.includes('serviço') || nome.includes('servico') || nome.includes('manutenção') ||
       nome.includes('manutencao') || nome.includes('instalação') || nome.includes('reparo') ||
-      nome.includes('revisão') || nome.includes('troca') || categoria.includes('servico') ||
-      categoria.includes('serviço')) {
+      nome.includes('revisão') || nome.includes('troca')) {
     return 'SERVICO';
   }
   
@@ -55,20 +58,6 @@ function identificarTipo(row) {
 }
 
 function extrairDados(row) {
-  const keys = Object.keys(row);
-  const primeiraColuna = keys.length > 0 ? row[keys[0]] : '';
-  
-  const getNome = () => {
-    const campos = ['nome', 'Nome', 'NOME', 'descricao', 'Descricao', 'DESCRICAO', 
-                    'produto', 'Produto', 'PRODUTO', 'item', 'Item', 'ITEM',
-                    'description', 'Description', 'name', 'Name', 'NAME'];
-    for (const campo of campos) {
-      if (row[campo] && String(row[campo]).trim()) return String(row[campo]).trim();
-    }
-    if (primeiraColuna && String(primeiraColuna).trim()) return String(primeiraColuna).trim();
-    return '';
-  };
-  
   const getNumero = (campos, valorDefault = 0) => {
     for (const campo of campos) {
       if (row[campo] !== undefined && row[campo] !== null && row[campo] !== '') {
@@ -82,25 +71,30 @@ function extrairDados(row) {
   
   const getString = (campos, valorDefault = '') => {
     for (const campo of campos) {
-      if (row[campo] && String(row[campo]).trim()) return String(row[campo]).trim();
+      if (row[campo] !== undefined && row[campo] !== null) {
+        const val = String(row[campo]).replace(/\t/g, '').trim();
+        if (val) return val;
+      }
     }
     return valorDefault;
   };
   
   return {
-    nome: getNome(),
-    codigo_interno: getString(['codigo', 'Codigo', 'CODIGO', 'codigo_interno', 'sku', 'SKU', 'cod', 'Cod', 'COD', 'ref', 'Ref', 'REF', 'referencia', 'Referencia']) || null,
-    preco: getNumero(['preco', 'Preco', 'PRECO', 'valor', 'Valor', 'VALOR', 'price', 'Price', 'venda', 'Venda', 'preco_venda', 'valor_venda']),
-    custo: getNumero(['custo', 'Custo', 'CUSTO', 'cost', 'Cost', 'preco_custo', 'valor_custo']),
-    categoria: getString(['categoria', 'Categoria', 'CATEGORIA', 'category', 'Category', 'tipo', 'Tipo'], 'Geral'),
-    descricao: getString(['descricao_completa', 'obs', 'observacao', 'Observacao', 'observacoes', 'Observacoes', 'detalhes', 'Detalhes']),
-    marca: getString(['marca', 'Marca', 'MARCA', 'brand', 'Brand', 'fabricante', 'Fabricante']),
-    modelo: getString(['modelo', 'Modelo', 'MODELO', 'model', 'Model']),
-    cor: getString(['cor', 'Cor', 'COR', 'color', 'Color', 'cores', 'Cores']),
-    chassi: getString(['chassi', 'Chassi', 'CHASSI', 'chassis', 'Chassis']) || null,
-    codigo_motor: getString(['codigo_motor', 'motor', 'Motor', 'MOTOR', 'num_motor']) || null,
-    capacidade_bateria: getString(['bateria', 'Bateria', 'BATERIA', 'capacidade_bateria', 'battery']) || null,
-    quantidade: Math.max(1, Math.floor(getNumero(['quantidade', 'Quantidade', 'QUANTIDADE', 'qtd', 'Qtd', 'QTD', 'estoque', 'Estoque', 'qty', 'Qty'], 1)))
+    nome: getString(['Descrição', 'descricao', 'Descricao', 'nome', 'Nome', 'NOME', 'produto', 'Produto']),
+    codigo_interno: getString(['Código', 'codigo', 'Codigo', 'CODIGO', 'codigo_interno', 'sku', 'SKU', 'cod']) || null,
+    preco: getNumero(['Preço', 'preco', 'Preco', 'PRECO', 'valor', 'Valor', 'price']),
+    custo: getNumero(['Preço de custo', 'Preço de Compra', 'custo', 'Custo', 'CUSTO', 'preco_custo']),
+    categoria: getString(['Categoria do produto', 'categoria', 'Categoria', 'CATEGORIA', 'Grupo de produtos'], 'Geral'),
+    descricao: getString(['Observações', 'Descrição Complementar', 'Descrição Curta', 'obs', 'observacao']),
+    marca: getString(['Marca', 'marca', 'MARCA', 'brand', 'fabricante', 'Fabricante']),
+    modelo: getString(['modelo', 'Modelo', 'MODELO', 'model']),
+    cor: getString(['cor', 'Cor', 'COR', 'color']),
+    chassi: getString(['chassi', 'Chassi', 'CHASSI']) || null,
+    codigo_motor: getString(['codigo_motor', 'motor', 'Motor']) || null,
+    capacidade_bateria: getString(['bateria', 'Bateria', 'capacidade_bateria']) || null,
+    quantidade: Math.max(0, Math.floor(getNumero(['Estoque', 'quantidade', 'Quantidade', 'qtd', 'Qtd', 'estoque'], 0))),
+    unidade: getString(['Unidade', 'unidade', 'un', 'Un']),
+    ativo: getString(['Situação', 'situacao', 'status'], 'Ativo').toLowerCase() === 'ativo'
   };
 }
 
@@ -193,7 +187,7 @@ router.post('/processar', isAdmin, upload.single('planilha'), validateCsrf, asyn
             chassi: dadosItem.chassi,
             codigo_motor: dadosItem.codigo_motor,
             capacidade_bateria: dadosItem.capacidade_bateria,
-            ativo: true
+            ativo: dadosItem.ativo
           });
 
           if (estoquePrincipal && dadosItem.quantidade > 0) {
