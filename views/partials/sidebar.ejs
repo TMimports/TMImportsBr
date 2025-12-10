@@ -95,6 +95,10 @@
     
     <% if (user && user.perfil === 'SUPER_ADMIN') { %>
       <div class="nav-section">Sistema</div>
+      <a href="/importacao" class="nav-item">
+        <i class="fas fa-file-import"></i>
+        Importar Planilha
+      </a>
       <a href="/usuarios" class="nav-item">
         <i class="fas fa-users-cog"></i>
         Usuários

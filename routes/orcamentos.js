@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { isAuthenticated, isSuperAdmin } = require('../middleware/auth');
-const { Orcamento, ItemOrcamento, Venda, OrdemServico, Produto, Usuario } = require('../models');
+const { Orcamento, ItemOrcamento, Venda, ItemVenda, OrdemServico, Produto, Usuario } = require('../models');
 const { Op } = require('sequelize');
 
 const canAccessOrcamento = (req, res, next) => {
@@ -237,7 +237,9 @@ router.post('/:id/enviar', canAccessOrcamento, async (req, res) => {
 
 router.post('/:id/aprovar', isSuperAdmin, async (req, res) => {
   try {
-    const orcamento = await Orcamento.findByPk(req.params.id);
+    const orcamento = await Orcamento.findByPk(req.params.id, {
+      include: [{ model: ItemOrcamento, as: 'itens' }]
+    });
     
     if (!orcamento) {
       return res.redirect('/orcamentos?error=1');
@@ -260,11 +262,68 @@ router.post('/:id/aprovar', isSuperAdmin, async (req, res) => {
         { status: 'APROVADA' },
         { where: { id: orcamento.origem_id } }
       );
+      
+      const os = await OrdemServico.findByPk(orcamento.origem_id);
+      
+      const novaVenda = await Venda.create({
+        vendedor_id: os ? os.criado_por : req.session.user.id,
+        cliente_nome: orcamento.cliente_nome,
+        cliente_telefone: orcamento.cliente_telefone,
+        cliente_email: orcamento.cliente_email,
+        data_venda: now,
+        desconto: orcamento.desconto_total || 0,
+        valor_total: orcamento.total,
+        forma_pagamento: 'A DEFINIR',
+        status: 'PENDENTE',
+        observacoes: `Venda gerada automaticamente do orçamento #${orcamento.id} (OS #${orcamento.origem_id})`
+      });
+      
+      if (orcamento.itens && orcamento.itens.length > 0) {
+        for (const item of orcamento.itens) {
+          await ItemVenda.create({
+            venda_id: novaVenda.id,
+            produto_id: item.produto_id,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            preco_unitario: item.preco_unitario,
+            desconto: item.desconto || 0,
+            total: (item.preco_unitario * item.quantidade) - (item.desconto || 0)
+          });
+        }
+      }
+      
     } else if (orcamento.origem_tipo === 'VENDA') {
       await Venda.update(
         { status: 'APROVADA' },
         { where: { id: orcamento.origem_id } }
       );
+    } else {
+      const novaVenda = await Venda.create({
+        vendedor_id: req.session.user.id,
+        cliente_nome: orcamento.cliente_nome,
+        cliente_telefone: orcamento.cliente_telefone,
+        cliente_email: orcamento.cliente_email,
+        data_venda: now,
+        desconto: orcamento.desconto_total || 0,
+        valor_total: orcamento.total,
+        forma_pagamento: 'A DEFINIR',
+        status: 'PENDENTE',
+        observacoes: `Venda gerada automaticamente do orçamento #${orcamento.id}`
+      });
+      
+      if (orcamento.itens && orcamento.itens.length > 0) {
+        for (const item of orcamento.itens) {
+          await ItemVenda.create({
+            venda_id: novaVenda.id,
+            produto_id: item.produto_id,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            preco_unitario: item.preco_unitario,
+            desconto: item.desconto || 0,
+            total: (item.preco_unitario * item.quantidade) - (item.desconto || 0)
+          });
+        }
+      }
     }
     
     res.redirect('/orcamentos/' + orcamento.id);

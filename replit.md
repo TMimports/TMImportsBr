@@ -193,6 +193,20 @@ Quando um novo usuário é cadastrado:
 
 ## Mudanças Recentes
 
+- **10/12/2024:** Sistema de Importação Automática de Planilhas
+  - Nova página de importação de planilhas Excel/CSV em Sistema > Importar Planilha
+  - Identificação automática de tipo (MOTO, SCOOTER, PEÇA, SERVIÇO) baseada nos dados
+  - Validação automática dos dados da planilha
+  - Cadastro de novos produtos ou atualização de existentes
+  - Download de modelo de planilha para referência
+  - Integração com estoque principal para novos itens
+
+- **10/12/2024:** Fluxo Automático Orçamento Aprovado → Venda Pendente
+  - Quando um orçamento é aprovado, uma venda é criada automaticamente
+  - Venda criada com status PENDENTE na área de Vendas Pendentes
+  - Inclui todos os itens do orçamento com valores e descontos
+  - Referência automática ao orçamento e OS de origem
+
 - **09/12/2024:** Filtro por tipo de item em vendas, orçamentos e OS
   - Cadastro de produtos agora inclui campos: chassi, código do motor e capacidade da bateria para motos
   - Filtro por tipo (Moto, Produto, Serviço) nos formulários de venda, orçamento e OS
