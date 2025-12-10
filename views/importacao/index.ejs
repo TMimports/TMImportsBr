@@ -1,198 +1,198 @@
-<%- include('../partials/header') %>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Importar Planilha - Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="layout">
+    <%- include('../partials/sidebar') %>
+    <div class="main-content">
+      <%- include('../partials/topbar') %>
+      <div class="content">
+        <div class="page-header">
+          <h1 class="page-title"><i class="fas fa-file-import"></i> Importar Planilha</h1>
+        </div>
 
-<div class="content-header">
-  <h1><i class="fas fa-file-import"></i> Importar Planilha</h1>
-  <p>Importe produtos, peças e serviços automaticamente via planilha Excel ou CSV</p>
-</div>
-
-<% if (success) { %>
-  <div class="alert alert-success">
-    <i class="fas fa-check-circle"></i>
-    Importação concluída com sucesso!
-    <strong><%= importados %></strong> novos itens cadastrados,
-    <strong><%= atualizados %></strong> itens atualizados
-    <% if (erros > 0) { %>
-      e <strong><%= erros %></strong> erros encontrados.
-    <% } %>
-  </div>
-<% } %>
-
-<% if (error) { %>
-  <div class="alert alert-danger">
-    <i class="fas fa-exclamation-circle"></i>
-    <%= error %>
-  </div>
-<% } %>
-
-<div class="row">
-  <div class="col-md-8">
-    <div class="card">
-      <div class="card-header">
-        <h3><i class="fas fa-upload"></i> Enviar Planilha</h3>
-      </div>
-      <div class="card-body">
-        <form action="/importacao/processar" method="POST" enctype="multipart/form-data" id="formImportacao">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          
-          <div class="upload-area" id="uploadArea">
-            <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--primary-color); margin-bottom: 15px;"></i>
-            <h4>Arraste a planilha aqui ou clique para selecionar</h4>
-            <p style="color: #888;">Formatos aceitos: Excel (.xlsx, .xls) ou CSV</p>
-            <input type="file" name="planilha" id="inputPlanilha" accept=".xlsx,.xls,.csv" style="display: none;" required>
-            <button type="button" class="btn btn-primary" onclick="document.getElementById('inputPlanilha').click()">
-              <i class="fas fa-folder-open"></i> Selecionar Arquivo
-            </button>
+        <% if (success) { %>
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            Importação concluída com sucesso!
+            <strong><%= importados %></strong> novos itens cadastrados,
+            <strong><%= atualizados %></strong> itens atualizados
+            <% if (erros > 0) { %>
+              e <strong><%= erros %></strong> erros encontrados.
+            <% } %>
           </div>
+        <% } %>
 
-          <div id="arquivoSelecionado" style="display: none; margin-top: 20px;">
-            <div class="alert" style="background: var(--card-bg); border: 1px solid var(--primary-color);">
-              <i class="fas fa-file-excel" style="color: #28a745; margin-right: 10px;"></i>
-              <span id="nomeArquivo"></span>
-              <button type="button" class="btn btn-sm btn-outline" onclick="limparArquivo()" style="float: right;">
-                <i class="fas fa-times"></i> Remover
-              </button>
+        <% if (error) { %>
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i>
+            <%= error %>
+          </div>
+        <% } %>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-upload"></i> Enviar Planilha</h3>
+            </div>
+            <div class="card-body">
+              <form action="/importacao/processar" method="POST" enctype="multipart/form-data" id="formImportacao">
+                <%- include('../partials/csrf') %>
+                
+                <div class="upload-area" id="uploadArea">
+                  <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--primary-color); margin-bottom: 15px;"></i>
+                  <h4>Arraste a planilha aqui ou clique para selecionar</h4>
+                  <p style="color: #888;">Formatos aceitos: Excel (.xlsx, .xls) ou CSV</p>
+                  <input type="file" name="planilha" id="inputPlanilha" accept=".xlsx,.xls,.csv" style="display: none;" required>
+                  <button type="button" class="btn btn-primary" onclick="document.getElementById('inputPlanilha').click()">
+                    <i class="fas fa-folder-open"></i> Selecionar Arquivo
+                  </button>
+                </div>
+
+                <div id="arquivoSelecionado" style="display: none; margin-top: 20px;">
+                  <div class="alert" style="background: var(--card-bg); border: 1px solid var(--primary-color);">
+                    <i class="fas fa-file-excel" style="color: #28a745; margin-right: 10px;"></i>
+                    <span id="nomeArquivo"></span>
+                    <button type="button" class="btn btn-sm" onclick="limparArquivo()" style="float: right;">
+                      <i class="fas fa-times"></i> Remover
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                  <button type="submit" class="btn btn-success btn-lg" id="btnImportar" disabled>
+                    <i class="fas fa-file-import"></i> Importar Planilha
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 20px;">
-            <button type="submit" class="btn btn-success btn-lg" id="btnImportar" disabled>
-              <i class="fas fa-file-import"></i> Importar Planilha
-            </button>
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-info-circle"></i> Instruções</h3>
+            </div>
+            <div class="card-body">
+              <h5 style="color: var(--primary-color);">Formato da Planilha</h5>
+              <p>A planilha deve conter as seguintes colunas:</p>
+              <ul style="color: #ccc; font-size: 14px;">
+                <li><strong>nome</strong> - Nome do item (obrigatório)</li>
+                <li><strong>tipo</strong> - MOTO, PRODUTO ou SERVICO</li>
+                <li><strong>codigo</strong> - Código interno</li>
+                <li><strong>preco</strong> - Preço de venda</li>
+                <li><strong>custo</strong> - Custo do item</li>
+                <li><strong>categoria</strong> - Categoria do item</li>
+                <li><strong>marca</strong> - Marca</li>
+                <li><strong>modelo</strong> - Modelo</li>
+                <li><strong>cor</strong> - Cor disponível</li>
+                <li><strong>chassi</strong> - Número do chassi (motos)</li>
+                <li><strong>codigo_motor</strong> - Código do motor</li>
+                <li><strong>bateria</strong> - Capacidade da bateria</li>
+                <li><strong>quantidade</strong> - Quantidade em estoque</li>
+              </ul>
+
+              <hr style="border-color: #444;">
+
+              <h5 style="color: var(--primary-color);">Identificação Automática</h5>
+              <p style="color: #ccc; font-size: 14px;">
+                Se a coluna "tipo" não for informada, o sistema identifica automaticamente:
+              </p>
+              <ul style="color: #ccc; font-size: 14px;">
+                <li><strong style="color: #00ff88;">MOTO</strong> - Itens com chassi ou nome contendo "moto", "scooter"</li>
+                <li><strong style="color: #00ff88;">SERVIÇO</strong> - Itens com nome contendo "serviço", "manutenção", "revisão"</li>
+                <li><strong style="color: #00ff88;">PRODUTO</strong> - Demais itens (peças, acessórios)</li>
+              </ul>
+
+              <hr style="border-color: #444;">
+
+              <a href="/importacao/modelo" class="btn btn-secondary" style="width: 100%;">
+                <i class="fas fa-download"></i> Baixar Modelo de Planilha
+              </a>
+            </div>
           </div>
-        </form>
+        </div>
+
       </div>
     </div>
   </div>
 
-  <div class="col-md-4">
-    <div class="card">
-      <div class="card-header">
-        <h3><i class="fas fa-info-circle"></i> Instruções</h3>
-      </div>
-      <div class="card-body">
-        <h5 style="color: var(--primary-color);">Formato da Planilha</h5>
-        <p>A planilha deve conter as seguintes colunas:</p>
-        <ul style="color: #ccc; font-size: 14px;">
-          <li><strong>nome</strong> - Nome do item (obrigatório)</li>
-          <li><strong>tipo</strong> - MOTO, SCOOTER, PECA ou SERVICO</li>
-          <li><strong>codigo</strong> - Código interno</li>
-          <li><strong>preco</strong> - Preço de venda</li>
-          <li><strong>custo</strong> - Custo do item</li>
-          <li><strong>categoria</strong> - Categoria do item</li>
-          <li><strong>marca</strong> - Marca</li>
-          <li><strong>modelo</strong> - Modelo</li>
-          <li><strong>cor</strong> - Cor disponível</li>
-          <li><strong>chassi</strong> - Número do chassi (motos)</li>
-          <li><strong>codigo_motor</strong> - Código do motor</li>
-          <li><strong>bateria</strong> - Capacidade da bateria</li>
-          <li><strong>quantidade</strong> - Quantidade em estoque</li>
-        </ul>
-
-        <hr style="border-color: #444;">
-
-        <h5 style="color: var(--primary-color);">Identificação Automática</h5>
-        <p style="color: #ccc; font-size: 14px;">
-          Se a coluna "tipo" não for informada, o sistema identifica automaticamente:
-        </p>
-        <ul style="color: #ccc; font-size: 14px;">
-          <li><strong style="color: #00ff88;">MOTO/SCOOTER</strong> - Itens com chassi ou nome contendo "moto", "scooter"</li>
-          <li><strong style="color: #00ff88;">SERVIÇO</strong> - Itens com nome contendo "serviço", "manutenção", "revisão"</li>
-          <li><strong style="color: #00ff88;">PEÇA</strong> - Demais itens</li>
-        </ul>
-
-        <hr style="border-color: #444;">
-
-        <a href="/importacao/modelo" class="btn btn-outline btn-block">
-          <i class="fas fa-download"></i> Baixar Modelo de Planilha
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
-<style>
-.upload-area {
-  border: 2px dashed #555;
-  border-radius: 10px;
-  padding: 40px;
-  text-align: center;
-  transition: all 0.3s;
-  cursor: pointer;
-}
-.upload-area:hover, .upload-area.dragover {
-  border-color: var(--primary-color);
-  background: rgba(255, 107, 53, 0.1);
-}
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 0 -15px;
-}
-.col-md-8 {
-  flex: 0 0 65%;
-  max-width: 65%;
-  padding: 0 15px;
-}
-.col-md-4 {
-  flex: 0 0 35%;
-  max-width: 35%;
-  padding: 0 15px;
-}
-@media (max-width: 768px) {
-  .col-md-8, .col-md-4 {
-    flex: 0 0 100%;
-    max-width: 100%;
-    margin-bottom: 20px;
+  <style>
+  .upload-area {
+    border: 2px dashed #555;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    transition: all 0.3s;
+    cursor: pointer;
   }
-}
-</style>
-
-<script>
-const uploadArea = document.getElementById('uploadArea');
-const inputPlanilha = document.getElementById('inputPlanilha');
-const arquivoSelecionado = document.getElementById('arquivoSelecionado');
-const nomeArquivo = document.getElementById('nomeArquivo');
-const btnImportar = document.getElementById('btnImportar');
-
-uploadArea.addEventListener('click', () => inputPlanilha.click());
-
-uploadArea.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  uploadArea.classList.add('dragover');
-});
-
-uploadArea.addEventListener('dragleave', () => {
-  uploadArea.classList.remove('dragover');
-});
-
-uploadArea.addEventListener('drop', (e) => {
-  e.preventDefault();
-  uploadArea.classList.remove('dragover');
-  if (e.dataTransfer.files.length) {
-    inputPlanilha.files = e.dataTransfer.files;
-    mostrarArquivo(e.dataTransfer.files[0]);
+  .upload-area:hover, .upload-area.dragover {
+    border-color: var(--primary-color);
+    background: rgba(255, 107, 53, 0.1);
   }
-});
-
-inputPlanilha.addEventListener('change', (e) => {
-  if (e.target.files.length) {
-    mostrarArquivo(e.target.files[0]);
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
   }
-});
+  @media (max-width: 768px) {
+    .grid-2 {
+      grid-template-columns: 1fr;
+    }
+  }
+  </style>
 
-function mostrarArquivo(file) {
-  nomeArquivo.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
-  arquivoSelecionado.style.display = 'block';
-  uploadArea.style.display = 'none';
-  btnImportar.disabled = false;
-}
+  <script>
+  const uploadArea = document.getElementById('uploadArea');
+  const inputPlanilha = document.getElementById('inputPlanilha');
+  const arquivoSelecionado = document.getElementById('arquivoSelecionado');
+  const nomeArquivo = document.getElementById('nomeArquivo');
+  const btnImportar = document.getElementById('btnImportar');
 
-function limparArquivo() {
-  inputPlanilha.value = '';
-  arquivoSelecionado.style.display = 'none';
-  uploadArea.style.display = 'block';
-  btnImportar.disabled = true;
-}
-</script>
+  uploadArea.addEventListener('click', () => inputPlanilha.click());
 
-<%- include('../partials/footer') %>
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+  });
+
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    if (e.dataTransfer.files.length) {
+      inputPlanilha.files = e.dataTransfer.files;
+      mostrarArquivo(e.dataTransfer.files[0]);
+    }
+  });
+
+  inputPlanilha.addEventListener('change', (e) => {
+    if (e.target.files.length) {
+      mostrarArquivo(e.target.files[0]);
+    }
+  });
+
+  function mostrarArquivo(file) {
+    nomeArquivo.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    arquivoSelecionado.style.display = 'block';
+    uploadArea.style.display = 'none';
+    btnImportar.disabled = false;
+  }
+
+  function limparArquivo() {
+    inputPlanilha.value = '';
+    arquivoSelecionado.style.display = 'none';
+    uploadArea.style.display = 'block';
+    btnImportar.disabled = true;
+  }
+  </script>
+</body>
+</html>
