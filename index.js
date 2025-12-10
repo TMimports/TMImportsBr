@@ -79,7 +79,8 @@ const uploadRoutes = [
   { method: 'POST', pattern: /^\/vendas\/\d+\/anexos$/ },
   { method: 'POST', path: '/produtos' },
   { method: 'POST', pattern: /^\/produtos\/\d+\/anexos$/ },
-  { method: 'POST', path: '/financeiro/conciliacao' }
+  { method: 'POST', path: '/financeiro/conciliacao' },
+  { method: 'POST', path: '/importacao/processar' }
 ];
 
 function isUploadRoute(method, path) {
