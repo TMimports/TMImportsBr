@@ -213,4 +213,23 @@ router.get('/api/subestoques/:estoqueId', async (req, res) => {
   }
 });
 
+router.post('/limpar-tudo', isAdmin, async (req, res) => {
+  try {
+    if (req.session.user.perfil !== 'SUPER_ADMIN') {
+      return res.redirect('/estoque?error=Sem permissão');
+    }
+    
+    await ItemEstoque.destroy({ where: {} });
+    await Subestoque.destroy({ where: {} });
+    await Estoque.destroy({ where: {} });
+    
+    await Estoque.create({ nome_estoque: 'Estoque Principal', ativo: true });
+    
+    res.redirect('/estoque?success=Estoque limpo com sucesso');
+  } catch (error) {
+    console.error('Erro ao limpar estoque:', error);
+    res.redirect('/estoque?error=Erro ao limpar estoque');
+  }
+});
+
 module.exports = router;

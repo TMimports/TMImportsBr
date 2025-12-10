@@ -181,6 +181,23 @@ router.post('/:id/anexos', isAdmin, upload.single('arquivo'), validateCsrf, asyn
   }
 });
 
+router.post('/limpar-tudo', isAdmin, validateCsrf, async (req, res) => {
+  try {
+    if (req.session.user.perfil !== 'SUPER_ADMIN') {
+      return res.redirect('/produtos?error=Sem permissão');
+    }
+    
+    await ItemEstoque.destroy({ where: {} });
+    await Anexo.destroy({ where: { produto_id: { [Op.ne]: null } } });
+    await Produto.destroy({ where: {} });
+    
+    res.redirect('/produtos?success=Todos os produtos foram removidos');
+  } catch (error) {
+    console.error('Erro ao limpar produtos:', error);
+    res.redirect('/produtos?error=Erro ao limpar produtos');
+  }
+});
+
 router.get('/api/por-tipo/:tipo', isAuthenticated, async (req, res) => {
   try {
     const { tipo } = req.params;

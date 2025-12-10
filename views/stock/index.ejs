@@ -25,6 +25,11 @@
             <button class="btn btn-success" onclick="openModal('itemModal')">
               <i class="fas fa-plus"></i> Adicionar Item
             </button>
+            <% if (user.perfil === 'SUPER_ADMIN') { %>
+              <button class="btn btn-danger" onclick="confirmarLimpeza('estoque')">
+                <i class="fas fa-trash-alt"></i> Limpar Tudo
+              </button>
+            <% } %>
           </div>
         </div>
 
@@ -340,6 +345,18 @@
       document.getElementById('baixaForm').action = '/estoque/itens/' + itemId + '/baixa';
       openModal('baixaModal');
     }
+    
+    function confirmarLimpeza(tipo) {
+      if (confirm('ATENÇÃO! Esta ação irá EXCLUIR PERMANENTEMENTE todos os estoques, subestoques e itens.\n\nDeseja continuar?')) {
+        if (confirm('Tem CERTEZA ABSOLUTA? Esta ação não pode ser desfeita!')) {
+          document.getElementById('formLimparEstoque').submit();
+        }
+      }
+    }
   </script>
+  
+  <form id="formLimparEstoque" action="/estoque/limpar-tudo" method="POST" style="display:none;">
+    <%- include('../partials/csrf') %>
+  </form>
 </body>
 </html>

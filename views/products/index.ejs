@@ -15,9 +15,16 @@
       <div class="content">
         <div class="page-header">
           <h1 class="page-title">Produtos / Serviços</h1>
-          <button class="btn btn-primary" onclick="openModal('createModal')">
-            <i class="fas fa-plus"></i> Novo Cadastro
-          </button>
+          <div class="actions">
+            <button class="btn btn-primary" onclick="openModal('createModal')">
+              <i class="fas fa-plus"></i> Novo Cadastro
+            </button>
+            <% if (user.perfil === 'SUPER_ADMIN') { %>
+              <button class="btn btn-danger" onclick="confirmarLimpeza('produtos')">
+                <i class="fas fa-trash-alt"></i> Limpar Tudo
+              </button>
+            <% } %>
+          </div>
         </div>
 
         <form class="search-bar" method="GET">
@@ -364,6 +371,18 @@
     document.getElementById('edit_tipo').addEventListener('change', function() {
       toggleEditFields(this.value);
     });
+    
+    function confirmarLimpeza(tipo) {
+      if (confirm('ATENÇÃO! Esta ação irá EXCLUIR PERMANENTEMENTE todos os produtos e serviços cadastrados.\n\nDeseja continuar?')) {
+        if (confirm('Tem CERTEZA ABSOLUTA? Esta ação não pode ser desfeita!')) {
+          document.getElementById('formLimparProdutos').submit();
+        }
+      }
+    }
   </script>
+  
+  <form id="formLimparProdutos" action="/produtos/limpar-tudo" method="POST" style="display:none;">
+    <%- include('../partials/csrf') %>
+  </form>
 </body>
 </html>
