@@ -137,11 +137,13 @@ router.post('/processar', isAdmin, upload.single('planilha'), validateCsrf, asyn
     const estoquePrincipal = await Estoque.findOne({ where: { ativo: true }, order: [['id', 'ASC']] });
 
     for (const row of dados) {
+      let dadosItem = null;
       try {
         const tipo = identificarTipo(row);
-        const dadosItem = extrairDados(row);
+        dadosItem = extrairDados(row);
 
         if (!dadosItem.nome || dadosItem.nome.trim() === '') {
+          console.log('Item sem nome, pulando:', JSON.stringify(row).substring(0, 100));
           erros++;
           continue;
         }
@@ -149,23 +151,21 @@ router.post('/processar', isAdmin, upload.single('planilha'), validateCsrf, asyn
         let produtoExistente = null;
         if (dadosItem.codigo_interno) {
           produtoExistente = await Produto.findOne({ 
-            where: { codigo_interno: dadosItem.codigo_interno } 
+            where: { item: dadosItem.codigo_interno } 
           });
         }
         if (!produtoExistente) {
           produtoExistente = await Produto.findOne({ 
-            where: { nome: dadosItem.nome.trim() } 
+            where: { nome_produto: dadosItem.nome.trim() } 
           });
         }
 
         if (produtoExistente) {
           await produtoExistente.update({
-            preco: dadosItem.preco || produtoExistente.preco,
-            custo: dadosItem.custo || produtoExistente.custo,
+            preco_venda: dadosItem.preco || produtoExistente.preco_venda,
             categoria: dadosItem.categoria || produtoExistente.categoria,
             descricao: dadosItem.descricao || produtoExistente.descricao,
-            marca: dadosItem.marca || produtoExistente.marca,
-            modelo: dadosItem.modelo || produtoExistente.modelo,
+            nome_modelo: dadosItem.marca || produtoExistente.nome_modelo,
             cor: dadosItem.cor || produtoExistente.cor,
             chassi: dadosItem.chassi || produtoExistente.chassi,
             codigo_motor: dadosItem.codigo_motor || produtoExistente.codigo_motor,
@@ -174,15 +174,13 @@ router.post('/processar', isAdmin, upload.single('planilha'), validateCsrf, asyn
           atualizados++;
         } else {
           const novoProduto = await Produto.create({
-            nome: dadosItem.nome.trim(),
-            codigo_interno: dadosItem.codigo_interno,
+            nome_produto: dadosItem.nome.trim(),
+            item: dadosItem.codigo_interno,
             tipo: tipo,
-            preco: dadosItem.preco,
-            custo: dadosItem.custo,
+            preco_venda: dadosItem.preco,
             categoria: dadosItem.categoria,
             descricao: dadosItem.descricao,
-            marca: dadosItem.marca,
-            modelo: dadosItem.modelo,
+            nome_modelo: dadosItem.marca,
             cor: dadosItem.cor,
             chassi: dadosItem.chassi,
             codigo_motor: dadosItem.codigo_motor,
@@ -203,7 +201,7 @@ router.post('/processar', isAdmin, upload.single('planilha'), validateCsrf, asyn
           importados++;
         }
       } catch (itemError) {
-        console.error('Erro ao processar item:', itemError);
+        console.error('Erro ao processar item:', itemError.message, 'Dados:', dadosItem ? JSON.stringify(dadosItem).substring(0, 200) : 'null');
         erros++;
       }
     }
