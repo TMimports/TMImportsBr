@@ -34,14 +34,13 @@ function identificarTipo(row) {
   const tipo = (row.tipo || row.Tipo || row.TIPO || '').toUpperCase();
   const categoria = (row.categoria || row.Categoria || row.CATEGORIA || '').toLowerCase();
   
-  if (tipo === 'MOTO' || tipo === 'SCOOTER') return tipo;
-  if (tipo === 'PECA' || tipo === 'PRODUTO') return 'PECA';
+  if (tipo === 'MOTO' || tipo === 'SCOOTER') return 'MOTO';
+  if (tipo === 'PECA' || tipo === 'PRODUTO') return 'PRODUTO';
   if (tipo === 'SERVICO') return 'SERVICO';
   
   if (nome.includes('moto') || nome.includes('scooter') || nome.includes('bike') || 
       nome.includes('eletrica') || nome.includes('elétrica') || categoria.includes('moto') ||
       row.chassi || row.Chassi || row.codigo_motor) {
-    if (nome.includes('scooter')) return 'SCOOTER';
     return 'MOTO';
   }
   
@@ -52,7 +51,7 @@ function identificarTipo(row) {
     return 'SERVICO';
   }
   
-  return 'PECA';
+  return 'PRODUTO';
 }
 
 function extrairDados(row) {
@@ -196,7 +195,7 @@ router.get('/modelo', isAdmin, (req, res) => {
   const dadosExemplo = [
     {
       nome: 'Scooter Elétrica X1',
-      tipo: 'SCOOTER',
+      tipo: 'MOTO',
       codigo: 'SCOOT-001',
       preco: 8999.90,
       custo: 6500.00,
@@ -211,7 +210,7 @@ router.get('/modelo', isAdmin, (req, res) => {
     },
     {
       nome: 'Bateria 60V 20Ah',
-      tipo: 'PECA',
+      tipo: 'PRODUTO',
       codigo: 'BAT-001',
       preco: 1299.90,
       custo: 900.00,
