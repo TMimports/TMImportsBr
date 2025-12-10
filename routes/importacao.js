@@ -108,7 +108,7 @@ router.post('/processar', isAdmin, upload.single('planilha'), validateCsrf, asyn
     let atualizados = 0;
     let erros = 0;
 
-    const estoquePrincipal = await Estoque.findOne({ where: { principal: true } });
+    const estoquePrincipal = await Estoque.findOne({ where: { ativo: true }, order: [['id', 'ASC']] });
 
     for (const row of dados) {
       try {
