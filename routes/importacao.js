@@ -55,20 +55,52 @@ function identificarTipo(row) {
 }
 
 function extrairDados(row) {
+  const keys = Object.keys(row);
+  const primeiraColuna = keys.length > 0 ? row[keys[0]] : '';
+  
+  const getNome = () => {
+    const campos = ['nome', 'Nome', 'NOME', 'descricao', 'Descricao', 'DESCRICAO', 
+                    'produto', 'Produto', 'PRODUTO', 'item', 'Item', 'ITEM',
+                    'description', 'Description', 'name', 'Name', 'NAME'];
+    for (const campo of campos) {
+      if (row[campo] && String(row[campo]).trim()) return String(row[campo]).trim();
+    }
+    if (primeiraColuna && String(primeiraColuna).trim()) return String(primeiraColuna).trim();
+    return '';
+  };
+  
+  const getNumero = (campos, valorDefault = 0) => {
+    for (const campo of campos) {
+      if (row[campo] !== undefined && row[campo] !== null && row[campo] !== '') {
+        const val = String(row[campo]).replace(/[R$\s.]/g, '').replace(',', '.');
+        const num = parseFloat(val);
+        if (!isNaN(num)) return num;
+      }
+    }
+    return valorDefault;
+  };
+  
+  const getString = (campos, valorDefault = '') => {
+    for (const campo of campos) {
+      if (row[campo] && String(row[campo]).trim()) return String(row[campo]).trim();
+    }
+    return valorDefault;
+  };
+  
   return {
-    nome: row.nome || row.Nome || row.NOME || row.descricao || row.Descricao || row.DESCRICAO || '',
-    codigo_interno: row.codigo || row.Codigo || row.CODIGO || row.codigo_interno || row.sku || row.SKU || null,
-    preco: parseFloat(row.preco || row.Preco || row.PRECO || row.valor || row.Valor || 0) || 0,
-    custo: parseFloat(row.custo || row.Custo || row.CUSTO || 0) || 0,
-    categoria: row.categoria || row.Categoria || row.CATEGORIA || 'Geral',
-    descricao: row.descricao_completa || row.obs || row.observacao || row.Observacao || '',
-    marca: row.marca || row.Marca || row.MARCA || '',
-    modelo: row.modelo || row.Modelo || row.MODELO || '',
-    cor: row.cor || row.Cor || row.COR || '',
-    chassi: row.chassi || row.Chassi || row.CHASSI || null,
-    codigo_motor: row.codigo_motor || row.motor || row.Motor || null,
-    capacidade_bateria: row.bateria || row.Bateria || row.capacidade_bateria || null,
-    quantidade: parseInt(row.quantidade || row.Quantidade || row.QUANTIDADE || row.qtd || row.estoque || 1) || 1
+    nome: getNome(),
+    codigo_interno: getString(['codigo', 'Codigo', 'CODIGO', 'codigo_interno', 'sku', 'SKU', 'cod', 'Cod', 'COD', 'ref', 'Ref', 'REF', 'referencia', 'Referencia']) || null,
+    preco: getNumero(['preco', 'Preco', 'PRECO', 'valor', 'Valor', 'VALOR', 'price', 'Price', 'venda', 'Venda', 'preco_venda', 'valor_venda']),
+    custo: getNumero(['custo', 'Custo', 'CUSTO', 'cost', 'Cost', 'preco_custo', 'valor_custo']),
+    categoria: getString(['categoria', 'Categoria', 'CATEGORIA', 'category', 'Category', 'tipo', 'Tipo'], 'Geral'),
+    descricao: getString(['descricao_completa', 'obs', 'observacao', 'Observacao', 'observacoes', 'Observacoes', 'detalhes', 'Detalhes']),
+    marca: getString(['marca', 'Marca', 'MARCA', 'brand', 'Brand', 'fabricante', 'Fabricante']),
+    modelo: getString(['modelo', 'Modelo', 'MODELO', 'model', 'Model']),
+    cor: getString(['cor', 'Cor', 'COR', 'color', 'Color', 'cores', 'Cores']),
+    chassi: getString(['chassi', 'Chassi', 'CHASSI', 'chassis', 'Chassis']) || null,
+    codigo_motor: getString(['codigo_motor', 'motor', 'Motor', 'MOTOR', 'num_motor']) || null,
+    capacidade_bateria: getString(['bateria', 'Bateria', 'BATERIA', 'capacidade_bateria', 'battery']) || null,
+    quantidade: Math.max(1, Math.floor(getNumero(['quantidade', 'Quantidade', 'QUANTIDADE', 'qtd', 'Qtd', 'QTD', 'estoque', 'Estoque', 'qty', 'Qty'], 1)))
   };
 }
 
