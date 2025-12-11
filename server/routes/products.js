@@ -131,6 +131,30 @@ router.put('/:id', isGestorOuAdmin, async (req, res) => {
   }
 });
 
+router.delete('/limpar-tudo', isGestorOuAdmin, async (req, res) => {
+  try {
+    if (req.user.perfil !== 'ADMIN_GLOBAL') {
+      return res.status(403).json({ error: 'Apenas Admin Global pode limpar todos os produtos' });
+    }
+
+    await InventoryMain.destroy({ where: {} });
+    await InventoryStore.destroy({ where: {} });
+    await Product.destroy({ where: {} });
+
+    await AuditLog.create({
+      user_id: req.user.id,
+      acao: 'DELETE_ALL',
+      tabela: 'products',
+      dados_antes: { acao: 'Limpeza total de produtos' }
+    });
+
+    res.json({ message: 'Todos os produtos foram excluídos' });
+  } catch (error) {
+    console.error('Erro ao limpar produtos:', error);
+    res.status(500).json({ error: 'Erro ao limpar produtos' });
+  }
+});
+
 router.delete('/:id', isGestorOuAdmin, async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id);
@@ -232,30 +256,6 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
   } catch (error) {
     console.error('Erro na importação:', error);
     res.status(500).json({ error: 'Erro ao importar planilha' });
-  }
-});
-
-router.delete('/limpar-tudo', isGestorOuAdmin, async (req, res) => {
-  try {
-    if (req.user.perfil !== 'ADMIN_GLOBAL') {
-      return res.status(403).json({ error: 'Apenas Admin Global pode limpar todos os produtos' });
-    }
-
-    await InventoryMain.destroy({ where: {} });
-    await InventoryStore.destroy({ where: {} });
-    await Product.destroy({ where: {} });
-
-    await AuditLog.create({
-      user_id: req.user.id,
-      acao: 'DELETE_ALL',
-      tabela: 'products',
-      dados_antes: { acao: 'Limpeza total de produtos' }
-    });
-
-    res.json({ message: 'Todos os produtos foram excluídos' });
-  } catch (error) {
-    console.error('Erro ao limpar produtos:', error);
-    res.status(500).json({ error: 'Erro ao limpar produtos' });
   }
 });
 
