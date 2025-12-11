@@ -1047,31 +1047,41 @@ async function renderImport() {
       </div>
       <div class="card-body">
         <p style="margin-bottom: 20px; color: var(--text-muted);">
-          Faça upload de uma planilha Excel (.xlsx) ou CSV com os produtos. 
-          O sistema identificará automaticamente o tipo (Moto, Peça ou Serviço) baseado no nome.
+          Faça upload de uma planilha Excel (.xlsx, .xls) ou CSV com os produtos. 
+          O sistema lê a coluna "Categoria do produto" para classificar automaticamente.
         </p>
         
         <form id="importForm" onsubmit="importProducts(event)">
           <div class="form-group">
             <label>Arquivo da Planilha</label>
-            <input type="file" name="arquivo" accept=".xlsx,.xls,.csv" required>
+            <input type="file" name="arquivo" accept=".xlsx,.xls,.csv" required id="importFileInput">
           </div>
           
-          <button type="submit" class="btn btn-primary">
+          <button type="submit" class="btn btn-primary" id="importBtn">
             <i class="fas fa-upload"></i> Importar
           </button>
         </form>
         
+        <div id="importProgress" style="margin-top: 20px; display: none;">
+          <div style="background: var(--bg-card); border-radius: 10px; overflow: hidden; height: 30px; position: relative;">
+            <div id="progressBar" style="background: linear-gradient(90deg, var(--primary), var(--success)); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+            <div id="progressText" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold;">0%</div>
+          </div>
+          <p id="progressStatus" style="margin-top: 10px; color: var(--text-muted); text-align: center;">Preparando...</p>
+        </div>
+        
         <div id="importResult" style="margin-top: 20px;"></div>
+        
+        <div id="importedProductsList" style="margin-top: 20px;"></div>
         
         <hr style="margin: 30px 0; border-color: var(--border);">
         
         <h3 style="margin-bottom: 15px;">Formato esperado da planilha:</h3>
         <ul style="color: var(--text-muted); list-style: inside;">
-          <li>Coluna "Código" ou "codigo" - Código do produto</li>
-          <li>Coluna "Descrição" ou "Nome" - Nome do produto</li>
-          <li>Coluna "Preço" ou "Preço Venda" - Preço de venda</li>
-          <li>Coluna "Preço Custo" ou "Custo" - Preço de custo (opcional)</li>
+          <li>Coluna "Código" - Código do produto</li>
+          <li>Coluna "Produto" ou "Descrição" - Nome do produto</li>
+          <li>Coluna "Preço" - Preço de venda</li>
+          <li>Coluna "Categoria do produto" - Tipo (Moto, Serviço, Peça)</li>
         </ul>
       </div>
     </div>
@@ -1084,38 +1094,145 @@ async function importProducts(event) {
   const form = event.target;
   const formData = new FormData(form);
   const resultDiv = document.getElementById('importResult');
+  const progressDiv = document.getElementById('importProgress');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const progressStatus = document.getElementById('progressStatus');
+  const listDiv = document.getElementById('importedProductsList');
+  const importBtn = document.getElementById('importBtn');
   
-  resultDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Importando...</div>';
+  progressDiv.style.display = 'block';
+  resultDiv.innerHTML = '';
+  listDiv.innerHTML = '';
+  importBtn.disabled = true;
+  importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importando...';
+  
+  progressBar.style.width = '10%';
+  progressText.textContent = '10%';
+  progressStatus.textContent = 'Enviando arquivo...';
   
   try {
+    progressBar.style.width = '30%';
+    progressText.textContent = '30%';
+    progressStatus.textContent = 'Processando planilha...';
+    
     const result = await api('/products/importar', {
       method: 'POST',
       body: formData
     });
     
+    progressBar.style.width = '100%';
+    progressText.textContent = '100%';
+    progressStatus.textContent = 'Concluído!';
+    
     resultDiv.innerHTML = `
-      <div class="stat-card" style="background: rgba(0, 255, 136, 0.1);">
-        <h3 style="color: var(--success);">Importação Concluída!</h3>
-        <p style="margin-top: 10px;">
-          <strong>Linhas lidas:</strong> ${result.linhasLidas || 0}<br>
-          <strong>${result.criados}</strong> produtos criados<br>
-          <strong>${result.atualizados}</strong> produtos atualizados<br>
-          ${result.porTipo ? `
-            <br><strong>Por tipo:</strong><br>
-            Motos: ${result.porTipo.MOTO || 0} | 
-            Serviços: ${result.porTipo.SERVICO || 0} | 
-            Peças: ${result.porTipo.PECA || 0}
-          ` : ''}
-          ${result.abasProcessadas ? `<br><br><strong>Abas processadas:</strong> ${result.abasProcessadas.map(a => a.nome + ' (' + a.linhas + ' linhas)').join(', ')}` : ''}
-          ${result.erros?.length > 0 ? `<br><strong style="color: var(--danger);">${result.erros.length}</strong> erros` : ''}
-        </p>
+      <div class="stat-card" style="background: rgba(0, 255, 136, 0.1); border: 1px solid var(--success);">
+        <h3 style="color: var(--success); margin-bottom: 15px;">
+          <i class="fas fa-check-circle"></i> Importação Concluída!
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px;">
+          <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="font-size: 24px; font-weight: bold; color: var(--primary);">${result.linhasLidas || 0}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Linhas Lidas</div>
+          </div>
+          <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="font-size: 24px; font-weight: bold; color: var(--success);">${result.criados}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Criados</div>
+          </div>
+          <div style="text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+            <div style="font-size: 24px; font-weight: bold; color: var(--warning);">${result.atualizados}</div>
+            <div style="font-size: 12px; color: var(--text-muted);">Atualizados</div>
+          </div>
+        </div>
+        ${result.porTipo ? `
+          <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+            <span style="padding: 5px 15px; background: var(--primary); border-radius: 20px;">
+              <i class="fas fa-motorcycle"></i> Motos: ${result.porTipo.MOTO || 0}
+            </span>
+            <span style="padding: 5px 15px; background: var(--success); border-radius: 20px;">
+              <i class="fas fa-wrench"></i> Serviços: ${result.porTipo.SERVICO || 0}
+            </span>
+            <span style="padding: 5px 15px; background: #6c757d; border-radius: 20px;">
+              <i class="fas fa-cog"></i> Peças: ${result.porTipo.PECA || 0}
+            </span>
+          </div>
+        ` : ''}
+        ${result.erros?.length > 0 ? `
+          <div style="margin-top: 15px; padding: 10px; background: rgba(255,0,0,0.1); border-radius: 8px;">
+            <strong style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> ${result.erros.length} erros</strong>
+          </div>
+        ` : ''}
       </div>
     `;
     
-    showToast('Importação concluída');
+    if (result.detalhes && result.detalhes.length > 0) {
+      const motos = result.detalhes.filter(p => p.tipo === 'MOTO');
+      const servicos = result.detalhes.filter(p => p.tipo === 'SERVICO');
+      const pecas = result.detalhes.filter(p => p.tipo === 'PECA');
+      
+      listDiv.innerHTML = `
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header">
+            <h3><i class="fas fa-list"></i> Produtos Importados (${result.detalhes.length})</h3>
+          </div>
+          <div class="card-body">
+            ${motos.length > 0 ? `
+              <h4 style="color: var(--primary); margin-bottom: 10px;"><i class="fas fa-motorcycle"></i> Motos (${motos.length})</h4>
+              <div class="table-container table-sm" style="margin-bottom: 20px;">
+                <table>
+                  <thead><tr><th>Código</th><th>Nome</th><th>Preço</th></tr></thead>
+                  <tbody>
+                    ${motos.map(p => `<tr><td>${p.codigo}</td><td>${p.nome}</td><td>${formatCurrency(p.preco)}</td></tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : ''}
+            
+            ${servicos.length > 0 ? `
+              <h4 style="color: var(--success); margin-bottom: 10px;"><i class="fas fa-wrench"></i> Serviços (${servicos.length})</h4>
+              <div class="table-container table-sm" style="margin-bottom: 20px; max-height: 300px; overflow-y: auto;">
+                <table>
+                  <thead><tr><th>Código</th><th>Nome</th><th>Preço</th></tr></thead>
+                  <tbody>
+                    ${servicos.map(p => `<tr><td>${p.codigo}</td><td>${p.nome}</td><td>${formatCurrency(p.preco)}</td></tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : ''}
+            
+            ${pecas.length > 0 ? `
+              <h4 style="color: #6c757d; margin-bottom: 10px;"><i class="fas fa-cog"></i> Peças (${pecas.length})</h4>
+              <div class="table-container table-sm" style="max-height: 400px; overflow-y: auto;">
+                <table>
+                  <thead><tr><th>Código</th><th>Nome</th><th>Preço</th></tr></thead>
+                  <tbody>
+                    ${pecas.map(p => `<tr><td>${p.codigo}</td><td>${p.nome}</td><td>${formatCurrency(p.preco)}</td></tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+    
+    showToast('Importação concluída com sucesso!', 'success');
   } catch (error) {
-    resultDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
+    progressBar.style.width = '100%';
+    progressBar.style.background = 'var(--danger)';
+    progressText.textContent = 'Erro';
+    progressStatus.textContent = error.message;
+    
+    resultDiv.innerHTML = `
+      <div class="stat-card" style="background: rgba(255,0,0,0.1); border: 1px solid var(--danger);">
+        <h3 style="color: var(--danger);"><i class="fas fa-times-circle"></i> Erro na Importação</h3>
+        <p style="margin-top: 10px;">${error.message}</p>
+      </div>
+    `;
     showToast(error.message, 'error');
+  } finally {
+    importBtn.disabled = false;
+    importBtn.innerHTML = '<i class="fas fa-upload"></i> Importar';
   }
 }
 
