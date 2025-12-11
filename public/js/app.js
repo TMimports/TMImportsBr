@@ -728,6 +728,11 @@ async function renderProducts() {
         <div class="card-header">
           <h2>Produtos / Serviços</h2>
           <div class="header-actions">
+            ${currentUser.perfil === 'ADMIN_GLOBAL' ? `
+            <button class="btn btn-danger" onclick="limparTodosProdutos()">
+              <i class="fas fa-trash-alt"></i> Limpar Tudo
+            </button>
+            ` : ''}
             <button class="btn btn-secondary" onclick="toggleImportSection()">
               <i class="fas fa-file-excel"></i> Importar Planilha
             </button>
@@ -953,6 +958,22 @@ async function saveProduct(event, id) {
     }
     
     closeModal();
+    await renderProducts();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function limparTodosProdutos() {
+  const confirm1 = confirm('ATENÇÃO: Isso irá EXCLUIR TODOS os produtos, peças e serviços do sistema!\n\nDeseja continuar?');
+  if (!confirm1) return;
+  
+  const confirm2 = confirm('CONFIRMAÇÃO FINAL: Esta ação NÃO pode ser desfeita!\n\nDigite OK para confirmar a exclusão de TODOS os produtos.');
+  if (!confirm2) return;
+  
+  try {
+    await api('/products/limpar-tudo', { method: 'DELETE' });
+    showToast('Todos os produtos foram excluídos', 'success');
     await renderProducts();
   } catch (error) {
     showToast(error.message, 'error');
