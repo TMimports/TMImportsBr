@@ -409,6 +409,9 @@ Notification.belongsTo(User, { foreignKey: 'user_id' });
 Company.hasMany(Setting, { foreignKey: 'empresa_id' });
 Setting.belongsTo(Company, { foreignKey: 'empresa_id' });
 
+Product.hasMany(InventoryMovement, { foreignKey: 'produto_id' });
+InventoryMovement.belongsTo(Product, { foreignKey: 'produto_id', as: 'produto' });
+
 module.exports = {
   sequelize,
   User,

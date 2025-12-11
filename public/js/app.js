@@ -34,7 +34,8 @@ const menuItems = {
     ]},
     { section: 'Sistema', items: [
       { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' },
-      { id: 'auditoria', label: 'Logs de Auditoria', icon: 'fas fa-history' }
+      { id: 'auditoria', label: 'Logs de Auditoria', icon: 'fas fa-history' },
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
     ]}
   ],
   GESTOR_FRANQUIA: [
@@ -61,7 +62,8 @@ const menuItems = {
       { id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' }
     ]},
     { section: 'Sistema', items: [
-      { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' }
+      { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' },
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
     ]}
   ],
   OPERACIONAL: [
@@ -187,7 +189,8 @@ async function loadPage(page) {
     'franquias': 'Franquias',
     'lojas': 'Lojas',
     'solicitacoes': 'Solicitações de Compra',
-    'solicitar': 'Solicitar Produtos'
+    'solicitar': 'Solicitar Produtos',
+    'manual': 'Manual do Sistema'
   };
   
   pageTitle.textContent = titles[page] || 'Dashboard';
@@ -250,6 +253,9 @@ async function loadPage(page) {
       case 'auditoria':
         await renderAuditLogs();
         break;
+      case 'manual':
+        await renderManual();
+        break;
       default:
         await renderDashboard();
     }
@@ -297,6 +303,23 @@ async function api(endpoint, options = {}) {
   }
   
   return data;
+}
+
+function getStatusColor(status) {
+  const colors = {
+    'PENDENTE': 'warning',
+    'APROVADA': 'primary',
+    'CONCLUIDA': 'success',
+    'CANCELADA': 'danger',
+    'ORCAMENTO': 'secondary',
+    'ABERTA': 'primary',
+    'EM_EXECUCAO': 'warning',
+    'AGUARDANDO_APROVACAO': 'warning',
+    'PAGO': 'success',
+    'PARCIAL': 'warning',
+    'ATRASADO': 'danger'
+  };
+  return colors[status] || 'secondary';
 }
 
 function formatCurrency(value) {
@@ -394,13 +417,144 @@ async function renderDashboard() {
           </div>
         </div>
         
-        <div class="card">
-          <div class="card-header">
-            <h2>Vendas - Últimos 6 Meses</h2>
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-chart-bar"></i> Vendas - Últimos 6 Meses</h2>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="vendasChart"></canvas>
+              </div>
+            </div>
           </div>
-          <div class="card-body">
-            <div class="chart-container">
-              <canvas id="vendasChart"></canvas>
+          
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-shopping-cart"></i> Últimas Vendas</h2>
+            </div>
+            <div class="card-body">
+              <div class="table-container table-sm">
+                <table>
+                  <thead>
+                    <tr><th>Número</th><th>Cliente</th><th>Valor</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    ${(data.ultimasVendas || []).map(v => `
+                      <tr>
+                        <td>${v.numero || '-'}</td>
+                        <td>${v.cliente?.nome || 'Consumidor'}</td>
+                        <td>${formatCurrency(v.total)}</td>
+                        <td><span class="badge badge-${getStatusColor(v.status)}">${v.status}</span></td>
+                      </tr>
+                    `).join('') || '<tr><td colspan="4" class="text-center">Nenhuma venda</td></tr>'}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-wrench"></i> Últimas Ordens de Serviço</h2>
+            </div>
+            <div class="card-body">
+              <div class="table-container table-sm">
+                <table>
+                  <thead>
+                    <tr><th>Número</th><th>Cliente</th><th>Valor</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    ${(data.ultimasOS || []).map(os => `
+                      <tr>
+                        <td>${os.numero || '-'}</td>
+                        <td>${os.cliente?.nome || '-'}</td>
+                        <td>${formatCurrency(os.total)}</td>
+                        <td><span class="badge badge-${getStatusColor(os.status)}">${os.status}</span></td>
+                      </tr>
+                    `).join('') || '<tr><td colspan="4" class="text-center">Nenhuma OS</td></tr>'}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-exchange-alt"></i> Movimentações de Estoque</h2>
+            </div>
+            <div class="card-body">
+              <div class="table-container table-sm">
+                <table>
+                  <thead>
+                    <tr><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Data</th></tr>
+                  </thead>
+                  <tbody>
+                    ${(data.movimentacoesEstoque || []).map(m => `
+                      <tr>
+                        <td>${m.produto?.nome || m.produto?.codigo || '-'}</td>
+                        <td><span class="badge badge-${m.tipo === 'ENTRADA' ? 'success' : m.tipo === 'SAIDA' ? 'danger' : 'secondary'}">${m.tipo}</span></td>
+                        <td>${m.quantidade}</td>
+                        <td>${new Date(m.createdAt).toLocaleDateString('pt-BR')}</td>
+                      </tr>
+                    `).join('') || '<tr><td colspan="4" class="text-center">Nenhuma movimentação</td></tr>'}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-hand-holding-usd"></i> Contas a Receber</h2>
+            </div>
+            <div class="card-body">
+              <div class="table-container table-sm">
+                <table>
+                  <thead>
+                    <tr><th>Descrição</th><th>Cliente</th><th>Valor</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    ${(data.ultimosRecebimentos || []).map(r => `
+                      <tr>
+                        <td>${r.descricao || '-'}</td>
+                        <td>${r.cliente?.nome || '-'}</td>
+                        <td>${formatCurrency(r.valor)}</td>
+                        <td><span class="badge badge-${getStatusColor(r.status)}">${r.status}</span></td>
+                      </tr>
+                    `).join('') || '<tr><td colspan="4" class="text-center">Nenhum recebimento</td></tr>'}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-file-invoice-dollar"></i> Contas a Pagar</h2>
+            </div>
+            <div class="card-body">
+              <div class="table-container table-sm">
+                <table>
+                  <thead>
+                    <tr><th>Descrição</th><th>Fornecedor</th><th>Valor</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    ${(data.ultimosPagamentos || []).map(p => `
+                      <tr>
+                        <td>${p.descricao || '-'}</td>
+                        <td>${p.fornecedor || '-'}</td>
+                        <td>${formatCurrency(p.valor)}</td>
+                        <td><span class="badge badge-${getStatusColor(p.status)}">${p.status}</span></td>
+                      </tr>
+                    `).join('') || '<tr><td colspan="4" class="text-center">Nenhum pagamento</td></tr>'}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -1573,6 +1727,147 @@ async function renderAuditLogs() {
     <h3>Logs de Auditoria</h3>
     <p>Visualize o histórico de ações do sistema</p>
   </div>`;
+}
+
+async function renderManual() {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="manual-container">
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-book"></i> Manual do Sistema TM Imports / Tecle Motos</h2>
+        </div>
+        <div class="card-body manual-content">
+          <div class="manual-section">
+            <h3>1. Acesso ao Sistema</h3>
+            <p>Para acessar o sistema, utilize as credenciais fornecidas pelo administrador:</p>
+            <ul>
+              <li><strong>Email:</strong> Seu email cadastrado</li>
+              <li><strong>Senha:</strong> Sua senha de acesso</li>
+            </ul>
+            <p class="manual-note"><i class="fas fa-info-circle"></i> Altere sua senha no primeiro acesso para maior segurança.</p>
+          </div>
+
+          <div class="manual-section">
+            <h3>2. Perfis de Usuário</h3>
+            <div class="manual-subsection">
+              <h4><i class="fas fa-crown"></i> Admin Global (TM Imports)</h4>
+              <ul>
+                <li>Acesso total ao sistema</li>
+                <li>Dashboard global com métricas de todas as franquias</li>
+                <li>Gerencia empresas, lojas e usuários</li>
+                <li>Controle do estoque central</li>
+                <li>Aprova solicitações de compra das franquias</li>
+                <li>Módulo financeiro completo</li>
+                <li>Logs de auditoria</li>
+              </ul>
+            </div>
+            <div class="manual-subsection">
+              <h4><i class="fas fa-store"></i> Gestor de Franquia</h4>
+              <ul>
+                <li>Dashboard da loja</li>
+                <li>Cadastro de produtos/serviços</li>
+                <li>Gestão de estoque da loja</li>
+                <li>Solicita produtos da matriz</li>
+                <li>Vendas e ordens de serviço</li>
+                <li>Financeiro da loja</li>
+                <li>Gerencia usuários da loja</li>
+              </ul>
+            </div>
+            <div class="manual-subsection">
+              <h4><i class="fas fa-user"></i> Operacional</h4>
+              <ul>
+                <li>Dashboard simplificado</li>
+                <li>Cadastra vendas (status pendente)</li>
+                <li>Cria ordens de serviço</li>
+                <li>Cadastra clientes</li>
+                <li>Consulta estoque (somente leitura)</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="manual-section">
+            <h3>3. Dashboard</h3>
+            <p>O dashboard exibe todas as informações importantes em tempo real:</p>
+            <ul>
+              <li><strong>Vendas do Mês:</strong> Total de vendas concluídas no mês atual</li>
+              <li><strong>Serviços do Mês:</strong> Total de ordens de serviço concluídas</li>
+              <li><strong>A Receber:</strong> Total de contas a receber pendentes</li>
+              <li><strong>A Pagar:</strong> Total de contas a pagar pendentes</li>
+              <li><strong>Últimas Vendas:</strong> Lista das vendas mais recentes</li>
+              <li><strong>Últimas OS:</strong> Lista das ordens de serviço mais recentes</li>
+              <li><strong>Movimentações:</strong> Histórico de movimentações de estoque</li>
+            </ul>
+          </div>
+
+          <div class="manual-section">
+            <h3>4. Fluxo de Vendas</h3>
+            <ol>
+              <li><strong>Criar Venda:</strong> Acesse "Vendas" e clique em "Nova Venda"</li>
+              <li><strong>Selecionar Cliente:</strong> Escolha um cliente existente ou cadastre um novo</li>
+              <li><strong>Adicionar Produtos:</strong> Selecione os produtos e quantidades</li>
+              <li><strong>Forma de Pagamento:</strong> Defina a forma e quantidade de parcelas</li>
+              <li><strong>Salvar:</strong> A venda ficará com status PENDENTE</li>
+              <li><strong>Aprovação:</strong> O gestor/admin aprova ou edita a venda</li>
+              <li><strong>Conclusão:</strong> Ao concluir, o estoque é baixado e a conta a receber é gerada</li>
+            </ol>
+          </div>
+
+          <div class="manual-section">
+            <h3>5. Ordens de Serviço (OS)</h3>
+            <ol>
+              <li>Acesse "Ordens de Serviço" e clique em "Nova OS"</li>
+              <li>Preencha os dados do cliente e veículo</li>
+              <li>Descreva o problema relatado</li>
+              <li>Adicione peças e serviços necessários</li>
+              <li>O gestor aprova e conclui a OS</li>
+            </ol>
+          </div>
+
+          <div class="manual-section">
+            <h3>6. Solicitações de Compra (Franquias)</h3>
+            <p>Franquias podem solicitar produtos da matriz:</p>
+            <ol>
+              <li>Acesse "Solicitar Produtos"</li>
+              <li>Selecione os produtos e quantidades desejadas</li>
+              <li>Envie a solicitação (status PENDENTE)</li>
+              <li>A matriz (Admin Global) aprova ou rejeita</li>
+              <li>Após aprovação, a matriz envia os produtos</li>
+              <li>O gestor da franquia confirma o recebimento</li>
+            </ol>
+          </div>
+
+          <div class="manual-section">
+            <h3>7. Conciliação Bancária</h3>
+            <ol>
+              <li>Cadastre as contas bancárias da empresa/loja</li>
+              <li>Importe extratos (OFX, CSV, Excel)</li>
+              <li>O sistema identifica transações duplicadas</li>
+              <li>Conciliação automática por valor</li>
+              <li>Conciliação manual para casos específicos</li>
+            </ol>
+          </div>
+
+          <div class="manual-section">
+            <h3>8. Dicas Importantes</h3>
+            <ul>
+              <li><i class="fas fa-check-circle text-success"></i> Sempre salve suas alterações antes de sair da página</li>
+              <li><i class="fas fa-check-circle text-success"></i> Use o menu lateral para navegar entre as funcionalidades</li>
+              <li><i class="fas fa-check-circle text-success"></i> Consulte os logs de auditoria para rastrear alterações</li>
+              <li><i class="fas fa-check-circle text-success"></i> Mantenha o estoque atualizado para evitar problemas nas vendas</li>
+            </ul>
+          </div>
+
+          <div class="manual-section">
+            <h3>9. Suporte</h3>
+            <p>Em caso de dúvidas ou problemas, entre em contato com o suporte:</p>
+            <p><strong>Email:</strong> suporte@tmimports.com</p>
+            <p><strong>Telefone:</strong> (11) 1234-5678</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 document.getElementById('sidebarToggle')?.addEventListener('click', () => {

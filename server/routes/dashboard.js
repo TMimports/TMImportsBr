@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Sale, ServiceOrder, Product, Customer, PaymentReceivable, PaymentPayable, InventoryStore, InventoryMain, Store, sequelize } = require('../models');
+const { Sale, ServiceOrder, Product, Customer, PaymentReceivable, PaymentPayable, InventoryStore, InventoryMain, InventoryMovement, Store, Vendor, sequelize } = require('../models');
 const { verifyToken, filterByStore } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -86,6 +86,42 @@ router.get('/global', async (req, res) => {
       });
     }
 
+    const ultimasVendas = await Sale.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 10,
+      include: [
+        { model: Store, as: 'loja', attributes: ['nome'] },
+        { model: Customer, as: 'cliente', attributes: ['nome'] },
+        { model: Vendor, as: 'vendedor', attributes: ['nome'] }
+      ]
+    });
+
+    const ultimasOS = await ServiceOrder.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 10,
+      include: [
+        { model: Store, as: 'loja', attributes: ['nome'] },
+        { model: Customer, as: 'cliente', attributes: ['nome'] }
+      ]
+    });
+
+    const ultimosRecebimentos = await PaymentReceivable.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 10,
+      include: [{ model: Customer, as: 'cliente', attributes: ['nome'] }]
+    });
+
+    const ultimosPagamentos = await PaymentPayable.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
+
+    const movimentacoesEstoque = await InventoryMovement.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 15,
+      include: [{ model: Product, as: 'produto', attributes: ['nome', 'codigo'] }]
+    });
+
     res.json({
       totalVendasMes: totalVendasMes || 0,
       totalOSMes: totalOSMes || 0,
@@ -94,7 +130,12 @@ router.get('/global', async (req, res) => {
       produtosAtivos,
       clientesAtivos,
       vendasPorLoja,
-      vendasUltimos6Meses
+      vendasUltimos6Meses,
+      ultimasVendas,
+      ultimasOS,
+      ultimosRecebimentos,
+      ultimosPagamentos,
+      movimentacoesEstoque
     });
   } catch (error) {
     console.error('Erro ao gerar dashboard global:', error);
