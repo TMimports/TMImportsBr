@@ -89,6 +89,19 @@ async function init() {
   
   try {
     currentUser = JSON.parse(user);
+    
+    // Atualiza a logo do sidebar baseado no perfil
+    const sidebarLogo = document.getElementById('sidebarLogo');
+    if (sidebarLogo) {
+      if (currentUser.perfil === 'ADMIN_GLOBAL') {
+        sidebarLogo.src = '/images/logo-tmimports.jpg';
+        sidebarLogo.alt = 'TM Imports';
+      } else {
+        sidebarLogo.src = '/images/logo.png';
+        sidebarLogo.alt = 'Tecle Motos';
+      }
+    }
+    
     renderMenu();
     renderUserInfo();
     

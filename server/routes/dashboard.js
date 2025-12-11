@@ -61,10 +61,10 @@ router.get('/global', async (req, res) => {
       },
       attributes: [
         'loja_id',
-        [sequelize.fn('SUM', sequelize.col('total')), 'total'],
-        [sequelize.fn('COUNT', sequelize.col('id')), 'quantidade']
+        [sequelize.fn('SUM', sequelize.col('Sale.total')), 'total'],
+        [sequelize.fn('COUNT', sequelize.col('Sale.id')), 'quantidade']
       ],
-      group: ['loja_id'],
+      group: ['Sale.loja_id', 'loja.id', 'loja.nome'],
       include: [{ model: Store, as: 'loja', attributes: ['nome'] }]
     });
 
