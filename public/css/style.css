@@ -1435,3 +1435,39 @@ tr:hover td {
 .accounts-list {
   margin-top: 10px;
 }
+
+.confirm-delete {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.confirm-icon {
+  font-size: 3rem;
+  color: var(--danger);
+  margin-bottom: 15px;
+}
+
+.confirm-delete h3 {
+  color: var(--text-light);
+  margin-bottom: 15px;
+}
+
+.confirm-delete p {
+  color: var(--text-muted);
+  margin: 5px 0;
+}
+
+.confirm-delete .user-name {
+  font-size: 1.2rem;
+  color: var(--text-light);
+  font-weight: bold;
+  padding: 10px;
+  background: var(--bg-dark);
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.confirm-delete .warning-text {
+  color: var(--danger);
+  font-size: 0.9rem;
+}

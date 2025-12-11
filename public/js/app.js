@@ -2437,7 +2437,7 @@ async function renderUsers() {
     content.innerHTML = `
       <div class="card">
         <div class="card-header">
-          <h2>Usuários</h2>
+          <h2><i class="fas fa-users"></i> Usuários</h2>
           <button class="btn btn-primary" onclick="openUserModal()">
             <i class="fas fa-plus"></i> Novo Usuário
           </button>
@@ -2451,6 +2451,7 @@ async function renderUsers() {
                   <th>Email</th>
                   <th>Perfil</th>
                   <th>Status</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -2458,8 +2459,13 @@ async function renderUsers() {
                   <tr>
                     <td>${u.nome}</td>
                     <td>${u.email}</td>
-                    <td>${u.perfil}</td>
+                    <td><span class="badge badge-${u.perfil === 'ADMIN_GLOBAL' ? 'primary' : u.perfil === 'GESTOR_FRANQUIA' ? 'warning' : 'secondary'}">${u.perfil}</span></td>
                     <td><span class="badge badge-${u.ativo ? 'success' : 'danger'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                    <td class="actions">
+                      <button class="btn btn-sm btn-danger" onclick="confirmDeleteUser(${u.id}, '${u.nome.replace(/'/g, "\\'")}')">
+                        <i class="fas fa-trash"></i> Apagar
+                      </button>
+                    </td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -2519,6 +2525,40 @@ async function saveUser(event) {
   try {
     await api('/users', { method: 'POST', body: data });
     showToast('Usuário cadastrado');
+    closeModal();
+    await renderUsers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function confirmDeleteUser(id, nome) {
+  const confirmContent = `
+    <div class="confirm-delete">
+      <div class="confirm-icon">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <h3>Confirmar Exclusão</h3>
+      <p>Tem certeza que deseja <strong>apagar permanentemente</strong> o usuário:</p>
+      <p class="user-name">${nome}</p>
+      <p class="warning-text">Esta ação não pode ser desfeita!</p>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="button" class="btn btn-danger" onclick="deleteUser(${id})">
+          <i class="fas fa-trash"></i> Apagar Permanentemente
+        </button>
+      </div>
+    </div>
+  `;
+  
+  openModal('Apagar Usuário', confirmContent);
+}
+
+async function deleteUser(id) {
+  try {
+    await api(`/users/${id}`, { method: 'DELETE' });
+    showToast('Usuário apagado com sucesso');
     closeModal();
     await renderUsers();
   } catch (error) {
