@@ -1831,36 +1831,64 @@ async function renderCompanies() {
 }
 
 function viewFranchise(company) {
+  const totalLojas = company.lojas?.length || 0;
+  const totalAdmins = company.Users?.length || 0;
+  
   const content = `
     <div class="franchise-detail-view">
+      <div class="franchise-summary">
+        <div class="summary-stat">
+          <i class="fas fa-store"></i>
+          <span class="number">${totalLojas}</span>
+          <span class="label">${totalLojas === 1 ? 'Loja' : 'Lojas'}</span>
+        </div>
+        <div class="summary-stat">
+          <i class="fas fa-user-tie"></i>
+          <span class="number">${totalAdmins}</span>
+          <span class="label">${totalAdmins === 1 ? 'Admin' : 'Admins'}</span>
+        </div>
+      </div>
+      
       <div class="detail-section">
         <h3><i class="fas fa-building"></i> Dados da Franquia</h3>
-        <p><strong>Nome:</strong> ${company.nome}</p>
-        <p><strong>CNPJ:</strong> ${company.cnpj || '-'}</p>
-        <p><strong>Telefone:</strong> ${company.telefone || '-'}</p>
-        <p><strong>Email:</strong> ${company.email || '-'}</p>
+        <div class="detail-grid">
+          <p><strong>Nome:</strong> ${company.nome}</p>
+          <p><strong>CNPJ:</strong> ${company.cnpj || '-'}</p>
+          <p><strong>Telefone:</strong> ${company.telefone || '-'}</p>
+          <p><strong>Email:</strong> ${company.email || '-'}</p>
+        </div>
         <p><strong>Endereço:</strong> ${company.endereco || '-'}</p>
       </div>
       
       <div class="detail-section">
-        <h3><i class="fas fa-map-marker-alt"></i> Lojas</h3>
-        ${company.lojas?.map(l => `
-          <div class="sub-card">
-            <p><strong>${l.nome}</strong> (${l.codigo})</p>
-            <p>${l.cidade || ''}/${l.estado || ''}</p>
-            <p>${l.telefone || ''}</p>
+        <h3><i class="fas fa-map-marker-alt"></i> Lojas da Franquia (${totalLojas})</h3>
+        ${company.lojas?.length > 0 ? company.lojas.map(l => `
+          <div class="store-card">
+            <div class="store-header">
+              <strong>${l.nome}</strong>
+              <span class="badge badge-${l.ativo ? 'success' : 'danger'}">${l.ativo ? 'Ativa' : 'Inativa'}</span>
+            </div>
+            <div class="store-details">
+              <p><i class="fas fa-barcode"></i> Código: ${l.codigo}</p>
+              <p><i class="fas fa-map-marker-alt"></i> ${l.cidade || 'Cidade'}/${l.estado || 'UF'}</p>
+              ${l.telefone ? `<p><i class="fas fa-phone"></i> ${l.telefone}</p>` : ''}
+              ${l.email ? `<p><i class="fas fa-envelope"></i> ${l.email}</p>` : ''}
+            </div>
           </div>
-        `).join('') || '<p>Nenhuma loja</p>'}
+        `).join('') : '<p class="text-muted">Nenhuma loja cadastrada</p>'}
       </div>
       
       <div class="detail-section">
-        <h3><i class="fas fa-user-tie"></i> Administradores</h3>
-        ${company.Users?.map(u => `
-          <div class="sub-card">
-            <p><strong>${u.nome}</strong></p>
-            <p>${u.email}</p>
+        <h3><i class="fas fa-user-tie"></i> Administradores (${totalAdmins})</h3>
+        ${company.Users?.length > 0 ? company.Users.map(u => `
+          <div class="admin-card">
+            <div class="admin-info">
+              <strong>${u.nome}</strong>
+              <span class="badge badge-${u.ativo ? 'success' : 'danger'}">${u.ativo ? 'Ativo' : 'Inativo'}</span>
+            </div>
+            <p><i class="fas fa-envelope"></i> ${u.email}</p>
           </div>
-        `).join('') || '<p>Nenhum administrador</p>'}
+        `).join('') : '<p class="text-muted">Nenhum administrador</p>'}
       </div>
     </div>
   `;
