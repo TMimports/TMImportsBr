@@ -8,8 +8,7 @@ const menuItems = {
       { id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' }
     ]},
     { section: 'Franquias', items: [
-      { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' },
-      { id: 'lojas', label: 'Lojas', icon: 'fas fa-map-marker-alt' }
+      { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' }
     ]},
     { section: 'Produtos', items: [
       { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' },
@@ -1698,63 +1697,87 @@ async function renderCompanies() {
   
   try {
     const companies = await api('/companies');
+    const franquias = companies.filter(c => c.tipo === 'FRANQUIA');
     
     content.innerHTML = `
       <div class="card">
         <div class="card-header">
-          <h2>Franquias</h2>
+          <h2><i class="fas fa-store"></i> Gestão de Franquias</h2>
           <button class="btn btn-primary" onclick="openCompanyModal()">
             <i class="fas fa-plus"></i> Nova Franquia
           </button>
         </div>
         <div class="card-body">
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>CNPJ</th>
-                  <th>Tipo</th>
-                  <th>Telefone</th>
-                  <th>Email</th>
-                  <th>Status</th>
-                  <th>Lojas</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${companies.map(c => `
-                  <tr>
-                    <td>${c.nome}</td>
-                    <td>${c.cnpj || '-'}</td>
-                    <td><span class="badge badge-${c.tipo === 'MATRIZ' ? 'primary' : 'success'}">${c.tipo}</span></td>
-                    <td>${c.telefone || '-'}</td>
-                    <td>${c.email || '-'}</td>
-                    <td><span class="badge badge-${c.ativo ? 'success' : 'danger'}">${c.ativo ? 'Ativo' : 'Inativo'}</span></td>
-                    <td>${c.lojas?.length || 0}</td>
-                    <td class="actions">
-                      <button class="btn btn-sm btn-secondary" onclick='editCompany(${JSON.stringify(c).replace(/'/g, "\\'")})'>
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      ${c.tipo !== 'MATRIZ' ? `
-                        <button class="btn btn-sm btn-danger" onclick="deleteCompany(${c.id})">
-                          <i class="fas fa-trash"></i>
-                        </button>
-                      ` : ''}
-                    </td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-          
-          ${companies.length === 0 ? `
+          ${franquias.length === 0 ? `
             <div class="empty-state">
               <i class="fas fa-store"></i>
               <h3>Nenhuma franquia cadastrada</h3>
-              <p>Clique em "Nova Franquia" para começar</p>
+              <p>Clique em "Nova Franquia" para cadastrar uma franquia completa com loja e administrador</p>
             </div>
-          ` : ''}
+          ` : `
+            <div class="franchise-list">
+              ${franquias.map(c => `
+                <div class="franchise-card">
+                  <div class="franchise-header">
+                    <div class="franchise-info">
+                      <h3>${c.nome}</h3>
+                      <span class="badge badge-${c.ativo ? 'success' : 'danger'}">${c.ativo ? 'Ativa' : 'Inativa'}</span>
+                    </div>
+                    <div class="franchise-actions">
+                      <button class="btn btn-sm btn-secondary" onclick='viewFranchise(${JSON.stringify(c).replace(/'/g, "\\'")})'>
+                        <i class="fas fa-eye"></i> Detalhes
+                      </button>
+                      <button class="btn btn-sm btn-danger" onclick="deleteCompany(${c.id})">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="franchise-details">
+                    <div class="detail-row">
+                      <i class="fas fa-id-card"></i>
+                      <span><strong>CNPJ:</strong> ${c.cnpj || 'Não informado'}</span>
+                    </div>
+                    <div class="detail-row">
+                      <i class="fas fa-phone"></i>
+                      <span><strong>Telefone:</strong> ${c.telefone || 'Não informado'}</span>
+                    </div>
+                    <div class="detail-row">
+                      <i class="fas fa-envelope"></i>
+                      <span><strong>Email:</strong> ${c.email || 'Não informado'}</span>
+                    </div>
+                  </div>
+                  <div class="franchise-sections">
+                    <div class="franchise-section">
+                      <h4><i class="fas fa-map-marker-alt"></i> Lojas (${c.lojas?.length || 0})</h4>
+                      ${c.lojas?.length > 0 ? `
+                        <ul>
+                          ${c.lojas.map(l => `
+                            <li>
+                              <strong>${l.nome}</strong> - ${l.cidade || ''}/${l.estado || ''}
+                              <span class="badge badge-${l.ativo ? 'success' : 'danger'} badge-sm">${l.ativo ? 'Ativa' : 'Inativa'}</span>
+                            </li>
+                          `).join('')}
+                        </ul>
+                      ` : '<p class="text-muted">Nenhuma loja cadastrada</p>'}
+                    </div>
+                    <div class="franchise-section">
+                      <h4><i class="fas fa-user-tie"></i> Administradores</h4>
+                      ${c.Users?.length > 0 ? `
+                        <ul>
+                          ${c.Users.map(u => `
+                            <li>
+                              <strong>${u.nome}</strong> - ${u.email}
+                              <span class="badge badge-${u.ativo ? 'success' : 'danger'} badge-sm">${u.ativo ? 'Ativo' : 'Inativo'}</span>
+                            </li>
+                          `).join('')}
+                        </ul>
+                      ` : '<p class="text-muted">Nenhum administrador</p>'}
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `}
         </div>
       </div>
     `;
@@ -1763,43 +1786,147 @@ async function renderCompanies() {
   }
 }
 
+function viewFranchise(company) {
+  const content = `
+    <div class="franchise-detail-view">
+      <div class="detail-section">
+        <h3><i class="fas fa-building"></i> Dados da Franquia</h3>
+        <p><strong>Nome:</strong> ${company.nome}</p>
+        <p><strong>CNPJ:</strong> ${company.cnpj || '-'}</p>
+        <p><strong>Telefone:</strong> ${company.telefone || '-'}</p>
+        <p><strong>Email:</strong> ${company.email || '-'}</p>
+        <p><strong>Endereço:</strong> ${company.endereco || '-'}</p>
+      </div>
+      
+      <div class="detail-section">
+        <h3><i class="fas fa-map-marker-alt"></i> Lojas</h3>
+        ${company.lojas?.map(l => `
+          <div class="sub-card">
+            <p><strong>${l.nome}</strong> (${l.codigo})</p>
+            <p>${l.cidade || ''}/${l.estado || ''}</p>
+            <p>${l.telefone || ''}</p>
+          </div>
+        `).join('') || '<p>Nenhuma loja</p>'}
+      </div>
+      
+      <div class="detail-section">
+        <h3><i class="fas fa-user-tie"></i> Administradores</h3>
+        ${company.Users?.map(u => `
+          <div class="sub-card">
+            <p><strong>${u.nome}</strong></p>
+            <p>${u.email}</p>
+          </div>
+        `).join('') || '<p>Nenhum administrador</p>'}
+      </div>
+    </div>
+  `;
+  
+  openModal('Detalhes da Franquia: ' + company.nome, content);
+}
+
 function openCompanyModal(company = null) {
-  const title = company ? 'Editar Franquia' : 'Nova Franquia';
+  const title = company ? 'Editar Franquia' : 'Cadastrar Nova Franquia';
+  const isNew = !company;
+  
   const content = `
     <form id="companyForm" onsubmit="saveCompany(event, ${company?.id || 'null'})">
-      <div class="form-group">
-        <label>CNPJ</label>
-        <div class="input-with-button">
-          <input type="text" name="cnpj" id="cnpjInput" value="${company?.cnpj || ''}" placeholder="00.000.000/0001-00" onblur="buscarCNPJ()">
-          <button type="button" class="btn btn-secondary" onclick="buscarCNPJ()">
-            <i class="fas fa-search"></i> Buscar
-          </button>
+      <div class="form-section">
+        <h3><i class="fas fa-building"></i> Dados da Franquia</h3>
+        
+        <div class="form-group">
+          <label>CNPJ</label>
+          <div class="input-with-button">
+            <input type="text" name="cnpj" id="cnpjInput" value="${company?.cnpj || ''}" placeholder="00.000.000/0001-00" onblur="buscarCNPJ()">
+            <button type="button" class="btn btn-secondary" onclick="buscarCNPJ()">
+              <i class="fas fa-search"></i> Buscar
+            </button>
+          </div>
+          <small class="form-hint">Digite o CNPJ e clique em buscar para preencher automaticamente</small>
         </div>
-        <small class="form-hint">Digite o CNPJ e clique em buscar para preencher automaticamente</small>
+        <div id="cnpjLoading" style="display:none; text-align:center; padding:10px;">
+          <i class="fas fa-spinner fa-spin"></i> Buscando dados do CNPJ...
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nome da Franquia *</label>
+            <input type="text" name="nome" id="nomeInput" value="${company?.nome || ''}" required>
+          </div>
+          <div class="form-group">
+            <label>Telefone</label>
+            <input type="text" name="telefone" id="telefoneInput" value="${company?.telefone || ''}" placeholder="(11) 99999-9999">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Email da Franquia</label>
+          <input type="email" name="email" id="emailInput" value="${company?.email || ''}">
+        </div>
+        
+        <div class="form-group">
+          <label>Endereço Completo</label>
+          <textarea name="endereco" id="enderecoInput" rows="2">${company?.endereco || ''}</textarea>
+        </div>
       </div>
-      <div id="cnpjLoading" style="display:none; text-align:center; padding:10px;">
-        <i class="fas fa-spinner fa-spin"></i> Buscando dados do CNPJ...
-      </div>
-      <div class="form-group">
-        <label>Nome da Empresa *</label>
-        <input type="text" name="nome" id="nomeInput" value="${company?.nome || ''}" required>
-      </div>
-      <div class="form-group">
-        <label>Telefone</label>
-        <input type="text" name="telefone" id="telefoneInput" value="${company?.telefone || ''}" placeholder="(11) 99999-9999">
-      </div>
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" name="email" id="emailInput" value="${company?.email || ''}">
-      </div>
-      <div class="form-group">
-        <label>Endereço</label>
-        <textarea name="endereco" id="enderecoInput" rows="2">${company?.endereco || ''}</textarea>
-      </div>
+      
+      ${isNew ? `
+        <div class="form-section">
+          <h3><i class="fas fa-map-marker-alt"></i> Dados da Loja Principal</h3>
+          
+          <div class="form-group">
+            <label>Nome da Loja</label>
+            <input type="text" name="loja_nome" id="lojaNomeInput" placeholder="Se vazio, usará o nome da franquia">
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Cidade</label>
+              <input type="text" name="loja_cidade" id="lojaCidadeInput">
+            </div>
+            <div class="form-group">
+              <label>Estado</label>
+              <select name="loja_estado" id="lojaEstadoInput">
+                <option value="">Selecione</option>
+                <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+                <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+                <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+                <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+                <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+                <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3><i class="fas fa-user-tie"></i> Administrador da Franquia</h3>
+          <p class="form-hint">Este usuário terá acesso total à gestão da franquia</p>
+          
+          <div class="form-group">
+            <label>Nome do Administrador *</label>
+            <input type="text" name="admin_nome" id="adminNomeInput" required>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email de Acesso *</label>
+              <input type="email" name="admin_email" id="adminEmailInput" required placeholder="email@franquia.com">
+            </div>
+            <div class="form-group">
+              <label>Senha de Acesso *</label>
+              <input type="password" name="admin_senha" id="adminSenhaInput" required minlength="6" placeholder="Mínimo 6 caracteres">
+            </div>
+          </div>
+        </div>
+      ` : ''}
+      
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
         <button type="submit" class="btn btn-primary">
-          <i class="fas fa-save"></i> Salvar
+          <i class="fas fa-save"></i> ${isNew ? 'Cadastrar Franquia' : 'Salvar Alterações'}
         </button>
       </div>
     </form>
@@ -1896,9 +2023,17 @@ async function saveCompany(event, id) {
     cnpj: form.cnpj.value,
     telefone: form.telefone.value,
     email: form.email.value,
-    endereco: form.endereco.value,
-    tipo: 'FRANQUIA'
+    endereco: form.endereco.value
   };
+  
+  if (!id) {
+    data.loja_nome = form.loja_nome?.value || '';
+    data.loja_cidade = form.loja_cidade?.value || '';
+    data.loja_estado = form.loja_estado?.value || '';
+    data.admin_nome = form.admin_nome?.value || '';
+    data.admin_email = form.admin_email?.value || '';
+    data.admin_senha = form.admin_senha?.value || '';
+  }
   
   try {
     if (id) {
@@ -1906,7 +2041,7 @@ async function saveCompany(event, id) {
       showToast('Franquia atualizada com sucesso!', 'success');
     } else {
       await api('/companies', { method: 'POST', body: data });
-      showToast('Franquia cadastrada com sucesso!', 'success');
+      showToast('Franquia cadastrada com sucesso! O administrador pode fazer login com o email e senha informados.', 'success');
     }
     closeModal();
     await renderCompanies();

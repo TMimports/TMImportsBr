@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { Company, Store, User, AuditLog } = require('../models');
+const bcrypt = require('bcryptjs');
+const { Company, Store, User, AuditLog, sequelize } = require('../models');
 const { verifyToken, isAdminGlobal } = require('../middleware/auth');
 
 router.use(verifyToken);
@@ -14,7 +15,15 @@ router.get('/', async (req, res) => {
 
     const companies = await Company.findAll({
       where,
-      include: [{ model: Store, as: 'lojas' }],
+      include: [
+        { model: Store, as: 'lojas' },
+        { 
+          model: User, 
+          where: { perfil: 'GESTOR_FRANQUIA' },
+          required: false,
+          attributes: ['id', 'nome', 'email', 'ativo']
+        }
+      ],
       order: [['nome', 'ASC']]
     });
 
@@ -43,31 +52,81 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', isAdminGlobal, async (req, res) => {
+  const t = await sequelize.transaction();
+  
   try {
-    const { nome, cnpj, tipo, endereco, telefone, email, config } = req.body;
+    const { 
+      nome, cnpj, endereco, telefone, email,
+      loja_nome, loja_cidade, loja_estado,
+      admin_nome, admin_email, admin_senha
+    } = req.body;
+
+    if (!admin_email || !admin_senha) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Email e senha do administrador são obrigatórios' });
+    }
+
+    const existingUser = await User.findOne({ where: { email: admin_email } });
+    if (existingUser) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Já existe um usuário com este email' });
+    }
 
     const company = await Company.create({
       nome,
       cnpj,
-      tipo: tipo || 'FRANQUIA',
+      tipo: 'FRANQUIA',
       endereco,
       telefone,
-      email,
-      config: config || {}
-    });
+      email
+    }, { transaction: t });
+
+    const codigoLoja = `FR${String(company.id).padStart(3, '0')}`;
+    const store = await Store.create({
+      nome: loja_nome || nome,
+      codigo: codigoLoja,
+      empresa_id: company.id,
+      endereco,
+      cidade: loja_cidade,
+      estado: loja_estado,
+      telefone,
+      email
+    }, { transaction: t });
+
+    const senhaHash = await bcrypt.hash(admin_senha, 10);
+    const admin = await User.create({
+      nome: admin_nome || 'Gestor ' + nome,
+      email: admin_email,
+      senha: senhaHash,
+      perfil: 'GESTOR_FRANQUIA',
+      empresa_id: company.id,
+      loja_id: store.id,
+      primeiro_acesso: true
+    }, { transaction: t });
 
     await AuditLog.create({
       user_id: req.user.id,
       acao: 'CREATE',
       tabela: 'companies',
       registro_id: company.id,
-      dados_depois: { nome, cnpj, tipo: company.tipo }
-    });
+      dados_depois: { 
+        franquia: nome, 
+        loja: store.nome, 
+        admin: admin_email 
+      }
+    }, { transaction: t });
 
-    res.status(201).json(company);
+    await t.commit();
+
+    res.status(201).json({
+      ...company.toJSON(),
+      lojas: [store],
+      Users: [{ id: admin.id, nome: admin.nome, email: admin.email, ativo: admin.ativo }]
+    });
   } catch (error) {
-    console.error('Erro ao criar empresa:', error);
-    res.status(500).json({ error: 'Erro ao criar empresa' });
+    await t.rollback();
+    console.error('Erro ao criar franquia:', error);
+    res.status(500).json({ error: 'Erro ao criar franquia: ' + error.message });
   }
 });
 
