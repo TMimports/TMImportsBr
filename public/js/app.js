@@ -1075,9 +1075,17 @@ async function importProducts(event) {
       <div class="stat-card" style="background: rgba(0, 255, 136, 0.1);">
         <h3 style="color: var(--success);">Importação Concluída!</h3>
         <p style="margin-top: 10px;">
+          <strong>Linhas lidas:</strong> ${result.linhasLidas || 0}<br>
           <strong>${result.criados}</strong> produtos criados<br>
           <strong>${result.atualizados}</strong> produtos atualizados<br>
-          ${result.erros?.length > 0 ? `<strong style="color: var(--danger);">${result.erros.length}</strong> erros` : ''}
+          ${result.porTipo ? `
+            <br><strong>Por tipo:</strong><br>
+            Motos: ${result.porTipo.MOTO || 0} | 
+            Serviços: ${result.porTipo.SERVICO || 0} | 
+            Peças: ${result.porTipo.PECA || 0}
+          ` : ''}
+          ${result.abasProcessadas ? `<br><br><strong>Abas processadas:</strong> ${result.abasProcessadas.map(a => a.nome + ' (' + a.linhas + ' linhas)').join(', ')}` : ''}
+          ${result.erros?.length > 0 ? `<br><strong style="color: var(--danger);">${result.erros.length}</strong> erros` : ''}
         </p>
       </div>
     `;

@@ -188,27 +188,52 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
     }
 
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    
+    // Lê TODAS as abas da planilha
+    let allData = [];
+    const abasProcessadas = [];
+    
+    for (const sheetName of workbook.SheetNames) {
+      const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
+      console.log(`Aba "${sheetName}": ${sheetData.length} linhas encontradas`);
+      abasProcessadas.push({ nome: sheetName, linhas: sheetData.length });
+      allData = allData.concat(sheetData);
+    }
+    
+    console.log(`Total de linhas a processar: ${allData.length}`);
 
-    const resultados = { criados: 0, atualizados: 0, erros: [] };
+    const resultados = { 
+      criados: 0, 
+      atualizados: 0, 
+      erros: [],
+      linhasLidas: allData.length,
+      abasProcessadas,
+      porTipo: { MOTO: 0, SERVICO: 0, PECA: 0 }
+    };
 
-    for (const row of data) {
+    for (const row of allData) {
       try {
-        const codigo = row['Código'] || row['codigo'] || row['SKU'] || row['sku'] || row['Codigo'];
-        const nome = row['Descrição'] || row['Nome'] || row['nome'] || row['descricao'] || row['Descricao'] || row['NOME'] || row['DESCRIÇÃO'];
-        const preco = parseFloat(row['Preço'] || row['preco'] || row['Preço Venda'] || row['Preco'] || row['PREÇO'] || row['valor'] || row['Valor'] || 0);
-        const precoCusto = parseFloat(row['Preço Custo'] || row['preco_custo'] || row['Custo'] || row['custo'] || row['CUSTO'] || 0);
+        // Pega o primeiro valor não-vazio como código
+        const codigo = row['Código'] || row['codigo'] || row['SKU'] || row['sku'] || row['Codigo'] || row['CODIGO'] || row['Cód'] || row['COD'] || row['cod'];
+        const nome = row['Descrição'] || row['Nome'] || row['nome'] || row['descricao'] || row['Descricao'] || row['NOME'] || row['DESCRIÇÃO'] || row['DESCRICAO'] || row['Produto'] || row['produto'] || row['PRODUTO'];
+        
+        // Pula linhas sem nome
+        if (!nome || nome.toString().trim() === '') {
+          continue;
+        }
+        
+        const preco = parseFloat(row['Preço'] || row['preco'] || row['Preço Venda'] || row['Preco'] || row['PREÇO'] || row['valor'] || row['Valor'] || row['VALOR'] || row['Preço de Venda'] || row['preco_venda'] || 0) || 0;
+        const precoCusto = parseFloat(row['Preço Custo'] || row['preco_custo'] || row['Custo'] || row['custo'] || row['CUSTO'] || row['Preço de Custo'] || 0) || 0;
         
         // Primeiro tenta ler a coluna Tipo da planilha
-        let tipoRaw = row['Tipo'] || row['tipo'] || row['TIPO'] || row['Categoria'] || row['categoria'] || row['CATEGORIA'] || '';
+        let tipoRaw = row['Tipo'] || row['tipo'] || row['TIPO'] || row['Categoria'] || row['categoria'] || row['CATEGORIA'] || row['Classificação'] || row['classificacao'] || '';
         let tipo = 'PECA';
         
         const tipoUpper = tipoRaw.toString().toUpperCase().trim();
         const nomeUpper = (nome || '').toUpperCase();
         
         // Verifica se o tipo foi especificado na planilha
-        if (tipoUpper.includes('MOTO') || tipoUpper.includes('SCOOTER') || tipoUpper.includes('BICICLETA') || tipoUpper.includes('VEICULO') || tipoUpper.includes('VEÍCULO')) {
+        if (tipoUpper.includes('MOTO') || tipoUpper.includes('SCOOTER') || tipoUpper.includes('BICICLETA') || tipoUpper.includes('VEICULO') || tipoUpper.includes('VEÍCULO') || tipoUpper.includes('ELETRIC')) {
           tipo = 'MOTO';
         } else if (tipoUpper.includes('SERV') || tipoUpper.includes('MÃO') || tipoUpper.includes('MAO') || tipoUpper.includes('OBRA') || tipoUpper.includes('SERVICE')) {
           tipo = 'SERVICO';
@@ -216,25 +241,27 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
           tipo = 'PECA';
         }
         // Se não encontrou tipo na coluna, tenta detectar pelo nome
-        else if (nomeUpper.includes('MOTO') || nomeUpper.includes('SCOOTER') || nomeUpper.includes('BICICLETA') || nomeUpper.includes('PATINETE')) {
+        else if (nomeUpper.includes('MOTO') || nomeUpper.includes('SCOOTER') || nomeUpper.includes('BICICLETA') || nomeUpper.includes('PATINETE') || nomeUpper.includes('TRICICLO') || nomeUpper.includes('ELETRIC')) {
           tipo = 'MOTO';
-        } else if (nomeUpper.includes('SERVIÇO') || nomeUpper.includes('SERVICO') || nomeUpper.includes('MÃO DE OBRA') || nomeUpper.includes('INSTALAÇÃO') || nomeUpper.includes('REPARO') || nomeUpper.includes('REVISÃO')) {
+        } else if (nomeUpper.includes('SERVIÇO') || nomeUpper.includes('SERVICO') || nomeUpper.includes('MÃO DE OBRA') || nomeUpper.includes('INSTALAÇÃO') || nomeUpper.includes('REPARO') || nomeUpper.includes('REVISÃO') || nomeUpper.includes('MANUTENÇÃ') || nomeUpper.includes('TROCA DE')) {
           tipo = 'SERVICO';
         }
 
-        const existente = codigo ? await Product.findOne({ where: { codigo } }) : null;
+        const existente = codigo ? await Product.findOne({ where: { codigo: codigo.toString().trim() } }) : null;
 
         if (existente) {
           await existente.update({
             nome: nome || existente.nome,
             preco_venda: preco || existente.preco_venda,
-            preco_custo: precoCusto || existente.preco_custo
+            preco_custo: precoCusto || existente.preco_custo,
+            tipo: tipo
           });
           resultados.atualizados++;
+          resultados.porTipo[tipo]++;
         } else {
           const product = await Product.create({
-            codigo: codigo || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            nome: nome || 'Produto sem nome',
+            codigo: codigo ? codigo.toString().trim() : `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            nome: nome.toString().trim(),
             preco_venda: preco,
             preco_custo: precoCusto,
             tipo
@@ -246,16 +273,19 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
           });
           
           resultados.criados++;
+          resultados.porTipo[tipo]++;
         }
       } catch (err) {
-        resultados.erros.push({ linha: row, erro: err.message });
+        console.error('Erro ao processar linha:', row, err.message);
+        resultados.erros.push({ linha: JSON.stringify(row).substring(0, 100), erro: err.message });
       }
     }
 
+    console.log('Resultado da importação:', resultados);
     res.json(resultados);
   } catch (error) {
     console.error('Erro na importação:', error);
-    res.status(500).json({ error: 'Erro ao importar planilha' });
+    res.status(500).json({ error: 'Erro ao importar planilha: ' + error.message });
   }
 });
 
