@@ -729,7 +729,23 @@ async function renderDashboard() {
             <div class="stat-label">A Pagar</div>
           </div>
         </div>
+        
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header">
+            <h2><i class="fas fa-warehouse"></i> Estoque TM Imports - Produtos Disponíveis</h2>
+            <button class="btn btn-primary" onclick="criarSolicitacaoCompra()">
+              <i class="fas fa-cart-plus"></i> Nova Solicitação
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="estoqueTMImports">
+              <div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando estoque...</div>
+            </div>
+          </div>
+        </div>
       `;
+      
+      carregarEstoqueTMImports();
     }
   } catch (error) {
     content.innerHTML = `<div class="empty-state">
@@ -3041,6 +3057,203 @@ async function renderStores() {
     <h3>Lojas</h3>
     <p>Gerencie as lojas do sistema</p>
   </div>`;
+}
+
+let carrinhoSolicitacao = [];
+
+async function carregarEstoqueTMImports() {
+  try {
+    const estoque = await api('/inventory/central-disponivel');
+    const container = document.getElementById('estoqueTMImports');
+    
+    if (!estoque || estoque.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-box-open"></i>
+          <h3>Nenhum produto disponível</h3>
+          <p>O estoque central da TM Imports está vazio no momento</p>
+        </div>
+      `;
+      return;
+    }
+    
+    container.innerHTML = `
+      <div class="filters" style="margin-bottom: 15px;">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="searchEstoqueTM" placeholder="Buscar produtos..." onkeyup="filtrarEstoqueTM()">
+        </div>
+      </div>
+      <div class="table-container">
+        <table id="estoqueTMTable">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Produto</th>
+              <th>Tipo</th>
+              <th>Disponível</th>
+              <th>Preço Custo</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${estoque.map(item => `
+              <tr data-id="${item.produto_id}" data-nome="${(item.produto?.nome || '').toLowerCase()}">
+                <td>${item.produto?.codigo || '-'}</td>
+                <td>${item.produto?.nome || '-'}</td>
+                <td><span class="badge badge-${item.produto?.tipo === 'MOTO' ? 'primary' : item.produto?.tipo === 'SERVICO' ? 'success' : 'secondary'}">${item.produto?.tipo || '-'}</span></td>
+                <td><strong style="color: var(--success);">${item.quantidade}</strong></td>
+                <td>${formatCurrency(item.produto?.preco_custo)}</td>
+                <td>
+                  <button class="btn btn-sm btn-primary" onclick="adicionarAoCarrinho(${item.produto_id}, '${(item.produto?.nome || '').replace(/'/g, "\\'")}', ${item.quantidade}, ${item.produto?.preco_custo || 0})">
+                    <i class="fas fa-cart-plus"></i> Solicitar
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (error) {
+    const container = document.getElementById('estoqueTMImports');
+    container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Erro ao carregar estoque</p></div>`;
+    console.error('Erro ao carregar estoque TM Imports:', error);
+  }
+}
+
+function filtrarEstoqueTM() {
+  const search = document.getElementById('searchEstoqueTM').value.toLowerCase();
+  const rows = document.querySelectorAll('#estoqueTMTable tbody tr');
+  
+  rows.forEach(row => {
+    const nome = row.dataset.nome || '';
+    row.style.display = nome.includes(search) ? '' : 'none';
+  });
+}
+
+function adicionarAoCarrinho(produtoId, produtoNome, disponivelMax, precoCusto) {
+  const qtdStr = prompt(`Quantas unidades de "${produtoNome}" deseja solicitar?\n(Disponível: ${disponivelMax})`, '1');
+  if (!qtdStr) return;
+  
+  const qtd = parseInt(qtdStr);
+  if (isNaN(qtd) || qtd <= 0) {
+    showToast('Quantidade inválida', 'error');
+    return;
+  }
+  
+  if (qtd > disponivelMax) {
+    showToast(`Quantidade máxima disponível: ${disponivelMax}`, 'error');
+    return;
+  }
+  
+  const existente = carrinhoSolicitacao.find(item => item.produto_id === produtoId);
+  if (existente) {
+    existente.quantidade += qtd;
+    if (existente.quantidade > disponivelMax) {
+      existente.quantidade = disponivelMax;
+    }
+  } else {
+    carrinhoSolicitacao.push({
+      produto_id: produtoId,
+      nome: produtoNome,
+      quantidade: qtd,
+      preco_unitario: precoCusto,
+      disponivelMax
+    });
+  }
+  
+  showToast(`${qtd}x ${produtoNome} adicionado à solicitação!`, 'success');
+}
+
+function criarSolicitacaoCompra() {
+  if (carrinhoSolicitacao.length === 0) {
+    showToast('Adicione produtos ao carrinho primeiro clicando em "Solicitar" em cada produto', 'warning');
+    return;
+  }
+  
+  const total = carrinhoSolicitacao.reduce((sum, item) => sum + (item.preco_unitario * item.quantidade), 0);
+  
+  const content = `
+    <div class="form-group">
+      <h3>Itens da Solicitação</h3>
+      <div class="table-container table-sm">
+        <table>
+          <thead>
+            <tr><th>Produto</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th><th>Ação</th></tr>
+          </thead>
+          <tbody>
+            ${carrinhoSolicitacao.map((item, idx) => `
+              <tr>
+                <td>${item.nome}</td>
+                <td>${item.quantidade}</td>
+                <td>${formatCurrency(item.preco_unitario)}</td>
+                <td>${formatCurrency(item.preco_unitario * item.quantidade)}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="removerDoCarrinho(${idx})"><i class="fas fa-trash"></i></button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr style="font-weight: bold;">
+              <td colspan="3">TOTAL</td>
+              <td colspan="2">${formatCurrency(total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    <form onsubmit="enviarSolicitacaoCompra(event)">
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea name="observacoes" class="form-control" rows="3" placeholder="Observações para a matriz (opcional)"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="limparCarrinho()">Limpar Carrinho</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i> Enviar Solicitação</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Nova Solicitação de Compra', content);
+}
+
+function removerDoCarrinho(idx) {
+  carrinhoSolicitacao.splice(idx, 1);
+  criarSolicitacaoCompra();
+}
+
+function limparCarrinho() {
+  carrinhoSolicitacao = [];
+  closeModal();
+  showToast('Carrinho limpo', 'info');
+}
+
+async function enviarSolicitacaoCompra(event) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const observacoes = formData.get('observacoes');
+  
+  try {
+    await api('/purchase-requests', {
+      method: 'POST',
+      body: {
+        itens: carrinhoSolicitacao.map(item => ({
+          produto_id: item.produto_id,
+          quantidade: item.quantidade,
+          preco_unitario: item.preco_unitario
+        })),
+        observacoes
+      }
+    });
+    
+    carrinhoSolicitacao = [];
+    closeModal();
+    showToast('Solicitação de compra enviada com sucesso! Aguarde a aprovação da matriz.', 'success');
+    await renderDashboard();
+  } catch (error) {
+    showToast(error.message || 'Erro ao enviar solicitação', 'error');
+  }
 }
 
 async function renderPurchaseRequests() {

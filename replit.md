@@ -155,6 +155,13 @@ Ao iniciar pela primeira vez, o sistema cria automaticamente um ADMIN GLOBAL:
 
 ## Mudanças Recentes
 
+- **11/12/2024:** Dashboard do Franqueado com Estoque TM Imports
+  - Nova seção no dashboard do franqueado mostrando estoque disponível da matriz
+  - Endpoint /api/inventory/central-disponivel para produtos com estoque > 0
+  - Franqueado pode selecionar produtos e criar solicitação de compra direto do dashboard
+  - Sistema de carrinho para múltiplos produtos na mesma solicitação
+  - Validação de quantidade máxima disponível
+
 - **11/12/2024:** Recriação completa do sistema
   - Migração de SQLite para PostgreSQL
   - Arquitetura multi-empresa (TM Imports + Franquias)

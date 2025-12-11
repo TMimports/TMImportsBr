@@ -17,6 +17,23 @@ router.get('/central', async (req, res) => {
   }
 });
 
+router.get('/central-disponivel', async (req, res) => {
+  try {
+    const { Op } = require('sequelize');
+    const inventory = await InventoryMain.findAll({
+      where: {
+        quantidade: { [Op.gt]: 0 }
+      },
+      include: [{ model: Product, as: 'produto' }],
+      order: [[{ model: Product, as: 'produto' }, 'nome', 'ASC']]
+    });
+    res.json(inventory);
+  } catch (error) {
+    console.error('Erro ao listar estoque central disponível:', error);
+    res.status(500).json({ error: 'Erro ao listar estoque central disponível' });
+  }
+});
+
 router.get('/loja', filterByStore, async (req, res) => {
   try {
     const where = req.storeFilter;
