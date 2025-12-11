@@ -377,6 +377,11 @@ async function renderDashboard() {
     
     if (currentUser.perfil === 'ADMIN_GLOBAL') {
       content.innerHTML = `
+        <div class="dashboard-logo-section">
+          <img src="/images/logo-tmimports.jpg" alt="TM Imports" class="dashboard-logo">
+          <h1 class="dashboard-title">TM Imports - Painel Administrativo</h1>
+        </div>
+        
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>
@@ -671,6 +676,11 @@ async function renderDashboard() {
       }
     } else {
       content.innerHTML = `
+        <div class="dashboard-logo-section">
+          <img src="/images/logo.png" alt="Tecle Motos" class="dashboard-logo">
+          <h1 class="dashboard-title">Tecle Motos - ${currentUser.loja?.nome || 'Franquia'}</h1>
+        </div>
+        
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>

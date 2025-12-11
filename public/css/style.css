@@ -1471,3 +1471,45 @@ tr:hover td {
   color: var(--danger);
   font-size: 0.9rem;
 }
+
+/* Dashboard Logo Section */
+.dashboard-logo-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(255, 107, 53, 0.1) 100%);
+  border-radius: 12px;
+  margin-bottom: 25px;
+  border: 1px solid var(--border);
+}
+
+.dashboard-logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.dashboard-title {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .dashboard-logo-section {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .dashboard-logo {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .dashboard-title {
+    font-size: 1.4rem;
+  }
+}
