@@ -189,6 +189,49 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
 
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     
+    // Função para normalizar texto (remover acentos, espaços extras, lowercase)
+    function normalizeKey(str) {
+      if (!str) return '';
+      return str.toString()
+        .toLowerCase()
+        .trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+        .replace(/[^a-z0-9]/g, ''); // remove caracteres especiais
+    }
+    
+    // Função para parsear valores monetários brasileiros (R$ 1.234,56)
+    function parseMonetario(valor) {
+      if (valor === null || valor === undefined || valor === '') return 0;
+      if (typeof valor === 'number') return valor;
+      
+      let str = valor.toString().trim();
+      // Remove símbolos de moeda e espaços
+      str = str.replace(/[R$\s]/g, '');
+      // Se tem formato brasileiro (1.234,56), converte
+      if (str.includes(',')) {
+        // Remove pontos de milhar e troca vírgula por ponto
+        str = str.replace(/\./g, '').replace(',', '.');
+      }
+      const num = parseFloat(str);
+      return isNaN(num) ? 0 : num;
+    }
+    
+    // Função para buscar valor em uma linha usando múltiplas variações de nome de coluna
+    function getRowValue(row, rowNormalized, possibleNames) {
+      // Primeiro tenta match exato
+      for (const name of possibleNames) {
+        if (row[name] !== undefined && row[name] !== '') return row[name];
+      }
+      // Depois tenta match normalizado
+      const normalizedNames = possibleNames.map(n => normalizeKey(n));
+      for (const key in rowNormalized) {
+        if (normalizedNames.includes(key) && rowNormalized[key] !== undefined && rowNormalized[key] !== '') {
+          return rowNormalized[key];
+        }
+      }
+      return '';
+    }
+    
     // Lê TODAS as abas da planilha
     let allData = [];
     const abasProcessadas = [];
@@ -196,6 +239,9 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
     for (const sheetName of workbook.SheetNames) {
       const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
       console.log(`Aba "${sheetName}": ${sheetData.length} linhas encontradas`);
+      if (sheetData.length > 0) {
+        console.log(`Colunas encontradas: ${Object.keys(sheetData[0]).join(', ')}`);
+      }
       abasProcessadas.push({ nome: sheetName, linhas: sheetData.length });
       allData = allData.concat(sheetData);
     }
@@ -208,25 +254,58 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
       erros: [],
       linhasLidas: allData.length,
       abasProcessadas,
-      porTipo: { MOTO: 0, SERVICO: 0, PECA: 0 }
+      porTipo: { MOTO: 0, SERVICO: 0, PECA: 0 },
+      colunasEncontradas: allData.length > 0 ? Object.keys(allData[0]) : []
     };
 
     for (const row of allData) {
       try {
-        // Pega o primeiro valor não-vazio como código
-        const codigo = row['Código'] || row['codigo'] || row['SKU'] || row['sku'] || row['Codigo'] || row['CODIGO'] || row['Cód'] || row['COD'] || row['cod'];
-        const nome = row['Descrição'] || row['Nome'] || row['nome'] || row['descricao'] || row['Descricao'] || row['NOME'] || row['DESCRIÇÃO'] || row['DESCRICAO'] || row['Produto'] || row['produto'] || row['PRODUTO'];
+        // Cria versão normalizada das chaves da linha
+        const rowNormalized = {};
+        for (const key in row) {
+          rowNormalized[normalizeKey(key)] = row[key];
+        }
+        
+        // Busca código com múltiplas variações
+        const codigo = getRowValue(row, rowNormalized, [
+          'Código', 'codigo', 'CODIGO', 'Codigo', 'SKU', 'sku', 'Cód', 'COD', 'cod',
+          'Código Produto', 'Codigo Produto', 'CódigoProduto', 'CodigoProduto',
+          'Ref', 'REF', 'Referência', 'Referencia', 'ID', 'id', 'Item', 'item'
+        ]);
+        
+        // Busca nome/descrição com múltiplas variações
+        const nome = getRowValue(row, rowNormalized, [
+          'Descrição', 'Nome', 'nome', 'descricao', 'Descricao', 'NOME', 'DESCRIÇÃO', 'DESCRICAO',
+          'Produto', 'produto', 'PRODUTO', 'Descrição do Produto', 'Nome do Produto',
+          'Desc', 'DESC', 'Description', 'Name', 'Título', 'Titulo', 'titulo'
+        ]);
         
         // Pula linhas sem nome
         if (!nome || nome.toString().trim() === '') {
           continue;
         }
         
-        const preco = parseFloat(row['Preço'] || row['preco'] || row['Preço Venda'] || row['Preco'] || row['PREÇO'] || row['valor'] || row['Valor'] || row['VALOR'] || row['Preço de Venda'] || row['preco_venda'] || 0) || 0;
-        const precoCusto = parseFloat(row['Preço Custo'] || row['preco_custo'] || row['Custo'] || row['custo'] || row['CUSTO'] || row['Preço de Custo'] || 0) || 0;
+        // Busca preço de venda com múltiplas variações
+        const precoRaw = getRowValue(row, rowNormalized, [
+          'Preço', 'preco', 'Preço Venda', 'Preco', 'PREÇO', 'valor', 'Valor', 'VALOR',
+          'Preço de Venda', 'preco_venda', 'PrecoVenda', 'Venda', 'venda', 'VENDA',
+          'Price', 'price', 'Preço Final', 'preco_final', 'Preço Unitário', 'Unit'
+        ]);
+        const preco = parseMonetario(precoRaw);
+        
+        // Busca preço de custo com múltiplas variações
+        const precoCustoRaw = getRowValue(row, rowNormalized, [
+          'Preço Custo', 'preco_custo', 'Custo', 'custo', 'CUSTO', 'Preço de Custo',
+          'PrecoCusto', 'Cost', 'cost', 'Custo Unitário', 'Valor Custo', 'Compra'
+        ]);
+        const precoCusto = parseMonetario(precoCustoRaw);
         
         // Primeiro tenta ler a coluna Tipo da planilha
-        let tipoRaw = row['Tipo'] || row['tipo'] || row['TIPO'] || row['Categoria'] || row['categoria'] || row['CATEGORIA'] || row['Classificação'] || row['classificacao'] || '';
+        let tipoRaw = getRowValue(row, rowNormalized, [
+          'Tipo', 'tipo', 'TIPO', 'Categoria', 'categoria', 'CATEGORIA',
+          'Classificação', 'classificacao', 'CLASSIFICACAO', 'Classe', 'classe',
+          'Grupo', 'grupo', 'GRUPO', 'Type', 'type', 'Category', 'category'
+        ]);
         let tipo = 'PECA';
         
         const tipoUpper = tipoRaw.toString().toUpperCase().trim();
