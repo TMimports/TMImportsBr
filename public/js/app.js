@@ -1993,11 +1993,404 @@ async function savePayable(event) {
 
 async function renderReconciliation() {
   const content = document.getElementById('content');
-  content.innerHTML = `<div class="empty-state">
-    <i class="fas fa-university"></i>
-    <h3>Conciliação Bancária</h3>
-    <p>Importe extratos bancários para conciliar automaticamente</p>
-  </div>`;
+  
+  try {
+    const [dashboard, contas, transacoes] = await Promise.all([
+      api('/bank/dashboard'),
+      api('/bank/contas'),
+      api('/bank/transacoes')
+    ]);
+    
+    const pendentes = transacoes.filter(t => !t.conciliado);
+    const conciliadas = transacoes.filter(t => t.conciliado);
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-university"></i> Conciliação Bancária</h2>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="openContaBancariaModal()">
+              <i class="fas fa-plus"></i> Nova Conta
+            </button>
+          </div>
+        </div>
+        
+        <div class="reconciliation-dashboard">
+          <div class="recon-metric">
+            <div class="metric-icon green"><i class="fas fa-arrow-down"></i></div>
+            <div class="metric-info">
+              <span class="metric-value">${formatCurrency(dashboard.totalReceber)}</span>
+              <span class="metric-label">A Receber</span>
+            </div>
+          </div>
+          <div class="recon-metric">
+            <div class="metric-icon red"><i class="fas fa-arrow-up"></i></div>
+            <div class="metric-info">
+              <span class="metric-value">${formatCurrency(dashboard.totalPagar)}</span>
+              <span class="metric-label">A Pagar</span>
+            </div>
+          </div>
+          <div class="recon-metric">
+            <div class="metric-icon orange"><i class="fas fa-wallet"></i></div>
+            <div class="metric-info">
+              <span class="metric-value">${formatCurrency(dashboard.saldoBancario)}</span>
+              <span class="metric-label">Saldo Bancário</span>
+            </div>
+          </div>
+          <div class="recon-metric">
+            <div class="metric-icon yellow"><i class="fas fa-clock"></i></div>
+            <div class="metric-info">
+              <span class="metric-value">${dashboard.transacoesPendentes}</span>
+              <span class="metric-label">Pendentes</span>
+            </div>
+          </div>
+        </div>
+        
+        ${contas.length > 0 ? `
+          <div class="bank-accounts-section">
+            <h3>Contas Bancárias</h3>
+            <div class="bank-accounts-grid">
+              ${contas.map(c => `
+                <div class="bank-account-card">
+                  <div class="bank-logo">
+                    <i class="fas fa-university"></i>
+                  </div>
+                  <div class="bank-info">
+                    <strong>${c.nome}</strong>
+                    <span>${c.banco || ''} - Ag: ${c.agencia || '-'} / Conta: ${c.numero_conta || '-'}</span>
+                  </div>
+                  <div class="bank-balance">
+                    <span class="balance-label">Saldo</span>
+                    <span class="balance-value ${parseFloat(c.saldo_atual || 0) >= 0 ? 'positive' : 'negative'}">
+                      ${formatCurrency(c.saldo_atual || 0)}
+                    </span>
+                  </div>
+                  <button class="btn btn-sm btn-primary" onclick="openImportarExtratoModal(${c.id}, '${c.nome}')">
+                    <i class="fas fa-upload"></i> Importar
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : `
+          <div class="empty-state-small">
+            <p>Nenhuma conta bancária cadastrada. <a href="#" onclick="openContaBancariaModal()">Cadastre uma conta</a></p>
+          </div>
+        `}
+        
+        <div class="card-body">
+          <div class="reconciliation-tabs">
+            <button class="tab-btn active" onclick="showReconciliationTab('pendentes')">
+              <i class="fas fa-clock"></i> Pendentes (${pendentes.length})
+            </button>
+            <button class="tab-btn" onclick="showReconciliationTab('conciliadas')">
+              <i class="fas fa-check"></i> Conciliadas (${conciliadas.length})
+            </button>
+          </div>
+          
+          <div id="reconciliationContent">
+            ${pendentes.length > 0 ? `
+              <div class="auto-reconcile-bar">
+                <span><i class="fas fa-magic"></i> ${pendentes.length} transações aguardando conciliação</span>
+                <button class="btn btn-success" onclick="autoReconcile()">
+                  <i class="fas fa-bolt"></i> Conciliar Automaticamente
+                </button>
+              </div>
+              
+              <div class="transactions-list">
+                ${pendentes.map(t => `
+                  <div class="transaction-item ${t.tipo === 'CREDITO' ? 'credit' : 'debit'}">
+                    <div class="trans-date">${formatDate(t.data)}</div>
+                    <div class="trans-info">
+                      <span class="trans-desc">${t.historico || 'Sem descrição'}</span>
+                      <span class="trans-account">${t.conta?.nome || 'Conta'}</span>
+                    </div>
+                    <div class="trans-value ${t.tipo === 'CREDITO' ? 'positive' : 'negative'}">
+                      ${t.tipo === 'CREDITO' ? '+' : '-'} ${formatCurrency(t.valor)}
+                    </div>
+                    <div class="trans-actions">
+                      <button class="btn btn-sm btn-primary" onclick="openManualReconcileModal(${t.id}, '${t.tipo}', ${t.valor})">
+                        <i class="fas fa-link"></i> Conciliar
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <div class="empty-state">
+                <i class="fas fa-check-circle"></i>
+                <h3>Tudo conciliado!</h3>
+                <p>Não há transações pendentes de conciliação</p>
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function showReconciliationTab(tab) {
+  renderReconciliation();
+}
+
+function openContaBancariaModal() {
+  const formContent = `
+    <form id="contaBancariaForm" onsubmit="saveContaBancaria(event)">
+      <div class="form-group">
+        <label>Nome da Conta *</label>
+        <input type="text" name="nome" placeholder="Ex: Conta Principal" required>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Banco</label>
+          <select name="banco">
+            <option value="">Selecione...</option>
+            <option value="001">Banco do Brasil</option>
+            <option value="033">Santander</option>
+            <option value="104">Caixa</option>
+            <option value="237">Bradesco</option>
+            <option value="341">Itaú</option>
+            <option value="077">Inter</option>
+            <option value="260">Nubank</option>
+            <option value="OUTRO">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tipo de Conta</label>
+          <select name="tipo">
+            <option value="CORRENTE">Conta Corrente</option>
+            <option value="POUPANCA">Poupança</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Agência</label>
+          <input type="text" name="agencia">
+        </div>
+        <div class="form-group">
+          <label>Número da Conta</label>
+          <input type="text" name="numero_conta">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Saldo Inicial</label>
+        <input type="number" step="0.01" name="saldo_atual" value="0">
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Nova Conta Bancária', formContent);
+}
+
+async function saveContaBancaria(event) {
+  event.preventDefault();
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api('/bank/contas', { method: 'POST', body: data });
+    showToast('Conta bancária cadastrada');
+    closeModal();
+    await renderReconciliation();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function openImportarExtratoModal(contaId, contaNome) {
+  const formContent = `
+    <form id="importExtratoForm" onsubmit="importarExtrato(event)">
+      <input type="hidden" name="conta_id" value="${contaId}">
+      
+      <div class="import-info">
+        <i class="fas fa-info-circle"></i>
+        <p>Importando para: <strong>${contaNome}</strong></p>
+      </div>
+      
+      <div class="upload-area" id="extratoUploadArea">
+        <i class="fas fa-cloud-upload-alt"></i>
+        <p>Arraste o arquivo aqui ou clique para selecionar</p>
+        <span>Formatos aceitos: OFX, CSV, XLS, XLSX</span>
+        <input type="file" name="arquivo" id="extratoFile" accept=".ofx,.csv,.xls,.xlsx" onchange="handleExtratoFile(this)" required>
+      </div>
+      
+      <div id="extratoFileName" class="file-selected" style="display: none;">
+        <i class="fas fa-file"></i>
+        <span id="extratoFileNameText"></span>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Importar</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Importar Extrato Bancário', formContent);
+}
+
+function handleExtratoFile(input) {
+  if (input.files && input.files[0]) {
+    document.getElementById('extratoFileName').style.display = 'flex';
+    document.getElementById('extratoFileNameText').textContent = input.files[0].name;
+    document.getElementById('extratoUploadArea').classList.add('has-file');
+  }
+}
+
+async function importarExtrato(event) {
+  event.preventDefault();
+  const form = event.target;
+  const formData = new FormData(form);
+  
+  try {
+    const response = await fetch('/api/bank/upload', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+    
+    const result = await response.json();
+    
+    if (!response.ok) throw new Error(result.error);
+    
+    showToast(`Importação concluída: ${result.importadas} transações importadas, ${result.duplicadas} duplicadas ignoradas`);
+    closeModal();
+    await renderReconciliation();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function autoReconcile() {
+  try {
+    const contas = await api('/bank/contas');
+    
+    if (contas.length === 0) {
+      showToast('Nenhuma conta bancária cadastrada', 'error');
+      return;
+    }
+    
+    let totalConciliadas = 0;
+    let totalPendentes = 0;
+    
+    for (const conta of contas) {
+      const result = await api('/bank/auto-reconcile', { method: 'POST', body: { conta_id: conta.id } });
+      totalConciliadas += result.conciliadas;
+      totalPendentes += result.pendentes;
+    }
+    
+    showToast(`Conciliação automática: ${totalConciliadas} conciliadas, ${totalPendentes} pendentes`);
+    await renderReconciliation();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function openManualReconcileModal(transacaoId, tipo, valor) {
+  try {
+    let contas = [];
+    
+    if (tipo === 'CREDITO') {
+      contas = await api('/financial/receber?status=PENDENTE');
+    } else {
+      contas = await api('/financial/pagar?status=PENDENTE');
+    }
+    
+    const contasCompativeis = contas.filter(c => {
+      const valorConta = parseFloat(c.valor) - parseFloat(c.valor_pago || 0);
+      return Math.abs(valorConta - valor) < 0.01;
+    });
+    
+    const formContent = `
+      <form id="manualReconcileForm" onsubmit="manualReconcile(event, ${transacaoId})">
+        <input type="hidden" name="tipo" value="${tipo === 'CREDITO' ? 'receber' : 'pagar'}">
+        
+        <div class="info-row">
+          <p><strong>Valor da Transação:</strong> ${formatCurrency(valor)}</p>
+          <p><strong>Tipo:</strong> ${tipo === 'CREDITO' ? 'Entrada' : 'Saída'}</p>
+        </div>
+        
+        ${contasCompativeis.length > 0 ? `
+          <div class="matching-accounts">
+            <h4><i class="fas fa-magic"></i> Contas com valor correspondente:</h4>
+            ${contasCompativeis.map(c => `
+              <label class="account-option">
+                <input type="radio" name="referencia_id" value="${c.id}">
+                <div class="account-details">
+                  <strong>${c.descricao || 'Sem descrição'}</strong>
+                  <span>${c.cliente?.nome || c.fornecedor || '-'} - ${formatCurrency(c.valor)}</span>
+                </div>
+              </label>
+            `).join('')}
+          </div>
+        ` : `
+          <div class="no-matches">
+            <i class="fas fa-search"></i>
+            <p>Nenhuma conta ${tipo === 'CREDITO' ? 'a receber' : 'a pagar'} com valor correspondente encontrada.</p>
+          </div>
+        `}
+        
+        ${contas.length > contasCompativeis.length ? `
+          <details class="all-accounts">
+            <summary>Ver todas as contas (${contas.length})</summary>
+            <div class="accounts-list">
+              ${contas.map(c => `
+                <label class="account-option">
+                  <input type="radio" name="referencia_id" value="${c.id}">
+                  <div class="account-details">
+                    <strong>${c.descricao || 'Sem descrição'}</strong>
+                    <span>${c.cliente?.nome || c.fornecedor || '-'} - ${formatCurrency(c.valor)}</span>
+                  </div>
+                </label>
+              `).join('')}
+            </div>
+          </details>
+        ` : ''}
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-success" ${contas.length === 0 ? 'disabled' : ''}>Conciliar</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Conciliar Transação', formContent);
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function manualReconcile(event, transacaoId) {
+  event.preventDefault();
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  data.transacao_id = transacaoId;
+  
+  if (!data.referencia_id) {
+    showToast('Selecione uma conta para conciliar', 'error');
+    return;
+  }
+  
+  try {
+    await api('/bank/reconcile', { method: 'POST', body: data });
+    showToast('Transação conciliada com sucesso');
+    closeModal();
+    await renderReconciliation();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 async function renderCashFlow() {
