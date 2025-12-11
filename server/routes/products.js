@@ -171,16 +171,30 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
 
     for (const row of data) {
       try {
-        const codigo = row['Código'] || row['codigo'] || row['SKU'] || row['sku'];
-        const nome = row['Descrição'] || row['Nome'] || row['nome'] || row['descricao'];
-        const preco = parseFloat(row['Preço'] || row['preco'] || row['Preço Venda'] || 0);
-        const precoCusto = parseFloat(row['Preço Custo'] || row['preco_custo'] || row['Custo'] || 0);
+        const codigo = row['Código'] || row['codigo'] || row['SKU'] || row['sku'] || row['Codigo'];
+        const nome = row['Descrição'] || row['Nome'] || row['nome'] || row['descricao'] || row['Descricao'] || row['NOME'] || row['DESCRIÇÃO'];
+        const preco = parseFloat(row['Preço'] || row['preco'] || row['Preço Venda'] || row['Preco'] || row['PREÇO'] || row['valor'] || row['Valor'] || 0);
+        const precoCusto = parseFloat(row['Preço Custo'] || row['preco_custo'] || row['Custo'] || row['custo'] || row['CUSTO'] || 0);
         
+        // Primeiro tenta ler a coluna Tipo da planilha
+        let tipoRaw = row['Tipo'] || row['tipo'] || row['TIPO'] || row['Categoria'] || row['categoria'] || row['CATEGORIA'] || '';
         let tipo = 'PECA';
+        
+        const tipoUpper = tipoRaw.toString().toUpperCase().trim();
         const nomeUpper = (nome || '').toUpperCase();
-        if (nomeUpper.includes('MOTO') || nomeUpper.includes('SCOOTER') || nomeUpper.includes('BICICLETA')) {
+        
+        // Verifica se o tipo foi especificado na planilha
+        if (tipoUpper.includes('MOTO') || tipoUpper.includes('SCOOTER') || tipoUpper.includes('BICICLETA') || tipoUpper.includes('VEICULO') || tipoUpper.includes('VEÍCULO')) {
           tipo = 'MOTO';
-        } else if (nomeUpper.includes('SERVIÇO') || nomeUpper.includes('SERVICO') || nomeUpper.includes('MÃO DE OBRA')) {
+        } else if (tipoUpper.includes('SERV') || tipoUpper.includes('MÃO') || tipoUpper.includes('MAO') || tipoUpper.includes('OBRA') || tipoUpper.includes('SERVICE')) {
+          tipo = 'SERVICO';
+        } else if (tipoUpper.includes('PECA') || tipoUpper.includes('PEÇA') || tipoUpper.includes('ACESSORIO') || tipoUpper.includes('ACESSÓRIO')) {
+          tipo = 'PECA';
+        }
+        // Se não encontrou tipo na coluna, tenta detectar pelo nome
+        else if (nomeUpper.includes('MOTO') || nomeUpper.includes('SCOOTER') || nomeUpper.includes('BICICLETA') || nomeUpper.includes('PATINETE')) {
+          tipo = 'MOTO';
+        } else if (nomeUpper.includes('SERVIÇO') || nomeUpper.includes('SERVICO') || nomeUpper.includes('MÃO DE OBRA') || nomeUpper.includes('INSTALAÇÃO') || nomeUpper.includes('REPARO') || nomeUpper.includes('REVISÃO')) {
           tipo = 'SERVICO';
         }
 
