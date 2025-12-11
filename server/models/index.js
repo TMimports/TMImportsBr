@@ -318,6 +318,138 @@ const Setting = sequelize.define('Setting', {
   tipo: { type: DataTypes.STRING(50) }
 }, { tableName: 'settings', timestamps: true });
 
+const FiscalData = sequelize.define('FiscalData', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  empresa_id: { type: DataTypes.INTEGER },
+  loja_id: { type: DataTypes.INTEGER },
+  razao_social: { type: DataTypes.STRING(200) },
+  nome_fantasia: { type: DataTypes.STRING(200) },
+  cnpj: { type: DataTypes.STRING(20) },
+  inscricao_estadual: { type: DataTypes.STRING(20) },
+  inscricao_municipal: { type: DataTypes.STRING(20) },
+  cnae: { type: DataTypes.STRING(10) },
+  regime_tributario: { type: DataTypes.ENUM('SIMPLES_NACIONAL', 'LUCRO_PRESUMIDO', 'LUCRO_REAL'), defaultValue: 'SIMPLES_NACIONAL' },
+  endereco: { type: DataTypes.STRING(200) },
+  numero: { type: DataTypes.STRING(20) },
+  complemento: { type: DataTypes.STRING(100) },
+  bairro: { type: DataTypes.STRING(100) },
+  cidade: { type: DataTypes.STRING(100) },
+  estado: { type: DataTypes.STRING(2) },
+  cep: { type: DataTypes.STRING(10) },
+  codigo_municipio: { type: DataTypes.STRING(10) },
+  telefone: { type: DataTypes.STRING(20) },
+  email: { type: DataTypes.STRING(150) },
+  api_provider: { type: DataTypes.ENUM('FOCUS_NFE', 'PLUGNOTAS', 'WEBMANIA', 'NFE_IO', 'MANUAL'), defaultValue: 'MANUAL' },
+  api_token: { type: DataTypes.STRING(255) },
+  api_ambiente: { type: DataTypes.ENUM('HOMOLOGACAO', 'PRODUCAO'), defaultValue: 'HOMOLOGACAO' },
+  certificado_base64: { type: DataTypes.TEXT },
+  certificado_senha: { type: DataTypes.STRING(100) },
+  certificado_validade: { type: DataTypes.DATE },
+  serie_nfe: { type: DataTypes.INTEGER, defaultValue: 1 },
+  numero_nfe_atual: { type: DataTypes.INTEGER, defaultValue: 0 },
+  serie_nfce: { type: DataTypes.INTEGER, defaultValue: 1 },
+  numero_nfce_atual: { type: DataTypes.INTEGER, defaultValue: 0 },
+  csc_id: { type: DataTypes.STRING(10) },
+  csc_token: { type: DataTypes.STRING(50) },
+  ativo: { type: DataTypes.BOOLEAN, defaultValue: true }
+}, { tableName: 'fiscal_data', timestamps: true });
+
+const Invoice = sequelize.define('Invoice', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  loja_id: { type: DataTypes.INTEGER },
+  venda_id: { type: DataTypes.INTEGER },
+  os_id: { type: DataTypes.INTEGER },
+  cliente_id: { type: DataTypes.INTEGER },
+  tipo: { type: DataTypes.ENUM('NFE', 'NFCE', 'NFSE'), defaultValue: 'NFE' },
+  numero: { type: DataTypes.INTEGER },
+  serie: { type: DataTypes.INTEGER, defaultValue: 1 },
+  chave_acesso: { type: DataTypes.STRING(50) },
+  protocolo: { type: DataTypes.STRING(20) },
+  status: { type: DataTypes.ENUM('RASCUNHO', 'PROCESSANDO', 'AUTORIZADA', 'REJEITADA', 'CANCELADA', 'INUTILIZADA', 'DENEGADA'), defaultValue: 'RASCUNHO' },
+  mensagem_sefaz: { type: DataTypes.TEXT },
+  codigo_status: { type: DataTypes.STRING(10) },
+  natureza_operacao: { type: DataTypes.STRING(100), defaultValue: 'Venda de Mercadoria' },
+  finalidade: { type: DataTypes.ENUM('NORMAL', 'COMPLEMENTAR', 'AJUSTE', 'DEVOLUCAO'), defaultValue: 'NORMAL' },
+  destinatario_nome: { type: DataTypes.STRING(200) },
+  destinatario_cpf_cnpj: { type: DataTypes.STRING(20) },
+  destinatario_ie: { type: DataTypes.STRING(20) },
+  destinatario_email: { type: DataTypes.STRING(150) },
+  destinatario_endereco: { type: DataTypes.STRING(200) },
+  destinatario_numero: { type: DataTypes.STRING(20) },
+  destinatario_bairro: { type: DataTypes.STRING(100) },
+  destinatario_cidade: { type: DataTypes.STRING(100) },
+  destinatario_uf: { type: DataTypes.STRING(2) },
+  destinatario_cep: { type: DataTypes.STRING(10) },
+  destinatario_codigo_municipio: { type: DataTypes.STRING(10) },
+  destinatario_telefone: { type: DataTypes.STRING(20) },
+  valor_produtos: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_frete: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_seguro: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_desconto: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_outras_despesas: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_icms: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_ipi: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_pis: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_cofins: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_iss: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  forma_pagamento: { type: DataTypes.STRING(50) },
+  informacoes_complementares: { type: DataTypes.TEXT },
+  informacoes_fisco: { type: DataTypes.TEXT },
+  xml: { type: DataTypes.TEXT },
+  pdf_url: { type: DataTypes.STRING(500) },
+  pdf_base64: { type: DataTypes.TEXT },
+  data_emissao: { type: DataTypes.DATE },
+  data_saida: { type: DataTypes.DATE },
+  data_cancelamento: { type: DataTypes.DATE },
+  motivo_cancelamento: { type: DataTypes.TEXT },
+  referencia_api: { type: DataTypes.STRING(100) },
+  user_id: { type: DataTypes.INTEGER }
+}, { tableName: 'invoices', timestamps: true });
+
+const InvoiceItem = sequelize.define('InvoiceItem', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  invoice_id: { type: DataTypes.INTEGER, allowNull: false },
+  produto_id: { type: DataTypes.INTEGER },
+  numero_item: { type: DataTypes.INTEGER, defaultValue: 1 },
+  codigo: { type: DataTypes.STRING(50) },
+  descricao: { type: DataTypes.STRING(200) },
+  ncm: { type: DataTypes.STRING(10) },
+  cfop: { type: DataTypes.STRING(10) },
+  unidade: { type: DataTypes.STRING(10), defaultValue: 'UN' },
+  quantidade: { type: DataTypes.DECIMAL(12, 4), defaultValue: 1 },
+  valor_unitario: { type: DataTypes.DECIMAL(12, 4), defaultValue: 0 },
+  valor_total: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  valor_desconto: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  cst_icms: { type: DataTypes.STRING(5) },
+  aliquota_icms: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
+  valor_icms: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  cst_ipi: { type: DataTypes.STRING(5) },
+  aliquota_ipi: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
+  valor_ipi: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  cst_pis: { type: DataTypes.STRING(5) },
+  aliquota_pis: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
+  valor_pis: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  cst_cofins: { type: DataTypes.STRING(5) },
+  aliquota_cofins: { type: DataTypes.DECIMAL(5, 2), defaultValue: 0 },
+  valor_cofins: { type: DataTypes.DECIMAL(12, 2), defaultValue: 0 },
+  origem: { type: DataTypes.STRING(2), defaultValue: '0' }
+}, { tableName: 'invoice_items', timestamps: true });
+
+const InvoiceEvent = sequelize.define('InvoiceEvent', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  invoice_id: { type: DataTypes.INTEGER, allowNull: false },
+  tipo: { type: DataTypes.ENUM('EMISSAO', 'CANCELAMENTO', 'CARTA_CORRECAO', 'INUTILIZACAO', 'MANIFESTACAO'), defaultValue: 'EMISSAO' },
+  sequencia: { type: DataTypes.INTEGER, defaultValue: 1 },
+  protocolo: { type: DataTypes.STRING(20) },
+  descricao: { type: DataTypes.TEXT },
+  status: { type: DataTypes.STRING(20) },
+  mensagem: { type: DataTypes.TEXT },
+  xml: { type: DataTypes.TEXT },
+  data_evento: { type: DataTypes.DATE },
+  user_id: { type: DataTypes.INTEGER }
+}, { tableName: 'invoice_events', timestamps: true });
+
 Company.hasMany(Store, { foreignKey: 'empresa_id', as: 'lojas' });
 Store.belongsTo(Company, { foreignKey: 'empresa_id', as: 'empresa' });
 
@@ -412,6 +544,30 @@ Setting.belongsTo(Company, { foreignKey: 'empresa_id' });
 Product.hasMany(InventoryMovement, { foreignKey: 'produto_id' });
 InventoryMovement.belongsTo(Product, { foreignKey: 'produto_id', as: 'produto' });
 
+Company.hasMany(FiscalData, { foreignKey: 'empresa_id' });
+FiscalData.belongsTo(Company, { foreignKey: 'empresa_id', as: 'empresa' });
+Store.hasMany(FiscalData, { foreignKey: 'loja_id' });
+FiscalData.belongsTo(Store, { foreignKey: 'loja_id', as: 'loja' });
+
+Store.hasMany(Invoice, { foreignKey: 'loja_id' });
+Invoice.belongsTo(Store, { foreignKey: 'loja_id', as: 'loja' });
+Sale.hasMany(Invoice, { foreignKey: 'venda_id' });
+Invoice.belongsTo(Sale, { foreignKey: 'venda_id', as: 'venda' });
+ServiceOrder.hasMany(Invoice, { foreignKey: 'os_id' });
+Invoice.belongsTo(ServiceOrder, { foreignKey: 'os_id', as: 'ordem_servico' });
+Customer.hasMany(Invoice, { foreignKey: 'cliente_id' });
+Invoice.belongsTo(Customer, { foreignKey: 'cliente_id', as: 'cliente' });
+User.hasMany(Invoice, { foreignKey: 'user_id' });
+Invoice.belongsTo(User, { foreignKey: 'user_id', as: 'usuario' });
+
+Invoice.hasMany(InvoiceItem, { foreignKey: 'invoice_id', as: 'itens' });
+InvoiceItem.belongsTo(Invoice, { foreignKey: 'invoice_id' });
+Product.hasMany(InvoiceItem, { foreignKey: 'produto_id' });
+InvoiceItem.belongsTo(Product, { foreignKey: 'produto_id', as: 'produto' });
+
+Invoice.hasMany(InvoiceEvent, { foreignKey: 'invoice_id', as: 'eventos' });
+InvoiceEvent.belongsTo(Invoice, { foreignKey: 'invoice_id' });
+
 module.exports = {
   sequelize,
   User,
@@ -437,5 +593,9 @@ module.exports = {
   PurchaseRequestItem,
   InventoryMovement,
   Notification,
-  Setting
+  Setting,
+  FiscalData,
+  Invoice,
+  InvoiceItem,
+  InvoiceEvent
 };

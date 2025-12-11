@@ -22,6 +22,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const categoriesRoutes = require('./routes/categories');
 const purchaseRequestsRoutes = require('./routes/purchaseRequests');
 const auditRoutes = require('./routes/audit');
+const invoicesRoutes = require('./routes/invoices');
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/purchase-requests', purchaseRequestsRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/invoices', invoicesRoutes);
 
 app.get('/login', (req, res) => {
   res.render('login');
