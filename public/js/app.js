@@ -1557,11 +1557,215 @@ async function saveVendor(event) {
 
 async function renderReceivables() {
   const content = document.getElementById('content');
-  content.innerHTML = `<div class="empty-state">
-    <i class="fas fa-hand-holding-usd"></i>
-    <h3>Contas a Receber</h3>
-    <p>As contas a receber são geradas automaticamente pelas vendas</p>
-  </div>`;
+  
+  try {
+    const contas = await api('/financial/receber');
+    
+    const pendentes = contas.filter(c => c.status !== 'PAGO');
+    const totalPendente = pendentes.reduce((sum, c) => sum + parseFloat(c.valor || 0), 0);
+    const vencidas = pendentes.filter(c => new Date(c.data_vencimento) < new Date());
+    const totalVencido = vencidas.reduce((sum, c) => sum + parseFloat(c.valor || 0), 0);
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-hand-holding-usd"></i> Contas a Receber</h2>
+          <button class="btn btn-primary" onclick="openReceivableModal()">
+            <i class="fas fa-plus"></i> Nova Conta
+          </button>
+        </div>
+        
+        <div class="financial-summary">
+          <div class="summary-item">
+            <span class="label">Total Pendente:</span>
+            <span class="value positive">${formatCurrency(totalPendente)}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Vencidas:</span>
+            <span class="value negative">${formatCurrency(totalVencido)}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Quantidade:</span>
+            <span class="value">${pendentes.length} contas</span>
+          </div>
+        </div>
+        
+        <div class="card-body">
+          <div class="filters">
+            <select id="filterStatusReceber" onchange="filterReceivables()">
+              <option value="">Todos os status</option>
+              <option value="PENDENTE">Pendente</option>
+              <option value="PARCIAL">Parcial</option>
+              <option value="PAGO">Pago</option>
+            </select>
+          </div>
+          
+          <div class="table-container">
+            <table id="receivablesTable">
+              <thead>
+                <tr>
+                  <th>Descrição</th>
+                  <th>Cliente</th>
+                  <th>Vencimento</th>
+                  <th>Valor</th>
+                  <th>Pago</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${contas.map(c => {
+                  const vencida = c.status !== 'PAGO' && new Date(c.data_vencimento) < new Date();
+                  return `
+                    <tr data-status="${c.status}" class="${vencida ? 'row-vencida' : ''}">
+                      <td>${c.descricao || '-'}</td>
+                      <td>${c.cliente?.nome || '-'}</td>
+                      <td>${formatDate(c.data_vencimento)} ${vencida ? '<span class="badge badge-danger">Vencida</span>' : ''}</td>
+                      <td>${formatCurrency(c.valor)}</td>
+                      <td>${formatCurrency(c.valor_pago || 0)}</td>
+                      <td><span class="badge badge-${c.status === 'PAGO' ? 'success' : c.status === 'PARCIAL' ? 'warning' : 'secondary'}">${c.status}</span></td>
+                      <td class="actions">
+                        ${c.status !== 'PAGO' ? `
+                          <button class="btn btn-sm btn-success" onclick="openBaixaReceberModal(${c.id}, ${c.valor}, ${c.valor_pago || 0})">
+                            <i class="fas fa-check"></i> Baixar
+                          </button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          ${contas.length === 0 ? `
+            <div class="empty-state">
+              <i class="fas fa-hand-holding-usd"></i>
+              <h3>Nenhuma conta a receber</h3>
+              <p>As contas são geradas automaticamente pelas vendas ou podem ser criadas manualmente</p>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function filterReceivables() {
+  const status = document.getElementById('filterStatusReceber').value;
+  const rows = document.querySelectorAll('#receivablesTable tbody tr');
+  
+  rows.forEach(row => {
+    const rowStatus = row.dataset.status;
+    row.style.display = !status || rowStatus === status ? '' : 'none';
+  });
+}
+
+function openReceivableModal() {
+  const formContent = `
+    <form id="receivableForm" onsubmit="saveReceivable(event)">
+      <div class="form-group">
+        <label>Descrição *</label>
+        <input type="text" name="descricao" required>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente</label>
+          <input type="text" name="cliente_nome">
+        </div>
+        <div class="form-group">
+          <label>Valor *</label>
+          <input type="number" step="0.01" name="valor" required>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Vencimento *</label>
+          <input type="date" name="data_vencimento" required>
+        </div>
+        <div class="form-group">
+          <label>Observações</label>
+          <input type="text" name="observacoes">
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Nova Conta a Receber', formContent);
+}
+
+async function saveReceivable(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  data.status = 'PENDENTE';
+  
+  try {
+    await api('/financial/receber', { method: 'POST', body: data });
+    showToast('Conta cadastrada');
+    closeModal();
+    await renderReceivables();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function openBaixaReceberModal(id, valorTotal, valorPago) {
+  const restante = valorTotal - valorPago;
+  
+  const formContent = `
+    <form id="baixaReceberForm" onsubmit="baixarReceivable(event, ${id})">
+      <div class="info-row">
+        <p><strong>Valor Total:</strong> ${formatCurrency(valorTotal)}</p>
+        <p><strong>Já Pago:</strong> ${formatCurrency(valorPago)}</p>
+        <p><strong>Restante:</strong> ${formatCurrency(restante)}</p>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor Recebido *</label>
+          <input type="number" step="0.01" name="valor_pago" value="${restante.toFixed(2)}" max="${restante.toFixed(2)}" required>
+        </div>
+        <div class="form-group">
+          <label>Data do Pagamento</label>
+          <input type="date" name="data_pagamento" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-success">Confirmar Baixa</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Baixar Conta a Receber', formContent);
+}
+
+async function baixarReceivable(event, id) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api(`/financial/receber/${id}/baixar`, { method: 'POST', body: data });
+    showToast('Conta baixada com sucesso');
+    closeModal();
+    await renderReceivables();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 async function renderPayables() {
@@ -1570,42 +1774,153 @@ async function renderPayables() {
   try {
     const contas = await api('/financial/pagar');
     
+    const pendentes = contas.filter(c => c.status !== 'PAGO');
+    const totalPendente = pendentes.reduce((sum, c) => sum + parseFloat(c.valor || 0), 0);
+    const vencidas = pendentes.filter(c => new Date(c.data_vencimento) < new Date());
+    const totalVencido = vencidas.reduce((sum, c) => sum + parseFloat(c.valor || 0), 0);
+    
     content.innerHTML = `
       <div class="card">
         <div class="card-header">
-          <h2>Contas a Pagar</h2>
+          <h2><i class="fas fa-file-invoice-dollar"></i> Contas a Pagar</h2>
           <button class="btn btn-primary" onclick="openPayableModal()">
             <i class="fas fa-plus"></i> Nova Conta
           </button>
         </div>
+        
+        <div class="financial-summary negative">
+          <div class="summary-item">
+            <span class="label">Total Pendente:</span>
+            <span class="value">${formatCurrency(totalPendente)}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Vencidas:</span>
+            <span class="value negative">${formatCurrency(totalVencido)}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Quantidade:</span>
+            <span class="value">${pendentes.length} contas</span>
+          </div>
+        </div>
+        
         <div class="card-body">
+          <div class="filters">
+            <select id="filterStatusPagar" onchange="filterPayables()">
+              <option value="">Todos os status</option>
+              <option value="PENDENTE">Pendente</option>
+              <option value="PARCIAL">Parcial</option>
+              <option value="PAGO">Pago</option>
+            </select>
+          </div>
+          
           <div class="table-container">
-            <table>
+            <table id="payablesTable">
               <thead>
                 <tr>
                   <th>Descrição</th>
                   <th>Fornecedor</th>
+                  <th>Categoria</th>
                   <th>Vencimento</th>
                   <th>Valor</th>
+                  <th>Pago</th>
                   <th>Status</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                ${contas.map(c => `
-                  <tr>
-                    <td>${c.descricao}</td>
-                    <td>${c.fornecedor || '-'}</td>
-                    <td>${formatDate(c.data_vencimento)}</td>
-                    <td>${formatCurrency(c.valor)}</td>
-                    <td><span class="badge badge-${c.status === 'PAGO' ? 'success' : 'warning'}">${c.status}</span></td>
-                  </tr>
-                `).join('')}
+                ${contas.map(c => {
+                  const vencida = c.status !== 'PAGO' && new Date(c.data_vencimento) < new Date();
+                  return `
+                    <tr data-status="${c.status}" class="${vencida ? 'row-vencida' : ''}">
+                      <td>${c.descricao}</td>
+                      <td>${c.fornecedor || '-'}</td>
+                      <td>${c.categoria || '-'}</td>
+                      <td>${formatDate(c.data_vencimento)} ${vencida ? '<span class="badge badge-danger">Vencida</span>' : ''}</td>
+                      <td>${formatCurrency(c.valor)}</td>
+                      <td>${formatCurrency(c.valor_pago || 0)}</td>
+                      <td><span class="badge badge-${c.status === 'PAGO' ? 'success' : c.status === 'PARCIAL' ? 'warning' : 'secondary'}">${c.status}</span></td>
+                      <td class="actions">
+                        ${c.status !== 'PAGO' ? `
+                          <button class="btn btn-sm btn-success" onclick="openBaixaPagarModal(${c.id}, ${c.valor}, ${c.valor_pago || 0})">
+                            <i class="fas fa-check"></i> Baixar
+                          </button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
+          
+          ${contas.length === 0 ? `
+            <div class="empty-state">
+              <i class="fas fa-file-invoice-dollar"></i>
+              <h3>Nenhuma conta a pagar</h3>
+              <p>Clique em "Nova Conta" para cadastrar</p>
+            </div>
+          ` : ''}
         </div>
       </div>
     `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function filterPayables() {
+  const status = document.getElementById('filterStatusPagar').value;
+  const rows = document.querySelectorAll('#payablesTable tbody tr');
+  
+  rows.forEach(row => {
+    const rowStatus = row.dataset.status;
+    row.style.display = !status || rowStatus === status ? '' : 'none';
+  });
+}
+
+function openBaixaPagarModal(id, valorTotal, valorPago) {
+  const restante = valorTotal - valorPago;
+  
+  const formContent = `
+    <form id="baixaPagarForm" onsubmit="baixarPayable(event, ${id})">
+      <div class="info-row">
+        <p><strong>Valor Total:</strong> ${formatCurrency(valorTotal)}</p>
+        <p><strong>Já Pago:</strong> ${formatCurrency(valorPago)}</p>
+        <p><strong>Restante:</strong> ${formatCurrency(restante)}</p>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor Pago *</label>
+          <input type="number" step="0.01" name="valor_pago" value="${restante.toFixed(2)}" max="${restante.toFixed(2)}" required>
+        </div>
+        <div class="form-group">
+          <label>Data do Pagamento</label>
+          <input type="date" name="data_pagamento" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-success">Confirmar Pagamento</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Baixar Conta a Pagar', formContent);
+}
+
+async function baixarPayable(event, id) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api(`/financial/pagar/${id}/baixar`, { method: 'POST', body: data });
+    showToast('Conta paga com sucesso');
+    closeModal();
+    await renderPayables();
   } catch (error) {
     showToast(error.message, 'error');
   }

@@ -1043,3 +1043,57 @@ tr:hover td {
   color: var(--primary);
   margin-right: 8px;
 }
+
+.financial-summary {
+  display: flex;
+  gap: 30px;
+  padding: 15px 20px;
+  background: rgba(0, 255, 136, 0.1);
+  border-left: 4px solid var(--success);
+  margin-bottom: 20px;
+}
+
+.financial-summary.negative {
+  background: rgba(255, 71, 87, 0.1);
+  border-left-color: var(--danger);
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-item .label {
+  color: var(--text-muted);
+}
+
+.summary-item .value {
+  font-weight: bold;
+  color: var(--text-light);
+}
+
+.summary-item .value.positive {
+  color: var(--success);
+}
+
+.summary-item .value.negative {
+  color: var(--danger);
+}
+
+.row-vencida {
+  background: rgba(255, 71, 87, 0.1) !important;
+}
+
+.info-row {
+  display: flex;
+  gap: 20px;
+  padding: 15px;
+  background: var(--bg-dark);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.info-row p {
+  margin: 0;
+}
