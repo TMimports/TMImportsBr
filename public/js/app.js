@@ -11,9 +11,7 @@ const menuItems = {
       { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' }
     ]},
     { section: 'Produtos', items: [
-      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' },
-      { id: 'categorias', label: 'Categorias', icon: 'fas fa-tags' },
-      { id: 'importar', label: 'Importar Planilha', icon: 'fas fa-file-excel' }
+      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
     ]},
     { section: 'Estoque', items: [
       { id: 'estoque-central', label: 'Estoque Central', icon: 'fas fa-warehouse' },
@@ -42,8 +40,7 @@ const menuItems = {
       { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-line' }
     ]},
     { section: 'Produtos', items: [
-      { id: 'produtos', label: 'Produtos', icon: 'fas fa-box' },
-      { id: 'importar', label: 'Importar Planilha', icon: 'fas fa-file-excel' }
+      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
     ]},
     { section: 'Estoque', items: [
       { id: 'estoque', label: 'Estoque da Loja', icon: 'fas fa-warehouse' },
@@ -648,10 +645,48 @@ async function renderProducts() {
       <div class="card">
         <div class="card-header">
           <h2>Produtos / Serviços</h2>
-          <button class="btn btn-primary" onclick="openProductModal()">
-            <i class="fas fa-plus"></i> Novo Produto
-          </button>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="toggleImportSection()">
+              <i class="fas fa-file-excel"></i> Importar Planilha
+            </button>
+            <button class="btn btn-primary" onclick="openProductModal()">
+              <i class="fas fa-plus"></i> Novo Produto
+            </button>
+          </div>
         </div>
+        
+        <div id="importSection" class="import-section" style="display: none;">
+          <div class="import-content">
+            <h3><i class="fas fa-upload"></i> Importar Planilha de Produtos</h3>
+            <p class="text-muted">Faça upload de uma planilha Excel (.xlsx) ou CSV. O sistema identificará automaticamente o tipo e a categoria.</p>
+            
+            <form id="importForm" onsubmit="importProducts(event)">
+              <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                  <input type="file" name="arquivo" accept=".xlsx,.xls,.csv" required>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                  <button type="submit" class="btn btn-success">
+                    <i class="fas fa-upload"></i> Importar
+                  </button>
+                </div>
+              </div>
+            </form>
+            <div id="importResult"></div>
+            
+            <details style="margin-top: 15px;">
+              <summary style="cursor: pointer; color: var(--primary);">Formato esperado da planilha</summary>
+              <ul style="color: var(--text-muted); list-style: inside; margin-top: 10px;">
+                <li>Coluna "Código" ou "codigo"</li>
+                <li>Coluna "Descrição" ou "Nome"</li>
+                <li>Coluna "Categoria" (será criada automaticamente)</li>
+                <li>Coluna "Preço" ou "Preço Venda"</li>
+                <li>Coluna "Preço Custo" ou "Custo" (opcional)</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+        
         <div class="card-body">
           <div class="filters">
             <div class="search-box">
@@ -729,6 +764,15 @@ function filterProducts() {
     
     row.style.display = matchSearch && matchTipo ? '' : 'none';
   });
+}
+
+function toggleImportSection() {
+  const section = document.getElementById('importSection');
+  if (section.style.display === 'none') {
+    section.style.display = 'block';
+  } else {
+    section.style.display = 'none';
+  }
 }
 
 function openProductModal(product = null) {

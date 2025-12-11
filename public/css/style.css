@@ -907,3 +907,72 @@ tr:hover td {
     grid-template-columns: 1fr;
   }
 }
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.import-section {
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  padding: 20px;
+}
+
+.import-content {
+  max-width: 800px;
+}
+
+.import-content h3 {
+  color: var(--primary);
+  margin-bottom: 10px;
+}
+
+.import-content h3 i {
+  margin-right: 8px;
+}
+
+.cashflow-chart {
+  background: var(--bg-dark);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.cashflow-chart h3 {
+  margin-bottom: 15px;
+  color: var(--text-light);
+}
+
+.cashflow-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.metric-card {
+  background: var(--bg-card);
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.metric-card .value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--text-light);
+}
+
+.metric-card .label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.metric-card.positive .value {
+  color: var(--success);
+}
+
+.metric-card.negative .value {
+  color: var(--danger);
+}
