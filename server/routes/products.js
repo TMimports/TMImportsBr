@@ -189,64 +189,75 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
 
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     
-    // Função para normalizar texto (remover acentos, espaços extras, lowercase)
-    function normalizeKey(str) {
+    function limparTexto(str) {
       if (!str) return '';
-      return str.toString()
-        .toLowerCase()
-        .trim()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
-        .replace(/[^a-z0-9]/g, ''); // remove caracteres especiais
+      return str.toString().replace(/[\t\r\n]/g, '').trim();
     }
     
-    // Função para parsear valores monetários brasileiros (R$ 1.234,56)
     function parseMonetario(valor) {
       if (valor === null || valor === undefined || valor === '') return 0;
       if (typeof valor === 'number') return valor;
       
       let str = valor.toString().trim();
-      // Remove símbolos de moeda e espaços
       str = str.replace(/[R$\s]/g, '');
-      // Se tem formato brasileiro (1.234,56), converte
       if (str.includes(',')) {
-        // Remove pontos de milhar e troca vírgula por ponto
         str = str.replace(/\./g, '').replace(',', '.');
       }
       const num = parseFloat(str);
       return isNaN(num) ? 0 : num;
     }
     
-    // Função para buscar valor em uma linha usando múltiplas variações de nome de coluna
-    function getRowValue(row, rowNormalized, possibleNames) {
-      // Primeiro tenta match exato
-      for (const name of possibleNames) {
-        if (row[name] !== undefined && row[name] !== '') return row[name];
-      }
-      // Depois tenta match normalizado
-      const normalizedNames = possibleNames.map(n => normalizeKey(n));
-      for (const key in rowNormalized) {
-        if (normalizedNames.includes(key) && rowNormalized[key] !== undefined && rowNormalized[key] !== '') {
-          return rowNormalized[key];
+    function getValorColuna(row, ...nomesColunas) {
+      for (const nome of nomesColunas) {
+        for (const key of Object.keys(row)) {
+          if (key.trim().toLowerCase().includes(nome.toLowerCase())) {
+            const val = row[key];
+            if (val !== undefined && val !== null && val !== '') {
+              return val;
+            }
+          }
         }
       }
       return '';
     }
     
-    // Lê TODAS as abas da planilha
     let allData = [];
     const abasProcessadas = [];
     
     for (const sheetName of workbook.SheetNames) {
       const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
-      console.log(`Aba "${sheetName}": ${sheetData.length} linhas encontradas`);
+      console.log(`Aba "${sheetName}": ${sheetData.length} linhas`);
+      
       if (sheetData.length > 0) {
-        console.log(`Colunas encontradas: ${Object.keys(sheetData[0]).join(', ')}`);
+        const colunas = Object.keys(sheetData[0]);
+        console.log(`Colunas: ${colunas.join(', ')}`);
+        
+        const temColunaProduto = colunas.some(c => 
+          c.toLowerCase().includes('produto') || 
+          c.toLowerCase().includes('descri') || 
+          c.toLowerCase().includes('nome')
+        );
+        
+        if (!temColunaProduto) {
+          console.log(`Aba "${sheetName}" ignorada - não tem coluna de produto válida`);
+          abasProcessadas.push({ nome: sheetName, linhas: 0, ignorada: true });
+          continue;
+        }
+        
+        const dadosValidos = sheetData.filter(row => {
+          const produto = getValorColuna(row, 'produto', 'descrição', 'descricao', 'nome');
+          return produto && limparTexto(produto).length > 0;
+        });
+        
+        console.log(`Aba "${sheetName}": ${dadosValidos.length} linhas válidas`);
+        abasProcessadas.push({ nome: sheetName, linhas: dadosValidos.length });
+        allData = allData.concat(dadosValidos);
+      } else {
+        abasProcessadas.push({ nome: sheetName, linhas: 0 });
       }
-      abasProcessadas.push({ nome: sheetName, linhas: sheetData.length });
-      allData = allData.concat(sheetData);
     }
     
-    console.log(`Total de linhas a processar: ${allData.length}`);
+    console.log(`Total de linhas válidas: ${allData.length}`);
 
     const resultados = { 
       criados: 0, 
@@ -255,82 +266,48 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
       linhasLidas: allData.length,
       abasProcessadas,
       porTipo: { MOTO: 0, SERVICO: 0, PECA: 0 },
-      colunasEncontradas: allData.length > 0 ? Object.keys(allData[0]) : []
+      colunasEncontradas: allData.length > 0 ? Object.keys(allData[0]) : [],
+      detalhes: []
     };
 
     for (const row of allData) {
       try {
-        // Cria versão normalizada das chaves da linha
-        const rowNormalized = {};
-        for (const key in row) {
-          rowNormalized[normalizeKey(key)] = row[key];
-        }
+        let codigoRaw = getValorColuna(row, 'código', 'codigo', 'cod', 'sku', 'ref');
+        const codigo = limparTexto(codigoRaw);
         
-        // Busca código com múltiplas variações
-        const codigo = getRowValue(row, rowNormalized, [
-          'Código', 'codigo', 'CODIGO', 'Codigo', 'SKU', 'sku', 'Cód', 'COD', 'cod',
-          'Código Produto', 'Codigo Produto', 'CódigoProduto', 'CodigoProduto',
-          'Ref', 'REF', 'Referência', 'Referencia', 'ID', 'id', 'Item', 'item'
-        ]);
+        let nomeRaw = getValorColuna(row, 'produto', 'descrição', 'descricao', 'nome');
+        const nome = limparTexto(nomeRaw);
         
-        // Busca nome/descrição com múltiplas variações
-        const nome = getRowValue(row, rowNormalized, [
-          'Descrição', 'Nome', 'nome', 'descricao', 'Descricao', 'NOME', 'DESCRIÇÃO', 'DESCRICAO',
-          'Produto', 'produto', 'PRODUTO', 'Descrição do Produto', 'Nome do Produto',
-          'Desc', 'DESC', 'Description', 'Name', 'Título', 'Titulo', 'titulo'
-        ]);
-        
-        // Pula linhas sem nome
-        if (!nome || nome.toString().trim() === '') {
+        if (!nome) {
           continue;
         }
         
-        // Busca preço de venda com múltiplas variações
-        const precoRaw = getRowValue(row, rowNormalized, [
-          'Preço', 'preco', 'Preço Venda', 'Preco', 'PREÇO', 'valor', 'Valor', 'VALOR',
-          'Preço de Venda', 'preco_venda', 'PrecoVenda', 'Venda', 'venda', 'VENDA',
-          'Price', 'price', 'Preço Final', 'preco_final', 'Preço Unitário', 'Unit'
-        ]);
+        const precoRaw = getValorColuna(row, 'preço', 'preco', 'valor', 'venda', 'price');
         const preco = parseMonetario(precoRaw);
         
-        // Busca preço de custo com múltiplas variações
-        const precoCustoRaw = getRowValue(row, rowNormalized, [
-          'Preço Custo', 'preco_custo', 'Custo', 'custo', 'CUSTO', 'Preço de Custo',
-          'PrecoCusto', 'Cost', 'cost', 'Custo Unitário', 'Valor Custo', 'Compra'
-        ]);
+        const precoCustoRaw = getValorColuna(row, 'custo', 'preço de custo', 'preco de custo');
         const precoCusto = parseMonetario(precoCustoRaw);
         
-        // Primeiro tenta ler a coluna Tipo da planilha
-        let tipoRaw = getRowValue(row, rowNormalized, [
-          'Tipo', 'tipo', 'TIPO', 'Categoria', 'categoria', 'CATEGORIA',
-          'Classificação', 'classificacao', 'CLASSIFICACAO', 'Classe', 'classe',
-          'Grupo', 'grupo', 'GRUPO', 'Type', 'type', 'Category', 'category'
-        ]);
+        let categoriaRaw = getValorColuna(row, 'categoria do produto', 'categoria', 'tipo', 'classificação', 'grupo');
+        const categoriaStr = limparTexto(categoriaRaw).toUpperCase();
+        
         let tipo = 'PECA';
         
-        const tipoUpper = tipoRaw.toString().toUpperCase().trim();
-        const nomeUpper = (nome || '').toUpperCase();
-        
-        // Verifica se o tipo foi especificado na planilha
-        if (tipoUpper.includes('MOTO') || tipoUpper.includes('SCOOTER') || tipoUpper.includes('BICICLETA') || tipoUpper.includes('VEICULO') || tipoUpper.includes('VEÍCULO') || tipoUpper.includes('ELETRIC')) {
+        if (categoriaStr === 'MOTO' || categoriaStr.includes('MOTO') || categoriaStr.includes('SCOOTER') || categoriaStr.includes('VEICULO') || categoriaStr.includes('VEÍCULO') || categoriaStr.includes('ELÉTRIC')) {
           tipo = 'MOTO';
-        } else if (tipoUpper.includes('SERV') || tipoUpper.includes('MÃO') || tipoUpper.includes('MAO') || tipoUpper.includes('OBRA') || tipoUpper.includes('SERVICE')) {
+        } else if (categoriaStr === 'SERVIÇO' || categoriaStr === 'SERVICO' || categoriaStr.includes('SERV')) {
           tipo = 'SERVICO';
-        } else if (tipoUpper.includes('PECA') || tipoUpper.includes('PEÇA') || tipoUpper.includes('ACESSORIO') || tipoUpper.includes('ACESSÓRIO')) {
+        } else if (categoriaStr === 'PEÇA' || categoriaStr === 'PECA' || categoriaStr.includes('PEÇA') || categoriaStr.includes('PECA') || categoriaStr.includes('ACESSÓRIO') || categoriaStr.includes('ACESSORIO')) {
           tipo = 'PECA';
         }
-        // Se não encontrou tipo na coluna, tenta detectar pelo nome
-        else if (nomeUpper.includes('MOTO') || nomeUpper.includes('SCOOTER') || nomeUpper.includes('BICICLETA') || nomeUpper.includes('PATINETE') || nomeUpper.includes('TRICICLO') || nomeUpper.includes('ELETRIC')) {
-          tipo = 'MOTO';
-        } else if (nomeUpper.includes('SERVIÇO') || nomeUpper.includes('SERVICO') || nomeUpper.includes('MÃO DE OBRA') || nomeUpper.includes('INSTALAÇÃO') || nomeUpper.includes('REPARO') || nomeUpper.includes('REVISÃO') || nomeUpper.includes('MANUTENÇÃ') || nomeUpper.includes('TROCA DE')) {
-          tipo = 'SERVICO';
-        }
 
-        const existente = codigo ? await Product.findOne({ where: { codigo: codigo.toString().trim() } }) : null;
+        const codigoLimpo = codigo || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        
+        const existente = codigo ? await Product.findOne({ where: { codigo: codigoLimpo } }) : null;
 
         if (existente) {
           await existente.update({
-            nome: nome || existente.nome,
+            nome: nome,
             preco_venda: preco || existente.preco_venda,
             preco_custo: precoCusto || existente.preco_custo,
             tipo: tipo
@@ -339,8 +316,8 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
           resultados.porTipo[tipo]++;
         } else {
           const product = await Product.create({
-            codigo: codigo ? codigo.toString().trim() : `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            nome: nome.toString().trim(),
+            codigo: codigoLimpo,
+            nome: nome,
             preco_venda: preco,
             preco_custo: precoCusto,
             tipo
@@ -354,13 +331,16 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
           resultados.criados++;
           resultados.porTipo[tipo]++;
         }
+        
+        resultados.detalhes.push({ codigo: codigoLimpo, nome, tipo, preco });
+        
       } catch (err) {
-        console.error('Erro ao processar linha:', row, err.message);
+        console.error('Erro ao processar linha:', err.message);
         resultados.erros.push({ linha: JSON.stringify(row).substring(0, 100), erro: err.message });
       }
     }
 
-    console.log('Resultado da importação:', resultados);
+    console.log('Resultado da importação:', JSON.stringify(resultados.porTipo));
     res.json(resultados);
   } catch (error) {
     console.error('Erro na importação:', error);
