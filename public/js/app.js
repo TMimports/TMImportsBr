@@ -389,14 +389,40 @@ async function renderDashboard() {
             <div class="stat-label">Serviços do Mês</div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon yellow"><i class="fas fa-hand-holding-usd"></i></div>
-            <div class="stat-value">${formatCurrency(data.totalReceber)}</div>
-            <div class="stat-label">A Receber</div>
+            <div class="stat-icon ${data.saldoAtual >= 0 ? 'green' : 'red'}"><i class="fas fa-balance-scale"></i></div>
+            <div class="stat-value" style="color: ${data.saldoAtual >= 0 ? 'var(--success)' : 'var(--danger)'};">${formatCurrency(data.saldoAtual)}</div>
+            <div class="stat-label">Saldo Projetado</div>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon red"><i class="fas fa-file-invoice-dollar"></i></div>
-            <div class="stat-value">${formatCurrency(data.totalPagar)}</div>
-            <div class="stat-label">A Pagar</div>
+        </div>
+        
+        <div class="cashflow-section">
+          <div class="card">
+            <div class="card-header">
+              <h2><i class="fas fa-chart-area"></i> Fluxo de Caixa</h2>
+            </div>
+            <div class="card-body">
+              <div class="cashflow-metrics">
+                <div class="metric-card positive">
+                  <div class="value">${formatCurrency(data.totalReceber)}</div>
+                  <div class="label">A Receber</div>
+                </div>
+                <div class="metric-card negative">
+                  <div class="value">${formatCurrency(data.totalPagar)}</div>
+                  <div class="label">A Pagar</div>
+                </div>
+                <div class="metric-card ${data.receberVencido > 0 ? 'negative' : ''}">
+                  <div class="value">${formatCurrency(data.receberVencido || 0)}</div>
+                  <div class="label">Receber Vencido</div>
+                </div>
+                <div class="metric-card ${data.pagarVencido > 0 ? 'negative' : ''}">
+                  <div class="value">${formatCurrency(data.pagarVencido || 0)}</div>
+                  <div class="label">Pagar Vencido</div>
+                </div>
+              </div>
+              <div class="chart-container" style="height: 250px;">
+                <canvas id="fluxoCaixaChart"></canvas>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -576,6 +602,62 @@ async function renderDashboard() {
             scales: {
               y: {
                 beginAtZero: true,
+                grid: { color: '#333' },
+                ticks: { color: '#888' }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#888' }
+              }
+            }
+          }
+        });
+      }
+
+      if (data.fluxoCaixaUltimos6Meses) {
+        const ctxFluxo = document.getElementById('fluxoCaixaChart').getContext('2d');
+        new Chart(ctxFluxo, {
+          type: 'line',
+          data: {
+            labels: data.fluxoCaixaUltimos6Meses.map(f => f.mes),
+            datasets: [
+              {
+                label: 'Entradas',
+                data: data.fluxoCaixaUltimos6Meses.map(f => f.entradas),
+                borderColor: '#00FF88',
+                backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: 'Saídas',
+                data: data.fluxoCaixaUltimos6Meses.map(f => f.saidas),
+                borderColor: '#FF4757',
+                backgroundColor: 'rgba(255, 71, 87, 0.1)',
+                fill: true,
+                tension: 0.4
+              },
+              {
+                label: 'Saldo',
+                data: data.fluxoCaixaUltimos6Meses.map(f => f.saldo),
+                borderColor: '#FF6B35',
+                backgroundColor: 'transparent',
+                borderWidth: 3,
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                labels: { color: '#888' }
+              }
+            },
+            scales: {
+              y: {
                 grid: { color: '#333' },
                 ticks: { color: '#888' }
               },

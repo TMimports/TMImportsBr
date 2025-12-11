@@ -122,15 +122,63 @@ router.get('/global', async (req, res) => {
       include: [{ model: Product, as: 'produto', attributes: ['nome', 'codigo'] }]
     });
 
+    const fluxoCaixaUltimos6Meses = [];
+    for (let i = 5; i >= 0; i--) {
+      const mes = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      const fimDoMes = new Date(hoje.getFullYear(), hoje.getMonth() - i + 1, 0);
+      
+      const [entradas, saidas] = await Promise.all([
+        PaymentReceivable.sum('valor', {
+          where: {
+            status: 'PAGO',
+            data_pagamento: { [Op.between]: [mes, fimDoMes] }
+          }
+        }),
+        PaymentPayable.sum('valor', {
+          where: {
+            status: 'PAGO',
+            data_pagamento: { [Op.between]: [mes, fimDoMes] }
+          }
+        })
+      ]);
+
+      fluxoCaixaUltimos6Meses.push({
+        mes: mes.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
+        entradas: entradas || 0,
+        saidas: saidas || 0,
+        saldo: (entradas || 0) - (saidas || 0)
+      });
+    }
+
+    const receberVencido = await PaymentReceivable.sum('valor', {
+      where: { 
+        status: { [Op.ne]: 'PAGO' },
+        data_vencimento: { [Op.lt]: hoje }
+      }
+    });
+
+    const pagarVencido = await PaymentPayable.sum('valor', {
+      where: { 
+        status: { [Op.ne]: 'PAGO' },
+        data_vencimento: { [Op.lt]: hoje }
+      }
+    });
+
+    const saldoAtual = (totalReceber || 0) - (totalPagar || 0);
+
     res.json({
       totalVendasMes: totalVendasMes || 0,
       totalOSMes: totalOSMes || 0,
       totalReceber: totalReceber || 0,
       totalPagar: totalPagar || 0,
+      receberVencido: receberVencido || 0,
+      pagarVencido: pagarVencido || 0,
+      saldoAtual,
       produtosAtivos,
       clientesAtivos,
       vendasPorLoja,
       vendasUltimos6Meses,
+      fluxoCaixaUltimos6Meses,
       ultimasVendas,
       ultimasOS,
       ultimosRecebimentos,
