@@ -2117,9 +2117,14 @@ async function renderReconciliation() {
                       ${formatCurrency(c.saldo_atual || 0)}
                     </span>
                   </div>
-                  <button class="btn btn-sm btn-primary" onclick="openImportarExtratoModal(${c.id}, '${c.nome}')">
-                    <i class="fas fa-upload"></i> Importar
-                  </button>
+                  <div class="bank-actions">
+                    <button class="btn btn-sm btn-primary" onclick="openImportarExtratoModal(${c.id}, '${c.nome}')">
+                      <i class="fas fa-upload"></i> Importar
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteBankAccount(${c.id}, '${c.nome}')" title="Excluir conta">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
                 </div>
               `).join('')}
             </div>
@@ -2319,6 +2324,19 @@ async function importarExtrato(event) {
     
     showToast(`Importação concluída: ${result.importadas} transações importadas, ${result.duplicadas} duplicadas ignoradas`);
     closeModal();
+    await renderReconciliation();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteBankAccount(id, nome) {
+  const confirm1 = confirm(`Deseja excluir a conta "${nome}"?\n\nTodas as transações importadas também serão excluídas.`);
+  if (!confirm1) return;
+  
+  try {
+    await api(`/bank/contas/${id}`, { method: 'DELETE' });
+    showToast('Conta bancária excluída com sucesso');
     await renderReconciliation();
   } catch (error) {
     showToast(error.message, 'error');

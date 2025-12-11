@@ -51,6 +51,33 @@ router.post('/contas', isGestorOuAdmin, async (req, res) => {
   }
 });
 
+router.delete('/contas/:id', isGestorOuAdmin, async (req, res) => {
+  try {
+    const conta = await BankAccount.findByPk(req.params.id);
+    if (!conta) {
+      return res.status(404).json({ error: 'Conta não encontrada' });
+    }
+
+    // Exclui todas as transações associadas
+    await BankTransaction.destroy({ where: { conta_id: conta.id } });
+    
+    await AuditLog.create({
+      user_id: req.user.id,
+      acao: 'DELETE',
+      tabela: 'bank_accounts',
+      registro_id: conta.id,
+      dados_antes: { nome: conta.nome, banco: conta.banco }
+    });
+
+    await conta.destroy();
+
+    res.json({ message: 'Conta bancária excluída com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir conta:', error);
+    res.status(500).json({ error: 'Erro ao excluir conta bancária' });
+  }
+});
+
 router.get('/transacoes', async (req, res) => {
   try {
     const { conta_id, conciliado, data_inicio, data_fim } = req.query;
