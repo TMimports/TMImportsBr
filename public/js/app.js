@@ -1768,24 +1768,33 @@ function openCompanyModal(company = null) {
   const content = `
     <form id="companyForm" onsubmit="saveCompany(event, ${company?.id || 'null'})">
       <div class="form-group">
-        <label>Nome da Empresa *</label>
-        <input type="text" name="nome" value="${company?.nome || ''}" required>
+        <label>CNPJ</label>
+        <div class="input-with-button">
+          <input type="text" name="cnpj" id="cnpjInput" value="${company?.cnpj || ''}" placeholder="00.000.000/0001-00" onblur="buscarCNPJ()">
+          <button type="button" class="btn btn-secondary" onclick="buscarCNPJ()">
+            <i class="fas fa-search"></i> Buscar
+          </button>
+        </div>
+        <small class="form-hint">Digite o CNPJ e clique em buscar para preencher automaticamente</small>
+      </div>
+      <div id="cnpjLoading" style="display:none; text-align:center; padding:10px;">
+        <i class="fas fa-spinner fa-spin"></i> Buscando dados do CNPJ...
       </div>
       <div class="form-group">
-        <label>CNPJ</label>
-        <input type="text" name="cnpj" value="${company?.cnpj || ''}" placeholder="00.000.000/0001-00">
+        <label>Nome da Empresa *</label>
+        <input type="text" name="nome" id="nomeInput" value="${company?.nome || ''}" required>
       </div>
       <div class="form-group">
         <label>Telefone</label>
-        <input type="text" name="telefone" value="${company?.telefone || ''}" placeholder="(11) 99999-9999">
+        <input type="text" name="telefone" id="telefoneInput" value="${company?.telefone || ''}" placeholder="(11) 99999-9999">
       </div>
       <div class="form-group">
         <label>Email</label>
-        <input type="email" name="email" value="${company?.email || ''}">
+        <input type="email" name="email" id="emailInput" value="${company?.email || ''}">
       </div>
       <div class="form-group">
         <label>Endereço</label>
-        <textarea name="endereco" rows="2">${company?.endereco || ''}</textarea>
+        <textarea name="endereco" id="enderecoInput" rows="2">${company?.endereco || ''}</textarea>
       </div>
       <div class="form-actions">
         <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -1797,6 +1806,81 @@ function openCompanyModal(company = null) {
   `;
   
   openModal(title, content);
+}
+
+async function buscarCNPJ() {
+  const cnpjInput = document.getElementById('cnpjInput');
+  const cnpj = cnpjInput.value.replace(/\D/g, '');
+  
+  if (cnpj.length !== 14) {
+    showToast('CNPJ deve ter 14 dígitos', 'error');
+    return;
+  }
+  
+  const loading = document.getElementById('cnpjLoading');
+  loading.style.display = 'block';
+  
+  try {
+    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+    
+    if (!response.ok) {
+      throw new Error('CNPJ não encontrado');
+    }
+    
+    const data = await response.json();
+    
+    document.getElementById('nomeInput').value = data.razao_social || data.nome_fantasia || '';
+    document.getElementById('telefoneInput').value = formatarTelefone(data.ddd_telefone_1) || '';
+    document.getElementById('emailInput').value = data.email || '';
+    
+    const endereco = [
+      data.descricao_tipo_de_logradouro,
+      data.logradouro,
+      data.numero,
+      data.complemento,
+      data.bairro,
+      data.municipio,
+      data.uf,
+      data.cep ? `CEP: ${formatarCEP(data.cep)}` : ''
+    ].filter(Boolean).join(', ');
+    
+    document.getElementById('enderecoInput').value = endereco;
+    
+    cnpjInput.value = formatarCNPJ(cnpj);
+    
+    showToast('Dados do CNPJ preenchidos!', 'success');
+  } catch (error) {
+    showToast(error.message || 'Erro ao buscar CNPJ', 'error');
+  } finally {
+    loading.style.display = 'none';
+  }
+}
+
+function formatarCNPJ(cnpj) {
+  cnpj = cnpj.replace(/\D/g, '');
+  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+}
+
+function formatarCPF(cpf) {
+  cpf = cpf.replace(/\D/g, '');
+  return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+}
+
+function formatarTelefone(tel) {
+  if (!tel) return '';
+  tel = tel.replace(/\D/g, '');
+  if (tel.length === 11) {
+    return tel.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+  } else if (tel.length === 10) {
+    return tel.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3');
+  }
+  return tel;
+}
+
+function formatarCEP(cep) {
+  if (!cep) return '';
+  cep = cep.toString().replace(/\D/g, '');
+  return cep.replace(/^(\d{5})(\d{3})$/, '$1-$2');
 }
 
 function editCompany(company) {
