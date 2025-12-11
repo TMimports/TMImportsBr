@@ -1,249 +1,167 @@
-# Tecle Motos - Dashboard de Mobilidade Elétrica
+# TM Imports / Tecle Motos - Sistema ERP Multi-Empresa
 
-Sistema completo de gestão para motos e scooters elétricas, peças e serviços.
+Sistema ERP completo para gestão de motos e scooters elétricas, desenvolvido para TM Imports (matriz) e franquias Tecle Motos.
 
 ## Visão Geral
 
-Este é um sistema de dashboard profissional desenvolvido para a Tecle Motos, com funcionalidades completas de:
-- Gestão de produtos (motos, scooters, peças, serviços)
-- Controle de estoque e subestoques
-- Gestão de chassi (com rastreamento individual)
-- Sistema de vendas com fluxo de aprovação
-- **Ordens de Serviço (OS)** com gestão completa de serviços
-- **Sistema de Orçamentos** com validade de 7 dias e documento para impressão
-- Financeiro (contas a receber, a pagar, conciliação bancária)
-- Dashboard com gráficos e projeções
+Sistema multi-empresa com:
+- **Gestão de Franquias:** TM Imports (matriz) + múltiplas franquias Tecle Motos
+- **Produtos:** Motos, scooters, peças e serviços com cálculo automático de preço
+- **Estoque:** Central (TM Imports) + Estoques por loja com transferências
+- **Vendas:** Fluxo completo com aprovação e geração de contas a receber
+- **Ordens de Serviço:** Gestão completa com peças e mão de obra
+- **Financeiro:** Contas a receber/pagar, fluxo de caixa, conciliação bancária
+- **Solicitações de Compra:** Franquias solicitam produtos da matriz
+- **Auditoria:** Log completo de todas as ações do sistema
 
 ## Como Rodar
 
 ```bash
 npm install
-npm start
+node index.js
 ```
 
 O servidor inicia na porta 5000.
 
 ## Credenciais de Acesso Padrão
 
-Ao iniciar pela primeira vez, o sistema cria automaticamente um SUPER ADMIN:
+Ao iniciar pela primeira vez, o sistema cria automaticamente um ADMIN GLOBAL:
 
-- **Email:** admin@teclemotos.com
+- **Email:** admin@tmimports.com
 - **Senha:** admin123
 
 **IMPORTANTE:** Altere a senha após o primeiro login!
 
-### Personalizando o SUPER ADMIN
+### Variáveis de Ambiente
 
-Você pode definir suas próprias credenciais usando variáveis de ambiente:
-
-- **ADMIN_EMAIL:** Email do administrador (ex: seuemail@empresa.com)
+- **DATABASE_URL:** URL de conexão PostgreSQL (gerada automaticamente)
+- **ADMIN_EMAIL:** Email do administrador
 - **ADMIN_SENHA:** Senha inicial do administrador
 - **ADMIN_NOME:** Nome do administrador
 
-Para aplicar, configure as variáveis de ambiente antes de iniciar o sistema pela primeira vez (ou delete o banco de dados para recriar).
-
 ## Perfis de Usuário
 
-### SUPER ADMIN
+### ADMIN_GLOBAL
 - Acesso total ao sistema
-- Dashboard principal com gráficos e previsões
-- Gerencia usuários, produtos, estoque, chassi
-- Aprova e conclui vendas (seleciona chassi)
-- Acesso ao módulo financeiro completo
+- Dashboard global com métricas de todas as franquias
+- Gerencia empresas, lojas, usuários
+- Controle do estoque central
+- Aprova solicitações de compra das franquias
+- Módulo financeiro completo
+- Logs de auditoria
 
-### ADMIN
+### GESTOR_FRANQUIA
+- Dashboard da loja
 - Cadastro de produtos/serviços
-- Gestão de estoque e subestoque
-- Sem acesso ao dashboard principal
-- Sem acesso ao financeiro
+- Gestão de estoque da loja
+- Solicita produtos da matriz
+- Vendas e ordens de serviço
+- Financeiro da loja
+- Gerencia usuários da loja
 
-### VENDEDOR
-- Dashboard próprio com indicadores de vendas, OS e orçamentos
-- Cadastra e edita suas vendas (status pendente)
-- Cria e gerencia Ordens de Serviço (OS)
-- Gera orçamentos a partir de vendas e OS
+### OPERACIONAL
+- Dashboard simplificado
+- Cadastra vendas (status pendente)
+- Cria ordens de serviço
+- Cadastra clientes
 - Consulta estoque (somente leitura)
-- Não escolhe chassi nem conclui venda/OS
-
-### CONTADOR
-- Acesso somente leitura ao financeiro
-- Visualiza contas a receber/pagar
-- Acessa conciliação bancária
-- Não altera cadastros
 
 ## Estrutura do Projeto
 
 ```
-├── config/
-│   └── database.js          # Configuração SQLite/Sequelize
-├── models/
-│   ├── index.js             # Relacionamentos entre modelos
-│   ├── Usuario.js
-│   ├── Produto.js
-│   ├── Estoque.js
-│   ├── Subestoque.js
-│   ├── ItemEstoque.js
-│   ├── Chassi.js
-│   ├── Venda.js
-│   ├── ItemVenda.js
-│   ├── AnexoVenda.js
-│   ├── ContaReceber.js
-│   ├── ContaPagar.js
-│   ├── LancamentoBancario.js
-│   └── Anexo.js
-├── routes/
-│   ├── auth.js              # Login/Logout
-│   ├── dashboard.js         # Dashboard SUPER ADMIN
-│   ├── produtos.js          # CRUD produtos/serviços
-│   ├── estoque.js           # Gestão de estoque
-│   ├── chassi.js            # Gestão de chassi
-│   ├── vendas.js            # Sistema de vendas
-│   ├── vendedor.js          # Dashboard vendedor
-│   ├── financeiro.js        # Contas a receber/pagar/conciliação
-│   └── usuarios.js          # Gestão de usuários
-├── middleware/
-│   └── auth.js              # Autenticação e autorização
+├── index.js                 # Ponto de entrada
+├── server/
+│   ├── index.js             # Servidor Express
+│   ├── config/
+│   │   └── database.js      # Configuração PostgreSQL/Sequelize
+│   ├── models/
+│   │   └── index.js         # Modelos e relacionamentos
+│   ├── middleware/
+│   │   └── auth.js          # Autenticação JWT
+│   └── routes/
+│       ├── auth.js          # Login/Logout
+│       ├── users.js         # Gestão de usuários
+│       ├── companies.js     # Gestão de empresas
+│       ├── stores.js        # Gestão de lojas
+│       ├── products.js      # CRUD produtos/serviços
+│       ├── inventory.js     # Estoque central/loja
+│       ├── sales.js         # Sistema de vendas
+│       ├── serviceOrders.js # Ordens de serviço
+│       ├── customers.js     # Clientes
+│       ├── vendors.js       # Vendedores
+│       ├── financial.js     # Contas a receber/pagar
+│       ├── bank.js          # Conciliação bancária
+│       ├── dashboard.js     # Dashboards
+│       ├── categories.js    # Categorias
+│       ├── purchaseRequests.js # Solicitações de compra
+│       └── audit.js         # Logs de auditoria
 ├── views/
-│   ├── partials/            # Componentes reutilizáveis
-│   ├── auth/                # Tela de login
-│   ├── dashboard/           # Dashboard principal
-│   ├── products/            # Produtos/serviços
-│   ├── stock/               # Estoque
-│   ├── chassis/             # Chassi
-│   ├── sales/               # Vendas
-│   ├── financial/           # Financeiro
-│   ├── users/               # Usuários
-│   └── vendedor/            # Área do vendedor
+│   ├── login.ejs            # Tela de login
+│   └── app.ejs              # App principal (SPA)
 ├── public/
 │   ├── css/style.css        # Estilos CSS
-│   └── js/app.js            # JavaScript frontend
-├── uploads/                 # Arquivos anexados
-├── index.js                 # Servidor Express
-└── database.sqlite          # Banco de dados (gerado automaticamente)
+│   ├── js/app.js            # JavaScript SPA
+│   └── images/              # Imagens e logo
+└── uploads/                 # Arquivos anexados
 ```
 
 ## Fluxo de Vendas
 
-1. **Vendedor** cria venda com cliente, produtos e forma de pagamento
-2. Vendedor pode **gerar orçamento** com validade de 7 dias
-3. Venda fica com status **PENDENTE** ou **AGUARDANDO_APROVACAO**
-4. **SUPER ADMIN** visualiza vendas pendentes
-5. SUPER ADMIN pode:
+1. **Operacional/Gestor** cria venda com cliente, produtos e forma de pagamento
+2. Venda fica com status **PENDENTE**
+3. **Gestor/Admin Global** pode:
+   - Aprovar a venda
    - Editar a venda
-   - Aprovar orçamento
-   - Selecionar chassi para motos/scooters
-   - **Concluir** a venda (dá baixa no estoque, marca chassi como vendido, gera conta a receber)
-   - Cancelar a venda
+   - Concluir (baixa estoque, gera conta a receber)
+   - Cancelar
 
-## Ordens de Serviço (OS)
+## Solicitações de Compra (Franquias)
 
-1. **Vendedor ou Admin** cria OS com dados do cliente, veículo e problema
-2. Adiciona itens: produtos (peças), serviços ou mão de obra com preços e descontos
-3. Pode **gerar orçamento** com validade de 7 dias para aprovação do cliente
-4. Status da OS: ABERTA → EM_EXECUCAO → AGUARDANDO_APROVACAO → APROVADA → CONCLUIDA
-5. **SUPER ADMIN** conclui a OS (baixa estoque de produtos utilizados)
-6. **Regra de negócio:** OS pode incluir vendas de produtos, mas Vendas não incluem OS
+1. **Gestor da Franquia** cria solicitação com itens desejados
+2. Solicitação fica **PENDENTE** para a matriz
+3. **Admin Global** aprova ou rejeita
+4. Após aprovação, Admin Global envia os produtos
+5. **Gestor da Franquia** confirma recebimento
 
-## Sistema de Orçamentos
+## Conciliação Bancária (Estilo Conta Azul)
 
-- Orçamentos podem ser gerados a partir de **Vendas** ou **Ordens de Serviço**
-- Validade automática de **7 dias** a partir da emissão
-- Inclui todos os descontos aplicados pelo vendedor
-- Documento formatado para **impressão** com dados do cliente e itens
-- Status: RASCUNHO → ENVIADO → APROVADO (ou EXPIRADO após 7 dias)
-- Orçamentos expirados não podem ser aprovados
-
-## Contas Recorrentes (Mensais)
-
-Para contas fixas (luz, aluguel, etc):
-1. Marque o tipo como "Fixa (Mensal)"
-2. Ative a opção "Gerar parcelas mensais até dezembro"
-3. O sistema exibirá todas as parcelas do mês selecionado até dezembro
-4. Você pode **editar a data e o valor** de cada parcela individualmente
-5. Ao salvar, todas as parcelas serão criadas com os valores personalizados
-
-## Primeiro Acesso (Definir Senha)
-
-Quando um novo usuário é cadastrado:
-1. O SUPER ADMIN define uma **senha temporária** para o usuário
-2. No primeiro login, o usuário é redirecionado para definir sua **própria senha**
-3. Após definir a senha, o usuário pode acessar o sistema normalmente
-4. O SUPER ADMIN pode **resetar a senha** de qualquer usuário a qualquer momento
+1. Cadastre as contas bancárias da empresa/loja
+2. Importe extratos (OFX, CSV, Excel)
+3. Sistema identifica transações duplicadas
+4. Conciliação automática por valor
+5. Conciliação manual para casos específicos
 
 ## Tecnologias
 
 - **Backend:** Node.js + Express
-- **Banco de Dados:** SQLite com Sequelize ORM
-- **Frontend:** EJS templates + CSS customizado
+- **Banco de Dados:** PostgreSQL com Sequelize ORM
+- **Frontend:** EJS templates + CSS customizado + JavaScript SPA
+- **Autenticação:** JWT (JSON Web Tokens)
 - **Gráficos:** Chart.js
 
 ## Tema Visual
 
-- Fundo preto/grafite
-- Destaques em laranja (identidade Tecle Motos)
+- Fundo preto/grafite (#1a1a1a)
+- Destaques em laranja (#FF6B35) - identidade Tecle Motos
 - Textos em branco
-- Detalhes em verde-neon (energia elétrica)
+- Detalhes em verde-neon (#00FF88) - energia elétrica
 
 ## Segurança
 
-- **Proteção CSRF:** Middleware personalizado em middleware/csrf.js com validação após multer para rotas de upload
-- **Upload de Arquivos:** Validação de tipo MIME (imagens e PDFs), limite de 10MB, sanitização de nomes
+- **Autenticação:** JWT com expiração de 24h
+- **Autorização:** ACL por perfil (ADMIN_GLOBAL, GESTOR_FRANQUIA, OPERACIONAL)
 - **Senhas:** Hash com bcryptjs
-- **Sessões:** Express-session com cookie seguro
+- **Multi-tenant:** Filtro automático por loja/empresa
 
 ## Mudanças Recentes
 
-- **10/12/2024:** Sistema de Importação Automática de Planilhas
-  - Nova página de importação de planilhas Excel/CSV em Sistema > Importar Planilha
-  - Identificação automática de tipo (MOTO, SCOOTER, PEÇA, SERVIÇO) baseada nos dados
-  - Validação automática dos dados da planilha
-  - Cadastro de novos produtos ou atualização de existentes
-  - Download de modelo de planilha para referência
-  - Integração com estoque principal para novos itens
-
-- **10/12/2024:** Fluxo Automático Orçamento Aprovado → Venda Pendente
-  - Quando um orçamento é aprovado, uma venda é criada automaticamente
-  - Venda criada com status PENDENTE na área de Vendas Pendentes
-  - Inclui todos os itens do orçamento com valores e descontos
-  - Referência automática ao orçamento e OS de origem
-
-- **09/12/2024:** Filtro por tipo de item em vendas, orçamentos e OS
-  - Cadastro de produtos agora inclui campos: chassi, código do motor e capacidade da bateria para motos
-  - Filtro por tipo (Moto, Produto, Serviço) nos formulários de venda, orçamento e OS
-  - Ao selecionar um tipo, apenas produtos daquela categoria são exibidos
-  - Motos exibem o número do chassi na seleção para fácil identificação
-  - API `/produtos/api/por-tipo/:tipo` para buscar produtos filtrados
-  
-- **09/12/2024:** Botões de exclusão em Orçamentos e OS
-  - SUPER ADMIN pode excluir orçamentos e ordens de serviço
-  - Exclusão em cascata de itens relacionados
-  - Confirmação antes de excluir
-
-- **08/12/2024:** Anexo de extrato bancário na conciliação
-  - SUPER ADMIN pode anexar extrato bancário (PDF/JPG/PNG) aos lançamentos
-  - Arquivos são armazenados em memória até validação CSRF passar
-  - Somente após autenticação o arquivo é salvo no disco
-  - Visualização do anexo disponível na tabela de conciliação
-  
-- **08/12/2024:** Correção de erros e melhorias de segurança
-  - Corrigido erro CSRF em formulários com upload de arquivos (multipart/form-data)
-  - Middleware CSRF refatorado para validar após processamento do multer
-  - Exclusão CSRF específica por rota (não mais por content-type global)
-  - Logo Tecle Motos adicionada na tela de login e menu lateral
-  
-- **08/12/2024:** Melhorias no sistema de vendas e financeiro
-  - Vendedores podem escolher cor do produto ao criar vendas (campo cor_escolhida)
-  - SUPER ADMIN tem visualização completa de vendas concluídas (rota /vendas/:id/detalhes)
-  - Filtro por período (calendário) nas telas de vendas, contas a receber e a pagar
-  - Correção na sincronização do banco de dados (removido alter: true para evitar conflitos SQLite)
-  - Proteção CSRF simplificada usando sessões
-  
-- **08/12/2024:** Criação inicial do sistema completo
-  - Sistema de autenticação com 4 perfis
-  - Dashboard principal com gráficos
-  - CRUD completo de produtos, estoque, chassi
-  - Sistema de vendas com fluxo de aprovação
-  - Módulo financeiro completo
-  - Conciliação bancária
-  - Proteção CSRF em todos os formulários
-  - Validação de uploads (tipo, tamanho, nome)
+- **11/12/2024:** Recriação completa do sistema
+  - Migração de SQLite para PostgreSQL
+  - Arquitetura multi-empresa (TM Imports + Franquias)
+  - Novos perfis: ADMIN_GLOBAL, GESTOR_FRANQUIA, OPERACIONAL
+  - Sistema de solicitações de compra (franquia → matriz)
+  - Estoque central + estoques por loja
+  - Conciliação bancária automática
+  - Logs de auditoria completos
+  - Interface SPA com navegação sem recarregar página
+  - Dashboard global e por loja

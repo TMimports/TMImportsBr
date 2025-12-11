@@ -1,0 +1,602 @@
+Você é um Engenheiro de Software Sênior Full-Stack especializado em ERPs, Dashboards, Automação Financeira e Sistemas Empresariais Complexos.
+Seu objetivo é desenvolver um sistema completo, modular, escalável e profissional, integrando TM Imports (matriz), Tecle Motos (franquias) e todas as funcionalidades financeiras, logísticas, administrativas e operacionais necessárias.
+
+Crie o sistema inteiro, incluindo:
+
+Arquitetura completa
+
+Front-end completo (React, Next.js ou Vite)
+
+Backend completo (Node.js + Express)
+
+Banco de dados completo (PostgreSQL ou MySQL)
+
+APIs REST
+
+Autenticação e permissões
+
+Dashboards
+
+Módulos funcionais
+
+UX/UI completo estilo ERP
+
+Conciliação bancária automática (modelo Conta Azul)
+
+Estoque, vendas, OS, franquias
+
+Financeiro completo
+
+Logs e auditoria
+
+Uploads, importações e automações
+
+Scripts, serviços, regras, cálculos
+
+Qualquer componente necessário ao perfeito funcionamento do sistema
+
+Nada deve ser omitido.
+Nada deve ser deixado para “depois”.
+O sistema deve ser gerado 100% pronto, completo e funcional.
+
+🔥 1. SISTEMA MULTIEMPRESA + MULTILOJA
+A) TM Imports — MATRIZ
+
+Acesso total ao sistema
+
+Visualiza e gerencia todas as franquias
+
+Gerencia estoque central
+
+Libera produtos para franquias
+
+Gerencia preços globais
+
+Acompanha vendas de todas as lojas
+
+Acompanha financeiro completo de todas as lojas
+
+Dashboard global com visão macro
+
+Pode bloquear/ativar franquias e usuários
+
+B) Tecle Motos — FRANQUEADO / LOJA
+
+Cada franquia terá:
+
+Login próprio
+
+Estoque próprio
+
+Dashboard próprio
+
+Contas a pagar e receber da própria loja
+
+Cadastro de vendas da própria loja
+
+Cadastro de clientes
+
+Cadastro de vendedores
+
+Cadastro e execução de Ordens de Serviço
+
+Acesso APENAS ao que pertence à loja
+
+Consegue solicitar/Comprar motos e peças da TM Imports
+
+Tem relatórios de desempenho individual
+
+🟦 2. SISTEMA DE LOGIN E PERMISSÕES (ACL COMPLETA)
+
+Criar 3 níveis:
+
+1 — Admin Global (TM IMPORTS)
+
+Acesso total a tudo
+
+2 — Gestor de Franquia (TECLE MOTOS)
+
+Acesso apenas à própria loja
+
+Financeiro limitado à loja
+
+Estoque da loja
+
+Vendas/OS da loja
+
+Dashboard da loja
+
+3 — Operacional
+
+Acessos limitados (definidos pelo gestor)
+
+Operações do dia a dia
+
+Incluir:
+
+JWT Authentication
+
+Refresh Tokens
+
+Middleware de permissões
+
+Auditoria obrigatória
+
+🟧 3. MENU LATERAL E FLUXO FIXO
+
+O menu lateral nunca desaparece.
+As páginas carregam via SPA.
+
+Menu Completo:
+
+Dashboard
+
+Franquia
+
+Cadastro de Franqueado
+
+Estoque da Franquia
+
+Margem de Vendas do Franqueado
+
+Produtos / Serviços
+
+Cadastro por planilha (OFX/CSV/Excel)
+
+Editar produtos
+
+Excluir produto
+
+Excluir lista inteira
+
+Estoque
+
+Cadastro de Estoques
+
+Estoque TM Imports
+
+Estoque das Lojas (visualização por permissão)
+
+Vendas
+
+Cadastro de vendedores
+
+Cadastro de vendas
+
+Cadastro de ordem de serviço
+
+Cadastro de clientes
+
+Orçamentos (quando aprovados → viram “Vendas Pendentes para Liberação”)
+
+Financeiro
+
+Contas a pagar
+
+Contas a receber
+
+Fluxo de caixa
+
+Conciliação bancária completa
+
+Extratos
+
+Regras financeiras
+
+Dashboard financeiro
+
+Configurações
+
+Usuários
+
+Permissões
+
+Dados da empresa
+
+Integrações
+
+Logs e Auditoria
+
+🟨 4. CADASTRO DE PRODUTOS — CAMPOS DEFINITIVOS
+
+Trocar “produto” por Categoria (Moto / Peça / Serviço).
+
+Campos:
+
+Código
+
+Nome do Produto
+
+Preço
+
+Preço de Custo
+
+Percentual de Lucro
+
+Desconto
+
+Estoque Atual
+
+Estoque Máximo
+
+Estoque Mínimo
+
+Localização (Recreio, Bangu, Itaipuaçu, etc)
+
+Peso
+
+Categoria
+
+Garantia
+
+Informações Adicionais
+
+Observações
+
+Cálculos automáticos obrigatórios:
+
+Preço = (Preço de Custo + % Lucro)
+
+Se houver Desconto → recalcular automático
+
+Campos não são obrigatórios, mas se preenchidos devem calcular
+
+Importação via planilha:
+
+CSV / Excel
+
+Mapeamento automático
+
+Preenchimento automático no sistema
+
+🟪 5. MÓDULO COMPLETO DE CONCILIAÇÃO BANCÁRIA (MODELO CONTA AZUL)
+5.1 — Integração bancária
+
+Conexão Open Finance (autorização do cliente)
+
+Upload de extratos OFX / CSV / Excel
+
+Importação automática diária
+
+Captura dos dados bancários:
+
+data
+
+valor
+
+tipo
+
+histórico
+
+identificador PIX
+
+saldo
+
+tarifa
+
+código único
+
+conta destino/origem
+
+5.2 — IA de Categorização
+
+Identificar padrões
+
+Aprender comportamento
+
+Criar regras automáticas
+
+Categorizar transações em:
+
+Receitas
+
+Despesas
+
+Tarifas
+
+Taxas
+
+Correções
+
+Pagamentos automatizados
+
+5.3 — Matching Automático
+
+Comparar:
+
+valor
+
+data
+
+descrição
+
+ID PIX
+
+ID interno
+
+número da fatura
+
+Ações:
+
+Se coincidir → baixa automática
+
+Se não existir → criar lançamento financeiro automaticamente
+
+Exibir confiança da conciliação
+
+Permitir desfazer
+
+Permitir editar
+
+Reconciliar manualmente
+
+5.4 — Baixas automáticas
+
+PIX → baixa automática do contas a receber
+
+Pagamento → baixa automática do contas a pagar
+
+Taxas e tarifas → automatizar lançamentos
+
+5.5 — Área do Cliente
+
+Página completa onde o cliente:
+
+Conecta ao banco
+
+Gerencia contas bancárias
+
+Vê extratos importados
+
+Configura regras
+
+Define importação automática
+
+5.6 — Dashboard Financeiro Completo
+
+Fluxo de caixa real vs previsto
+
+Total conciliado vs pendente
+
+Despesas fixas e variáveis
+
+Receitas por origem
+
+Banco por banco
+
+Saldo consolidado
+
+DRE simplificado
+
+Inadimplência
+
+Gráficos profissionais
+
+5.7 — Logs e Auditoria Financeira
+
+Registrar:
+
+quem conciliou
+
+quando
+
+ação tomada
+
+antes e depois
+
+origem dos dados
+
+versão dos extratos
+
+5.8 — API REST FINANCEIRA
+
+Criar endpoints:
+
+/bank/connect
+
+/bank/import
+
+/bank/upload
+
+/bank/transactions
+
+/bank/reconcile
+
+/bank/rules
+
+/bank/dashboard
+
+/bank/balance
+
+🟥 6. MÓDULO DO FRANQUEADO
+
+Cada loja deve ter:
+
+6.1 Dashboard da loja
+
+Vendas do dia
+
+OS abertas
+
+Estoque atual
+
+Estoque crítico
+
+Margem por produto
+
+Rentabilidade
+
+Contas a pagar
+
+Contas a receber
+
+Resultados mensais
+
+Ranking de vendedores
+
+6.2 Estoque próprio
+
+Entrada
+
+Saída
+
+Baixa por venda
+
+Baixa por OS
+
+Transferências de/para matriz
+
+Solicitações de compra à TM Imports
+
+6.3 Vendas
+
+Cadastro de vendas de motos
+
+Cadastro de vendas de peças
+
+Cadastro de OS
+
+Cadastro de clientes
+
+Cadastro de vendedores
+
+Orçamentos → vendas pendentes
+
+🟦 7. BANCO DE DADOS COMPLETO (TODAS AS TABELAS)
+
+Criar as tabelas:
+
+users
+roles
+companies
+stores
+products
+categories
+inventory_main
+inventory_store
+sales
+sales_items
+service_orders
+customers
+vendors
+payments_receivable
+payments_payable
+bank_accounts
+bank_transactions
+reconciliation_rules
+matches
+audit_logs
+franchisees
+price_history
+inventory_movements
+os_items
+purchase_requests
+purchase_orders
+notifications
+settings
+
+
+Com relacionamentos completos, chaves estrangeiras, índices e triggers.
+
+🟫 8. UI/UX OBRIGATÓRIA
+
+Layout estilo ERP moderno
+
+SPA (sem reload)
+
+Componentes reusáveis
+
+Tabelas com filtros, busca, paginação
+
+Modais para cadastros
+
+Gráficos profissionais
+
+Alertas claros
+
+Dark/Light Mode
+
+Layout responsivo
+
+Navegação fluída estilo Conta Azul / Omie
+
+🟧 9. O SISTEMA DEVE ENTREGAR O PACOTE COMPLETO
+
+Código pronto
+
+Pastas organizadas
+
+API funcional
+
+Banco inicial migrado
+
+Front-end integrado
+
+Dashboard funcionando
+
+Conciliação bancária operacional
+
+Estoque completo
+
+Vendas e OS funcionando
+
+Franquias e permissões funcionando
+
+Logs e auditoria
+
+Segurança aplicada
+
+Documentação automática
+
+Scripts de inicialização
+
+🟨 10. OBJETIVO FINAL
+
+Entregar um ERP completo, profissional, moderno e escalável, integrando:
+
+TM Imports (Matriz)
+
+Tecle Motos (Franquias)
+
+Conciliação bancária automática
+
+Financeiro completo
+
+Estoque central + estoque de loja
+
+Vendas / OS
+
+Dashboards inteligentes
+
+Multiempresa + Multiloja
+
+Automação via IA
+
+Regras específicas
+
+Desempenho otimizado
+
+Gerar:
+
+Telas
+
+APIs
+
+Banco
+
+Códigos
+
+Layouts
+
+Fluxos
+
+Estrutura completa
+
+Nada pode faltar.
+
+Crie tudo como um sistema final, totalmente pronto para rodar no Replit.
+
+🟩 PROMPT FINAL — PRONTO PARA USO
+
+Esse é o prompt final completo, definitivo e profissional.
+Pronto para colar direto na IA ou no Replit e gerar o sistema inteiro.

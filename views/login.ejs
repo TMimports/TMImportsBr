@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - TM Imports / Tecle Motos</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="login-page">
+  <div class="login-container">
+    <div class="login-logo">
+      <img src="/images/logo.png" alt="Tecle Motos" class="logo-img">
+    </div>
+    
+    <div class="login-box">
+      <h1>Acesse sua conta</h1>
+      
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="email">E-mail</label>
+          <input type="email" id="email" name="email" required placeholder="seu@email.com">
+        </div>
+        
+        <div class="form-group">
+          <label for="senha">Senha</label>
+          <input type="password" id="senha" name="senha" required placeholder="Sua senha">
+        </div>
+        
+        <div id="errorMsg" class="error-message" style="display: none;"></div>
+        
+        <button type="submit" class="btn btn-primary btn-block">
+          <span id="btnText">Entrar</span>
+          <span id="btnLoader" class="loader" style="display: none;"></span>
+        </button>
+      </form>
+    </div>
+    
+    <p class="login-footer">TM Imports - Sistema de Gestão</p>
+  </div>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const senha = document.getElementById('senha').value;
+      const errorMsg = document.getElementById('errorMsg');
+      const btnText = document.getElementById('btnText');
+      const btnLoader = document.getElementById('btnLoader');
+      
+      errorMsg.style.display = 'none';
+      btnText.style.display = 'none';
+      btnLoader.style.display = 'inline-block';
+      
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, senha })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          
+          if (data.user.primeiro_acesso) {
+            window.location.href = '/app/definir-senha';
+          } else {
+            window.location.href = '/app';
+          }
+        } else {
+          errorMsg.textContent = data.error || 'Erro ao fazer login';
+          errorMsg.style.display = 'block';
+        }
+      } catch (error) {
+        errorMsg.textContent = 'Erro de conexão. Tente novamente.';
+        errorMsg.style.display = 'block';
+      }
+      
+      btnText.style.display = 'inline';
+      btnLoader.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

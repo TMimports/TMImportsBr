@@ -1,47 +1,1591 @@
-function getCsrfToken() {
-  const csrfInput = document.querySelector('input[name="_csrf"]');
-  return csrfInput ? csrfInput.value : '';
+const API_URL = '';
+let currentUser = null;
+let currentPage = 'dashboard';
+
+const menuItems = {
+  ADMIN_GLOBAL: [
+    { section: 'Principal', items: [
+      { id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Franquias', items: [
+      { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' },
+      { id: 'lojas', label: 'Lojas', icon: 'fas fa-map-marker-alt' }
+    ]},
+    { section: 'Produtos', items: [
+      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' },
+      { id: 'categorias', label: 'Categorias', icon: 'fas fa-tags' },
+      { id: 'importar', label: 'Importar Planilha', icon: 'fas fa-file-excel' }
+    ]},
+    { section: 'Estoque', items: [
+      { id: 'estoque-central', label: 'Estoque Central', icon: 'fas fa-warehouse' },
+      { id: 'solicitacoes', label: 'Solicitações', icon: 'fas fa-truck' }
+    ]},
+    { section: 'Vendas', items: [
+      { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' },
+      { id: 'vendedores', label: 'Vendedores', icon: 'fas fa-user-tie' }
+    ]},
+    { section: 'Financeiro', items: [
+      { id: 'receber', label: 'Contas a Receber', icon: 'fas fa-hand-holding-usd' },
+      { id: 'pagar', label: 'Contas a Pagar', icon: 'fas fa-file-invoice-dollar' },
+      { id: 'conciliacao', label: 'Conciliação Bancária', icon: 'fas fa-university' },
+      { id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' },
+      { id: 'auditoria', label: 'Logs de Auditoria', icon: 'fas fa-history' }
+    ]}
+  ],
+  GESTOR_FRANQUIA: [
+    { section: 'Principal', items: [
+      { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Produtos', items: [
+      { id: 'produtos', label: 'Produtos', icon: 'fas fa-box' },
+      { id: 'importar', label: 'Importar Planilha', icon: 'fas fa-file-excel' }
+    ]},
+    { section: 'Estoque', items: [
+      { id: 'estoque', label: 'Estoque da Loja', icon: 'fas fa-warehouse' },
+      { id: 'solicitar', label: 'Solicitar Produtos', icon: 'fas fa-truck' }
+    ]},
+    { section: 'Vendas', items: [
+      { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' },
+      { id: 'vendedores', label: 'Vendedores', icon: 'fas fa-user-tie' }
+    ]},
+    { section: 'Financeiro', items: [
+      { id: 'receber', label: 'Contas a Receber', icon: 'fas fa-hand-holding-usd' },
+      { id: 'pagar', label: 'Contas a Pagar', icon: 'fas fa-file-invoice-dollar' },
+      { id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' }
+    ]}
+  ],
+  OPERACIONAL: [
+    { section: 'Principal', items: [
+      { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Vendas', items: [
+      { id: 'vendas', label: 'Minhas Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' }
+    ]},
+    { section: 'Consultas', items: [
+      { id: 'produtos', label: 'Produtos', icon: 'fas fa-box' },
+      { id: 'estoque', label: 'Estoque', icon: 'fas fa-warehouse' }
+    ]}
+  ]
+};
+
+async function init() {
+  const token = localStorage.getItem('token');
+  const user = localStorage.getItem('user');
+  
+  if (!token || !user) {
+    window.location.href = '/login';
+    return;
+  }
+  
+  try {
+    currentUser = JSON.parse(user);
+    renderMenu();
+    renderUserInfo();
+    
+    const path = window.location.pathname.replace('/app/', '').replace('/app', '');
+    if (path && path !== '/') {
+      currentPage = path;
+    }
+    
+    await loadPage(currentPage);
+  } catch (error) {
+    console.error('Erro ao inicializar:', error);
+    logout();
+  }
 }
 
-function openModal(modalId) {
-  document.getElementById(modalId).classList.add('active');
-  document.body.style.overflow = 'hidden';
+function renderMenu() {
+  const nav = document.getElementById('sidebarNav');
+  const userMenu = menuItems[currentUser.perfil] || menuItems.OPERACIONAL;
+  
+  let html = '';
+  for (const section of userMenu) {
+    html += `<div class="nav-section">
+      <div class="nav-section-title">${section.section}</div>`;
+    
+    for (const item of section.items) {
+      html += `<div class="nav-item ${currentPage === item.id ? 'active' : ''}" 
+                   onclick="navigate('${item.id}')">
+        <i class="${item.icon}"></i>
+        <span>${item.label}</span>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  
+  nav.innerHTML = html;
 }
 
-function closeModal(modalId) {
-  document.getElementById(modalId).classList.remove('active');
-  document.body.style.overflow = '';
+function renderUserInfo() {
+  const userInfo = document.getElementById('userInfo');
+  const storeName = document.getElementById('storeName');
+  
+  const perfilLabels = {
+    'ADMIN_GLOBAL': 'Admin Global',
+    'GESTOR_FRANQUIA': 'Gestor de Franquia',
+    'OPERACIONAL': 'Operacional'
+  };
+  
+  userInfo.innerHTML = `
+    <div class="user-name">${currentUser.nome}</div>
+    <div class="user-role">${perfilLabels[currentUser.perfil]}</div>
+  `;
+  
+  if (currentUser.loja) {
+    storeName.textContent = currentUser.loja.nome;
+    storeName.style.display = 'inline-block';
+  } else if (currentUser.perfil === 'ADMIN_GLOBAL') {
+    storeName.textContent = 'TM Imports';
+    storeName.style.display = 'inline-block';
+  } else {
+    storeName.style.display = 'none';
+  }
 }
 
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.active').forEach(modal => {
-      modal.classList.remove('active');
+async function navigate(page) {
+  currentPage = page;
+  window.history.pushState({}, '', `/app/${page}`);
+  renderMenu();
+  await loadPage(page);
+}
+
+async function loadPage(page) {
+  const content = document.getElementById('content');
+  const pageTitle = document.getElementById('pageTitle');
+  
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+  
+  const titles = {
+    'dashboard': 'Dashboard',
+    'produtos': 'Produtos / Serviços',
+    'categorias': 'Categorias',
+    'importar': 'Importar Planilha',
+    'estoque-central': 'Estoque Central',
+    'estoque': 'Estoque da Loja',
+    'vendas': 'Vendas',
+    'os': 'Ordens de Serviço',
+    'clientes': 'Clientes',
+    'vendedores': 'Vendedores',
+    'receber': 'Contas a Receber',
+    'pagar': 'Contas a Pagar',
+    'conciliacao': 'Conciliação Bancária',
+    'fluxo': 'Fluxo de Caixa',
+    'usuarios': 'Usuários',
+    'auditoria': 'Logs de Auditoria',
+    'franquias': 'Franquias',
+    'lojas': 'Lojas',
+    'solicitacoes': 'Solicitações de Compra',
+    'solicitar': 'Solicitar Produtos'
+  };
+  
+  pageTitle.textContent = titles[page] || 'Dashboard';
+  
+  try {
+    switch (page) {
+      case 'dashboard':
+        await renderDashboard();
+        break;
+      case 'produtos':
+        await renderProducts();
+        break;
+      case 'categorias':
+        await renderCategories();
+        break;
+      case 'importar':
+        await renderImport();
+        break;
+      case 'estoque-central':
+      case 'estoque':
+        await renderInventory();
+        break;
+      case 'vendas':
+        await renderSales();
+        break;
+      case 'os':
+        await renderServiceOrders();
+        break;
+      case 'clientes':
+        await renderCustomers();
+        break;
+      case 'vendedores':
+        await renderVendors();
+        break;
+      case 'receber':
+        await renderReceivables();
+        break;
+      case 'pagar':
+        await renderPayables();
+        break;
+      case 'conciliacao':
+        await renderReconciliation();
+        break;
+      case 'fluxo':
+        await renderCashFlow();
+        break;
+      case 'usuarios':
+        await renderUsers();
+        break;
+      case 'franquias':
+        await renderCompanies();
+        break;
+      case 'lojas':
+        await renderStores();
+        break;
+      case 'solicitacoes':
+      case 'solicitar':
+        await renderPurchaseRequests();
+        break;
+      case 'auditoria':
+        await renderAuditLogs();
+        break;
+      default:
+        await renderDashboard();
+    }
+  } catch (error) {
+    console.error('Erro ao carregar página:', error);
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-exclamation-triangle"></i>
+      <h3>Erro ao carregar página</h3>
+      <p>${error.message}</p>
+    </div>`;
+  }
+}
+
+async function api(endpoint, options = {}) {
+  const token = localStorage.getItem('token');
+  
+  const config = {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    ...options
+  };
+  
+  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+    config.body = JSON.stringify(options.body);
+  }
+  
+  if (options.body instanceof FormData) {
+    delete config.headers['Content-Type'];
+    config.body = options.body;
+  }
+  
+  const response = await fetch(`${API_URL}/api${endpoint}`, config);
+  
+  if (response.status === 401) {
+    logout();
+    throw new Error('Sessão expirada');
+  }
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro na requisição');
+  }
+  
+  return data;
+}
+
+function formatCurrency(value) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value || 0);
+}
+
+function formatDate(date) {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('pt-BR');
+}
+
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : 'fa-exclamation-circle'}"></i>
+    <span>${message}</span>
+  `;
+  container.appendChild(toast);
+  
+  setTimeout(() => toast.remove(), 5000);
+}
+
+function openModal(title, content) {
+  const modal = document.getElementById('modal');
+  const dialog = document.getElementById('modalDialog');
+  
+  dialog.innerHTML = `
+    <div class="modal-header">
+      <h2>${title}</h2>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">${content}</div>
+  `;
+  
+  modal.style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
+}
+
+async function renderDashboard() {
+  const content = document.getElementById('content');
+  
+  try {
+    const endpoint = currentUser.perfil === 'ADMIN_GLOBAL' ? '/dashboard/global' : '/dashboard/loja';
+    const data = await api(endpoint);
+    
+    if (currentUser.perfil === 'ADMIN_GLOBAL') {
+      content.innerHTML = `
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>
+            <div class="stat-value">${formatCurrency(data.totalVendasMes)}</div>
+            <div class="stat-label">Vendas do Mês</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-wrench"></i></div>
+            <div class="stat-value">${formatCurrency(data.totalOSMes)}</div>
+            <div class="stat-label">Serviços do Mês</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow"><i class="fas fa-hand-holding-usd"></i></div>
+            <div class="stat-value">${formatCurrency(data.totalReceber)}</div>
+            <div class="stat-label">A Receber</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div class="stat-value">${formatCurrency(data.totalPagar)}</div>
+            <div class="stat-label">A Pagar</div>
+          </div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-box"></i></div>
+            <div class="stat-value">${data.produtosAtivos}</div>
+            <div class="stat-label">Produtos Ativos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-users"></i></div>
+            <div class="stat-value">${data.clientesAtivos}</div>
+            <div class="stat-label">Clientes</div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h2>Vendas - Últimos 6 Meses</h2>
+          </div>
+          <div class="card-body">
+            <div class="chart-container">
+              <canvas id="vendasChart"></canvas>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      if (data.vendasUltimos6Meses) {
+        const ctx = document.getElementById('vendasChart').getContext('2d');
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: data.vendasUltimos6Meses.map(v => v.mes),
+            datasets: [{
+              label: 'Vendas',
+              data: data.vendasUltimos6Meses.map(v => v.total),
+              backgroundColor: '#FF6B35',
+              borderRadius: 8
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#333' },
+                ticks: { color: '#888' }
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#888' }
+              }
+            }
+          }
+        });
+      }
+    } else {
+      content.innerHTML = `
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>
+            <div class="stat-value">${formatCurrency(data.vendasHoje)}</div>
+            <div class="stat-label">Vendas Hoje</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-calendar"></i></div>
+            <div class="stat-value">${formatCurrency(data.vendasMes)}</div>
+            <div class="stat-label">Vendas do Mês</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow"><i class="fas fa-wrench"></i></div>
+            <div class="stat-value">${data.osAbertas + data.osEmExecucao}</div>
+            <div class="stat-label">OS em Andamento</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red"><i class="fas fa-clock"></i></div>
+            <div class="stat-value">${data.vendasPendentes}</div>
+            <div class="stat-label">Vendas Pendentes</div>
+          </div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-hand-holding-usd"></i></div>
+            <div class="stat-value">${formatCurrency(data.totalReceber)}</div>
+            <div class="stat-label">A Receber</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div class="stat-value">${formatCurrency(data.totalPagar)}</div>
+            <div class="stat-label">A Pagar</div>
+          </div>
+        </div>
+      `;
+    }
+  } catch (error) {
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-chart-line"></i>
+      <h3>Bem-vindo ao Sistema</h3>
+      <p>Use o menu lateral para navegar</p>
+    </div>`;
+  }
+}
+
+async function renderProducts() {
+  const content = document.getElementById('content');
+  
+  try {
+    const products = await api('/products');
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2>Produtos / Serviços</h2>
+          <button class="btn btn-primary" onclick="openProductModal()">
+            <i class="fas fa-plus"></i> Novo Produto
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="filters">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="searchProducts" placeholder="Buscar produtos..." onkeyup="filterProducts()">
+            </div>
+            <select id="filterTipo" onchange="filterProducts()">
+              <option value="">Todos os tipos</option>
+              <option value="MOTO">Motos</option>
+              <option value="PECA">Peças</option>
+              <option value="SERVICO">Serviços</option>
+            </select>
+          </div>
+          
+          <div class="table-container">
+            <table id="productsTable">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Preço Custo</th>
+                  <th>Preço Venda</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${products.map(p => `
+                  <tr data-tipo="${p.tipo}" data-nome="${p.nome?.toLowerCase()}">
+                    <td>${p.codigo || '-'}</td>
+                    <td>${p.nome}</td>
+                    <td><span class="badge badge-${p.tipo === 'MOTO' ? 'primary' : p.tipo === 'SERVICO' ? 'success' : 'secondary'}">${p.tipo}</span></td>
+                    <td>${formatCurrency(p.preco_custo)}</td>
+                    <td>${formatCurrency(p.preco_venda)}</td>
+                    <td class="actions">
+                      <button class="btn btn-sm btn-secondary" onclick='editProduct(${JSON.stringify(p).replace(/'/g, "\\'")})'>
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          ${products.length === 0 ? `
+            <div class="empty-state">
+              <i class="fas fa-box-open"></i>
+              <h3>Nenhum produto cadastrado</h3>
+              <p>Clique em "Novo Produto" para começar</p>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function filterProducts() {
+  const search = document.getElementById('searchProducts').value.toLowerCase();
+  const tipo = document.getElementById('filterTipo').value;
+  const rows = document.querySelectorAll('#productsTable tbody tr');
+  
+  rows.forEach(row => {
+    const nome = row.dataset.nome || '';
+    const rowTipo = row.dataset.tipo;
+    
+    const matchSearch = nome.includes(search);
+    const matchTipo = !tipo || rowTipo === tipo;
+    
+    row.style.display = matchSearch && matchTipo ? '' : 'none';
+  });
+}
+
+function openProductModal(product = null) {
+  const isEdit = !!product;
+  
+  const formContent = `
+    <form id="productForm" onsubmit="saveProduct(event, ${product?.id || 'null'})">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select name="tipo" required>
+            <option value="PECA" ${product?.tipo === 'PECA' ? 'selected' : ''}>Peça</option>
+            <option value="MOTO" ${product?.tipo === 'MOTO' ? 'selected' : ''}>Moto / Scooter</option>
+            <option value="SERVICO" ${product?.tipo === 'SERVICO' ? 'selected' : ''}>Serviço</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Código</label>
+          <input type="text" name="codigo" value="${product?.codigo || ''}">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" name="nome" required value="${product?.nome || ''}">
+      </div>
+      
+      <div class="form-group">
+        <label>Descrição</label>
+        <textarea name="descricao" rows="3">${product?.descricao || ''}</textarea>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Preço de Custo</label>
+          <input type="number" step="0.01" name="preco_custo" value="${product?.preco_custo || 0}">
+        </div>
+        <div class="form-group">
+          <label>% Lucro</label>
+          <input type="number" step="0.01" name="percentual_lucro" value="${product?.percentual_lucro || 30}">
+        </div>
+        <div class="form-group">
+          <label>Preço de Venda</label>
+          <input type="number" step="0.01" name="preco_venda" value="${product?.preco_venda || 0}">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Estoque Mínimo</label>
+          <input type="number" name="estoque_minimo" value="${product?.estoque_minimo || 0}">
+        </div>
+        <div class="form-group">
+          <label>Estoque Máximo</label>
+          <input type="number" name="estoque_maximo" value="${product?.estoque_maximo || 100}">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Localização</label>
+        <input type="text" name="localizacao" value="${product?.localizacao || ''}">
+      </div>
+      
+      <div class="form-group">
+        <label>Garantia</label>
+        <input type="text" name="garantia" value="${product?.garantia || ''}">
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">${isEdit ? 'Salvar' : 'Cadastrar'}</button>
+      </div>
+    </form>
+  `;
+  
+  openModal(isEdit ? 'Editar Produto' : 'Novo Produto', formContent);
+}
+
+function editProduct(product) {
+  openProductModal(product);
+}
+
+async function saveProduct(event, id) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    if (id) {
+      await api(`/products/${id}`, { method: 'PUT', body: data });
+      showToast('Produto atualizado com sucesso');
+    } else {
+      await api('/products', { method: 'POST', body: data });
+      showToast('Produto cadastrado com sucesso');
+    }
+    
+    closeModal();
+    await renderProducts();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+  
+  try {
+    await api(`/products/${id}`, { method: 'DELETE' });
+    showToast('Produto excluído');
+    await renderProducts();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderImport() {
+  const content = document.getElementById('content');
+  
+  content.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <h2>Importar Planilha de Produtos</h2>
+      </div>
+      <div class="card-body">
+        <p style="margin-bottom: 20px; color: var(--text-muted);">
+          Faça upload de uma planilha Excel (.xlsx) ou CSV com os produtos. 
+          O sistema identificará automaticamente o tipo (Moto, Peça ou Serviço) baseado no nome.
+        </p>
+        
+        <form id="importForm" onsubmit="importProducts(event)">
+          <div class="form-group">
+            <label>Arquivo da Planilha</label>
+            <input type="file" name="arquivo" accept=".xlsx,.xls,.csv" required>
+          </div>
+          
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-upload"></i> Importar
+          </button>
+        </form>
+        
+        <div id="importResult" style="margin-top: 20px;"></div>
+        
+        <hr style="margin: 30px 0; border-color: var(--border);">
+        
+        <h3 style="margin-bottom: 15px;">Formato esperado da planilha:</h3>
+        <ul style="color: var(--text-muted); list-style: inside;">
+          <li>Coluna "Código" ou "codigo" - Código do produto</li>
+          <li>Coluna "Descrição" ou "Nome" - Nome do produto</li>
+          <li>Coluna "Preço" ou "Preço Venda" - Preço de venda</li>
+          <li>Coluna "Preço Custo" ou "Custo" - Preço de custo (opcional)</li>
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+async function importProducts(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const formData = new FormData(form);
+  const resultDiv = document.getElementById('importResult');
+  
+  resultDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Importando...</div>';
+  
+  try {
+    const result = await api('/products/importar', {
+      method: 'POST',
+      body: formData
     });
-    document.body.style.overflow = '';
+    
+    resultDiv.innerHTML = `
+      <div class="stat-card" style="background: rgba(0, 255, 136, 0.1);">
+        <h3 style="color: var(--success);">Importação Concluída!</h3>
+        <p style="margin-top: 10px;">
+          <strong>${result.criados}</strong> produtos criados<br>
+          <strong>${result.atualizados}</strong> produtos atualizados<br>
+          ${result.erros?.length > 0 ? `<strong style="color: var(--danger);">${result.erros.length}</strong> erros` : ''}
+        </p>
+      </div>
+    `;
+    
+    showToast('Importação concluída');
+  } catch (error) {
+    resultDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderCategories() {
+  const content = document.getElementById('content');
+  
+  try {
+    const categories = await api('/categories');
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2>Categorias</h2>
+          <button class="btn btn-primary" onclick="openCategoryModal()">
+            <i class="fas fa-plus"></i> Nova Categoria
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Descrição</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${categories.map(c => `
+                  <tr>
+                    <td>${c.nome}</td>
+                    <td><span class="badge badge-${c.tipo === 'MOTO' ? 'primary' : c.tipo === 'SERVICO' ? 'success' : 'secondary'}">${c.tipo}</span></td>
+                    <td>${c.descricao || '-'}</td>
+                    <td class="actions">
+                      <button class="btn btn-sm btn-danger" onclick="deleteCategory(${c.id})">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function openCategoryModal() {
+  const formContent = `
+    <form id="categoryForm" onsubmit="saveCategory(event)">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" name="nome" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Tipo *</label>
+        <select name="tipo" required>
+          <option value="PECA">Peça</option>
+          <option value="MOTO">Moto</option>
+          <option value="SERVICO">Serviço</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Descrição</label>
+        <textarea name="descricao" rows="3"></textarea>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Nova Categoria', formContent);
+}
+
+async function saveCategory(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api('/categories', { method: 'POST', body: data });
+    showToast('Categoria criada');
+    closeModal();
+    await renderCategories();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteCategory(id) {
+  if (!confirm('Excluir esta categoria?')) return;
+  
+  try {
+    await api(`/categories/${id}`, { method: 'DELETE' });
+    showToast('Categoria excluída');
+    await renderCategories();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderInventory() {
+  const content = document.getElementById('content');
+  const isCentral = currentUser.perfil === 'ADMIN_GLOBAL' && currentPage === 'estoque-central';
+  
+  try {
+    const endpoint = isCentral ? '/inventory/central' : '/inventory/loja';
+    const inventory = await api(endpoint);
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2>${isCentral ? 'Estoque Central (TM Imports)' : 'Estoque da Loja'}</h2>
+          <button class="btn btn-primary" onclick="openInventoryEntryModal()">
+            <i class="fas fa-plus"></i> Entrada de Estoque
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Quantidade</th>
+                  <th>Reservado</th>
+                  <th>Disponível</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${inventory.map(i => `
+                  <tr>
+                    <td>${i.produto?.nome || 'Produto não encontrado'}</td>
+                    <td>${i.quantidade}</td>
+                    <td>${i.reservado || 0}</td>
+                    <td>${i.quantidade - (i.reservado || 0)}</td>
+                    <td class="actions">
+                      <button class="btn btn-sm btn-success" onclick="openInventoryEntryModal(${i.produto_id})">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                      <button class="btn btn-sm btn-warning" onclick="openInventoryExitModal(${i.produto_id})">
+                        <i class="fas fa-minus"></i>
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          ${inventory.length === 0 ? `
+            <div class="empty-state">
+              <i class="fas fa-warehouse"></i>
+              <h3>Estoque vazio</h3>
+              <p>Faça uma entrada de estoque para começar</p>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function openInventoryEntryModal(produtoId = null) {
+  let productsOptions = '';
+  
+  if (!produtoId) {
+    const products = await api('/products');
+    productsOptions = products.map(p => 
+      `<option value="${p.id}">${p.codigo ? p.codigo + ' - ' : ''}${p.nome}</option>`
+    ).join('');
+  }
+  
+  const formContent = `
+    <form id="inventoryEntryForm" onsubmit="saveInventoryEntry(event)">
+      ${produtoId ? 
+        `<input type="hidden" name="produto_id" value="${produtoId}">` :
+        `<div class="form-group">
+          <label>Produto *</label>
+          <select name="produto_id" required>
+            <option value="">Selecione...</option>
+            ${productsOptions}
+          </select>
+        </div>`
+      }
+      
+      <div class="form-group">
+        <label>Quantidade *</label>
+        <input type="number" name="quantidade" min="1" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea name="observacoes" rows="2"></textarea>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Confirmar Entrada</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Entrada de Estoque', formContent);
+}
+
+async function saveInventoryEntry(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api('/inventory/entrada', { method: 'POST', body: data });
+    showToast('Entrada registrada');
+    closeModal();
+    await renderInventory();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function openInventoryExitModal(produtoId) {
+  const formContent = `
+    <form id="inventoryExitForm" onsubmit="saveInventoryExit(event)">
+      <input type="hidden" name="produto_id" value="${produtoId}">
+      
+      <div class="form-group">
+        <label>Quantidade *</label>
+        <input type="number" name="quantidade" min="1" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea name="observacoes" rows="2"></textarea>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-warning">Confirmar Saída</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Saída de Estoque', formContent);
+}
+
+async function saveInventoryExit(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api('/inventory/saida', { method: 'POST', body: data });
+    showToast('Saída registrada');
+    closeModal();
+    await renderInventory();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderSales() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty-state">
+    <i class="fas fa-shopping-cart"></i>
+    <h3>Módulo de Vendas</h3>
+    <p>Use o botão abaixo para criar uma nova venda</p>
+    <button class="btn btn-primary" onclick="showToast('Funcionalidade em desenvolvimento', 'warning')">
+      <i class="fas fa-plus"></i> Nova Venda
+    </button>
+  </div>`;
+}
+
+async function renderServiceOrders() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty-state">
+    <i class="fas fa-wrench"></i>
+    <h3>Ordens de Serviço</h3>
+    <p>Gerencie as ordens de serviço da loja</p>
+    <button class="btn btn-primary" onclick="showToast('Funcionalidade em desenvolvimento', 'warning')">
+      <i class="fas fa-plus"></i> Nova OS
+    </button>
+  </div>`;
+}
+
+async function renderCustomers() {
+  const content = document.getElementById('content');
+  
+  try {
+    const customers = await api('/customers');
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2>Clientes</h2>
+          <button class="btn btn-primary" onclick="openCustomerModal()">
+            <i class="fas fa-plus"></i> Novo Cliente
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>CPF/CNPJ</th>
+                  <th>Telefone</th>
+                  <th>Email</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${customers.map(c => `
+                  <tr>
+                    <td>${c.nome}</td>
+                    <td>${c.cpf_cnpj || '-'}</td>
+                    <td>${c.telefone || '-'}</td>
+                    <td>${c.email || '-'}</td>
+                    <td class="actions">
+                      <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id})">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function openCustomerModal() {
+  const formContent = `
+    <form id="customerForm" onsubmit="saveCustomer(event)">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" name="nome" required>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>CPF/CNPJ</label>
+          <input type="text" name="cpf_cnpj">
+        </div>
+        <div class="form-group">
+          <label>Telefone</label>
+          <input type="text" name="telefone">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email">
+      </div>
+      
+      <div class="form-group">
+        <label>Endereço</label>
+        <textarea name="endereco" rows="2"></textarea>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Novo Cliente', formContent);
+}
+
+async function saveCustomer(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api('/customers', { method: 'POST', body: data });
+    showToast('Cliente cadastrado');
+    closeModal();
+    await renderCustomers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteCustomer(id) {
+  if (!confirm('Excluir este cliente?')) return;
+  
+  try {
+    await api(`/customers/${id}`, { method: 'DELETE' });
+    showToast('Cliente excluído');
+    await renderCustomers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderVendors() {
+  const content = document.getElementById('content');
+  
+  try {
+    const vendors = await api('/vendors');
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2>Vendedores</h2>
+          <button class="btn btn-primary" onclick="openVendorModal()">
+            <i class="fas fa-plus"></i> Novo Vendedor
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Telefone</th>
+                  <th>Comissão</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${vendors.map(v => `
+                  <tr>
+                    <td>${v.nome}</td>
+                    <td>${v.email || '-'}</td>
+                    <td>${v.telefone || '-'}</td>
+                    <td>${v.comissao || 0}%</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function openVendorModal() {
+  const formContent = `
+    <form id="vendorForm" onsubmit="saveVendor(event)">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" name="nome" required>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email">
+        </div>
+        <div class="form-group">
+          <label>Telefone</label>
+          <input type="text" name="telefone">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Comissão (%)</label>
+        <input type="number" step="0.01" name="comissao" value="5">
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Novo Vendedor', formContent);
+}
+
+async function saveVendor(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api('/vendors', { method: 'POST', body: data });
+    showToast('Vendedor cadastrado');
+    closeModal();
+    await renderVendors();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderReceivables() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty-state">
+    <i class="fas fa-hand-holding-usd"></i>
+    <h3>Contas a Receber</h3>
+    <p>As contas a receber são geradas automaticamente pelas vendas</p>
+  </div>`;
+}
+
+async function renderPayables() {
+  const content = document.getElementById('content');
+  
+  try {
+    const contas = await api('/financial/pagar');
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2>Contas a Pagar</h2>
+          <button class="btn btn-primary" onclick="openPayableModal()">
+            <i class="fas fa-plus"></i> Nova Conta
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descrição</th>
+                  <th>Fornecedor</th>
+                  <th>Vencimento</th>
+                  <th>Valor</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${contas.map(c => `
+                  <tr>
+                    <td>${c.descricao}</td>
+                    <td>${c.fornecedor || '-'}</td>
+                    <td>${formatDate(c.data_vencimento)}</td>
+                    <td>${formatCurrency(c.valor)}</td>
+                    <td><span class="badge badge-${c.status === 'PAGO' ? 'success' : 'warning'}">${c.status}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function openPayableModal() {
+  const formContent = `
+    <form id="payableForm" onsubmit="savePayable(event)">
+      <div class="form-group">
+        <label>Descrição *</label>
+        <input type="text" name="descricao" required>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fornecedor</label>
+          <input type="text" name="fornecedor">
+        </div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <select name="categoria">
+            <option value="">Selecione...</option>
+            <option value="ALUGUEL">Aluguel</option>
+            <option value="ENERGIA">Energia</option>
+            <option value="AGUA">Água</option>
+            <option value="INTERNET">Internet</option>
+            <option value="FORNECEDOR">Fornecedor</option>
+            <option value="SALARIOS">Salários</option>
+            <option value="OUTROS">Outros</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor *</label>
+          <input type="number" step="0.01" name="valor" required>
+        </div>
+        <div class="form-group">
+          <label>Vencimento *</label>
+          <input type="date" name="data_vencimento" required>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Nova Conta a Pagar', formContent);
+}
+
+async function savePayable(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api('/financial/pagar', { method: 'POST', body: data });
+    showToast('Conta cadastrada');
+    closeModal();
+    await renderPayables();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderReconciliation() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty-state">
+    <i class="fas fa-university"></i>
+    <h3>Conciliação Bancária</h3>
+    <p>Importe extratos bancários para conciliar automaticamente</p>
+  </div>`;
+}
+
+async function renderCashFlow() {
+  const content = document.getElementById('content');
+  
+  try {
+    const fluxo = await api('/financial/fluxo-caixa');
+    
+    content.innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-arrow-down"></i></div>
+          <div class="stat-value">${formatCurrency(fluxo.receber?.total_previsto)}</div>
+          <div class="stat-label">Total a Receber</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="fas fa-arrow-up"></i></div>
+          <div class="stat-value">${formatCurrency(fluxo.pagar?.total_previsto)}</div>
+          <div class="stat-label">Total a Pagar</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon yellow"><i class="fas fa-balance-scale"></i></div>
+          <div class="stat-value">${formatCurrency(fluxo.saldo_previsto)}</div>
+          <div class="stat-label">Saldo Previsto</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-check-circle"></i></div>
+          <div class="stat-value">${formatCurrency(fluxo.saldo_realizado)}</div>
+          <div class="stat-label">Saldo Realizado</div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderUsers() {
+  const content = document.getElementById('content');
+  
+  try {
+    const users = await api('/users');
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2>Usuários</h2>
+          <button class="btn btn-primary" onclick="openUserModal()">
+            <i class="fas fa-plus"></i> Novo Usuário
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Email</th>
+                  <th>Perfil</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${users.map(u => `
+                  <tr>
+                    <td>${u.nome}</td>
+                    <td>${u.email}</td>
+                    <td>${u.perfil}</td>
+                    <td><span class="badge badge-${u.ativo ? 'success' : 'danger'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function openUserModal() {
+  const formContent = `
+    <form id="userForm" onsubmit="saveUser(event)">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" name="nome" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" name="email" required>
+      </div>
+      
+      <div class="form-group">
+        <label>Senha Temporária</label>
+        <input type="password" name="senha" value="temp123">
+      </div>
+      
+      <div class="form-group">
+        <label>Perfil</label>
+        <select name="perfil">
+          <option value="OPERACIONAL">Operacional</option>
+          <option value="GESTOR_FRANQUIA">Gestor de Franquia</option>
+          ${currentUser.perfil === 'ADMIN_GLOBAL' ? '<option value="ADMIN_GLOBAL">Admin Global</option>' : ''}
+        </select>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Novo Usuário', formContent);
+}
+
+async function saveUser(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api('/users', { method: 'POST', body: data });
+    showToast('Usuário cadastrado');
+    closeModal();
+    await renderUsers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function renderCompanies() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty-state">
+    <i class="fas fa-store"></i>
+    <h3>Franquias</h3>
+    <p>Gerencie as franquias do sistema</p>
+  </div>`;
+}
+
+async function renderStores() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty-state">
+    <i class="fas fa-map-marker-alt"></i>
+    <h3>Lojas</h3>
+    <p>Gerencie as lojas do sistema</p>
+  </div>`;
+}
+
+async function renderPurchaseRequests() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty-state">
+    <i class="fas fa-truck"></i>
+    <h3>Solicitações de Compra</h3>
+    <p>Gerencie as solicitações de produtos</p>
+  </div>`;
+}
+
+async function renderAuditLogs() {
+  const content = document.getElementById('content');
+  content.innerHTML = `<div class="empty-state">
+    <i class="fas fa-history"></i>
+    <h3>Logs de Auditoria</h3>
+    <p>Visualize o histórico de ações do sistema</p>
+  </div>`;
+}
+
+document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+window.addEventListener('popstate', () => {
+  const path = window.location.pathname.replace('/app/', '').replace('/app', '');
+  if (path) {
+    currentPage = path;
+    renderMenu();
+    loadPage(currentPage);
   }
 });
 
-function openAnexoModal(tipoEntidade, entidadeId) {
-  alert('Funcionalidade de anexos para ' + tipoEntidade + ' #' + entidadeId);
-}
-
-document.querySelectorAll('form').forEach(form => {
-  form.addEventListener('submit', function() {
-    const btn = form.querySelector('button[type="submit"]');
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aguarde...';
-    }
-  });
-});
-
-function formatMoney(input) {
-  let value = input.value.replace(/\D/g, '');
-  value = (parseInt(value) / 100).toFixed(2);
-  input.value = value;
-}
-
-function confirmAction(message) {
-  return confirm(message || 'Confirma esta ação?');
-}
+init();
