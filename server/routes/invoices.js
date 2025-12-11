@@ -91,6 +91,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Nota fiscal não encontrada' });
     }
     
+    if (req.user.perfil !== 'ADMIN_GLOBAL' && invoice.loja_id !== req.user.loja_id) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    
     res.json(invoice);
   } catch (error) {
     console.error('Erro ao buscar nota fiscal:', error);
@@ -112,6 +116,12 @@ router.post('/', isGestorOuAdmin, async (req, res) => {
     
     let numero = tipo === 'NFCE' ? fiscalData.numero_nfce_atual + 1 : fiscalData.numero_nfe_atual + 1;
     let serie = tipo === 'NFCE' ? fiscalData.serie_nfce : fiscalData.serie_nfe;
+    
+    if (tipo === 'NFCE') {
+      await fiscalData.update({ numero_nfce_atual: numero });
+    } else {
+      await fiscalData.update({ numero_nfe_atual: numero });
+    }
     
     const invoice = await Invoice.create({
       ...data,
@@ -188,6 +198,12 @@ router.post('/from-sale/:vendaId', isGestorOuAdmin, async (req, res) => {
     
     let numero = tipo === 'NFCE' ? fiscalData.numero_nfce_atual + 1 : fiscalData.numero_nfe_atual + 1;
     let serie = tipo === 'NFCE' ? fiscalData.serie_nfce : fiscalData.serie_nfe;
+    
+    if (tipo === 'NFCE') {
+      await fiscalData.update({ numero_nfce_atual: numero });
+    } else {
+      await fiscalData.update({ numero_nfe_atual: numero });
+    }
     
     const invoice = await Invoice.create({
       loja_id: sale.loja_id,

@@ -153,7 +153,58 @@ Ao iniciar pela primeira vez, o sistema cria automaticamente um ADMIN GLOBAL:
 - **Senhas:** Hash com bcryptjs
 - **Multi-tenant:** Filtro automático por loja/empresa
 
+## Notas Fiscais (NF-e / NFC-e / NFS-e)
+
+O sistema possui um módulo completo de gestão de notas fiscais similar ao Bling:
+
+### Funcionalidades
+- Emissão de NF-e (Nota Fiscal Eletrônica)
+- Emissão de NFC-e (Cupom Fiscal Eletrônico)
+- Emissão de NFS-e (Nota Fiscal de Serviço)
+- Cancelamento de notas com motivo
+- Carta de correção
+- Geração de notas a partir de vendas
+
+### Status das Notas
+- **RASCUNHO:** Nota criada mas não emitida (pode editar/excluir)
+- **PROCESSANDO:** Enviada para processamento
+- **AUTORIZADA:** Nota válida e autorizada pela SEFAZ
+- **REJEITADA:** Rejeitada pela SEFAZ (verificar erros)
+- **CANCELADA:** Nota cancelada
+
+### Configuração Fiscal
+Antes de emitir notas, configure os dados fiscais:
+1. Razão Social e CNPJ
+2. Endereço completo
+3. Regime tributário
+4. Séries e numeração
+5. Integração com API (opcional)
+
+### Integração com API
+O sistema suporta integração com:
+- Focus NFe
+- PlugNotas
+- Nuvem Fiscal
+
+**Modo Manual:** Sem integração, as notas são apenas registradas no sistema.
+
+### Arquivos
+- `server/models/index.js` - Modelos: FiscalData, Invoice, InvoiceItem, InvoiceEvent
+- `server/routes/invoices.js` - Rotas da API de notas fiscais
+- `public/js/app.js` - Interface frontend (renderInvoices)
+
 ## Mudanças Recentes
+
+- **11/12/2024:** Módulo de Notas Fiscais
+  - Modelos de banco: FiscalData, Invoice, InvoiceItem, InvoiceEvent
+  - CRUD completo de notas fiscais
+  - Interface para criação manual de notas
+  - Configuração de dados fiscais da empresa
+  - Emissão, cancelamento e carta de correção
+  - Geração de notas a partir de vendas (generateInvoiceFromSale)
+  - Dashboard com estatísticas de notas emitidas
+  - Filtros por status e tipo de nota
+  - Suporte a integração com APIs de NF-e
 
 - **11/12/2024:** Dashboard do Franqueado com Estoque TM Imports
   - Nova seção no dashboard do franqueado mostrando estoque disponível da matriz

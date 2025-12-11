@@ -20,6 +20,7 @@ const menuItems = {
     { section: 'Vendas', items: [
       { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
       { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'notas-fiscais', label: 'Notas Fiscais', icon: 'fas fa-file-invoice' },
       { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' },
       { id: 'vendedores', label: 'Vendedores', icon: 'fas fa-user-tie' }
     ]},
@@ -49,6 +50,7 @@ const menuItems = {
     { section: 'Vendas', items: [
       { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
       { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'notas-fiscais', label: 'Notas Fiscais', icon: 'fas fa-file-invoice' },
       { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' },
       { id: 'vendedores', label: 'Vendedores', icon: 'fas fa-user-tie' }
     ]},
@@ -199,7 +201,8 @@ async function loadPage(page) {
     'lojas': 'Lojas',
     'solicitacoes': 'Solicitações de Compra',
     'solicitar': 'Solicitar Produtos',
-    'manual': 'Manual do Sistema'
+    'manual': 'Manual do Sistema',
+    'notas-fiscais': 'Notas Fiscais'
   };
   
   pageTitle.textContent = titles[page] || 'Dashboard';
@@ -264,6 +267,9 @@ async function loadPage(page) {
         break;
       case 'manual':
         await renderManual();
+        break;
+      case 'notas-fiscais':
+        await renderInvoices();
         break;
       default:
         await renderDashboard();
@@ -3413,6 +3419,803 @@ async function renderManual() {
       </div>
     </div>
   `;
+}
+
+async function renderInvoices() {
+  const content = document.getElementById('content');
+  const isGestor = ['ADMIN_GLOBAL', 'GESTOR_FRANQUIA'].includes(currentUser.perfil);
+  
+  try {
+    const [invoices, stats] = await Promise.all([
+      api('/invoices'),
+      api('/invoices/dashboard/stats')
+    ]);
+    
+    content.innerHTML = `
+      <div class="page-actions">
+        ${isGestor ? `
+          <button class="btn btn-primary" onclick="openNewInvoiceModal()">
+            <i class="fas fa-plus"></i> Nova Nota Fiscal
+          </button>
+          <button class="btn btn-secondary" onclick="openFiscalConfigModal()">
+            <i class="fas fa-cog"></i> Configurar Dados Fiscais
+          </button>
+        ` : ''}
+      </div>
+      
+      <div class="stats-grid stats-grid-4">
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+          <div class="stat-value">${stats.totalEmitidas || 0}</div>
+          <div class="stat-label">Notas Autorizadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="fas fa-times-circle"></i></div>
+          <div class="stat-value">${stats.totalCanceladas || 0}</div>
+          <div class="stat-label">Canceladas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-calendar"></i></div>
+          <div class="stat-value">${stats.totalMes || 0}</div>
+          <div class="stat-label">Emitidas no Mes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+          <div class="stat-value">${formatCurrency(stats.valorMes || 0)}</div>
+          <div class="stat-label">Valor no Mes</div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-file-invoice"></i> Notas Fiscais</h2>
+          <div class="filters">
+            <select id="filterStatus" onchange="filterInvoices()">
+              <option value="">Todos os Status</option>
+              <option value="RASCUNHO">Rascunho</option>
+              <option value="PROCESSANDO">Processando</option>
+              <option value="AUTORIZADA">Autorizada</option>
+              <option value="REJEITADA">Rejeitada</option>
+              <option value="CANCELADA">Cancelada</option>
+            </select>
+            <select id="filterTipo" onchange="filterInvoices()">
+              <option value="">Todos os Tipos</option>
+              <option value="NFE">NF-e</option>
+              <option value="NFCE">NFC-e</option>
+              <option value="NFSE">NFS-e</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Numero</th>
+                  <th>Tipo</th>
+                  <th>Cliente</th>
+                  <th>Valor</th>
+                  <th>Data</th>
+                  <th>Status</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody id="invoicesTableBody">
+                ${renderInvoicesTable(invoices)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    window.allInvoices = invoices;
+  } catch (error) {
+    console.error('Erro ao carregar notas fiscais:', error);
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-exclamation-triangle"></i>
+      <h3>Erro ao carregar notas fiscais</h3>
+      <p>${error.message}</p>
+    </div>`;
+  }
+}
+
+function renderInvoicesTable(invoices) {
+  if (!invoices || invoices.length === 0) {
+    return '<tr><td colspan="7" class="text-center">Nenhuma nota fiscal encontrada</td></tr>';
+  }
+  
+  return invoices.map(inv => {
+    const statusColors = {
+      'RASCUNHO': 'secondary',
+      'PROCESSANDO': 'warning',
+      'AUTORIZADA': 'success',
+      'REJEITADA': 'danger',
+      'CANCELADA': 'danger'
+    };
+    
+    const tipoLabels = {
+      'NFE': 'NF-e',
+      'NFCE': 'NFC-e',
+      'NFSE': 'NFS-e'
+    };
+    
+    return `
+      <tr>
+        <td>${inv.numero || '-'}</td>
+        <td><span class="badge badge-primary">${tipoLabels[inv.tipo] || inv.tipo}</span></td>
+        <td>${inv.cliente?.nome || inv.destinatario_nome || 'Consumidor Final'}</td>
+        <td>${formatCurrency(inv.valor_total)}</td>
+        <td>${inv.data_emissao ? formatDate(inv.data_emissao) : formatDate(inv.createdAt)}</td>
+        <td><span class="badge badge-${statusColors[inv.status] || 'secondary'}">${inv.status}</span></td>
+        <td class="actions">
+          <button class="btn btn-sm btn-secondary" onclick="viewInvoice(${inv.id})" title="Visualizar">
+            <i class="fas fa-eye"></i>
+          </button>
+          ${inv.status === 'RASCUNHO' ? `
+            <button class="btn btn-sm btn-success" onclick="emitInvoice(${inv.id})" title="Emitir">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="deleteInvoice(${inv.id})" title="Excluir">
+              <i class="fas fa-trash"></i>
+            </button>
+          ` : ''}
+          ${inv.status === 'AUTORIZADA' ? `
+            <button class="btn btn-sm btn-warning" onclick="openCancelModal(${inv.id})" title="Cancelar">
+              <i class="fas fa-ban"></i>
+            </button>
+            <button class="btn btn-sm btn-info" onclick="openCartaCorrecaoModal(${inv.id})" title="Carta de Correcao">
+              <i class="fas fa-edit"></i>
+            </button>
+          ` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterInvoices() {
+  const status = document.getElementById('filterStatus').value;
+  const tipo = document.getElementById('filterTipo').value;
+  
+  let filtered = window.allInvoices || [];
+  
+  if (status) {
+    filtered = filtered.filter(inv => inv.status === status);
+  }
+  if (tipo) {
+    filtered = filtered.filter(inv => inv.tipo === tipo);
+  }
+  
+  document.getElementById('invoicesTableBody').innerHTML = renderInvoicesTable(filtered);
+}
+
+async function openNewInvoiceModal() {
+  try {
+    const [customers, products] = await Promise.all([
+      api('/customers'),
+      api('/products')
+    ]);
+    
+    const modalContent = `
+      <form id="newInvoiceForm" onsubmit="saveNewInvoice(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tipo de Nota *</label>
+            <select name="tipo" required>
+              <option value="NFE">NF-e (Nota Fiscal Eletronica)</option>
+              <option value="NFCE">NFC-e (Nota Fiscal Consumidor)</option>
+              <option value="NFSE">NFS-e (Nota Fiscal de Servico)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Natureza da Operacao</label>
+            <input type="text" name="natureza_operacao" value="Venda de Mercadoria">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Cliente</label>
+          <select name="cliente_id" id="invoiceClienteSelect" onchange="fillClienteData()">
+            <option value="">Consumidor Final</option>
+            ${customers.map(c => `<option value="${c.id}" data-cpf="${c.cpf_cnpj || ''}" data-email="${c.email || ''}" data-endereco="${c.endereco || ''}" data-cidade="${c.cidade || ''}" data-uf="${c.estado || ''}" data-cep="${c.cep || ''}" data-tel="${c.telefone || ''}">${c.nome}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nome/Razao Social</label>
+            <input type="text" name="destinatario_nome" id="destNome">
+          </div>
+          <div class="form-group">
+            <label>CPF/CNPJ</label>
+            <input type="text" name="destinatario_cpf_cnpj" id="destCpf">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="destinatario_email" id="destEmail">
+          </div>
+          <div class="form-group">
+            <label>Telefone</label>
+            <input type="text" name="destinatario_telefone" id="destTel">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group flex-2">
+            <label>Endereco</label>
+            <input type="text" name="destinatario_endereco" id="destEndereco">
+          </div>
+          <div class="form-group">
+            <label>Cidade</label>
+            <input type="text" name="destinatario_cidade" id="destCidade">
+          </div>
+          <div class="form-group" style="width: 80px;">
+            <label>UF</label>
+            <input type="text" name="destinatario_uf" id="destUf" maxlength="2">
+          </div>
+          <div class="form-group">
+            <label>CEP</label>
+            <input type="text" name="destinatario_cep" id="destCep">
+          </div>
+        </div>
+        
+        <h4>Itens da Nota</h4>
+        <div id="invoiceItems">
+          <div class="invoice-item-row" data-index="0">
+            <select name="produto_0" class="produto-select" onchange="updateItemPrice(0)">
+              <option value="">Selecione um produto</option>
+              ${products.filter(p => p.tipo !== 'SERVICO').map(p => `<option value="${p.id}" data-preco="${p.preco_venda}" data-codigo="${p.codigo}" data-nome="${p.nome}">${p.codigo} - ${p.nome} (${formatCurrency(p.preco_venda)})</option>`).join('')}
+            </select>
+            <input type="number" name="quantidade_0" placeholder="Qtd" min="1" value="1" onchange="updateItemTotal(0)">
+            <input type="number" name="preco_0" placeholder="Preco" step="0.01" onchange="updateItemTotal(0)">
+            <input type="number" name="total_0" placeholder="Total" step="0.01" readonly>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeInvoiceItem(0)"><i class="fas fa-times"></i></button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="addInvoiceItem()">
+          <i class="fas fa-plus"></i> Adicionar Item
+        </button>
+        
+        <div class="form-row" style="margin-top: 20px;">
+          <div class="form-group">
+            <label>Valor Produtos</label>
+            <input type="number" name="valor_produtos" id="valorProdutos" step="0.01" readonly>
+          </div>
+          <div class="form-group">
+            <label>Desconto</label>
+            <input type="number" name="valor_desconto" step="0.01" value="0" onchange="calcInvoiceTotal()">
+          </div>
+          <div class="form-group">
+            <label>Total da Nota</label>
+            <input type="number" name="valor_total" id="valorTotal" step="0.01" readonly>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Forma de Pagamento</label>
+          <select name="forma_pagamento">
+            <option value="DINHEIRO">Dinheiro</option>
+            <option value="CARTAO_CREDITO">Cartao de Credito</option>
+            <option value="CARTAO_DEBITO">Cartao de Debito</option>
+            <option value="PIX">PIX</option>
+            <option value="BOLETO">Boleto</option>
+            <option value="TRANSFERENCIA">Transferencia</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Informacoes Adicionais</label>
+          <textarea name="informacoes_adicionais" rows="2"></textarea>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Rascunho</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Nova Nota Fiscal', modalContent);
+    window.invoiceProducts = products;
+    window.invoiceItemIndex = 1;
+  } catch (error) {
+    showToast('Erro ao carregar dados: ' + error.message, 'error');
+  }
+}
+
+function fillClienteData() {
+  const select = document.getElementById('invoiceClienteSelect');
+  const option = select.options[select.selectedIndex];
+  
+  document.getElementById('destNome').value = option.text !== 'Consumidor Final' ? option.text : '';
+  document.getElementById('destCpf').value = option.dataset.cpf || '';
+  document.getElementById('destEmail').value = option.dataset.email || '';
+  document.getElementById('destEndereco').value = option.dataset.endereco || '';
+  document.getElementById('destCidade').value = option.dataset.cidade || '';
+  document.getElementById('destUf').value = option.dataset.uf || '';
+  document.getElementById('destCep').value = option.dataset.cep || '';
+  document.getElementById('destTel').value = option.dataset.tel || '';
+}
+
+function addInvoiceItem() {
+  const idx = window.invoiceItemIndex++;
+  const products = window.invoiceProducts || [];
+  
+  const html = `
+    <div class="invoice-item-row" data-index="${idx}">
+      <select name="produto_${idx}" class="produto-select" onchange="updateItemPrice(${idx})">
+        <option value="">Selecione um produto</option>
+        ${products.filter(p => p.tipo !== 'SERVICO').map(p => `<option value="${p.id}" data-preco="${p.preco_venda}" data-codigo="${p.codigo}" data-nome="${p.nome}">${p.codigo} - ${p.nome} (${formatCurrency(p.preco_venda)})</option>`).join('')}
+      </select>
+      <input type="number" name="quantidade_${idx}" placeholder="Qtd" min="1" value="1" onchange="updateItemTotal(${idx})">
+      <input type="number" name="preco_${idx}" placeholder="Preco" step="0.01" onchange="updateItemTotal(${idx})">
+      <input type="number" name="total_${idx}" placeholder="Total" step="0.01" readonly>
+      <button type="button" class="btn btn-sm btn-danger" onclick="removeInvoiceItem(${idx})"><i class="fas fa-times"></i></button>
+    </div>
+  `;
+  
+  document.getElementById('invoiceItems').insertAdjacentHTML('beforeend', html);
+}
+
+function removeInvoiceItem(idx) {
+  const row = document.querySelector(`.invoice-item-row[data-index="${idx}"]`);
+  if (row) {
+    row.remove();
+    calcInvoiceTotal();
+  }
+}
+
+function updateItemPrice(idx) {
+  const select = document.querySelector(`select[name="produto_${idx}"]`);
+  const option = select.options[select.selectedIndex];
+  const preco = parseFloat(option.dataset.preco) || 0;
+  
+  document.querySelector(`input[name="preco_${idx}"]`).value = preco.toFixed(2);
+  updateItemTotal(idx);
+}
+
+function updateItemTotal(idx) {
+  const qtd = parseFloat(document.querySelector(`input[name="quantidade_${idx}"]`).value) || 0;
+  const preco = parseFloat(document.querySelector(`input[name="preco_${idx}"]`).value) || 0;
+  const total = qtd * preco;
+  
+  document.querySelector(`input[name="total_${idx}"]`).value = total.toFixed(2);
+  calcInvoiceTotal();
+}
+
+function calcInvoiceTotal() {
+  const rows = document.querySelectorAll('.invoice-item-row');
+  let subtotal = 0;
+  
+  rows.forEach(row => {
+    const idx = row.dataset.index;
+    const total = parseFloat(document.querySelector(`input[name="total_${idx}"]`).value) || 0;
+    subtotal += total;
+  });
+  
+  const desconto = parseFloat(document.querySelector('input[name="valor_desconto"]').value) || 0;
+  
+  document.getElementById('valorProdutos').value = subtotal.toFixed(2);
+  document.getElementById('valorTotal').value = (subtotal - desconto).toFixed(2);
+}
+
+async function saveNewInvoice(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  
+  const itens = [];
+  const rows = document.querySelectorAll('.invoice-item-row');
+  
+  rows.forEach(row => {
+    const idx = row.dataset.index;
+    const produtoId = formData.get(`produto_${idx}`);
+    if (produtoId) {
+      const select = document.querySelector(`select[name="produto_${idx}"]`);
+      const option = select.options[select.selectedIndex];
+      
+      itens.push({
+        produto_id: parseInt(produtoId),
+        codigo: option.dataset.codigo,
+        descricao: option.dataset.nome,
+        quantidade: parseFloat(formData.get(`quantidade_${idx}`)) || 1,
+        valor_unitario: parseFloat(formData.get(`preco_${idx}`)) || 0,
+        valor_total: parseFloat(formData.get(`total_${idx}`)) || 0,
+        ncm: '00000000',
+        cfop: '5102',
+        unidade: 'UN',
+        cst_icms: '102',
+        cst_pis: '49',
+        cst_cofins: '49',
+        origem: '0'
+      });
+    }
+  });
+  
+  const data = {
+    tipo: formData.get('tipo'),
+    natureza_operacao: formData.get('natureza_operacao'),
+    cliente_id: formData.get('cliente_id') || null,
+    destinatario_nome: formData.get('destinatario_nome'),
+    destinatario_cpf_cnpj: formData.get('destinatario_cpf_cnpj'),
+    destinatario_email: formData.get('destinatario_email'),
+    destinatario_telefone: formData.get('destinatario_telefone'),
+    destinatario_endereco: formData.get('destinatario_endereco'),
+    destinatario_cidade: formData.get('destinatario_cidade'),
+    destinatario_uf: formData.get('destinatario_uf'),
+    destinatario_cep: formData.get('destinatario_cep'),
+    valor_produtos: parseFloat(formData.get('valor_produtos')) || 0,
+    valor_desconto: parseFloat(formData.get('valor_desconto')) || 0,
+    valor_total: parseFloat(formData.get('valor_total')) || 0,
+    forma_pagamento: formData.get('forma_pagamento'),
+    informacoes_adicionais: formData.get('informacoes_adicionais'),
+    itens
+  };
+  
+  try {
+    await api('/invoices', { method: 'POST', body: data });
+    showToast('Nota fiscal criada com sucesso!', 'success');
+    closeModal();
+    await renderInvoices();
+  } catch (error) {
+    showToast('Erro ao criar nota: ' + error.message, 'error');
+  }
+}
+
+async function viewInvoice(id) {
+  try {
+    const invoice = await api(`/invoices/${id}`);
+    
+    const statusColors = {
+      'RASCUNHO': 'secondary',
+      'PROCESSANDO': 'warning',
+      'AUTORIZADA': 'success',
+      'REJEITADA': 'danger',
+      'CANCELADA': 'danger'
+    };
+    
+    const modalContent = `
+      <div class="invoice-details">
+        <div class="invoice-header-info">
+          <div class="invoice-number">
+            <h3>${invoice.tipo} ${invoice.numero}/${invoice.serie}</h3>
+            <span class="badge badge-${statusColors[invoice.status]}">${invoice.status}</span>
+          </div>
+          <div class="invoice-dates">
+            <p><strong>Emissao:</strong> ${invoice.data_emissao ? formatDate(invoice.data_emissao) : 'Pendente'}</p>
+            ${invoice.chave_acesso ? `<p><strong>Chave:</strong> <small>${invoice.chave_acesso}</small></p>` : ''}
+            ${invoice.protocolo ? `<p><strong>Protocolo:</strong> ${invoice.protocolo}</p>` : ''}
+          </div>
+        </div>
+        
+        <div class="invoice-section">
+          <h4>Destinatario</h4>
+          <p><strong>Nome:</strong> ${invoice.destinatario_nome || 'Consumidor Final'}</p>
+          <p><strong>CPF/CNPJ:</strong> ${invoice.destinatario_cpf_cnpj || '-'}</p>
+          <p><strong>Email:</strong> ${invoice.destinatario_email || '-'}</p>
+          <p><strong>Endereco:</strong> ${invoice.destinatario_endereco || '-'}, ${invoice.destinatario_cidade || ''} - ${invoice.destinatario_uf || ''}</p>
+        </div>
+        
+        <div class="invoice-section">
+          <h4>Itens</h4>
+          <table class="table-sm">
+            <thead>
+              <tr><th>Codigo</th><th>Descricao</th><th>Qtd</th><th>Valor Unit</th><th>Total</th></tr>
+            </thead>
+            <tbody>
+              ${(invoice.itens || []).map(item => `
+                <tr>
+                  <td>${item.codigo || '-'}</td>
+                  <td>${item.descricao || item.produto?.nome || '-'}</td>
+                  <td>${item.quantidade}</td>
+                  <td>${formatCurrency(item.valor_unitario)}</td>
+                  <td>${formatCurrency(item.valor_total)}</td>
+                </tr>
+              `).join('') || '<tr><td colspan="5">Nenhum item</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="invoice-totals">
+          <p><strong>Subtotal:</strong> ${formatCurrency(invoice.valor_produtos)}</p>
+          <p><strong>Desconto:</strong> ${formatCurrency(invoice.valor_desconto)}</p>
+          <p class="total"><strong>Total:</strong> ${formatCurrency(invoice.valor_total)}</p>
+        </div>
+        
+        ${(invoice.eventos || []).length > 0 ? `
+          <div class="invoice-section">
+            <h4>Eventos</h4>
+            <ul class="event-list">
+              ${invoice.eventos.map(ev => `
+                <li>
+                  <span class="badge badge-${ev.tipo === 'EMISSAO' ? 'success' : ev.tipo === 'CANCELAMENTO' ? 'danger' : 'info'}">${ev.tipo}</span>
+                  ${ev.descricao} - ${formatDate(ev.data_evento)}
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : ''}
+        
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+          ${invoice.status === 'RASCUNHO' ? `<button class="btn btn-success" onclick="closeModal(); emitInvoice(${id})">Emitir Nota</button>` : ''}
+        </div>
+      </div>
+    `;
+    
+    openModal(`Nota Fiscal ${invoice.numero}`, modalContent);
+  } catch (error) {
+    showToast('Erro ao carregar nota: ' + error.message, 'error');
+  }
+}
+
+async function emitInvoice(id) {
+  if (!confirm('Deseja emitir esta nota fiscal? Apos a emissao, os dados nao poderao ser alterados.')) {
+    return;
+  }
+  
+  try {
+    const result = await api(`/invoices/${id}/emitir`, { method: 'POST' });
+    showToast(result.message, 'success');
+    await renderInvoices();
+  } catch (error) {
+    showToast('Erro ao emitir nota: ' + error.message, 'error');
+  }
+}
+
+async function deleteInvoice(id) {
+  if (!confirm('Deseja excluir este rascunho de nota fiscal?')) {
+    return;
+  }
+  
+  try {
+    await api(`/invoices/${id}`, { method: 'DELETE' });
+    showToast('Nota fiscal excluida!', 'success');
+    await renderInvoices();
+  } catch (error) {
+    showToast('Erro ao excluir: ' + error.message, 'error');
+  }
+}
+
+function openCancelModal(id) {
+  const modalContent = `
+    <form onsubmit="cancelInvoice(event, ${id})">
+      <div class="form-group">
+        <label>Motivo do Cancelamento *</label>
+        <textarea name="motivo" required minlength="15" rows="3" placeholder="Descreva o motivo do cancelamento (minimo 15 caracteres)"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Voltar</button>
+        <button type="submit" class="btn btn-danger">Cancelar Nota</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Cancelar Nota Fiscal', modalContent);
+}
+
+async function cancelInvoice(e, id) {
+  e.preventDefault();
+  const motivo = e.target.motivo.value;
+  
+  try {
+    await api(`/invoices/${id}/cancelar`, { method: 'POST', body: { motivo } });
+    showToast('Nota fiscal cancelada!', 'success');
+    closeModal();
+    await renderInvoices();
+  } catch (error) {
+    showToast('Erro ao cancelar: ' + error.message, 'error');
+  }
+}
+
+function openCartaCorrecaoModal(id) {
+  const modalContent = `
+    <form onsubmit="sendCartaCorrecao(event, ${id})">
+      <div class="form-group">
+        <label>Correcao *</label>
+        <textarea name="correcao" required minlength="15" rows="3" placeholder="Descreva a correcao a ser feita (minimo 15 caracteres)"></textarea>
+        <small>A carta de correcao nao permite alterar valores, apenas informacoes complementares.</small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Enviar Carta de Correcao</button>
+      </div>
+    </form>
+  `;
+  
+  openModal('Carta de Correcao', modalContent);
+}
+
+async function sendCartaCorrecao(e, id) {
+  e.preventDefault();
+  const correcao = e.target.correcao.value;
+  
+  try {
+    const result = await api(`/invoices/${id}/carta-correcao`, { method: 'POST', body: { correcao } });
+    showToast(`Carta de correcao #${result.sequencia} registrada!`, 'success');
+    closeModal();
+    await renderInvoices();
+  } catch (error) {
+    showToast('Erro: ' + error.message, 'error');
+  }
+}
+
+async function openFiscalConfigModal() {
+  try {
+    const fiscalData = await api('/invoices/fiscal-data');
+    
+    const modalContent = `
+      <form onsubmit="saveFiscalConfig(event)">
+        <h4>Dados da Empresa</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Razao Social *</label>
+            <input type="text" name="razao_social" value="${fiscalData.razao_social || ''}" required>
+          </div>
+          <div class="form-group">
+            <label>Nome Fantasia</label>
+            <input type="text" name="nome_fantasia" value="${fiscalData.nome_fantasia || ''}">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>CNPJ *</label>
+            <input type="text" name="cnpj" value="${fiscalData.cnpj || ''}" required>
+          </div>
+          <div class="form-group">
+            <label>Inscricao Estadual</label>
+            <input type="text" name="inscricao_estadual" value="${fiscalData.inscricao_estadual || ''}">
+          </div>
+          <div class="form-group">
+            <label>Inscricao Municipal</label>
+            <input type="text" name="inscricao_municipal" value="${fiscalData.inscricao_municipal || ''}">
+          </div>
+        </div>
+        
+        <h4>Endereco</h4>
+        <div class="form-row">
+          <div class="form-group flex-2">
+            <label>Logradouro</label>
+            <input type="text" name="endereco" value="${fiscalData.endereco || ''}">
+          </div>
+          <div class="form-group">
+            <label>Numero</label>
+            <input type="text" name="numero" value="${fiscalData.numero || ''}">
+          </div>
+          <div class="form-group">
+            <label>Bairro</label>
+            <input type="text" name="bairro" value="${fiscalData.bairro || ''}">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Cidade</label>
+            <input type="text" name="cidade" value="${fiscalData.cidade || ''}">
+          </div>
+          <div class="form-group" style="width: 80px;">
+            <label>UF</label>
+            <input type="text" name="uf" value="${fiscalData.uf || ''}" maxlength="2">
+          </div>
+          <div class="form-group">
+            <label>CEP</label>
+            <input type="text" name="cep" value="${fiscalData.cep || ''}">
+          </div>
+          <div class="form-group">
+            <label>Codigo IBGE Cidade</label>
+            <input type="text" name="codigo_municipio" value="${fiscalData.codigo_municipio || ''}">
+          </div>
+        </div>
+        
+        <h4>Regime Tributario</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Regime Tributario</label>
+            <select name="regime_tributario">
+              <option value="1" ${fiscalData.regime_tributario === '1' ? 'selected' : ''}>Simples Nacional</option>
+              <option value="2" ${fiscalData.regime_tributario === '2' ? 'selected' : ''}>Simples Nacional - Excesso</option>
+              <option value="3" ${fiscalData.regime_tributario === '3' ? 'selected' : ''}>Regime Normal</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Ambiente</label>
+            <select name="ambiente">
+              <option value="2" ${fiscalData.ambiente !== '1' ? 'selected' : ''}>Homologacao (Testes)</option>
+              <option value="1" ${fiscalData.ambiente === '1' ? 'selected' : ''}>Producao</option>
+            </select>
+          </div>
+        </div>
+        
+        <h4>Numeracao</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Serie NF-e</label>
+            <input type="number" name="serie_nfe" value="${fiscalData.serie_nfe || 1}" min="1">
+          </div>
+          <div class="form-group">
+            <label>Ultimo Numero NF-e</label>
+            <input type="number" name="numero_nfe_atual" value="${fiscalData.numero_nfe_atual || 0}" min="0">
+          </div>
+          <div class="form-group">
+            <label>Serie NFC-e</label>
+            <input type="number" name="serie_nfce" value="${fiscalData.serie_nfce || 1}" min="1">
+          </div>
+          <div class="form-group">
+            <label>Ultimo Numero NFC-e</label>
+            <input type="number" name="numero_nfce_atual" value="${fiscalData.numero_nfce_atual || 0}" min="0">
+          </div>
+        </div>
+        
+        <h4>Integracao com API (Opcional)</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Provedor de API</label>
+            <select name="api_provider">
+              <option value="MANUAL" ${!fiscalData.api_provider || fiscalData.api_provider === 'MANUAL' ? 'selected' : ''}>Manual (Sem integracao)</option>
+              <option value="FOCUSNFE" ${fiscalData.api_provider === 'FOCUSNFE' ? 'selected' : ''}>Focus NFe</option>
+              <option value="PLUGNOTAS" ${fiscalData.api_provider === 'PLUGNOTAS' ? 'selected' : ''}>PlugNotas</option>
+              <option value="NUVEMFISCAL" ${fiscalData.api_provider === 'NUVEMFISCAL' ? 'selected' : ''}>Nuvem Fiscal</option>
+            </select>
+          </div>
+          <div class="form-group flex-2">
+            <label>Token da API</label>
+            <input type="password" name="api_token" value="${fiscalData.api_token || ''}" placeholder="Insira o token da API">
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Configuracoes</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Configuracoes Fiscais', modalContent);
+  } catch (error) {
+    showToast('Erro ao carregar configuracoes: ' + error.message, 'error');
+  }
+}
+
+async function saveFiscalConfig(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  
+  const data = {};
+  formData.forEach((value, key) => {
+    data[key] = value;
+  });
+  
+  try {
+    await api('/invoices/fiscal-data', { method: 'POST', body: data });
+    showToast('Configuracoes fiscais salvas!', 'success');
+    closeModal();
+  } catch (error) {
+    showToast('Erro ao salvar: ' + error.message, 'error');
+  }
+}
+
+async function generateInvoiceFromSale(vendaId) {
+  const tipoNota = prompt('Tipo de nota fiscal:\n1 - NF-e (Nota Fiscal Eletronica)\n2 - NFC-e (Cupom Fiscal)', '1');
+  
+  if (!tipoNota) return;
+  
+  const tipo = tipoNota === '2' ? 'NFCE' : 'NFE';
+  
+  try {
+    const invoice = await api(`/invoices/from-sale/${vendaId}`, { 
+      method: 'POST', 
+      body: { tipo } 
+    });
+    showToast(`Nota fiscal ${invoice.numero} criada! Acesse Notas Fiscais para emitir.`, 'success');
+  } catch (error) {
+    showToast('Erro ao criar nota: ' + error.message, 'error');
+  }
 }
 
 document.getElementById('sidebarToggle')?.addEventListener('click', () => {
