@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual do Gestor de Franquia - Tecle Motos</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 30px;
+      border-bottom: 2px solid #00FF88;
+    }
+    .logo {
+      max-width: 200px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+    }
+    h1 {
+      color: #00FF88;
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #888;
+      font-size: 1.2em;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding: 25px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 15px;
+      border-left: 4px solid #00FF88;
+    }
+    h2 {
+      color: #00FF88;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h3 {
+      color: #FF6B35;
+      margin: 15px 0 10px;
+    }
+    p { line-height: 1.8; margin-bottom: 10px; color: #ccc; }
+    ul, ol { margin-left: 25px; margin-bottom: 15px; }
+    li { margin-bottom: 8px; line-height: 1.6; color: #bbb; }
+    li strong { color: #fff; }
+    .note {
+      background: rgba(0,255,136,0.1);
+      border: 1px solid #00FF88;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 15px 0;
+    }
+    .note i { color: #00FF88; margin-right: 8px; }
+    .warning {
+      background: rgba(255,107,53,0.1);
+      border: 1px solid #FF6B35;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 15px 0;
+    }
+    .warning i { color: #FF6B35; margin-right: 8px; }
+    .back-link {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 12px 25px;
+      background: #00FF88;
+      color: #1a1a1a;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    .back-link:hover { background: #00cc6a; transform: translateY(-2px); }
+    .print-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: #FF6B35;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 15px;
+      font-size: 0.9em;
+      margin: 2px;
+    }
+    .status-pendente { background: #ffc107; color: #000; }
+    .status-aprovada { background: #17a2b8; color: #fff; }
+    .status-concluida { background: #28a745; color: #fff; }
+    .status-cancelada { background: #dc3545; color: #fff; }
+    @media print {
+      body { background: #fff; color: #000; }
+      .container { box-shadow: none; }
+      .section { border-left-color: #000; }
+      h1, h2 { color: #000; }
+      .print-btn, .back-link { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+  
+  <div class="container">
+    <div class="header">
+      <img src="/images/logo.png" alt="Tecle Motos" class="logo">
+      <h1>Manual do Gestor de Franquia</h1>
+      <p class="subtitle">Tecle Motos - Sistema ERP</p>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-sign-in-alt"></i> 1. Acesso ao Sistema</h2>
+      <p>Para acessar o sistema, utilize as credenciais fornecidas pelo administrador:</p>
+      <ul>
+        <li><strong>Email:</strong> Seu email cadastrado</li>
+        <li><strong>Senha:</strong> Sua senha de acesso</li>
+      </ul>
+      <div class="warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Importante:</strong> Altere sua senha no primeiro acesso para maior seguranca.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-chart-line"></i> 2. Dashboard da Loja</h2>
+      <p>O Dashboard exibe informacoes importantes da sua franquia:</p>
+      <ul>
+        <li><strong>Vendas do Mes:</strong> Total de vendas concluidas</li>
+        <li><strong>Servicos do Mes:</strong> Total de ordens de servico</li>
+        <li><strong>A Receber:</strong> Contas pendentes de recebimento</li>
+        <li><strong>A Pagar:</strong> Contas pendentes de pagamento</li>
+        <li><strong>Estoque TM Imports:</strong> Produtos disponiveis para solicitacao</li>
+      </ul>
+      <div class="note">
+        <i class="fas fa-info-circle"></i>
+        No dashboard voce pode selecionar produtos do estoque da matriz e criar solicitacoes de compra diretamente.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-shopping-cart"></i> 3. Fluxo de Vendas</h2>
+      <p>Para registrar uma venda:</p>
+      <ol>
+        <li>Acesse "Vendas" no menu</li>
+        <li>Clique em "Nova Venda"</li>
+        <li>Selecione o cliente (ou cadastre um novo)</li>
+        <li>Adicione os produtos desejados</li>
+        <li>Defina a forma de pagamento e parcelas</li>
+        <li>Salve a venda</li>
+      </ol>
+      <h3>Status da Venda</h3>
+      <p>
+        <span class="status-badge status-pendente">PENDENTE</span> Aguardando aprovacao<br>
+        <span class="status-badge status-aprovada">APROVADA</span> Aprovada pelo gestor<br>
+        <span class="status-badge status-concluida">CONCLUIDA</span> Finalizada (estoque baixado)<br>
+        <span class="status-badge status-cancelada">CANCELADA</span> Cancelada
+      </p>
+      <div class="note">
+        <i class="fas fa-info-circle"></i>
+        Ao concluir uma venda, o sistema automaticamente baixa o estoque e gera a conta a receber.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-wrench"></i> 4. Ordens de Servico (OS)</h2>
+      <p>Para criar uma ordem de servico:</p>
+      <ol>
+        <li>Acesse "Ordens de Servico"</li>
+        <li>Clique em "Nova OS"</li>
+        <li>Selecione o cliente</li>
+        <li>Preencha os dados do veiculo (modelo, placa, km)</li>
+        <li>Descreva o problema relatado</li>
+        <li>Adicione pecas e servicos necessarios</li>
+        <li>Salve a OS</li>
+      </ol>
+      <h3>Status da OS</h3>
+      <p>
+        <span class="status-badge status-pendente">ORCAMENTO</span> Aguardando aprovacao do cliente<br>
+        <span class="status-badge status-aprovada">ABERTA</span> Cliente aprovou<br>
+        <span class="status-badge" style="background:#ffc107;color:#000;">EM EXECUCAO</span> Em andamento<br>
+        <span class="status-badge status-concluida">CONCLUIDA</span> Finalizada
+      </p>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-warehouse"></i> 5. Estoque da Loja</h2>
+      <p>Gerencie o estoque da sua franquia:</p>
+      <ul>
+        <li>Visualize todos os produtos em estoque</li>
+        <li>Verifique quantidades disponiveis</li>
+        <li>Consulte produtos com estoque baixo</li>
+      </ul>
+      <div class="warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Atencao:</strong> O estoque e atualizado automaticamente nas vendas e OS. Ajustes manuais devem ser solicitados ao administrador.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-truck"></i> 6. Solicitar Produtos da Matriz</h2>
+      <p>Para solicitar produtos da TM Imports:</p>
+      <ol>
+        <li>Acesse "Solicitar Produtos" ou use o Dashboard</li>
+        <li>Visualize o estoque disponivel na matriz</li>
+        <li>Selecione os produtos desejados</li>
+        <li>Informe as quantidades</li>
+        <li>Envie a solicitacao</li>
+      </ol>
+      <h3>Status da Solicitacao</h3>
+      <p>
+        <span class="status-badge status-pendente">PENDENTE</span> Aguardando aprovacao da matriz<br>
+        <span class="status-badge status-aprovada">APROVADA</span> Aprovada, aguardando envio<br>
+        <span class="status-badge" style="background:#17a2b8;color:#fff;">ENVIADA</span> Produtos enviados<br>
+        <span class="status-badge status-concluida">RECEBIDA</span> Voce confirmou o recebimento
+      </p>
+      <div class="note">
+        <i class="fas fa-info-circle"></i>
+        Ao confirmar o recebimento, os produtos sao automaticamente adicionados ao seu estoque.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-users"></i> 7. Clientes</h2>
+      <p>Cadastre e gerencie seus clientes:</p>
+      <ul>
+        <li><strong>Nome completo</strong></li>
+        <li><strong>CPF/CNPJ</strong></li>
+        <li><strong>Telefone e Email</strong></li>
+        <li><strong>Endereco completo</strong></li>
+      </ul>
+      <p>Os clientes cadastrados podem ser selecionados nas vendas e ordens de servico.</p>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-dollar-sign"></i> 8. Financeiro</h2>
+      <h3>Contas a Receber</h3>
+      <ul>
+        <li>Geradas automaticamente nas vendas</li>
+        <li>Registre pagamentos recebidos</li>
+        <li>Suporte a pagamento parcial</li>
+        <li>Alerta de contas vencidas</li>
+      </ul>
+      <h3>Contas a Pagar</h3>
+      <ul>
+        <li>Cadastre despesas da loja</li>
+        <li>Categorize por tipo</li>
+        <li>Registre pagamentos efetuados</li>
+      </ul>
+      <h3>Fluxo de Caixa</h3>
+      <p>Visualize entradas e saidas projetadas para os proximos meses.</p>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-file-invoice"></i> 9. Notas Fiscais</h2>
+      <p>Emita notas fiscais das vendas:</p>
+      <ol>
+        <li>Acesse "Notas Fiscais"</li>
+        <li>Configure os dados fiscais da loja (primeira vez)</li>
+        <li>Crie uma nova nota ou gere a partir de uma venda</li>
+        <li>Preencha os dados e emita</li>
+      </ol>
+      <p>Tipos disponiveis: NF-e, NFC-e, NFS-e</p>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-users-cog"></i> 10. Usuarios da Loja</h2>
+      <p>Gerencie os usuarios da sua franquia:</p>
+      <ul>
+        <li><strong>Gestor de Franquia:</strong> Voce - acesso completo a loja</li>
+        <li><strong>Operacional:</strong> Funcionarios com acesso limitado</li>
+      </ul>
+      <p>Operacionais podem:</p>
+      <ul>
+        <li>Criar vendas (ficam pendentes para aprovacao)</li>
+        <li>Criar ordens de servico</li>
+        <li>Cadastrar clientes</li>
+        <li>Consultar estoque (somente leitura)</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-lightbulb"></i> 11. Dicas Importantes</h2>
+      <ul>
+        <li><i class="fas fa-check" style="color:#00FF88;"></i> Mantenha o cadastro de clientes sempre atualizado</li>
+        <li><i class="fas fa-check" style="color:#00FF88;"></i> Solicite produtos da matriz antes do estoque acabar</li>
+        <li><i class="fas fa-check" style="color:#00FF88;"></i> Registre todas as vendas no sistema</li>
+        <li><i class="fas fa-check" style="color:#00FF88;"></i> Acompanhe as contas a receber e a pagar</li>
+        <li><i class="fas fa-check" style="color:#00FF88;"></i> Treine seus funcionarios no uso do sistema</li>
+        <li><i class="fas fa-check" style="color:#00FF88;"></i> Emita notas fiscais para todas as vendas</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-headset"></i> 12. Suporte</h2>
+      <p>Em caso de duvidas ou problemas, entre em contato:</p>
+      <ul>
+        <li><strong>Email:</strong> suporte@tmimports.com</li>
+        <li><strong>Telefone:</strong> (11) 1234-5678</li>
+      </ul>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #333;">
+      <p style="color: #666;">Tecle Motos - Franquia TM Imports</p>
+      <p style="color: #666;">Motos e Scooters Eletricas</p>
+      <a href="/login" class="back-link"><i class="fas fa-arrow-left"></i> Voltar ao Sistema</a>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual do Administrador Global - TM Imports</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 30px;
+      border-bottom: 2px solid #FF6B35;
+    }
+    .logo {
+      max-width: 200px;
+      margin-bottom: 20px;
+      border-radius: 10px;
+    }
+    h1 {
+      color: #FF6B35;
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #888;
+      font-size: 1.2em;
+    }
+    .section {
+      margin-bottom: 30px;
+      padding: 25px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 15px;
+      border-left: 4px solid #FF6B35;
+    }
+    h2 {
+      color: #FF6B35;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h3 {
+      color: #00FF88;
+      margin: 15px 0 10px;
+    }
+    p { line-height: 1.8; margin-bottom: 10px; color: #ccc; }
+    ul, ol { margin-left: 25px; margin-bottom: 15px; }
+    li { margin-bottom: 8px; line-height: 1.6; color: #bbb; }
+    li strong { color: #fff; }
+    .note {
+      background: rgba(255,107,53,0.1);
+      border: 1px solid #FF6B35;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 15px 0;
+    }
+    .note i { color: #FF6B35; margin-right: 8px; }
+    .back-link {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 12px 25px;
+      background: #FF6B35;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+    .back-link:hover { background: #e55a2b; transform: translateY(-2px); }
+    .print-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 20px;
+      background: #00FF88;
+      color: #1a1a1a;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    @media print {
+      body { background: #fff; color: #000; }
+      .container { box-shadow: none; }
+      .section { border-left-color: #000; }
+      h1, h2 { color: #000; }
+      .print-btn, .back-link { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <button class="print-btn" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+  
+  <div class="container">
+    <div class="header">
+      <img src="/images/logo-tmimports.jpg" alt="TM Imports" class="logo">
+      <h1>Manual do Administrador Global</h1>
+      <p class="subtitle">TM Imports - Sistema ERP Multi-Empresa</p>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-chart-line"></i> 1. Dashboard Global</h2>
+      <p>O Dashboard Global apresenta metricas consolidadas de toda a rede:</p>
+      <ul>
+        <li><strong>Total de Vendas:</strong> Soma de vendas de todas as franquias</li>
+        <li><strong>Total de Franquias:</strong> Quantidade de lojas na rede</li>
+        <li><strong>Faturamento:</strong> Receita total do periodo</li>
+        <li><strong>Solicitacoes Pendentes:</strong> Pedidos de produtos aguardando aprovacao</li>
+        <li><strong>Grafico de Vendas:</strong> Evolucao mensal (ultimos 6 meses)</li>
+        <li><strong>Fluxo de Caixa:</strong> Entradas vs Saidas com projecao de saldo</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-store"></i> 2. Gestao de Franquias</h2>
+      <p>Para cadastrar uma nova franquia:</p>
+      <ol>
+        <li>Acesse "Franquias" no menu</li>
+        <li>Clique em "Nova Franquia"</li>
+        <li>Preencha os dados da empresa (CNPJ, Razao Social, etc.)</li>
+        <li>Preencha os dados da loja principal (endereco, telefone)</li>
+        <li>Crie o usuario administrador da franquia</li>
+        <li>Clique em "Criar Franquia"</li>
+      </ol>
+      <div class="note">
+        <i class="fas fa-info-circle"></i>
+        O sistema cria automaticamente: empresa + loja + usuario admin em uma unica operacao.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-box"></i> 3. Produtos / Servicos</h2>
+      <h3>Cadastro Manual</h3>
+      <ol>
+        <li>Acesse "Produtos / Servicos"</li>
+        <li>Clique em "Novo Produto"</li>
+        <li>Preencha os dados e salve</li>
+      </ol>
+      <h3>Importacao por Planilha</h3>
+      <ol>
+        <li>Na mesma tela, clique em "Importar Planilha"</li>
+        <li>Selecione o arquivo Excel ou CSV</li>
+        <li>O sistema importa os produtos e classifica automaticamente pela coluna "Categoria do produto"</li>
+      </ol>
+      <div class="note">
+        <i class="fas fa-info-circle"></i>
+        Colunas esperadas: Codigo, Produto, Preco, Categoria do produto (Moto, Servico, Peca)
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-warehouse"></i> 4. Estoque Central</h2>
+      <p>O estoque central e o inventario da TM Imports (matriz). Todas as franquias solicitam produtos deste estoque.</p>
+      <p>Para ajustar o estoque:</p>
+      <ol>
+        <li>Acesse "Estoque Central"</li>
+        <li>Localize o produto</li>
+        <li>Clique em "Ajustar" para alterar a quantidade</li>
+      </ol>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-truck"></i> 5. Solicitacoes de Compra</h2>
+      <p>As franquias enviam solicitacoes de produtos para a matriz. Para processar uma solicitacao:</p>
+      <ol>
+        <li>Acesse "Solicitacoes" no menu</li>
+        <li>Visualize os pedidos pendentes</li>
+        <li>Para cada solicitacao, voce pode:
+          <ul>
+            <li><strong>APROVAR:</strong> Aceitar o pedido</li>
+            <li><strong>REJEITAR:</strong> Negar o pedido</li>
+            <li><strong>ENVIAR:</strong> Apos aprovar, enviar os produtos</li>
+          </ul>
+        </li>
+      </ol>
+      <div class="note">
+        <i class="fas fa-info-circle"></i>
+        Ao clicar em "Enviar", o sistema automaticamente baixa os produtos do estoque central e adiciona no estoque da loja franqueada.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-users-cog"></i> 6. Usuarios</h2>
+      <p>Perfis de usuario disponiveis:</p>
+      <ul>
+        <li><strong>ADMIN_GLOBAL:</strong> Acesso total ao sistema (voce)</li>
+        <li><strong>GESTOR_FRANQUIA:</strong> Administra uma loja especifica</li>
+        <li><strong>OPERACIONAL:</strong> Acesso limitado (vendas, OS, clientes)</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-dollar-sign"></i> 7. Financeiro Consolidado</h2>
+      <h3>Contas a Receber</h3>
+      <ul>
+        <li>Lista todas as contas de todas as lojas</li>
+        <li>Filtro por status (Pendente, Parcial, Pago)</li>
+        <li>Destaque para contas vencidas</li>
+        <li>Baixa com suporte a pagamento parcial</li>
+      </ul>
+      <h3>Contas a Pagar</h3>
+      <ul>
+        <li>Cadastre despesas da matriz</li>
+        <li>Categorize por tipo (Aluguel, Energia, Fornecedor, etc.)</li>
+        <li>Registre pagamentos realizados</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-university"></i> 8. Conciliacao Bancaria</h2>
+      <p>Sistema estilo Conta Azul para controle bancario:</p>
+      <ol>
+        <li>Cadastre as contas bancarias da empresa</li>
+        <li>Importe extratos (OFX, CSV, Excel)</li>
+        <li>Use "Conciliar Automaticamente" para associar transacoes</li>
+        <li>Concilie manualmente as pendentes</li>
+      </ol>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-file-invoice"></i> 9. Notas Fiscais</h2>
+      <p>O sistema suporta emissao de:</p>
+      <ul>
+        <li><strong>NF-e:</strong> Nota Fiscal Eletronica</li>
+        <li><strong>NFC-e:</strong> Cupom Fiscal Eletronico</li>
+        <li><strong>NFS-e:</strong> Nota Fiscal de Servico</li>
+      </ul>
+      <p>Configure os dados fiscais antes de emitir notas.</p>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-history"></i> 10. Logs de Auditoria</h2>
+      <p>O sistema registra todas as acoes importantes:</p>
+      <ul>
+        <li>Quem criou/alterou cada registro</li>
+        <li>Data e hora da acao</li>
+        <li>Dados antes e depois da alteracao</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2><i class="fas fa-lightbulb"></i> 11. Boas Praticas</h2>
+      <ul>
+        <li>Mantenha o estoque central sempre atualizado</li>
+        <li>Processe as solicitacoes das franquias rapidamente</li>
+        <li>Monitore o fluxo de caixa regularmente</li>
+        <li>Faca a conciliacao bancaria semanalmente</li>
+        <li>Revise os logs de auditoria periodicamente</li>
+        <li>Treine os gestores das franquias no uso do sistema</li>
+      </ul>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px; padding-top: 30px; border-top: 1px solid #333;">
+      <p style="color: #666;">TM Imports - Sistema ERP Multi-Empresa</p>
+      <p style="color: #666;">Desenvolvido para gestao de motos e scooters eletricas</p>
+      <a href="/login" class="back-link"><i class="fas fa-arrow-left"></i> Voltar ao Sistema</a>
+    </div>
+  </div>
+</body>
+</html>
