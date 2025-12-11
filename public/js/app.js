@@ -1695,11 +1695,152 @@ async function saveUser(event) {
 
 async function renderCompanies() {
   const content = document.getElementById('content');
-  content.innerHTML = `<div class="empty-state">
-    <i class="fas fa-store"></i>
-    <h3>Franquias</h3>
-    <p>Gerencie as franquias do sistema</p>
-  </div>`;
+  
+  try {
+    const companies = await api('/companies');
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2>Franquias</h2>
+          <button class="btn btn-primary" onclick="openCompanyModal()">
+            <i class="fas fa-plus"></i> Nova Franquia
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>CNPJ</th>
+                  <th>Tipo</th>
+                  <th>Telefone</th>
+                  <th>Email</th>
+                  <th>Status</th>
+                  <th>Lojas</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${companies.map(c => `
+                  <tr>
+                    <td>${c.nome}</td>
+                    <td>${c.cnpj || '-'}</td>
+                    <td><span class="badge badge-${c.tipo === 'MATRIZ' ? 'primary' : 'success'}">${c.tipo}</span></td>
+                    <td>${c.telefone || '-'}</td>
+                    <td>${c.email || '-'}</td>
+                    <td><span class="badge badge-${c.ativo ? 'success' : 'danger'}">${c.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                    <td>${c.lojas?.length || 0}</td>
+                    <td class="actions">
+                      <button class="btn btn-sm btn-secondary" onclick='editCompany(${JSON.stringify(c).replace(/'/g, "\\'")})'>
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      ${c.tipo !== 'MATRIZ' ? `
+                        <button class="btn btn-sm btn-danger" onclick="deleteCompany(${c.id})">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      ` : ''}
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          
+          ${companies.length === 0 ? `
+            <div class="empty-state">
+              <i class="fas fa-store"></i>
+              <h3>Nenhuma franquia cadastrada</h3>
+              <p>Clique em "Nova Franquia" para começar</p>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function openCompanyModal(company = null) {
+  const title = company ? 'Editar Franquia' : 'Nova Franquia';
+  const content = `
+    <form id="companyForm" onsubmit="saveCompany(event, ${company?.id || 'null'})">
+      <div class="form-group">
+        <label>Nome da Empresa *</label>
+        <input type="text" name="nome" value="${company?.nome || ''}" required>
+      </div>
+      <div class="form-group">
+        <label>CNPJ</label>
+        <input type="text" name="cnpj" value="${company?.cnpj || ''}" placeholder="00.000.000/0001-00">
+      </div>
+      <div class="form-group">
+        <label>Telefone</label>
+        <input type="text" name="telefone" value="${company?.telefone || ''}" placeholder="(11) 99999-9999">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" value="${company?.email || ''}">
+      </div>
+      <div class="form-group">
+        <label>Endereço</label>
+        <textarea name="endereco" rows="2">${company?.endereco || ''}</textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> Salvar
+        </button>
+      </div>
+    </form>
+  `;
+  
+  openModal(title, content);
+}
+
+function editCompany(company) {
+  openCompanyModal(company);
+}
+
+async function saveCompany(event, id) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = {
+    nome: form.nome.value,
+    cnpj: form.cnpj.value,
+    telefone: form.telefone.value,
+    email: form.email.value,
+    endereco: form.endereco.value,
+    tipo: 'FRANQUIA'
+  };
+  
+  try {
+    if (id) {
+      await api(`/companies/${id}`, { method: 'PUT', body: data });
+      showToast('Franquia atualizada com sucesso!', 'success');
+    } else {
+      await api('/companies', { method: 'POST', body: data });
+      showToast('Franquia cadastrada com sucesso!', 'success');
+    }
+    closeModal();
+    await renderCompanies();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteCompany(id) {
+  if (!confirm('Tem certeza que deseja excluir esta franquia?')) return;
+  
+  try {
+    await api(`/companies/${id}`, { method: 'DELETE' });
+    showToast('Franquia excluída com sucesso!', 'success');
+    await renderCompanies();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 async function renderStores() {
