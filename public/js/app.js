@@ -2775,12 +2775,15 @@ async function deleteUser(id) {
   }
 }
 
+let franquiasData = [];
+
 async function renderCompanies() {
   const content = document.getElementById('content');
   
   try {
     const companies = await api('/companies');
     const franquias = companies.filter(c => c.tipo === 'FRANQUIA');
+    franquiasData = franquias;
     
     content.innerHTML = `
       <div class="card">
@@ -2799,7 +2802,7 @@ async function renderCompanies() {
             </div>
           ` : `
             <div class="franchise-list">
-              ${franquias.map(c => `
+              ${franquias.map((c, index) => `
                 <div class="franchise-card">
                   <div class="franchise-header">
                     <div class="franchise-info">
@@ -2807,7 +2810,7 @@ async function renderCompanies() {
                       <span class="badge badge-${c.ativo ? 'success' : 'danger'}">${c.ativo ? 'Ativa' : 'Inativa'}</span>
                     </div>
                     <div class="franchise-actions">
-                      <button class="btn btn-sm btn-secondary" onclick='viewFranchise(${JSON.stringify(c).replace(/'/g, "\\'")})'>
+                      <button class="btn btn-sm btn-secondary" onclick="viewFranchiseById(${index})">
                         <i class="fas fa-eye"></i> Detalhes
                       </button>
                       <button class="btn btn-sm btn-danger" onclick="deleteCompany(${c.id})">
@@ -2866,6 +2869,15 @@ async function renderCompanies() {
     `;
   } catch (error) {
     showToast(error.message, 'error');
+  }
+}
+
+function viewFranchiseById(index) {
+  const company = franquiasData[index];
+  if (company) {
+    viewFranchise(company);
+  } else {
+    showToast('Franquia não encontrada', 'error');
   }
 }
 
