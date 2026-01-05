@@ -795,16 +795,26 @@ async function renderProducts() {
             <form id="importForm" onsubmit="importProducts(event)">
               <div class="form-row">
                 <div class="form-group" style="flex: 2;">
-                  <input type="file" name="arquivo" accept=".xlsx,.xls,.csv" required>
+                  <input type="file" name="arquivo" accept=".xlsx,.xls,.csv" required id="importFileInput">
                 </div>
                 <div class="form-group" style="flex: 1;">
-                  <button type="submit" class="btn btn-success">
+                  <button type="submit" class="btn btn-success" id="importBtn">
                     <i class="fas fa-upload"></i> Importar
                   </button>
                 </div>
               </div>
             </form>
-            <div id="importResult"></div>
+            
+            <div id="importProgress" style="margin-top: 20px; display: none;">
+              <div style="background: var(--bg-card); border-radius: 10px; overflow: hidden; height: 30px; position: relative;">
+                <div id="progressBar" style="background: linear-gradient(90deg, var(--primary), var(--success)); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                <div id="progressText" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold;">0%</div>
+              </div>
+              <p id="progressStatus" style="margin-top: 10px; color: var(--text-muted); text-align: center;">Preparando...</p>
+            </div>
+            
+            <div id="importResult" style="margin-top: 20px;"></div>
+            <div id="importedProductsList" style="margin-top: 20px;"></div>
             
             <details style="margin-top: 15px;">
               <summary style="cursor: pointer; color: var(--primary);">Formato esperado da planilha</summary>
