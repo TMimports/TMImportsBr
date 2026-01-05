@@ -10,6 +10,56 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 router.use(verifyToken);
 
+async function gerarProximoCodigo(tipo) {
+  const prefixos = {
+    'MOTO': 'MOTO',
+    'PECA': 'PECA',
+    'SERVICO': 'SERV'
+  };
+  
+  const prefixo = prefixos[tipo] || 'PROD';
+  
+  const ultimoProduto = await Product.findOne({
+    where: {
+      codigo: {
+        [Op.like]: `${prefixo}-%`
+      }
+    },
+    order: [['codigo', 'DESC']]
+  });
+  
+  let proximoNumero = 1;
+  
+  if (ultimoProduto && ultimoProduto.codigo) {
+    const match = ultimoProduto.codigo.match(new RegExp(`^${prefixo}-(\\d+)$`));
+    if (match) {
+      proximoNumero = parseInt(match[1], 10) + 1;
+    } else {
+      const count = await Product.count({
+        where: {
+          codigo: {
+            [Op.like]: `${prefixo}-%`
+          }
+        }
+      });
+      proximoNumero = count + 1;
+    }
+  }
+  
+  return `${prefixo}-${String(proximoNumero).padStart(4, '0')}`;
+}
+
+router.get('/proximo-codigo/:tipo', async (req, res) => {
+  try {
+    const tipo = req.params.tipo.toUpperCase();
+    const codigo = await gerarProximoCodigo(tipo);
+    res.json({ codigo });
+  } catch (error) {
+    console.error('Erro ao gerar código:', error);
+    res.status(500).json({ error: 'Erro ao gerar código' });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const { tipo, categoria_id, busca, ativo } = req.query;
@@ -61,6 +111,10 @@ router.get('/:id', async (req, res) => {
 router.post('/', isGestorOuAdmin, async (req, res) => {
   try {
     const dados = req.body;
+    
+    if (!dados.codigo || dados.codigo.trim() === '') {
+      dados.codigo = await gerarProximoCodigo(dados.tipo || 'PECA');
+    }
     
     if (dados.preco_custo && dados.percentual_lucro && !dados.preco_venda) {
       const custo = parseFloat(dados.preco_custo) || 0;
@@ -301,7 +355,7 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
           tipo = 'PECA';
         }
 
-        const codigoLimpo = codigo || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+        const codigoLimpo = codigo || await gerarProximoCodigo(tipo);
         
         const existente = codigo ? await Product.findOne({ where: { codigo: codigoLimpo } }) : null;
 
