@@ -1699,10 +1699,12 @@ function viewSaleById(index) {
 
 async function openSaleModal() {
   try {
-    const [customers, products] = await Promise.all([
+    const [customers, allProducts] = await Promise.all([
       api('/customers'),
       api('/products')
     ]);
+    
+    const products = allProducts.filter(p => p.tipo === 'MOTO' || p.tipo === 'PECA');
     
     const formContent = `
       <form id="saleForm" onsubmit="saveSale(event)">
@@ -1726,12 +1728,12 @@ async function openSaleModal() {
           </select>
         </div>
         
-        <h4 style="margin: 20px 0 10px;">Itens da Venda</h4>
+        <h4 style="margin: 20px 0 10px;">Itens da Venda (Motos e Peças)</h4>
         <div id="saleItems">
           <div class="sale-item-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
             <select name="produto_id_0" style="flex: 2;" onchange="updateItemPrice(0)" required>
               <option value="">Selecione o produto</option>
-              ${products.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}">${p.nome} - ${formatCurrency(p.preco_venda)}</option>`).join('')}
+              ${products.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}">${p.codigo || ''} - ${p.nome} - ${formatCurrency(p.preco_venda)}</option>`).join('')}
             </select>
             <input type="number" name="quantidade_0" value="1" min="1" style="flex: 1;" placeholder="Qtd" onchange="updateItemPrice(0)">
             <input type="text" name="preco_0" style="flex: 1;" placeholder="Preço" readonly>
@@ -1788,7 +1790,7 @@ function addSaleItem() {
   row.innerHTML = `
     <select name="produto_id_${index}" style="flex: 2;" onchange="updateItemPrice(${index})">
       <option value="">Selecione o produto</option>
-      ${products.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}">${p.nome} - ${formatCurrency(p.preco_venda)}</option>`).join('')}
+      ${products.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}">${p.codigo || ''} - ${p.nome} - ${formatCurrency(p.preco_venda)}</option>`).join('')}
     </select>
     <input type="number" name="quantidade_${index}" value="1" min="1" style="flex: 1;" placeholder="Qtd" onchange="updateItemPrice(${index})">
     <input type="text" name="preco_${index}" style="flex: 1;" placeholder="Preço" readonly>
@@ -1909,16 +1911,315 @@ async function cancelSale(id) {
   }
 }
 
+let serviceOrdersData = [];
+
 async function renderServiceOrders() {
   const content = document.getElementById('content');
-  content.innerHTML = `<div class="empty-state">
-    <i class="fas fa-wrench"></i>
-    <h3>Ordens de Serviço</h3>
-    <p>Gerencie as ordens de serviço da loja</p>
-    <button class="btn btn-primary" onclick="showToast('Funcionalidade em desenvolvimento', 'warning')">
-      <i class="fas fa-plus"></i> Nova OS
+  
+  try {
+    const orders = await api('/service-orders');
+    serviceOrdersData = orders;
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-wrench"></i> Ordens de Serviço</h2>
+          <button class="btn btn-primary" onclick="openServiceOrderModal()">
+            <i class="fas fa-plus"></i> Nova OS
+          </button>
+        </div>
+        <div class="card-body">
+          ${orders.length === 0 ? `
+            <div class="empty-state">
+              <i class="fas fa-wrench"></i>
+              <h3>Nenhuma ordem de serviço</h3>
+              <p>Clique em "Nova OS" para começar</p>
+            </div>
+          ` : `
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Número</th>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Veículo</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${orders.map((o, index) => `
+                    <tr>
+                      <td><strong>${o.numero || o.id}</strong></td>
+                      <td>${formatDate(o.createdAt)}</td>
+                      <td>${o.cliente?.nome || '-'}</td>
+                      <td>${o.veiculo_modelo || '-'}</td>
+                      <td><span class="badge badge-${getStatusColor(o.status)}">${o.status}</span></td>
+                      <td style="font-weight: bold; color: var(--success);">${formatCurrency(o.valor_total)}</td>
+                      <td class="actions">
+                        <button class="btn btn-sm btn-secondary" onclick="viewServiceOrderById(${index})">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        ${o.status === 'ABERTA' ? `
+                          <button class="btn btn-sm btn-success" onclick="closeServiceOrder(${o.id})">
+                            <i class="fas fa-check"></i>
+                          </button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-wrench"></i>
+      <h3>Ordens de Serviço</h3>
+      <p>Gerencie as ordens de serviço da loja</p>
+      <button class="btn btn-primary" onclick="openServiceOrderModal()">
+        <i class="fas fa-plus"></i> Nova OS
+      </button>
+    </div>`;
+  }
+}
+
+function viewServiceOrderById(index) {
+  const order = serviceOrdersData[index];
+  if (!order) {
+    showToast('OS não encontrada', 'error');
+    return;
+  }
+  
+  const content = `
+    <div class="os-detail">
+      <div class="detail-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <p><strong>Número:</strong> ${order.numero || order.id}</p>
+        <p><strong>Data:</strong> ${formatDate(order.createdAt)}</p>
+        <p><strong>Cliente:</strong> ${order.cliente?.nome || '-'}</p>
+        <p><strong>Status:</strong> <span class="badge badge-${getStatusColor(order.status)}">${order.status}</span></p>
+        <p><strong>Veículo:</strong> ${order.veiculo_modelo || '-'}</p>
+        <p><strong>Placa:</strong> ${order.veiculo_placa || '-'}</p>
+      </div>
+      
+      ${order.problema_relatado ? `<p style="margin-top: 15px;"><strong>Problema:</strong> ${order.problema_relatado}</p>` : ''}
+      
+      ${order.itens?.length > 0 ? `
+        <h4 style="margin-top: 20px;">Serviços</h4>
+        <div class="table-container table-sm">
+          <table>
+            <thead><tr><th>Serviço</th><th>Qtd</th><th>Valor</th><th>Total</th></tr></thead>
+            <tbody>
+              ${order.itens.map(i => `
+                <tr>
+                  <td>${i.produto?.nome || i.descricao || 'Serviço'}</td>
+                  <td>${i.quantidade}</td>
+                  <td>${formatCurrency(i.valor_unitario)}</td>
+                  <td>${formatCurrency(i.subtotal)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : ''}
+      
+      <div style="text-align: right; margin-top: 20px; font-size: 18px;">
+        <strong>Total: </strong><span style="color: var(--success);">${formatCurrency(order.valor_total)}</span>
+      </div>
+    </div>
+  `;
+  
+  openModal('Detalhes da OS #' + (order.numero || order.id), content);
+}
+
+async function openServiceOrderModal() {
+  try {
+    const [customers, allProducts] = await Promise.all([
+      api('/customers'),
+      api('/products')
+    ]);
+    
+    const services = allProducts.filter(p => p.tipo === 'SERVICO');
+    
+    const formContent = `
+      <form id="osForm" onsubmit="saveServiceOrder(event)">
+        <div class="form-group">
+          <label>Cliente</label>
+          <select name="cliente_id">
+            <option value="">Selecione o cliente</option>
+            ${customers.map(c => `<option value="${c.id}">${c.nome}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Modelo do Veículo</label>
+            <input type="text" name="veiculo_modelo" placeholder="Ex: Moto Elétrica X1">
+          </div>
+          <div class="form-group">
+            <label>Placa</label>
+            <input type="text" name="veiculo_placa" placeholder="ABC-1234">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Problema Relatado</label>
+          <textarea name="problema_relatado" rows="2" placeholder="Descreva o problema"></textarea>
+        </div>
+        
+        <h4 style="margin: 15px 0 10px;">Serviços</h4>
+        <div id="osItems">
+          <div class="os-item-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <select name="servico_id_0" style="flex: 2;" onchange="updateOSItemPrice(0)" required>
+              <option value="">Selecione o serviço</option>
+              ${services.map(s => `<option value="${s.id}" data-preco="${s.preco_venda}">${s.codigo || ''} - ${s.nome} - ${formatCurrency(s.preco_venda)}</option>`).join('')}
+            </select>
+            <input type="number" name="os_qtd_0" value="1" min="1" style="width: 70px;" onchange="updateOSItemPrice(0)">
+            <input type="text" name="os_preco_0" style="width: 100px;" placeholder="Preço" readonly>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="addOSItem()" style="margin-bottom: 15px;">
+          <i class="fas fa-plus"></i> Adicionar Serviço
+        </button>
+        
+        <div style="display: flex; justify-content: flex-end; padding: 10px 0; border-top: 1px solid var(--border);">
+          <div style="font-size: 18px;">
+            <strong>Total: </strong><span id="osTotal" style="color: var(--success); font-weight: bold;">R$ 0,00</span>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Criar OS</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Nova Ordem de Serviço', formContent);
+    window.osServices = services;
+    window.osItemCount = 1;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function addOSItem() {
+  const container = document.getElementById('osItems');
+  const index = window.osItemCount++;
+  const services = window.osServices || [];
+  
+  const row = document.createElement('div');
+  row.className = 'os-item-row';
+  row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px;';
+  row.innerHTML = `
+    <select name="servico_id_${index}" style="flex: 2;" onchange="updateOSItemPrice(${index})">
+      <option value="">Selecione o serviço</option>
+      ${services.map(s => `<option value="${s.id}" data-preco="${s.preco_venda}">${s.codigo || ''} - ${s.nome} - ${formatCurrency(s.preco_venda)}</option>`).join('')}
+    </select>
+    <input type="number" name="os_qtd_${index}" value="1" min="1" style="width: 70px;" onchange="updateOSItemPrice(${index})">
+    <input type="text" name="os_preco_${index}" style="width: 100px;" placeholder="Preço" readonly>
+    <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove(); calcOSTotal();">
+      <i class="fas fa-trash"></i>
     </button>
-  </div>`;
+  `;
+  container.appendChild(row);
+}
+
+function updateOSItemPrice(index) {
+  const select = document.querySelector(`[name="servico_id_${index}"]`);
+  const qtdInput = document.querySelector(`[name="os_qtd_${index}"]`);
+  const precoInput = document.querySelector(`[name="os_preco_${index}"]`);
+  
+  if (select && qtdInput && precoInput) {
+    const option = select.options[select.selectedIndex];
+    const preco = parseFloat(option?.dataset?.preco) || 0;
+    const qtd = parseInt(qtdInput.value) || 1;
+    precoInput.value = formatCurrency(preco * qtd);
+  }
+  
+  calcOSTotal();
+}
+
+function calcOSTotal() {
+  let total = 0;
+  const rows = document.querySelectorAll('.os-item-row');
+  
+  rows.forEach(row => {
+    const select = row.querySelector('select');
+    const qtdInput = row.querySelector('input[type="number"]');
+    
+    if (select && qtdInput) {
+      const option = select.options[select.selectedIndex];
+      const preco = parseFloat(option?.dataset?.preco) || 0;
+      const qtd = parseInt(qtdInput.value) || 0;
+      total += preco * qtd;
+    }
+  });
+  
+  document.getElementById('osTotal').textContent = formatCurrency(total);
+}
+
+async function saveServiceOrder(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const formData = new FormData(form);
+  
+  const items = [];
+  let i = 0;
+  while (formData.has(`servico_id_${i}`)) {
+    const servicoId = formData.get(`servico_id_${i}`);
+    const quantidade = formData.get(`os_qtd_${i}`);
+    
+    if (servicoId && quantidade) {
+      const service = window.osServices?.find(s => s.id == servicoId);
+      items.push({
+        produto_id: parseInt(servicoId),
+        quantidade: parseInt(quantidade),
+        preco_unitario: service?.preco_venda || 0
+      });
+    }
+    i++;
+  }
+  
+  if (items.length === 0) {
+    showToast('Adicione pelo menos um serviço', 'error');
+    return;
+  }
+  
+  const data = {
+    cliente_id: formData.get('cliente_id') ? parseInt(formData.get('cliente_id')) : null,
+    veiculo_modelo: formData.get('veiculo_modelo'),
+    veiculo_placa: formData.get('veiculo_placa'),
+    problema_relatado: formData.get('problema_relatado'),
+    itens: items
+  };
+  
+  try {
+    await api('/service-orders', { method: 'POST', body: data });
+    showToast('OS criada com sucesso!', 'success');
+    closeModal();
+    await renderServiceOrders();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function closeServiceOrder(id) {
+  if (!confirm('Finalizar esta ordem de serviço?')) return;
+  
+  try {
+    await api(`/service-orders/${id}/concluir`, { method: 'POST' });
+    showToast('OS finalizada!', 'success');
+    await renderServiceOrders();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 async function renderCustomers() {
