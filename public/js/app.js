@@ -1737,17 +1737,29 @@ async function openSaleModal() {
             <input type="text" name="preco_0" style="flex: 1;" placeholder="Preço" readonly>
           </div>
         </div>
-        <button type="button" class="btn btn-sm btn-secondary" onclick="addSaleItem()" style="margin-bottom: 20px;">
+        <button type="button" class="btn btn-sm btn-secondary" onclick="addSaleItem()" style="margin-bottom: 15px;">
           <i class="fas fa-plus"></i> Adicionar Item
         </button>
         
-        <div class="form-group">
-          <label>Observações</label>
-          <textarea name="observacoes" rows="2"></textarea>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Desconto (R$)</label>
+            <input type="number" name="desconto" step="0.01" min="0" value="0" onchange="calcSaleTotal()">
+          </div>
+          <div class="form-group">
+            <label>Observações</label>
+            <input type="text" name="observacoes" placeholder="Opcional">
+          </div>
         </div>
         
-        <div style="text-align: right; font-size: 18px; margin: 20px 0;">
-          <strong>Total: </strong><span id="saleTotal" style="color: var(--success);">R$ 0,00</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); margin-top: 10px;">
+          <div>
+            <span style="color: var(--text-muted);">Subtotal: </span>
+            <span id="saleSubtotal" style="font-weight: 500;">R$ 0,00</span>
+          </div>
+          <div style="font-size: 18px;">
+            <strong>Total: </strong><span id="saleTotal" style="color: var(--success); font-weight: bold;">R$ 0,00</span>
+          </div>
         </div>
         
         <div class="modal-footer">
@@ -1803,7 +1815,7 @@ function updateItemPrice(index) {
 }
 
 function calcSaleTotal() {
-  let total = 0;
+  let subtotal = 0;
   const rows = document.querySelectorAll('.sale-item-row');
   
   rows.forEach((row, i) => {
@@ -1814,10 +1826,16 @@ function calcSaleTotal() {
       const option = select.options[select.selectedIndex];
       const preco = parseFloat(option?.dataset?.preco) || 0;
       const qtd = parseInt(qtdInput.value) || 0;
-      total += preco * qtd;
+      subtotal += preco * qtd;
     }
   });
   
+  const descontoInput = document.querySelector('input[name="desconto"]');
+  const desconto = parseFloat(descontoInput?.value) || 0;
+  const total = Math.max(0, subtotal - desconto);
+  
+  const subtotalEl = document.getElementById('saleSubtotal');
+  if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
   document.getElementById('saleTotal').textContent = formatCurrency(total);
 }
 
@@ -1853,6 +1871,7 @@ async function saveSale(event) {
     cliente_id: parseInt(formData.get('cliente_id')),
     forma_pagamento: formData.get('forma_pagamento'),
     observacoes: formData.get('observacoes'),
+    desconto: parseFloat(formData.get('desconto')) || 0,
     itens: items
   };
   
