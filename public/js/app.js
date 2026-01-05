@@ -2043,6 +2043,7 @@ async function renderVendors() {
                   <th>Email</th>
                   <th>Telefone</th>
                   <th>Comissão</th>
+                  <th>Desconto Máximo</th>
                 </tr>
               </thead>
               <tbody>
@@ -2052,6 +2053,7 @@ async function renderVendors() {
                     <td>${v.email || '-'}</td>
                     <td>${v.telefone || '-'}</td>
                     <td>${v.comissao || 0}%</td>
+                    <td>${v.desconto_maximo || 0}%</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -2084,9 +2086,15 @@ function openVendorModal() {
         </div>
       </div>
       
-      <div class="form-group">
-        <label>Comissão (%)</label>
-        <input type="number" step="0.01" name="comissao" value="5">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Comissão (%)</label>
+          <input type="number" step="0.01" name="comissao" value="5">
+        </div>
+        <div class="form-group">
+          <label>Desconto Máximo (%)</label>
+          <input type="number" step="0.01" name="desconto_maximo" value="10" min="0" max="100">
+        </div>
       </div>
       
       <div class="modal-footer">

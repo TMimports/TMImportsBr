@@ -114,6 +114,7 @@ const Vendor = sequelize.define('Vendor', {
   email: { type: DataTypes.STRING(150) },
   telefone: { type: DataTypes.STRING(20) },
   comissao: { type: DataTypes.DECIMAL(5, 2), defaultValue: 5 },
+  desconto_maximo: { type: DataTypes.DECIMAL(5, 2), defaultValue: 10 },
   loja_id: { type: DataTypes.INTEGER },
   user_id: { type: DataTypes.INTEGER },
   ativo: { type: DataTypes.BOOLEAN, defaultValue: true }
