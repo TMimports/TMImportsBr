@@ -60,6 +60,56 @@ router.get('/proximo-codigo/:tipo', async (req, res) => {
   }
 });
 
+router.get('/exportar', async (req, res) => {
+  try {
+    const products = await Product.findAll({
+      order: [['tipo', 'ASC'], ['nome', 'ASC']]
+    });
+    
+    const data = products.map(p => ({
+      'Código': p.codigo || '',
+      'Produto': p.nome || '',
+      'Tipo': p.tipo || '',
+      'Categoria': p.tipo === 'MOTO' ? 'Moto' : p.tipo === 'SERVICO' ? 'Serviço' : 'Peça',
+      'Preço de Custo': p.preco_custo || 0,
+      'Percentual de Lucro': p.percentual_lucro || 30,
+      'Preço de Venda': p.preco_venda || 0,
+      'Cor': p.cor || '',
+      'Peso': p.peso || '',
+      'Garantia': p.garantia || '',
+      'Chassi': p.chassi || '',
+      'Código Motor': p.codigo_motor || '',
+      'Bateria': p.capacidade_bateria || '',
+      'Localização': p.localizacao || '',
+      'Estoque Mínimo': p.estoque_minimo || 0,
+      'Estoque Máximo': p.estoque_maximo || 100,
+      'Observações': p.descricao || ''
+    }));
+    
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.json_to_sheet(data);
+    
+    ws['!cols'] = [
+      { wch: 15 }, { wch: 40 }, { wch: 10 }, { wch: 12 },
+      { wch: 15 }, { wch: 18 }, { wch: 15 },
+      { wch: 12 }, { wch: 8 }, { wch: 15 },
+      { wch: 20 }, { wch: 15 }, { wch: 12 },
+      { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 30 }
+    ];
+    
+    xlsx.utils.book_append_sheet(wb, ws, 'Produtos');
+    
+    const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    res.setHeader('Content-Disposition', 'attachment; filename=produtos.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Erro ao exportar produtos:', error);
+    res.status(500).json({ error: 'Erro ao exportar produtos' });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     const { tipo, categoria_id, busca, ativo } = req.query;

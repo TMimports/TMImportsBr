@@ -762,11 +762,14 @@ async function renderDashboard() {
   }
 }
 
+let productsData = [];
+
 async function renderProducts() {
   const content = document.getElementById('content');
   
   try {
     const products = await api('/products');
+    productsData = products;
     
     content.innerHTML = `
       <div class="card">
@@ -778,8 +781,11 @@ async function renderProducts() {
               <i class="fas fa-trash-alt"></i> Limpar Tudo
             </button>
             ` : ''}
+            <button class="btn btn-success" onclick="exportarPlanilha()">
+              <i class="fas fa-file-download"></i> Exportar Planilha
+            </button>
             <button class="btn btn-secondary" onclick="toggleImportSection()">
-              <i class="fas fa-file-excel"></i> Importar Planilha
+              <i class="fas fa-file-upload"></i> Importar Planilha
             </button>
             <button class="btn btn-primary" onclick="openProductModal()">
               <i class="fas fa-plus"></i> Novo Produto
@@ -870,7 +876,7 @@ async function renderProducts() {
                 </tr>
               </thead>
               <tbody>
-                ${products.map(p => `
+                ${products.map((p, index) => `
                   <tr data-tipo="${p.tipo}" data-nome="${p.nome?.toLowerCase()}">
                     <td>${p.codigo || '-'}</td>
                     <td>${p.nome}</td>
@@ -878,7 +884,7 @@ async function renderProducts() {
                     <td>${formatCurrency(p.preco_custo)}</td>
                     <td>${formatCurrency(p.preco_venda)}</td>
                     <td class="actions">
-                      <button class="btn btn-sm btn-secondary" onclick='editProduct(${JSON.stringify(p).replace(/'/g, "\\'")})'>
+                      <button class="btn btn-sm btn-secondary" onclick="editProductById(${index})">
                         <i class="fas fa-edit"></i>
                       </button>
                       <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})">
@@ -1007,8 +1013,45 @@ function openProductModal(product = null) {
   openModal(isEdit ? 'Editar Produto' : 'Novo Produto', formContent);
 }
 
+function editProductById(index) {
+  const product = productsData[index];
+  if (product) {
+    openProductModal(product);
+  } else {
+    showToast('Produto não encontrado', 'error');
+  }
+}
+
 function editProduct(product) {
   openProductModal(product);
+}
+
+async function exportarPlanilha() {
+  try {
+    showToast('Gerando planilha...', 'info');
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_URL}/api/products/exportar`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Erro ao exportar planilha');
+    }
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `produtos_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+    
+    showToast('Planilha exportada com sucesso!', 'success');
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 async function saveProduct(event, id) {
@@ -1537,16 +1580,314 @@ async function saveInventoryExit(event) {
   }
 }
 
+let salesData = [];
+
 async function renderSales() {
   const content = document.getElementById('content');
-  content.innerHTML = `<div class="empty-state">
-    <i class="fas fa-shopping-cart"></i>
-    <h3>Módulo de Vendas</h3>
-    <p>Use o botão abaixo para criar uma nova venda</p>
-    <button class="btn btn-primary" onclick="showToast('Funcionalidade em desenvolvimento', 'warning')">
-      <i class="fas fa-plus"></i> Nova Venda
+  
+  try {
+    const sales = await api('/sales');
+    salesData = sales;
+    
+    content.innerHTML = `
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-shopping-cart"></i> Vendas</h2>
+          <button class="btn btn-primary" onclick="openSaleModal()">
+            <i class="fas fa-plus"></i> Nova Venda
+          </button>
+        </div>
+        <div class="card-body">
+          ${sales.length === 0 ? `
+            <div class="empty-state">
+              <i class="fas fa-shopping-cart"></i>
+              <h3>Nenhuma venda registrada</h3>
+              <p>Clique em "Nova Venda" para começar</p>
+            </div>
+          ` : `
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Valor Total</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${sales.map((s, index) => `
+                    <tr>
+                      <td>${formatDate(s.createdAt)}</td>
+                      <td>${s.cliente?.nome || 'Cliente não informado'}</td>
+                      <td style="font-weight: bold; color: var(--success);">${formatCurrency(s.valor_total)}</td>
+                      <td><span class="badge badge-${getStatusColor(s.status)}">${s.status}</span></td>
+                      <td class="actions">
+                        <button class="btn btn-sm btn-secondary" onclick="viewSaleById(${index})">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        ${s.status === 'PENDENTE' ? `
+                          <button class="btn btn-sm btn-success" onclick="approveSale(${s.id})">
+                            <i class="fas fa-check"></i>
+                          </button>
+                          <button class="btn btn-sm btn-danger" onclick="cancelSale(${s.id})">
+                            <i class="fas fa-times"></i>
+                          </button>
+                        ` : ''}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-shopping-cart"></i>
+      <h3>Módulo de Vendas</h3>
+      <p>Use o botão abaixo para criar uma nova venda</p>
+      <button class="btn btn-primary" onclick="openSaleModal()">
+        <i class="fas fa-plus"></i> Nova Venda
+      </button>
+    </div>`;
+  }
+}
+
+function viewSaleById(index) {
+  const sale = salesData[index];
+  if (!sale) {
+    showToast('Venda não encontrada', 'error');
+    return;
+  }
+  
+  const content = `
+    <div class="sale-detail">
+      <div class="detail-grid">
+        <p><strong>Data:</strong> ${formatDate(sale.createdAt)}</p>
+        <p><strong>Cliente:</strong> ${sale.cliente?.nome || '-'}</p>
+        <p><strong>Status:</strong> <span class="badge badge-${getStatusColor(sale.status)}">${sale.status}</span></p>
+        <p><strong>Valor Total:</strong> <span style="color: var(--success); font-weight: bold;">${formatCurrency(sale.valor_total)}</span></p>
+      </div>
+      
+      ${sale.itens?.length > 0 ? `
+        <h4 style="margin-top: 20px;">Itens da Venda</h4>
+        <div class="table-container table-sm">
+          <table>
+            <thead><tr><th>Produto</th><th>Qtd</th><th>Valor Unit.</th><th>Subtotal</th></tr></thead>
+            <tbody>
+              ${sale.itens.map(i => `
+                <tr>
+                  <td>${i.produto?.nome || 'Produto'}</td>
+                  <td>${i.quantidade}</td>
+                  <td>${formatCurrency(i.valor_unitario)}</td>
+                  <td>${formatCurrency(i.subtotal)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : ''}
+    </div>
+  `;
+  
+  openModal('Detalhes da Venda', content);
+}
+
+async function openSaleModal() {
+  try {
+    const [customers, products] = await Promise.all([
+      api('/customers'),
+      api('/products')
+    ]);
+    
+    const formContent = `
+      <form id="saleForm" onsubmit="saveSale(event)">
+        <div class="form-group">
+          <label>Cliente</label>
+          <select name="cliente_id" required>
+            <option value="">Selecione o cliente</option>
+            ${customers.map(c => `<option value="${c.id}">${c.nome}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Forma de Pagamento</label>
+          <select name="forma_pagamento">
+            <option value="DINHEIRO">Dinheiro</option>
+            <option value="PIX">PIX</option>
+            <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+            <option value="CARTAO_DEBITO">Cartão de Débito</option>
+            <option value="BOLETO">Boleto</option>
+            <option value="FINANCIAMENTO">Financiamento</option>
+          </select>
+        </div>
+        
+        <h4 style="margin: 20px 0 10px;">Itens da Venda</h4>
+        <div id="saleItems">
+          <div class="sale-item-row" style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <select name="produto_id_0" style="flex: 2;" onchange="updateItemPrice(0)" required>
+              <option value="">Selecione o produto</option>
+              ${products.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}">${p.nome} - ${formatCurrency(p.preco_venda)}</option>`).join('')}
+            </select>
+            <input type="number" name="quantidade_0" value="1" min="1" style="flex: 1;" placeholder="Qtd" onchange="updateItemPrice(0)">
+            <input type="text" name="preco_0" style="flex: 1;" placeholder="Preço" readonly>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-secondary" onclick="addSaleItem()" style="margin-bottom: 20px;">
+          <i class="fas fa-plus"></i> Adicionar Item
+        </button>
+        
+        <div class="form-group">
+          <label>Observações</label>
+          <textarea name="observacoes" rows="2"></textarea>
+        </div>
+        
+        <div style="text-align: right; font-size: 18px; margin: 20px 0;">
+          <strong>Total: </strong><span id="saleTotal" style="color: var(--success);">R$ 0,00</span>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Registrar Venda</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Nova Venda', formContent);
+    window.saleProducts = products;
+    window.saleItemCount = 1;
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+function addSaleItem() {
+  const container = document.getElementById('saleItems');
+  const index = window.saleItemCount++;
+  const products = window.saleProducts || [];
+  
+  const row = document.createElement('div');
+  row.className = 'sale-item-row';
+  row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px;';
+  row.innerHTML = `
+    <select name="produto_id_${index}" style="flex: 2;" onchange="updateItemPrice(${index})">
+      <option value="">Selecione o produto</option>
+      ${products.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}">${p.nome} - ${formatCurrency(p.preco_venda)}</option>`).join('')}
+    </select>
+    <input type="number" name="quantidade_${index}" value="1" min="1" style="flex: 1;" placeholder="Qtd" onchange="updateItemPrice(${index})">
+    <input type="text" name="preco_${index}" style="flex: 1;" placeholder="Preço" readonly>
+    <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove(); calcSaleTotal();">
+      <i class="fas fa-trash"></i>
     </button>
-  </div>`;
+  `;
+  container.appendChild(row);
+}
+
+function updateItemPrice(index) {
+  const select = document.querySelector(`[name="produto_id_${index}"]`);
+  const qtdInput = document.querySelector(`[name="quantidade_${index}"]`);
+  const precoInput = document.querySelector(`[name="preco_${index}"]`);
+  
+  if (select && qtdInput && precoInput) {
+    const option = select.options[select.selectedIndex];
+    const preco = parseFloat(option?.dataset?.preco) || 0;
+    const qtd = parseInt(qtdInput.value) || 1;
+    precoInput.value = formatCurrency(preco * qtd);
+  }
+  
+  calcSaleTotal();
+}
+
+function calcSaleTotal() {
+  let total = 0;
+  const rows = document.querySelectorAll('.sale-item-row');
+  
+  rows.forEach((row, i) => {
+    const select = row.querySelector('select');
+    const qtdInput = row.querySelector('input[type="number"]');
+    
+    if (select && qtdInput) {
+      const option = select.options[select.selectedIndex];
+      const preco = parseFloat(option?.dataset?.preco) || 0;
+      const qtd = parseInt(qtdInput.value) || 0;
+      total += preco * qtd;
+    }
+  });
+  
+  document.getElementById('saleTotal').textContent = formatCurrency(total);
+}
+
+async function saveSale(event) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const formData = new FormData(form);
+  
+  const items = [];
+  let i = 0;
+  while (formData.has(`produto_id_${i}`)) {
+    const produtoId = formData.get(`produto_id_${i}`);
+    const quantidade = formData.get(`quantidade_${i}`);
+    
+    if (produtoId && quantidade) {
+      const product = window.saleProducts?.find(p => p.id == produtoId);
+      items.push({
+        produto_id: parseInt(produtoId),
+        quantidade: parseInt(quantidade),
+        valor_unitario: product?.preco_venda || 0
+      });
+    }
+    i++;
+  }
+  
+  if (items.length === 0) {
+    showToast('Adicione pelo menos um item à venda', 'error');
+    return;
+  }
+  
+  const data = {
+    cliente_id: parseInt(formData.get('cliente_id')),
+    forma_pagamento: formData.get('forma_pagamento'),
+    observacoes: formData.get('observacoes'),
+    itens: items
+  };
+  
+  try {
+    await api('/sales', { method: 'POST', body: data });
+    showToast('Venda registrada com sucesso!', 'success');
+    closeModal();
+    await renderSales();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function approveSale(id) {
+  if (!confirm('Aprovar esta venda?')) return;
+  
+  try {
+    await api(`/sales/${id}/aprovar`, { method: 'PUT' });
+    showToast('Venda aprovada!', 'success');
+    await renderSales();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function cancelSale(id) {
+  if (!confirm('Cancelar esta venda?')) return;
+  
+  try {
+    await api(`/sales/${id}/cancelar`, { method: 'PUT' });
+    showToast('Venda cancelada', 'warning');
+    await renderSales();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
 }
 
 async function renderServiceOrders() {
