@@ -818,13 +818,27 @@ async function renderProducts() {
             
             <details style="margin-top: 15px;">
               <summary style="cursor: pointer; color: var(--primary);">Formato esperado da planilha</summary>
-              <ul style="color: var(--text-muted); list-style: inside; margin-top: 10px;">
-                <li>Coluna "Código" ou "codigo"</li>
-                <li>Coluna "Descrição" ou "Nome"</li>
-                <li>Coluna "Categoria" (será criada automaticamente)</li>
-                <li>Coluna "Preço" ou "Preço Venda"</li>
-                <li>Coluna "Preço Custo" ou "Custo" (opcional)</li>
-              </ul>
+              <div style="margin-top: 10px; color: var(--text-muted);">
+                <p style="margin-bottom: 10px;"><strong>Campos principais:</strong></p>
+                <ul style="list-style: inside; margin-bottom: 15px;">
+                  <li>Coluna "Produto" ou "Descrição" ou "Nome" <span style="color: var(--danger);">*obrigatório</span></li>
+                  <li>Coluna "Código" (opcional - gera automaticamente se vazio)</li>
+                  <li>Coluna "Categoria" ou "Tipo" (Moto, Serviço, Peça)</li>
+                  <li>Coluna "Custo" ou "Preço de Custo"</li>
+                  <li>Coluna "Lucro" ou "Percentual" ou "Margem" (padrão 30%)</li>
+                  <li>Coluna "Preço" ou "Preço Venda" (calculado automaticamente se vazio)</li>
+                </ul>
+                <p style="margin-bottom: 10px;"><strong>Campos adicionais:</strong></p>
+                <ul style="list-style: inside;">
+                  <li>Cor, Peso, Garantia</li>
+                  <li>Chassi, Código Motor, Bateria (para motos)</li>
+                  <li>Localização, Estoque Mínimo, Estoque Máximo</li>
+                  <li>Observação ou Info</li>
+                </ul>
+                <p style="margin-top: 15px; padding: 10px; background: rgba(255,107,53,0.1); border-radius: 8px;">
+                  <i class="fas fa-calculator"></i> <strong>Cálculo automático:</strong> Se você informar o Custo e o Percentual de Lucro, o Preço de Venda será calculado automaticamente.
+                </p>
+              </div>
             </details>
           </div>
         </div>
@@ -1180,6 +1194,16 @@ async function importProducts(event) {
       const servicos = result.detalhes.filter(p => p.tipo === 'SERVICO');
       const pecas = result.detalhes.filter(p => p.tipo === 'PECA');
       
+      const renderTabela = (items) => items.map(p => `
+        <tr>
+          <td>${p.codigo}</td>
+          <td>${p.nome}</td>
+          <td>${formatCurrency(p.precoCusto || 0)}</td>
+          <td>${p.percentualLucro || 30}%</td>
+          <td style="color: var(--success); font-weight: bold;">${formatCurrency(p.preco)}</td>
+        </tr>
+      `).join('');
+      
       listDiv.innerHTML = `
         <div class="card" style="margin-top: 20px;">
           <div class="card-header">
@@ -1190,10 +1214,8 @@ async function importProducts(event) {
               <h4 style="color: var(--primary); margin-bottom: 10px;"><i class="fas fa-motorcycle"></i> Motos (${motos.length})</h4>
               <div class="table-container table-sm" style="margin-bottom: 20px;">
                 <table>
-                  <thead><tr><th>Código</th><th>Nome</th><th>Preço</th></tr></thead>
-                  <tbody>
-                    ${motos.map(p => `<tr><td>${p.codigo}</td><td>${p.nome}</td><td>${formatCurrency(p.preco)}</td></tr>`).join('')}
-                  </tbody>
+                  <thead><tr><th>Código</th><th>Nome</th><th>Custo</th><th>Lucro</th><th>Preço Venda</th></tr></thead>
+                  <tbody>${renderTabela(motos)}</tbody>
                 </table>
               </div>
             ` : ''}
@@ -1202,10 +1224,8 @@ async function importProducts(event) {
               <h4 style="color: var(--success); margin-bottom: 10px;"><i class="fas fa-wrench"></i> Serviços (${servicos.length})</h4>
               <div class="table-container table-sm" style="margin-bottom: 20px; max-height: 300px; overflow-y: auto;">
                 <table>
-                  <thead><tr><th>Código</th><th>Nome</th><th>Preço</th></tr></thead>
-                  <tbody>
-                    ${servicos.map(p => `<tr><td>${p.codigo}</td><td>${p.nome}</td><td>${formatCurrency(p.preco)}</td></tr>`).join('')}
-                  </tbody>
+                  <thead><tr><th>Código</th><th>Nome</th><th>Custo</th><th>Lucro</th><th>Preço Venda</th></tr></thead>
+                  <tbody>${renderTabela(servicos)}</tbody>
                 </table>
               </div>
             ` : ''}
@@ -1214,10 +1234,8 @@ async function importProducts(event) {
               <h4 style="color: #6c757d; margin-bottom: 10px;"><i class="fas fa-cog"></i> Peças (${pecas.length})</h4>
               <div class="table-container table-sm" style="max-height: 400px; overflow-y: auto;">
                 <table>
-                  <thead><tr><th>Código</th><th>Nome</th><th>Preço</th></tr></thead>
-                  <tbody>
-                    ${pecas.map(p => `<tr><td>${p.codigo}</td><td>${p.nome}</td><td>${formatCurrency(p.preco)}</td></tr>`).join('')}
-                  </tbody>
+                  <thead><tr><th>Código</th><th>Nome</th><th>Custo</th><th>Lucro</th><th>Preço Venda</th></tr></thead>
+                  <tbody>${renderTabela(pecas)}</tbody>
                 </table>
               </div>
             ` : ''}

@@ -336,11 +336,49 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
           continue;
         }
         
-        const precoRaw = getValorColuna(row, 'preço', 'preco', 'valor', 'venda', 'price');
-        const preco = parseMonetario(precoRaw);
-        
-        const precoCustoRaw = getValorColuna(row, 'custo', 'preço de custo', 'preco de custo');
+        const precoCustoRaw = getValorColuna(row, 'custo', 'preço de custo', 'preco de custo', 'preço custo', 'valor custo');
         const precoCusto = parseMonetario(precoCustoRaw);
+        
+        const percentualLucroRaw = getValorColuna(row, 'lucro', 'percentual', 'margem', '% lucro', 'markup');
+        let percentualLucro = parseMonetario(percentualLucroRaw);
+        if (percentualLucro === 0) percentualLucro = 30;
+        
+        const precoVendaRaw = getValorColuna(row, 'preço', 'preco', 'valor', 'venda', 'price', 'preço venda');
+        let precoVenda = parseMonetario(precoVendaRaw);
+        
+        if (precoCusto > 0 && precoVenda === 0) {
+          precoVenda = precoCusto + (precoCusto * percentualLucro / 100);
+        }
+        
+        const descricaoRaw = getValorColuna(row, 'obs', 'observação', 'observacao', 'detalhes', 'info');
+        const descricao = limparTexto(descricaoRaw);
+        
+        const garantiaRaw = getValorColuna(row, 'garantia', 'warranty');
+        const garantia = limparTexto(garantiaRaw);
+        
+        const pesoRaw = getValorColuna(row, 'peso', 'weight', 'kg');
+        const peso = parseMonetario(pesoRaw);
+        
+        const corRaw = getValorColuna(row, 'cor', 'color', 'cores');
+        const cor = limparTexto(corRaw);
+        
+        const chassiRaw = getValorColuna(row, 'chassi', 'chassis', 'vin');
+        const chassi = limparTexto(chassiRaw);
+        
+        const codigoMotorRaw = getValorColuna(row, 'motor', 'código motor', 'codigo motor');
+        const codigoMotor = limparTexto(codigoMotorRaw);
+        
+        const capacidadeBateriaRaw = getValorColuna(row, 'bateria', 'capacidade', 'battery', 'ah', 'kwh');
+        const capacidadeBateria = limparTexto(capacidadeBateriaRaw);
+        
+        const localizacaoRaw = getValorColuna(row, 'localização', 'localizacao', 'local', 'prateleira');
+        const localizacao = limparTexto(localizacaoRaw);
+        
+        const estoqueMinimoRaw = getValorColuna(row, 'estoque mínimo', 'estoque minimo', 'min');
+        const estoqueMinimo = parseInt(estoqueMinimoRaw) || 0;
+        
+        const estoqueMaximoRaw = getValorColuna(row, 'estoque máximo', 'estoque maximo', 'max');
+        const estoqueMaximo = parseInt(estoqueMaximoRaw) || 100;
         
         let categoriaRaw = getValorColuna(row, 'categoria do produto', 'categoria', 'tipo', 'classificação', 'grupo');
         const categoriaStr = limparTexto(categoriaRaw).toUpperCase();
@@ -359,22 +397,32 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
         
         const existente = codigo ? await Product.findOne({ where: { codigo: codigoLimpo } }) : null;
 
+        const dadosProduto = {
+          nome,
+          preco_custo: precoCusto,
+          percentual_lucro: percentualLucro,
+          preco_venda: precoVenda,
+          tipo,
+          descricao: descricao || null,
+          garantia: garantia || null,
+          peso: peso || null,
+          cor: cor || null,
+          chassi: chassi || null,
+          codigo_motor: codigoMotor || null,
+          capacidade_bateria: capacidadeBateria || null,
+          localizacao: localizacao || null,
+          estoque_minimo: estoqueMinimo,
+          estoque_maximo: estoqueMaximo
+        };
+
         if (existente) {
-          await existente.update({
-            nome: nome,
-            preco_venda: preco || existente.preco_venda,
-            preco_custo: precoCusto || existente.preco_custo,
-            tipo: tipo
-          });
+          await existente.update(dadosProduto);
           resultados.atualizados++;
           resultados.porTipo[tipo]++;
         } else {
           const product = await Product.create({
             codigo: codigoLimpo,
-            nome: nome,
-            preco_venda: preco,
-            preco_custo: precoCusto,
-            tipo
+            ...dadosProduto
           });
           
           await InventoryMain.create({
@@ -386,7 +434,7 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
           resultados.porTipo[tipo]++;
         }
         
-        resultados.detalhes.push({ codigo: codigoLimpo, nome, tipo, preco });
+        resultados.detalhes.push({ codigo: codigoLimpo, nome, tipo, preco: precoVenda, precoCusto, percentualLucro });
         
       } catch (err) {
         console.error('Erro ao processar linha:', err.message);
