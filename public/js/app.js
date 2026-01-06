@@ -970,15 +970,15 @@ function openProductModal(product = null) {
       <div class="form-row">
         <div class="form-group">
           <label>Preço de Custo</label>
-          <input type="number" step="0.01" name="preco_custo" value="${product?.preco_custo || 0}">
+          <input type="number" step="0.01" name="preco_custo" value="${product?.preco_custo || 0}" oninput="calcularPrecoVenda()">
         </div>
         <div class="form-group">
           <label>% Lucro</label>
-          <input type="number" step="0.01" name="percentual_lucro" value="${product?.percentual_lucro || 30}">
+          <input type="number" step="0.01" name="percentual_lucro" value="${product?.percentual_lucro || 30}" oninput="calcularPrecoVenda()">
         </div>
         <div class="form-group">
           <label>Preço de Venda</label>
-          <input type="number" step="0.01" name="preco_venda" value="${product?.preco_venda || 0}">
+          <input type="number" step="0.01" name="preco_venda" value="${product?.preco_venda || 0}" style="background: #2a2a2a; font-weight: bold; color: var(--success);">
         </div>
       </div>
       
@@ -1011,6 +1011,17 @@ function openProductModal(product = null) {
   `;
   
   openModal(isEdit ? 'Editar Produto' : 'Novo Produto', formContent);
+}
+
+function calcularPrecoVenda() {
+  const precoCusto = parseFloat(document.querySelector('[name="preco_custo"]')?.value) || 0;
+  const percentualLucro = parseFloat(document.querySelector('[name="percentual_lucro"]')?.value) || 0;
+  const precoVendaInput = document.querySelector('[name="preco_venda"]');
+  
+  if (precoVendaInput && precoCusto > 0) {
+    const precoVenda = precoCusto + (precoCusto * percentualLucro / 100);
+    precoVendaInput.value = precoVenda.toFixed(2);
+  }
 }
 
 function editProductById(index) {
