@@ -1018,8 +1018,9 @@ function calcularPrecoVenda() {
   const percentualLucro = parseFloat(document.querySelector('[name="percentual_lucro"]')?.value) || 0;
   const precoVendaInput = document.querySelector('[name="preco_venda"]');
   
-  if (precoVendaInput && precoCusto > 0) {
-    const precoVenda = precoCusto + (precoCusto * percentualLucro / 100);
+  if (precoVendaInput && precoCusto > 0 && percentualLucro < 100) {
+    const divisor = (100 - percentualLucro) / 100;
+    const precoVenda = precoCusto / divisor;
     precoVendaInput.value = precoVenda.toFixed(2);
   }
 }
