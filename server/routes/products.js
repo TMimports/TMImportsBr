@@ -396,9 +396,13 @@ router.post('/importar', isGestorOuAdmin, upload.single('arquivo'), async (req, 
         const precoVendaRaw = getValorColuna(row, 'preço', 'preco', 'valor', 'venda', 'price', 'preço venda');
         let precoVenda = parseMonetario(precoVendaRaw);
         
-        if (precoCusto > 0 && precoVenda === 0 && percentualLucro < 100) {
-          const divisor = (100 - percentualLucro) / 100;
-          precoVenda = precoCusto / divisor;
+        if (precoCusto > 0 && precoVenda === 0) {
+          if (percentualLucro < 100) {
+            const divisor = (100 - percentualLucro) / 100;
+            precoVenda = precoCusto / divisor;
+          } else {
+            precoVenda = precoCusto * (1 + percentualLucro / 100);
+          }
         }
         
         const descricaoRaw = getValorColuna(row, 'obs', 'observação', 'observacao', 'detalhes', 'info');
