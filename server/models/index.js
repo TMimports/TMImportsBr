@@ -1,6 +1,17 @@
 const sequelize = require('../config/database');
 const { DataTypes } = require('sequelize');
 
+const Role = sequelize.define('Role', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  codigo: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+  nome: { type: DataTypes.STRING(100), allowNull: false },
+  descricao: { type: DataTypes.TEXT },
+  escopo: { type: DataTypes.ENUM('TMIMPORTS', 'TECLE_MOTOS', 'AMBOS'), defaultValue: 'AMBOS' },
+  permissoes: { type: DataTypes.JSON, defaultValue: {} },
+  ordem: { type: DataTypes.INTEGER, defaultValue: 0 },
+  ativo: { type: DataTypes.BOOLEAN, defaultValue: true }
+}, { tableName: 'roles', timestamps: true });
+
 const User = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   nome: { type: DataTypes.STRING(100), allowNull: false },
@@ -14,6 +25,13 @@ const User = sequelize.define('User', {
   permissoes: { type: DataTypes.JSON, defaultValue: {} },
   ultimo_acesso: { type: DataTypes.DATE }
 }, { tableName: 'users', timestamps: true });
+
+const UserRole = sequelize.define('UserRole', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  role_id: { type: DataTypes.INTEGER, allowNull: false },
+  principal: { type: DataTypes.BOOLEAN, defaultValue: false }
+}, { tableName: 'user_roles', timestamps: true });
 
 const Company = sequelize.define('Company', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
@@ -569,9 +587,14 @@ InvoiceItem.belongsTo(Product, { foreignKey: 'produto_id', as: 'produto' });
 Invoice.hasMany(InvoiceEvent, { foreignKey: 'invoice_id', as: 'eventos' });
 InvoiceEvent.belongsTo(Invoice, { foreignKey: 'invoice_id' });
 
+User.belongsToMany(Role, { through: UserRole, foreignKey: 'user_id', as: 'roles' });
+Role.belongsToMany(User, { through: UserRole, foreignKey: 'role_id', as: 'users' });
+
 module.exports = {
   sequelize,
+  Role,
   User,
+  UserRole,
   Company,
   Store,
   Category,

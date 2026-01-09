@@ -4,7 +4,7 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 
-const { sequelize, User, Company, Store, Category } = require('./models');
+const { sequelize, User, Company, Store, Category, Role, UserRole, Setting } = require('./models');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
@@ -103,6 +103,64 @@ async function initializeDatabase() {
         primeiro_acesso: false
       });
       console.log('Admin Global created:', adminEmail);
+    }
+
+    const rolesCount = await Role.count();
+    if (rolesCount === 0) {
+      const rolesDefault = [
+        { codigo: 'ADMIN_GLOBAL', nome: 'Admin Global', escopo: 'AMBOS', ordem: 1, permissoes: { all: true } },
+        { codigo: 'GESTOR_DASHBOARD', nome: 'Gestor Dashboard', escopo: 'TMIMPORTS', ordem: 2, permissoes: { dashboard: ['read'], vendas: ['read'], os: ['read'], estoque: ['read'] } },
+        { codigo: 'GERENTE_OP', nome: 'Gerente Operacional', escopo: 'TMIMPORTS', ordem: 3, permissoes: { produtos: ['create','read','update'], estoque: ['create','read','update'], vendas: ['create','read','update'], os: ['create','read','update'], clientes: ['create','read','update'], pedidos: ['create','read','update','approve'] } },
+        { codigo: 'FINANCEIRO', nome: 'Financeiro', escopo: 'TMIMPORTS', ordem: 4, permissoes: { financeiro: ['create','read','update','delete'], fiscal: ['create','read','update'], vendas: ['read'], os: ['read'] } },
+        { codigo: 'ADM1_LOGISTICA', nome: 'ADM 1 - Logística', escopo: 'TMIMPORTS', ordem: 5, permissoes: { estoque: ['create','read','update'], pedidos: ['read','update','send'], movimentacoes: ['create','read'] } },
+        { codigo: 'ADM2_CADASTRO', nome: 'ADM 2 - Cadastro', escopo: 'TMIMPORTS', ordem: 6, permissoes: { usuarios: ['create','read','update'], empresas: ['create','read','update'], lojas: ['create','read','update'], produtos: ['create','read','update'] } },
+        { codigo: 'ADM3_OS_GARANTIA', nome: 'ADM 3 - OS/Garantia', escopo: 'TMIMPORTS', ordem: 7, permissoes: { os: ['create','read','update'], garantia: ['create','read','update'] } },
+        { codigo: 'VENDEDOR_TMI', nome: 'Vendedor TM Imports', escopo: 'TMIMPORTS', ordem: 8, permissoes: { vendas: ['create','read'], produtos: ['read'], estoque: ['read'], clientes: ['create','read','update'] } },
+        { codigo: 'FRANQUEADO_GESTOR', nome: 'Franqueado/Gestor', escopo: 'TECLE_MOTOS', ordem: 10, permissoes: { dashboard: ['read'], vendas: ['create','read','update','delete'], os: ['create','read','update','delete'], estoque: ['read'], clientes: ['create','read','update'], pedidos: ['create','read','update'], usuarios: ['create','read','update'], configuracoes: ['read','update'] } },
+        { codigo: 'GERENTE_LOJA', nome: 'Gerente de Loja', escopo: 'TECLE_MOTOS', ordem: 11, permissoes: { vendas: ['create','read','update'], os: ['create','read','update'], estoque: ['read'], clientes: ['create','read','update'], pedidos: ['create','read','update'] } },
+        { codigo: 'VENDEDOR_LOJA', nome: 'Vendedor Loja', escopo: 'TECLE_MOTOS', ordem: 12, permissoes: { vendas: ['create','read'], os: ['create','read'], estoque: ['read'], clientes: ['create','read','update'] } }
+      ];
+      await Role.bulkCreate(rolesDefault);
+      console.log('Default roles created');
+      
+      const adminRole = await Role.findOne({ where: { codigo: 'ADMIN_GLOBAL' } });
+      if (admin && adminRole) {
+        const existingUserRole = await UserRole.findOne({ where: { user_id: admin.id, role_id: adminRole.id } });
+        if (!existingUserRole) {
+          await UserRole.create({ user_id: admin.id, role_id: adminRole.id, principal: true });
+          console.log('Admin assigned ADMIN_GLOBAL role');
+        }
+      }
+    }
+
+    const settingsCount = await Setting.count();
+    if (settingsCount === 0) {
+      const settingsDefault = [
+        { chave: 'desconto_max_moto', valor: '3.5', tipo: 'number' },
+        { chave: 'desconto_max_peca', valor: '10', tipo: 'number' },
+        { chave: 'desconto_max_servico', valor: '10', tipo: 'number' },
+        { chave: 'parcelas_max_moto', valor: '21', tipo: 'number' },
+        { chave: 'parcelas_max_peca', valor: '10', tipo: 'number' },
+        { chave: 'taxa_debito', valor: '1', tipo: 'number' },
+        { chave: 'estoque_minimo_alerta', valor: '2', tipo: 'number' },
+        { chave: 'margem_franqueado_peca', valor: '60', tipo: 'number' },
+        { chave: 'margem_franqueado_moto', valor: '26.32', tipo: 'number' },
+        { chave: 'taxas_cartao', valor: JSON.stringify({1:0,2:3.5,3:4.5,4:5.5,5:6.5,6:7.5,7:8.5,8:9.5,9:10.5,10:11.5,11:12.5,12:13.5,13:14.5,14:15.5,15:16.5,16:17.5,17:18.5,18:19.5,19:20.5,20:21.5,21:22.5}), tipo: 'json' },
+        { chave: 'servicos_catalogo', valor: JSON.stringify([
+          {nome:'Mão de obra 15min',preco:70,parcelas_max:1},
+          {nome:'Mão de obra 30min',preco:140,parcelas_max:1},
+          {nome:'Mão de obra 45min',preco:270,parcelas_max:2},
+          {nome:'Mão de obra 1h',preco:330,parcelas_max:3},
+          {nome:'Revitalização',preco:1200,parcelas_max:5},
+          {nome:'Serviço de motor',preco:1000,parcelas_max:5},
+          {nome:'Serviço de módulo',preco:700,parcelas_max:4},
+          {nome:'Troca pneu dianteiro',preco:150,parcelas_max:2},
+          {nome:'Troca pneu traseiro',preco:290,parcelas_max:2},
+          {nome:'Revisão',preco:350,parcelas_max:2}
+        ]), tipo: 'json' }
+      ];
+      await Setting.bulkCreate(settingsDefault);
+      console.log('Default settings created');
     }
 
     const categoriaCount = await Category.count();
