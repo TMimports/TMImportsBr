@@ -7,13 +7,41 @@ const { Op } = require('sequelize');
 router.use(verifyToken);
 router.use(filterByStore);
 
+function getDateRange(range) {
+  const hoje = new Date();
+  hoje.setHours(23, 59, 59, 999);
+  let inicio;
+  
+  switch(range) {
+    case 'weekly':
+      inicio = new Date(hoje);
+      inicio.setDate(inicio.getDate() - 6);
+      inicio.setHours(0, 0, 0, 0);
+      break;
+    case 'monthly':
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      inicio.setHours(0, 0, 0, 0);
+      break;
+    case 'all':
+    default:
+      inicio = new Date(2020, 0, 1);
+      break;
+  }
+  
+  return { inicio, fim: hoje };
+}
+
 router.get('/receber', async (req, res) => {
   try {
-    const { status, data_inicio, data_fim } = req.query;
+    const { status, data_inicio, data_fim, range } = req.query;
     const where = { ...req.storeFilter };
 
     if (status) where.status = status;
-    if (data_inicio && data_fim) {
+    
+    if (range && !data_inicio) {
+      const { inicio, fim } = getDateRange(range);
+      where.data_vencimento = { [Op.between]: [inicio, fim] };
+    } else if (data_inicio && data_fim) {
       where.data_vencimento = { [Op.between]: [data_inicio, data_fim] };
     }
 
@@ -106,12 +134,16 @@ router.post('/receber/:id/baixar', isGestorOuAdmin, async (req, res) => {
 
 router.get('/pagar', async (req, res) => {
   try {
-    const { status, data_inicio, data_fim, categoria } = req.query;
+    const { status, data_inicio, data_fim, categoria, range } = req.query;
     const where = { ...req.storeFilter };
 
     if (status) where.status = status;
     if (categoria) where.categoria = categoria;
-    if (data_inicio && data_fim) {
+    
+    if (range && !data_inicio) {
+      const { inicio, fim } = getDateRange(range);
+      where.data_vencimento = { [Op.between]: [inicio, fim] };
+    } else if (data_inicio && data_fim) {
       where.data_vencimento = { [Op.between]: [data_inicio, data_fim] };
     }
 

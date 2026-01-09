@@ -1,52 +1,72 @@
 const bcrypt = require('bcryptjs');
 
+const usedCPFs = new Set();
+const usedCNPJs = new Set();
+
 function gerarCPFValido() {
-  const random = () => Math.floor(Math.random() * 9);
-  const n = Array.from({ length: 9 }, random);
+  let cpf;
+  do {
+    const random = () => Math.floor(Math.random() * 9);
+    const n = Array.from({ length: 9 }, random);
+    
+    let d1 = n.reduce((acc, val, i) => acc + val * (10 - i), 0);
+    d1 = 11 - (d1 % 11);
+    if (d1 >= 10) d1 = 0;
+    n.push(d1);
+    
+    let d2 = n.reduce((acc, val, i) => acc + val * (11 - i), 0);
+    d2 = 11 - (d2 % 11);
+    if (d2 >= 10) d2 = 0;
+    n.push(d2);
+    
+    cpf = `${n[0]}${n[1]}${n[2]}.${n[3]}${n[4]}${n[5]}.${n[6]}${n[7]}${n[8]}-${n[9]}${n[10]}`;
+  } while (usedCPFs.has(cpf));
   
-  let d1 = n.reduce((acc, val, i) => acc + val * (10 - i), 0);
-  d1 = 11 - (d1 % 11);
-  if (d1 >= 10) d1 = 0;
-  n.push(d1);
-  
-  let d2 = n.reduce((acc, val, i) => acc + val * (11 - i), 0);
-  d2 = 11 - (d2 % 11);
-  if (d2 >= 10) d2 = 0;
-  n.push(d2);
-  
-  return `${n[0]}${n[1]}${n[2]}.${n[3]}${n[4]}${n[5]}.${n[6]}${n[7]}${n[8]}-${n[9]}${n[10]}`;
+  usedCPFs.add(cpf);
+  return cpf;
 }
 
 function gerarCNPJValido() {
-  const random = () => Math.floor(Math.random() * 9);
-  const n = Array.from({ length: 8 }, random);
-  n.push(0, 0, 0, 1);
+  let cnpj;
+  do {
+    const random = () => Math.floor(Math.random() * 9);
+    const n = Array.from({ length: 8 }, random);
+    n.push(0, 0, 0, 1);
+    
+    const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let d1 = n.reduce((acc, val, i) => acc + val * pesos1[i], 0);
+    d1 = 11 - (d1 % 11);
+    if (d1 >= 10) d1 = 0;
+    n.push(d1);
+    
+    const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let d2 = n.reduce((acc, val, i) => acc + val * pesos2[i], 0);
+    d2 = 11 - (d2 % 11);
+    if (d2 >= 10) d2 = 0;
+    n.push(d2);
+    
+    cnpj = `${n[0]}${n[1]}.${n[2]}${n[3]}${n[4]}.${n[5]}${n[6]}${n[7]}/${n[8]}${n[9]}${n[10]}${n[11]}-${n[12]}${n[13]}`;
+  } while (usedCNPJs.has(cnpj));
   
-  const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-  let d1 = n.reduce((acc, val, i) => acc + val * pesos1[i], 0);
-  d1 = 11 - (d1 % 11);
-  if (d1 >= 10) d1 = 0;
-  n.push(d1);
-  
-  const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-  let d2 = n.reduce((acc, val, i) => acc + val * pesos2[i], 0);
-  d2 = 11 - (d2 % 11);
-  if (d2 >= 10) d2 = 0;
-  n.push(d2);
-  
-  return `${n[0]}${n[1]}.${n[2]}${n[3]}${n[4]}.${n[5]}${n[6]}${n[7]}/${n[8]}${n[9]}${n[10]}${n[11]}-${n[12]}${n[13]}`;
+  usedCNPJs.add(cnpj);
+  return cnpj;
 }
 
-function randomDate(daysAgo) {
+function randomDateInRange(daysAgo, daysAgoMax = 0) {
   const date = new Date();
-  date.setDate(date.getDate() - Math.floor(Math.random() * daysAgo));
+  const range = daysAgo - daysAgoMax;
+  date.setDate(date.getDate() - daysAgoMax - Math.floor(Math.random() * range));
   date.setHours(Math.floor(Math.random() * 12) + 8, Math.floor(Math.random() * 60), 0, 0);
   return date;
 }
 
+function randomDate(daysAgo) {
+  return randomDateInRange(daysAgo, 0);
+}
+
 function randomFutureDate(daysAhead) {
   const date = new Date();
-  date.setDate(date.getDate() + Math.floor(Math.random() * daysAhead));
+  date.setDate(date.getDate() + Math.floor(Math.random() * daysAhead) + 1);
   return date;
 }
 
@@ -58,11 +78,16 @@ async function runSeed(models) {
     PurchaseRequest, PurchaseRequestItem, Role, UserRole
   } = models;
 
-  const existingStores = await Store.count();
-  if (existingStores >= 10) {
+  const existingCustomers = await Customer.count();
+  const existingSales = await Sale.count();
+  
+  if (existingCustomers >= 100 && existingSales >= 50) {
     console.log('Seed already applied - skipping');
     return;
   }
+  
+  usedCPFs.clear();
+  usedCNPJs.clear();
 
   console.log('Running complete seed with realistic data...');
 
@@ -565,23 +590,32 @@ async function runSeed(models) {
     }
 
     for (let i = 0; i < 10; i++) {
-      const diasVenc = i < 3 ? -(5 + i * 3) : (i < 5 ? 0 : (i - 5) * 7);
       const venc = new Date();
-      venc.setDate(venc.getDate() + diasVenc);
+      if (i < 2) {
+        venc.setDate(venc.getDate() - (3 + i));
+      } else if (i < 5) {
+        venc.setDate(venc.getDate() + (i - 2));
+      } else if (i < 8) {
+        venc.setDate(venc.getDate() + (i * 3));
+      } else {
+        venc.setDate(venc.getDate() - (i * 2));
+      }
       
       let status;
-      if (i < 3) status = 'PENDENTE';
-      else if (i < 6) status = 'PAGO';
-      else status = 'PENDENTE';
+      if (i < 2) status = 'PENDENTE';
+      else if (i < 5) status = 'PAGO';
+      else if (i < 8) status = 'PENDENTE';
+      else status = 'PAGO';
       
+      const receberNum = lojas.indexOf(loja) * 10 + i + 1;
       await PaymentReceivable.findOrCreate({
-        where: { loja_id: loja.id, descricao: `Recebimento Avulso ${loja.id}-${i + 1}` },
+        where: { loja_id: loja.id, descricao: `Recebimento ${receberNum.toString().padStart(3, '0')}` },
         defaults: {
-          descricao: `Recebimento Avulso ${loja.id}-${i + 1}`,
+          descricao: `Recebimento ${receberNum.toString().padStart(3, '0')}`,
           valor: 200 + (i * 150),
           data_vencimento: venc,
           status,
-          data_pagamento: status === 'PAGO' ? new Date() : null
+          data_pagamento: status === 'PAGO' ? venc : null
         }
       });
     }
@@ -589,59 +623,73 @@ async function runSeed(models) {
     const categoriasPagar = ['FORNECEDOR', 'FIXO', 'VARIAVEL'];
     const descricoesPagar = ['Compra Peças', 'Aluguel', 'Energia', 'Internet', 'Água', 'Material Escritório', 'Marketing', 'Manutenção', 'Impostos', 'Salários'];
     for (let i = 0; i < 10; i++) {
-      const diasVenc = i < 2 ? -(10 + i * 5) : (i < 5 ? (i * 5) : (i - 5) * 10);
       const venc = new Date();
-      venc.setDate(venc.getDate() + diasVenc);
+      if (i < 3) {
+        venc.setDate(venc.getDate() - (2 + i * 2));
+      } else if (i < 6) {
+        venc.setDate(venc.getDate() + (i - 2));
+      } else {
+        venc.setDate(venc.getDate() + (i * 4));
+      }
       
       let status;
-      if (i < 5) status = 'PENDENTE';
-      else if (i < 8) status = 'PAGO';
+      if (i < 3) status = 'PENDENTE';
+      else if (i < 6) status = 'PAGO';
       else status = 'PENDENTE';
       
+      const pagarNum = lojas.indexOf(loja) * 10 + i + 1;
       await PaymentPayable.findOrCreate({
-        where: { loja_id: loja.id, descricao: `${descricoesPagar[i]} - ${loja.cidade}` },
+        where: { loja_id: loja.id, descricao: `${descricoesPagar[i]} ${pagarNum.toString().padStart(3, '0')}` },
         defaults: {
-          descricao: `${descricoesPagar[i]} - ${loja.cidade}`,
+          descricao: `${descricoesPagar[i]} ${pagarNum.toString().padStart(3, '0')}`,
           valor: 300 + (i * 250),
           data_vencimento: venc,
           status,
-          data_pagamento: status === 'PAGO' ? new Date() : null,
+          data_pagamento: status === 'PAGO' ? venc : null,
           categoria: categoriasPagar[i % 3]
         }
       });
     }
   }
 
-  const statusPedidos = ['PENDENTE', 'PENDENTE', 'APROVADA', 'APROVADA', 'FATURADA', 'FATURADA', 'ENVIADA', 'ENVIADA', 'RECEBIDA', 'RECEBIDA'];
+  const statusPedidos = ['PENDENTE', 'PENDENTE', 'APROVADA', 'APROVADA', 'ENVIADA', 'ENVIADA', 'RECEBIDA', 'RECEBIDA', 'PENDENTE', 'APROVADA'];
   for (let i = 0; i < 10; i++) {
     const loja = lojas[i % lojas.length];
-    const dataPedido = randomDate(30);
 
-    const [pedido] = await PurchaseRequest.findOrCreate({
-      where: { numero: `PED-${String(i + 1).padStart(6, '0')}` },
-      defaults: {
+    const existingPedido = await PurchaseRequest.findOne({
+      where: { loja_id: loja.id, observacoes: `Pedido de reposição ${i + 1}` }
+    });
+    
+    let pedido;
+    if (!existingPedido) {
+      pedido = await PurchaseRequest.create({
         loja_id: loja.id,
         status: statusPedidos[i],
         observacoes: `Pedido de reposição ${i + 1}`,
-        data_aprovacao: ['APROVADA', 'FATURADA', 'ENVIADA', 'RECEBIDA'].includes(statusPedidos[i]) ? new Date() : null,
-        data_envio: ['ENVIADA', 'RECEBIDA'].includes(statusPedidos[i]) ? new Date() : null,
-        data_recebimento: statusPedidos[i] === 'RECEBIDA' ? new Date() : null
-      }
-    });
+        total: 0
+      });
+    } else {
+      pedido = existingPedido;
+    }
 
     const qtdItens = 2 + (i % 3);
+    let totalPedido = 0;
     for (let j = 0; j < qtdItens; j++) {
       const produto = j % 2 === 0 ? motos[(i + j) % motos.length] : pecas[(i + j) % pecas.length];
       const qtd = 1 + (j % 3);
+      const itemTotal = parseFloat(produto.preco_custo) * qtd;
+      totalPedido += itemTotal;
+      
       await PurchaseRequestItem.findOrCreate({
         where: { solicitacao_id: pedido.id, produto_id: produto.id },
         defaults: {
           quantidade: qtd,
-          preco_unitario: produto.preco_custo,
-          total: parseFloat(produto.preco_custo) * qtd
+          preco_unitario: produto.preco_custo
         }
       });
     }
+    
+    await pedido.update({ total: totalPedido });
   }
 
   const totalClientes = await Customer.count();

@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, isAdmin } = require('../middleware/auth');
-const { resetAndSeed } = require('../seed');
+const { verifyToken, isAdminGlobal } = require('../middleware/auth');
+const { resetAndSeed, runSeed } = require('../seed');
 const models = require('../models');
 
 router.use(verifyToken);
-router.use(isAdmin);
+router.use(isAdminGlobal);
 
 router.post('/seed/reset', async (req, res) => {
   try {
