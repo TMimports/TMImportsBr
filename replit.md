@@ -195,6 +195,15 @@ O sistema suporta integração com:
 
 ## Mudanças Recentes
 
+- **09/01/2026:** Novas Páginas de Rankings e Dashboard de Franquias
+  - Página de Rankings (/app/rankings) com abas: Motos, Peças, Serviços
+  - Página Low Movers (/app/low-movers): produtos parados, menos vendidos, sem venda no período
+  - Dashboard de Franquias (/app/franquias-dashboard): lista de franquias com ranking por performance
+  - Drill-down por franquia com métricas detalhadas
+  - Filtros de período (Semanal/Mensal/Total) persistidos em localStorage
+  - Cards do dashboard expandidos: OS Abertas/Fechadas, Estoque Baixo/Zerado, Pedidos por status
+  - Estilos CSS para tabs e novas cores de ícones
+
 - **09/01/2026:** Dashboard Melhorado com Filtros de Período
   - Novos endpoints: /dashboard/summary, /charts, /rankings, /low-movers
   - Filtros de período: Semanal (7 dias), Mensal, Total (12 meses)
