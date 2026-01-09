@@ -780,6 +780,56 @@ tr:hover td {
   gap: 15px;
 }
 
+@media (min-width: 768px) {
+  .form-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.taxas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.taxa-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-dark);
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.taxa-item label {
+  font-weight: 600;
+  color: var(--primary);
+  min-width: 30px;
+}
+
+.taxa-item input {
+  width: 60px;
+  padding: 4px 6px;
+  font-size: 0.9rem;
+}
+
+.taxa-item span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.settings-page {
+  max-width: 1200px;
+}
+
+.settings-page .form-section {
+  background: var(--bg-card);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+
 .franchise-list {
   display: flex;
   flex-direction: column;

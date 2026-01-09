@@ -32,6 +32,7 @@ const menuItems = {
     ]},
     { section: 'Sistema', items: [
       { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' },
+      { id: 'configuracoes', label: 'Configurações', icon: 'fas fa-cog' },
       { id: 'auditoria', label: 'Logs de Auditoria', icon: 'fas fa-history' },
       { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
     ]}
@@ -202,7 +203,8 @@ async function loadPage(page) {
     'solicitacoes': 'Solicitações de Compra',
     'solicitar': 'Solicitar Produtos',
     'manual': 'Manual do Sistema',
-    'notas-fiscais': 'Notas Fiscais'
+    'notas-fiscais': 'Notas Fiscais',
+    'configuracoes': 'Configurações Globais'
   };
   
   pageTitle.textContent = titles[page] || 'Dashboard';
@@ -270,6 +272,9 @@ async function loadPage(page) {
         break;
       case 'notas-fiscais':
         await renderInvoices();
+        break;
+      case 'configuracoes':
+        await renderSettings();
         break;
       default:
         await renderDashboard();
@@ -5073,5 +5078,157 @@ window.addEventListener('popstate', () => {
     loadPage(currentPage);
   }
 });
+
+async function renderSettings() {
+  const content = document.getElementById('content');
+  
+  if (currentUser.perfil !== 'ADMIN_GLOBAL') {
+    content.innerHTML = '<div class="empty-state"><i class="fas fa-lock"></i><h3>Acesso Restrito</h3><p>Apenas Admin Global pode acessar as configurações</p></div>';
+    return;
+  }
+  
+  try {
+    const [config, roles] = await Promise.all([
+      api('/settings'),
+      api('/settings/roles')
+    ]);
+    
+    content.innerHTML = `
+      <div class="settings-page">
+        <div class="form-section">
+          <h3><i class="fas fa-percent"></i> Limites de Desconto</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Desconto Máx. Motos (%)</label>
+              <input type="number" id="desconto_max_moto" value="${config.desconto_max_moto || 3.5}" step="0.5" min="0" max="100">
+            </div>
+            <div class="form-group">
+              <label>Desconto Máx. Peças (%)</label>
+              <input type="number" id="desconto_max_peca" value="${config.desconto_max_peca || 10}" step="0.5" min="0" max="100">
+            </div>
+            <div class="form-group">
+              <label>Desconto Máx. Serviços (%)</label>
+              <input type="number" id="desconto_max_servico" value="${config.desconto_max_servico || 10}" step="0.5" min="0" max="100">
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3><i class="fas fa-credit-card"></i> Limites de Parcelamento</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Parcelas Máx. Motos</label>
+              <input type="number" id="parcelas_max_moto" value="${config.parcelas_max_moto || 21}" min="1" max="24">
+            </div>
+            <div class="form-group">
+              <label>Parcelas Máx. Peças</label>
+              <input type="number" id="parcelas_max_peca" value="${config.parcelas_max_peca || 10}" min="1" max="12">
+            </div>
+            <div class="form-group">
+              <label>Taxa Débito (%)</label>
+              <input type="number" id="taxa_debito" value="${config.taxa_debito || 1}" step="0.1" min="0" max="10">
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3><i class="fas fa-boxes"></i> Estoque e Margens</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Estoque Mínimo Alerta (unidades)</label>
+              <input type="number" id="estoque_minimo_alerta" value="${config.estoque_minimo_alerta || 2}" min="0">
+            </div>
+            <div class="form-group">
+              <label>Margem Franqueado Peças (%)</label>
+              <input type="number" id="margem_franqueado_peca" value="${config.margem_franqueado_peca || 60}" step="1" min="0" max="200">
+            </div>
+            <div class="form-group">
+              <label>Margem Franqueado Motos (%)</label>
+              <input type="number" id="margem_franqueado_moto" value="${config.margem_franqueado_moto || 26.32}" step="0.01" min="0" max="100">
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3><i class="fas fa-table"></i> Tabela de Taxas Cartão de Crédito</h3>
+          <div class="taxas-grid" id="taxasGrid">
+            ${renderTaxasCartao(config.taxas_cartao || {})}
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3><i class="fas fa-user-tag"></i> Perfis/Roles do Sistema</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nome</th>
+                <th>Escopo</th>
+                <th>Descrição</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${roles.map(r => `
+                <tr>
+                  <td><code>${r.codigo}</code></td>
+                  <td>${r.nome}</td>
+                  <td><span class="badge ${r.escopo === 'TMIMPORTS' ? 'badge-primary' : r.escopo === 'TECLE_MOTOS' ? 'badge-success' : 'badge-info'}">${r.escopo}</span></td>
+                  <td>${r.descricao || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Salvar Configurações</button>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    content.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erro ao carregar configurações</h3><p>' + error.message + '</p></div>';
+  }
+}
+
+function renderTaxasCartao(taxas) {
+  let html = '';
+  for (let i = 1; i <= 21; i++) {
+    html += `
+      <div class="taxa-item">
+        <label>${i}x</label>
+        <input type="number" id="taxa_${i}" value="${taxas[i] || 0}" step="0.5" min="0" max="50">
+        <span>%</span>
+      </div>
+    `;
+  }
+  return html;
+}
+
+async function saveSettings() {
+  const taxas_cartao = {};
+  for (let i = 1; i <= 21; i++) {
+    taxas_cartao[i] = parseFloat(document.getElementById(`taxa_${i}`).value) || 0;
+  }
+  
+  const settings = {
+    desconto_max_moto: parseFloat(document.getElementById('desconto_max_moto').value),
+    desconto_max_peca: parseFloat(document.getElementById('desconto_max_peca').value),
+    desconto_max_servico: parseFloat(document.getElementById('desconto_max_servico').value),
+    parcelas_max_moto: parseInt(document.getElementById('parcelas_max_moto').value),
+    parcelas_max_peca: parseInt(document.getElementById('parcelas_max_peca').value),
+    taxa_debito: parseFloat(document.getElementById('taxa_debito').value),
+    estoque_minimo_alerta: parseInt(document.getElementById('estoque_minimo_alerta').value),
+    margem_franqueado_peca: parseFloat(document.getElementById('margem_franqueado_peca').value),
+    margem_franqueado_moto: parseFloat(document.getElementById('margem_franqueado_moto').value),
+    taxas_cartao
+  };
+  
+  try {
+    await api('/settings', { method: 'PUT', body: settings });
+    showToast('Configurações salvas com sucesso!', 'success');
+  } catch (error) {
+    showToast('Erro ao salvar: ' + error.message, 'error');
+  }
+}
 
 init();
