@@ -14,7 +14,7 @@ function getDateRange(range) {
   switch(range) {
     case 'weekly':
       inicio = new Date(hoje);
-      inicio.setDate(inicio.getDate() - 7);
+      inicio.setDate(inicio.getDate() - 6);
       inicio.setHours(0, 0, 0, 0);
       break;
     case 'monthly':
@@ -149,40 +149,71 @@ router.get('/charts', async (req, res) => {
     const loja_id = storeId || req.user.loja_id;
     
     const hoje = new Date();
-    const diasAtras = range === 'weekly' ? 7 : 30;
-    
     const vendasPorDia = [];
     const osPorDia = [];
     
-    for (let i = diasAtras - 1; i >= 0; i--) {
-      const dia = new Date(hoje);
-      dia.setDate(dia.getDate() - i);
-      dia.setHours(0, 0, 0, 0);
-      const fimDia = new Date(dia);
-      fimDia.setHours(23, 59, 59, 999);
-      
-      const whereVenda = {
-        data_venda: { [Op.between]: [dia, fimDia] },
-        status: 'CONCLUIDA'
-      };
-      const whereOS = {
-        createdAt: { [Op.between]: [dia, fimDia] }
-      };
-      
-      if (!isAdmin && loja_id) {
-        whereVenda.loja_id = loja_id;
-        whereOS.loja_id = loja_id;
+    if (range === 'all') {
+      for (let i = 11; i >= 0; i--) {
+        const mes = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() - i + 1, 0);
+        fimMes.setHours(23, 59, 59, 999);
+        
+        const whereVenda = {
+          data_venda: { [Op.between]: [mes, fimMes] },
+          status: 'CONCLUIDA'
+        };
+        const whereOS = {
+          createdAt: { [Op.between]: [mes, fimMes] }
+        };
+        
+        if (!isAdmin && loja_id) {
+          whereVenda.loja_id = loja_id;
+          whereOS.loja_id = loja_id;
+        }
+        
+        const [vendaMes, osAberta, osFechada] = await Promise.all([
+          Sale.sum('total', { where: whereVenda }),
+          ServiceOrder.count({ where: { ...whereOS, status: { [Op.in]: ['ABERTA', 'EM_EXECUCAO'] } } }),
+          ServiceOrder.count({ where: { ...whereOS, status: 'CONCLUIDA' } })
+        ]);
+        
+        const label = mes.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        vendasPorDia.push({ label, value: vendaMes || 0 });
+        osPorDia.push({ label, abertas: osAberta, fechadas: osFechada });
       }
+    } else {
+      const diasAtras = range === 'weekly' ? 7 : 30;
       
-      const [vendaDia, osAberta, osFechada] = await Promise.all([
-        Sale.sum('total', { where: whereVenda }),
-        ServiceOrder.count({ where: { ...whereOS, status: { [Op.in]: ['ABERTA', 'EM_EXECUCAO'] } } }),
-        ServiceOrder.count({ where: { ...whereOS, status: 'CONCLUIDA' } })
-      ]);
-      
-      const label = dia.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-      vendasPorDia.push({ label, value: vendaDia || 0 });
-      osPorDia.push({ label, abertas: osAberta, fechadas: osFechada });
+      for (let i = diasAtras - 1; i >= 0; i--) {
+        const dia = new Date(hoje);
+        dia.setDate(dia.getDate() - i);
+        dia.setHours(0, 0, 0, 0);
+        const fimDia = new Date(dia);
+        fimDia.setHours(23, 59, 59, 999);
+        
+        const whereVenda = {
+          data_venda: { [Op.between]: [dia, fimDia] },
+          status: 'CONCLUIDA'
+        };
+        const whereOS = {
+          createdAt: { [Op.between]: [dia, fimDia] }
+        };
+        
+        if (!isAdmin && loja_id) {
+          whereVenda.loja_id = loja_id;
+          whereOS.loja_id = loja_id;
+        }
+        
+        const [vendaDia, osAberta, osFechada] = await Promise.all([
+          Sale.sum('total', { where: whereVenda }),
+          ServiceOrder.count({ where: { ...whereOS, status: { [Op.in]: ['ABERTA', 'EM_EXECUCAO'] } } }),
+          ServiceOrder.count({ where: { ...whereOS, status: 'CONCLUIDA' } })
+        ]);
+        
+        const label = dia.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        vendasPorDia.push({ label, value: vendaDia || 0 });
+        osPorDia.push({ label, abertas: osAberta, fechadas: osFechada });
+      }
     }
     
     const whereStatus = isAdmin ? {} : { loja_id };
