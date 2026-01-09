@@ -198,11 +198,14 @@ O sistema suporta integração com:
 - **09/01/2026:** Sistema RBAC Multi-Role e PWA
   - Novos modelos: Role, UserRole para permissões granulares
   - 11 roles padrão: ADMIN_GLOBAL, GESTOR_DASHBOARD, GERENTE_OP, FINANCEIRO, ADM1-3, VENDEDOR_TMI, FRANQUEADO_GESTOR, GERENTE_LOJA, VENDEDOR_LOJA
+  - Middleware de autenticação atualizado para carregar roles e agregar permissões
   - Tabela Settings com configurações globais (descontos, parcelamento, taxas de cartão)
   - Endpoint /api/settings/validar-venda para validação de regras de venda
+  - Regras de negócio: desconto só à vista, juros no cartão, limites por tipo
   - Painel de Configurações Globais para ADMIN_GLOBAL
   - Sistema de notificações com alertas de estoque mínimo
   - PWA: manifest.json e service worker para instalação mobile
+  - Ícones PWA (192x192 e 512x512)
   - Logo dinâmica baseada no perfil do usuário
 
 - **11/12/2024:** Módulo de Notas Fiscais
