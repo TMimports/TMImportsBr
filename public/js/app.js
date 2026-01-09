@@ -81,6 +81,8 @@ const menuItems = {
   ]
 };
 
+let notificationsVisible = false;
+
 async function init() {
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user');
@@ -93,7 +95,6 @@ async function init() {
   try {
     currentUser = JSON.parse(user);
     
-    // Atualiza a logo do sidebar baseado no perfil
     const sidebarLogo = document.getElementById('sidebarLogo');
     if (sidebarLogo) {
       if (currentUser.perfil === 'ADMIN_GLOBAL') {
@@ -107,6 +108,7 @@ async function init() {
     
     renderMenu();
     renderUserInfo();
+    checkNotifications();
     
     const path = window.location.pathname.replace('/app/', '').replace('/app', '');
     if (path && path !== '/') {
@@ -5230,5 +5232,111 @@ async function saveSettings() {
     showToast('Erro ao salvar: ' + error.message, 'error');
   }
 }
+
+async function checkNotifications() {
+  try {
+    const [countData, alertas] = await Promise.all([
+      api('/notifications/nao-lidas'),
+      api('/notifications/verificar-estoque')
+    ]);
+    
+    const badge = document.getElementById('notificationBadge');
+    const total = (countData?.count || 0) + (alertas?.length || 0);
+    
+    if (total > 0) {
+      badge.textContent = total > 99 ? '99+' : total;
+      badge.style.display = 'block';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Erro ao verificar notificações:', error);
+  }
+}
+
+async function toggleNotifications() {
+  const dropdown = document.getElementById('notificationsDropdown');
+  notificationsVisible = !notificationsVisible;
+  
+  if (notificationsVisible) {
+    dropdown.style.display = 'block';
+    await loadNotifications();
+  } else {
+    dropdown.style.display = 'none';
+  }
+}
+
+async function loadNotifications() {
+  const list = document.getElementById('notificationsList');
+  
+  try {
+    const [notifications, alertas] = await Promise.all([
+      api('/notifications'),
+      api('/notifications/verificar-estoque')
+    ]);
+    
+    let html = '';
+    
+    alertas.forEach(a => {
+      html += `
+        <div class="notification-item unread">
+          <div class="title"><i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i> ${a.titulo}</div>
+          <div class="message">${a.mensagem}</div>
+        </div>
+      `;
+    });
+    
+    notifications.forEach(n => {
+      const date = new Date(n.createdAt).toLocaleDateString('pt-BR');
+      html += `
+        <div class="notification-item ${n.lida ? '' : 'unread'}" onclick="lerNotificacao(${n.id}, '${n.link || ''}')">
+          <div class="title">${n.titulo}</div>
+          <div class="message">${n.mensagem}</div>
+          <div class="time">${date}</div>
+        </div>
+      `;
+    });
+    
+    if (!html) {
+      html = '<div class="empty-notifications"><i class="fas fa-check-circle"></i><p>Nenhuma notificação</p></div>';
+    }
+    
+    list.innerHTML = html;
+  } catch (error) {
+    list.innerHTML = '<div class="empty-notifications">Erro ao carregar</div>';
+  }
+}
+
+async function lerNotificacao(id, link) {
+  try {
+    await api(`/notifications/${id}/ler`, { method: 'PUT' });
+    checkNotifications();
+    if (link) {
+      window.location.href = link;
+    }
+  } catch (error) {
+    console.error('Erro:', error);
+  }
+}
+
+async function marcarTodasLidas() {
+  try {
+    await api('/notifications/marcar-todas-lidas', { method: 'POST' });
+    checkNotifications();
+    loadNotifications();
+    showToast('Todas notificações marcadas como lidas', 'success');
+  } catch (error) {
+    showToast('Erro ao marcar notificações', 'error');
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('notificationsDropdown');
+  const btn = document.getElementById('btnNotifications');
+  if (notificationsVisible && !dropdown.contains(e.target) && !btn.contains(e.target)) {
+    dropdown.style.display = 'none';
+    notificationsVisible = false;
+  }
+});
 
 init();

@@ -24,6 +24,7 @@ const purchaseRequestsRoutes = require('./routes/purchaseRequests');
 const auditRoutes = require('./routes/audit');
 const invoicesRoutes = require('./routes/invoices');
 const settingsRoutes = require('./routes/settings');
+const notificationsRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/purchase-requests', purchaseRequestsRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 app.get('/login', (req, res) => {
   res.render('login');
