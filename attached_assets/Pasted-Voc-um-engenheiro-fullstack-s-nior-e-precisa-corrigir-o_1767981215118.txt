@@ -1,0 +1,91 @@
+Você é um engenheiro fullstack sênior e precisa corrigir o dashboard do sistema existente no Replit.
+
+PROBLEMA ATUAL:
+- Ao acessar /app/dashboard o sistema fica preso em "Carregando..." e não renderiza os cards e gráficos.
+- A página mostra apenas o título Dashboard e um loader.
+- Isso indica falha na API, falha no fetch, erro JS, ou endpoint inexistente.
+
+OBJETIVO:
+1) Corrigir imediatamente o bug do "Carregando..." infinito.
+2) Implementar o Dashboard completo conforme requisitos do V1.
+3) Garantir que o dashboard mostre os dados corretamente e seja responsivo (mobile/desktop/tv).
+4) Garantir filtro semanal/mensal/total funcionando para TODOS dashboards.
+5) Implementar logs e fallback se API falhar.
+
+PASSO 1 — DIAGNÓSTICO OBRIGATÓRIO:
+- Verifique o console do navegador e o terminal do Replit.
+- Se existir erro JS, corrija.
+- Verifique se o dashboard faz fetch de um endpoint ex: /api/dashboard, /api/metrics, /api/stats.
+- Garanta que o endpoint exista e retorne JSON válido.
+- Se retornar 401/403, corrija autenticação/sessão.
+- Se retornar 500, corrija queries do banco.
+
+PASSO 2 — ENDPOINT PADRÃO DO DASHBOARD:
+Criar/ajustar rota backend: GET /api/dashboard/summary?range=weekly|monthly|all&storeId=optional
+O retorno deve conter (quantidade + valor) de:
+- vendas (total_qty, total_value)
+- OS (open_qty, open_value, closed_qty, closed_value)
+- estoque (low_stock_qty <=2, out_stock_qty=0)
+- pedidos (pending, approved, invoiced, shipped, delivered)
+
+Criar também:
+- GET /api/dashboard/charts?range=...
+- GET /api/dashboard/rankings?range=... (qtd + valor)
+- GET /api/dashboard/low-movers?range=... (vendas + estoque)
+
+PASSO 3 — FRONTEND DASHBOARD:
+No /app/dashboard:
+- Implementar filtro de período (Semanal, Mensal, Total)
+- Renderizar cards KPIs:
+  1) Vendas (qtd + valor)
+  2) OS Abertas (qtd + valor a receber)
+  3) OS Fechadas (qtd + valor recebido)
+  4) Estoque baixo (qtd itens <=2) + Sem estoque
+  5) Pedidos (pendente/aprovado/faturado/enviado/entregue)
+- Implementar gráficos:
+  - Vendas por dia/semana
+  - OS abertas x fechadas
+  - Pedidos por status
+- O dashboard deve parar de mostrar "Carregando..." quando a API responder ou quando houver erro.
+- Se API falhar: mostrar mensagem clara + botão “Tentar novamente”.
+
+PASSO 4 — PERMISSÃO POR PERFIL:
+- Admin Global: vê dashboards completos TMimports + franquias
+- Gestor dashboard-only + Gerente OP: vê dashboards estratégicos no TMimports
+- Loja:
+  - Franqueado gestor: vê dashboards completos da loja
+  - Gerente loja: NÃO vê dashboard geral
+  - Vendedor loja: vê apenas dashboard próprio (suas vendas/OS)
+- ADM1/ADM2/ADM3: não veem dashboard
+
+Implementar verificação de role no frontend e backend (proteger endpoints).
+
+PASSO 5 — RANKINGS + TRIAGEM:
+Na página TMimports dashboards:
+- Ranking Franquias (qtd + valor)
+- Ranking produtos/peças/motos/serviços (qtd + valor)
+- Triagem low movers (vendas + estoque): menos vendidos / sem venda / parados (30 dias)
+
+Na Loja:
+- Triagem low movers visível somente para Gestor e Gerente.
+
+PASSO 6 — PERFORMANCE:
+- Indexar no SQLite as tabelas de vendas, itens, store_id, created_at
+- Evitar query pesada sem filtro.
+- Agregar por range com SQL SUM/COUNT.
+
+PASSO 7 — TESTE:
+- Crie dados fake seed para:
+  - 5 vendas
+  - 3 OS abertas
+  - 2 OS fechadas
+  - 4 produtos com estoque baixo
+  - 2 pedidos pendentes
+Assim o dashboard renderiza mesmo em ambiente novo.
+
+ENTREGÁVEL:
+- Dashboard funcionando e renderizando cards e gráficos.
+- Sem "Carregando..." infinito.
+- Logs de erro no console e fallback UI.
+- Responsivo em celular, desktop e TV.
+- Filtros semanal/mensal/total funcionando.

@@ -394,18 +394,37 @@ function logout() {
   window.location.href = '/login';
 }
 
+let dashboardRange = 'monthly';
+
 async function renderDashboard() {
   const content = document.getElementById('content');
   
   try {
     const endpoint = currentUser.perfil === 'ADMIN_GLOBAL' ? '/dashboard/global' : '/dashboard/loja';
-    const data = await api(endpoint);
+    const [data, summary, charts, rankings] = await Promise.all([
+      api(endpoint).catch(() => null),
+      api(`/dashboard/summary?range=${dashboardRange}`).catch(() => null),
+      api(`/dashboard/charts?range=${dashboardRange}`).catch(() => null),
+      api(`/dashboard/rankings?range=${dashboardRange}`).catch(() => null)
+    ]);
+    
+    if (!data && !summary) {
+      throw new Error('Falha ao carregar dados do dashboard');
+    }
+    
+    const rangeLabel = dashboardRange === 'weekly' ? 'Semanal' : dashboardRange === 'monthly' ? 'Mensal' : 'Total';
     
     if (currentUser.perfil === 'ADMIN_GLOBAL') {
       content.innerHTML = `
         <div class="dashboard-logo-section">
           <img src="/images/logo-tmimports.jpg" alt="TM Imports" class="dashboard-logo">
           <h1 class="dashboard-title">TM Imports - Painel Administrativo</h1>
+        </div>
+        
+        <div class="dashboard-filters" style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+          <button class="btn ${dashboardRange === 'weekly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('weekly')">Semanal</button>
+          <button class="btn ${dashboardRange === 'monthly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('monthly')">Mensal</button>
+          <button class="btn ${dashboardRange === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('all')">Total</button>
         </div>
         
         <div class="stats-grid">
@@ -761,12 +780,21 @@ async function renderDashboard() {
       carregarEstoqueTMImports();
     }
   } catch (error) {
+    console.error('Erro ao carregar dashboard:', error);
     content.innerHTML = `<div class="empty-state">
-      <i class="fas fa-chart-line"></i>
-      <h3>Bem-vindo ao Sistema</h3>
-      <p>Use o menu lateral para navegar</p>
+      <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+      <h3>Erro ao carregar Dashboard</h3>
+      <p>${error.message || 'Falha na conexão com a API'}</p>
+      <button class="btn btn-primary" onclick="renderDashboard()" style="margin-top: 20px;">
+        <i class="fas fa-redo"></i> Tentar Novamente
+      </button>
     </div>`;
   }
+}
+
+function changeDashboardRange(range) {
+  dashboardRange = range;
+  renderDashboard();
 }
 
 let productsData = [];
