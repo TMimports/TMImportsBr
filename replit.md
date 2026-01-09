@@ -195,6 +195,14 @@ O sistema suporta integração com:
 
 ## Mudanças Recentes
 
+- **09/01/2026:** Dashboard Melhorado com Filtros de Período
+  - Novos endpoints: /dashboard/summary, /charts, /rankings, /low-movers
+  - Filtros de período: Semanal (7 dias), Mensal, Total (12 meses)
+  - Tratamento de erro no frontend com botão "Tentar Novamente"
+  - Permissões por perfil para acesso ao dashboard
+  - Correção do "Carregando..." infinito
+  - Dados de exemplo para teste do sistema
+
 - **09/01/2026:** Sistema RBAC Multi-Role e PWA
   - Novos modelos: Role, UserRole para permissões granulares
   - 11 roles padrão: ADMIN_GLOBAL, GESTOR_DASHBOARD, GERENTE_OP, FINANCEIRO, ADM1-3, VENDEDOR_TMI, FRANQUEADO_GESTOR, GERENTE_LOJA, VENDEDOR_LOJA
