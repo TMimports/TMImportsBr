@@ -188,7 +188,8 @@ async function initializeDatabase() {
       console.log('Default categories created');
     }
 
-    await runSeed(models);
+    // Seed desabilitado - sistema zerado
+    // await runSeed(models);
 
   } catch (error) {
     console.error('Database initialization error:', error);
