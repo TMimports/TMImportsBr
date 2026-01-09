@@ -67,7 +67,9 @@ router.get('/summary', async (req, res) => {
       whereOS.loja_id = loja_id;
     }
     
-    const [vendas, osAbertas, osFechadas, estoqueBaixo, estoqueSemEstoque, pedidos] = await Promise.all([
+    const whereFinanceiro = isAdmin ? {} : { loja_id };
+    
+    const [vendas, osAbertas, osFechadas, estoqueBaixo, estoqueSemEstoque, pedidos, receberPendente, receberPago, pagarPendente, pagarPago] = await Promise.all([
       Sale.findAll({
         where: { ...whereVenda, status: 'CONCLUIDA' },
         attributes: [
@@ -106,6 +108,38 @@ router.get('/summary', async (req, res) => {
         ],
         group: ['status'],
         raw: true
+      }),
+      PaymentReceivable.findAll({
+        where: { ...whereFinanceiro, status: 'PENDENTE' },
+        attributes: [
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty'],
+          [sequelize.fn('SUM', sequelize.col('valor')), 'value']
+        ],
+        raw: true
+      }),
+      PaymentReceivable.findAll({
+        where: { ...whereFinanceiro, status: 'PAGO' },
+        attributes: [
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty'],
+          [sequelize.fn('SUM', sequelize.col('valor')), 'value']
+        ],
+        raw: true
+      }),
+      PaymentPayable.findAll({
+        where: { ...whereFinanceiro, status: 'PENDENTE' },
+        attributes: [
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty'],
+          [sequelize.fn('SUM', sequelize.col('valor')), 'value']
+        ],
+        raw: true
+      }),
+      PaymentPayable.findAll({
+        where: { ...whereFinanceiro, status: 'PAGO' },
+        attributes: [
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty'],
+          [sequelize.fn('SUM', sequelize.col('valor')), 'value']
+        ],
+        raw: true
       })
     ]);
     
@@ -127,6 +161,18 @@ router.get('/summary', async (req, res) => {
       estoque: {
         low_stock_qty: estoqueBaixo,
         out_stock_qty: estoqueSemEstoque
+      },
+      receber: {
+        pending_qty: parseInt(receberPendente[0]?.qty) || 0,
+        pending_value: parseFloat(receberPendente[0]?.value) || 0,
+        paid_qty: parseInt(receberPago[0]?.qty) || 0,
+        paid_value: parseFloat(receberPago[0]?.value) || 0
+      },
+      pagar: {
+        pending_qty: parseInt(pagarPendente[0]?.qty) || 0,
+        pending_value: parseFloat(pagarPendente[0]?.value) || 0,
+        paid_qty: parseInt(pagarPago[0]?.qty) || 0,
+        paid_value: parseFloat(pagarPago[0]?.value) || 0
       },
       pedidos: {
         pending: pedidosMap['PENDENTE'] || 0,

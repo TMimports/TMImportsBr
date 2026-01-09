@@ -4,7 +4,9 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 
-const { sequelize, User, Company, Store, Category, Role, UserRole, Setting } = require('./models');
+const models = require('./models');
+const { sequelize, User, Company, Store, Category, Role, UserRole, Setting } = models;
+const { runSeed } = require('./seed');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
@@ -49,6 +51,8 @@ app.use('/api/service-orders', serviceOrdersRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/vendors', vendorsRoutes);
 app.use('/api/financial', financialRoutes);
+app.use('/api/receber', (req, res, next) => { req.url = '/receber' + req.url.replace('/receber', ''); next(); }, financialRoutes);
+app.use('/api/pagar', (req, res, next) => { req.url = '/pagar' + req.url.replace('/pagar', ''); next(); }, financialRoutes);
 app.use('/api/bank', bankRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/categories', categoriesRoutes);
@@ -183,6 +187,8 @@ async function initializeDatabase() {
       ]);
       console.log('Default categories created');
     }
+
+    await runSeed(models);
 
   } catch (error) {
     console.error('Database initialization error:', error);

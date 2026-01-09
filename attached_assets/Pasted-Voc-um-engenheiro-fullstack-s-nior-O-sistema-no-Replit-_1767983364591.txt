@@ -1,0 +1,106 @@
+Você é um engenheiro fullstack sênior. O sistema no Replit está incompleto e o Dashboard fica preso em “Carregando…”. Além disso, várias rotas parecem renderizar o mesmo layout.
+
+OBJETIVO:
+1) Corrigir o bug do “Carregando…” infinito.
+2) Corrigir o sistema de rotas para cada URL abrir a tela certa (ex: /app/receber deve abrir ReceberPage).
+3) Implementar dashboards por módulo conforme requisitos.
+4) Criar um sistema completo de SEED/SIMULAÇÃO preenchendo o banco com 10 registros de tudo (franquias, vendedores, pedidos, vendas, OS, clientes, estoque etc.), para que todas as telas e gráficos já apareçam automaticamente.
+5) Garantir responsividade total (cel/notebook/PC/TV) e funcionamento PWA.
+
+✅ PASSO 1 — DIAGNÓSTICO OBRIGATÓRIO
+- Abrir o código e localizar o DashboardPage.
+- Identificar quais endpoints ele chama (ex: /api/dashboard).
+- Garantir que essas rotas existem no backend.
+- Adicionar console.log e tratamento de erro:
+  - se API falhar, sair do loading e mostrar mensagem “Erro ao carregar” com botão “Tentar novamente”.
+- Adicionar timeout de 10s: se passar de 10s sem resposta, sair do loading e mostrar fallback.
+
+✅ PASSO 2 — CORREÇÃO DO ROUTER
+- Verificar o sistema de rotas (React Router ou equivalente).
+- Garantir que existe uma rota real para cada módulo:
+  - /app/dashboard -> DashboardPage
+  - /app/receber -> ReceberPage (Contas a Receber)
+  - /app/pagar -> PagarPage (Contas a Pagar)
+  - /app/vendas -> VendasPage
+  - /app/os -> OSPage
+  - /app/clientes -> ClientesPage
+  - /app/estoque -> EstoquePage
+  - /app/pedidos -> PedidosPage
+- Corrigir qualquer redirect que mande tudo para dashboard.
+- Layout principal deve usar <Outlet/> para renderizar páginas filhas.
+
+✅ PASSO 3 — IMPLEMENTAR DASHBOARD COMPLETO (SEM LOADING INFINITO)
+Dashboard deve mostrar CARDS + GRÁFICOS e ter filtro:
+- Semanal / Mensal / Total
+
+Cards mínimos obrigatórios:
+1) Vendas: total qtd + total valor
+2) OS abertas: qtd + valor previsto
+3) OS fechadas: qtd + valor recebido
+4) Estoque: itens em estoque baixo (<=2) + sem estoque (=0)
+5) Pedidos franquia: pendente/aprovado/faturado/enviado/entregue
+6) Contas a receber: pendentes/recebidas (qtd+valor)
+7) Contas a pagar: pendentes/pagas (qtd+valor)
+
+Gráficos mínimos obrigatórios:
+- Vendas por período
+- OS abertas x fechadas
+- Pedidos por status
+
+Se a API retornar vazio, renderizar os cards com zero e mostrar aviso “Sem dados ainda”.
+
+✅ PASSO 4 — ENDPOINTS BACKEND (OBRIGATÓRIOS)
+Criar/ajustar endpoints:
+- GET /api/dashboard/summary?range=weekly|monthly|all&storeId=optional
+- GET /api/dashboard/charts?range=...
+- GET /api/dashboard/rankings?range=...
+- GET /api/dashboard/low-movers?range=...
+- GET /api/receber?range=...
+- GET /api/pagar?range=...
+
+Todos devem retornar JSON válido SEM travar.
+
+✅ PASSO 5 — SEED / SIMULAÇÃO COMPLETA (10 DE TUDO)
+Criar um script de seed executado automaticamente no primeiro start do projeto:
+- Ele deve detectar se o banco está vazio e preencher.
+- Criar registros de teste para TMimports e Tecle Motos.
+
+Criar no mínimo:
+- 10 franquias (owners)
+- cada franquia com 1 loja (store) => 10 lojas
+- 10 vendedores TMimports
+- para cada loja:
+  - 10 vendedores loja
+  - 10 clientes (PF e PJ misturados)
+  - 10 produtos (peças)
+  - 10 motos
+  - 10 serviços (incluindo tempo e fixos)
+  - 10 vendas (produtos + serviços)
+  - 10 OS (5 abertas / 5 fechadas)
+  - 10 contas a receber
+  - 10 contas a pagar
+  - estoque para cada produto (quantidades variadas incluindo 0, 1, 2 e 10 para ativar alertas)
+- 10 pedidos de franquia para o TMimports com status variados:
+  - 2 pendentes
+  - 2 aprovados
+  - 2 faturados
+  - 2 enviados
+  - 2 entregues
+
+✅ PASSO 6 — GARANTIR QUE OS DASHBOARDS APAREÇAM COM ESSES DADOS
+- Após seed rodar, acessar /app/dashboard deve mostrar os valores e gráficos.
+- /app/receber deve mostrar lista com 10 itens.
+- /app/pagar deve mostrar lista com 10 itens.
+- Rankings e Low Movers devem retornar dados reais dos itens e vendas do seed.
+
+✅ PASSO 7 — TESTE AUTOMÁTICO DE ROTAS
+Criar uma lista de testes simples (unit ou manual log):
+- acessar todas as rotas e confirmar que NÃO carregam a mesma página.
+- logar no console do servidor: “ROTA OK: /app/receber -> ReceberPage”.
+
+ENTREGÁVEL FINAL:
+- Dashboard sem loading infinito.
+- Rotas funcionando corretamente por página.
+- Todas áreas com dados reais (seed).
+- Sistema pronto para demonstração com 10 de tudo.
+- Responsivo e PWA funcionando.
