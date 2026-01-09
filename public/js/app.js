@@ -399,14 +399,34 @@ let dashboardRange = 'monthly';
 async function renderDashboard() {
   const content = document.getElementById('content');
   
+  content.innerHTML = `<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando dashboard...</div>`;
+  
+  console.log('Dashboard fetch start', dashboardRange);
+  
+  const timeout = (ms) => new Promise((_, reject) => 
+    setTimeout(() => reject(new Error('Timeout: servidor não respondeu em 10 segundos')), ms)
+  );
+  
   try {
     const endpoint = currentUser.perfil === 'ADMIN_GLOBAL' ? '/dashboard/global' : '/dashboard/loja';
+    
+    const fetchWithTimeout = async (url) => {
+      try {
+        return await Promise.race([api(url), timeout(10000)]);
+      } catch (e) {
+        console.error('Dashboard fetch failed', url, e);
+        return null;
+      }
+    };
+    
     const [data, summary, charts, rankings] = await Promise.all([
-      api(endpoint).catch(() => null),
-      api(`/dashboard/summary?range=${dashboardRange}`).catch(() => null),
-      api(`/dashboard/charts?range=${dashboardRange}`).catch(() => null),
-      api(`/dashboard/rankings?range=${dashboardRange}`).catch(() => null)
+      fetchWithTimeout(endpoint),
+      fetchWithTimeout(`/dashboard/summary?range=${dashboardRange}`),
+      fetchWithTimeout(`/dashboard/charts?range=${dashboardRange}`),
+      fetchWithTimeout(`/dashboard/rankings?range=${dashboardRange}`)
     ]);
+    
+    console.log('Dashboard fetch response', { data, summary, charts, rankings });
     
     if (!data && !summary) {
       throw new Error('Falha ao carregar dados do dashboard');

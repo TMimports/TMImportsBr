@@ -1,0 +1,213 @@
+Você é um engenheiro fullstack sênior. O sistema no Replit precisa de correções e um seed realista.
+
+OBJETIVO:
+1) Corrigir o bug do “Carregando…” infinito no dashboard.
+2) Corrigir o roteamento (cada rota deve renderizar a página correta; /app/receber não pode renderizar dashboard).
+3) Implementar dashboards completos conforme especificações.
+4) Criar um SEED/SIMULAÇÃO REALISTA com:
+   - CPF e CNPJ fictícios porém válidos (DV correto),
+   - dados de clientes, franquias, lojas, usuários, vendas, OS, pedidos, contas, estoque
+   - datas distribuídas corretamente nos últimos 30 dias
+   - regras de juros e parcelamento aplicadas corretamente.
+
+=========================================================
+A) CORRIGIR BUG DO LOADING INFINITO (obrigatório)
+=========================================================
+- Localize DashboardPage e identifique qual endpoint ele chama.
+- Garanta que os endpoints existam e retornem JSON válido.
+- Se o fetch falhar, o front deve:
+  - parar o loading
+  - mostrar erro + botão “Tentar novamente”
+- Adicione logging completo:
+  - console.log("Dashboard fetch start", endpoint)
+  - console.log("Dashboard fetch response", json)
+  - console.error("Dashboard fetch failed", err)
+- Adicione timeout de 10 segundos: se não houver resposta, sair do loading e mostrar fallback.
+
+=========================================================
+B) CORRIGIR ROTAS (router)
+=========================================================
+- Verifique as rotas e remova redirects indevidos.
+- Layout deve conter <Outlet/>.
+- Criar páginas reais:
+  - /app/dashboard -> DashboardPage
+  - /app/receber -> ReceberPage
+  - /app/pagar -> PagarPage
+  - /app/vendas -> VendasPage
+  - /app/os -> OSPage
+  - /app/clientes -> ClientesPage
+  - /app/estoque -> EstoquePage
+  - /app/pedidos -> PedidosPage
+  - /app/franquias -> FranquiasDashboardPage (TMimports)
+  - /app/rankings -> RankingsPage
+  - /app/low-movers -> LowMoversPage
+- Navegar para /app/receber deve renderizar “Contas a Receber”, não dashboard.
+
+=========================================================
+C) DASHBOARDS — OBRIGATÓRIOS (com filtro semanal/mensal/total)
+=========================================================
+Dashboard principal deve ter cards + gráficos:
+
+Cards mínimos:
+1) Vendas: qtd + valor
+2) OS abertas: qtd + valor
+3) OS fechadas: qtd + valor
+4) Estoque baixo (<=2) + Sem estoque (=0)
+5) Pedidos: pendente/aprovado/faturado/enviado/entregue
+6) Contas a receber: pendentes/recebidas (qtd+valor)
+7) Contas a pagar: pendentes/pagas (qtd+valor)
+
+Gráficos mínimos:
+- Vendas por período
+- OS abertas x fechadas
+- Pedidos por status
+
+Se não houver dados, renderizar 0 e exibir aviso “Sem dados”.
+
+=========================================================
+D) ENDPOINTS BACKEND (obrigatórios)
+=========================================================
+Criar/ajustar:
+- GET /api/dashboard/summary?range=weekly|monthly|all&storeId=optional
+- GET /api/dashboard/charts?range=...
+- GET /api/dashboard/rankings?range=...
+- GET /api/dashboard/low-movers?range=...
+- GET /api/receber?range=...
+- GET /api/pagar?range=...
+
+Todos retornam JSON válido e nunca travam.
+
+=========================================================
+E) SEED REALISTA COMPLETO (10 de tudo) — OBRIGATÓRIO
+=========================================================
+Criar arquivo: /server/seed.ts (ou seed.js) e rodar automaticamente no primeiro start se o banco estiver vazio.
+Também criar endpoint admin:
+- POST /api/admin/seed/reset (reseta banco e recria seed)
+apenas ADMIN_GLOBAL.
+
+1) Gerar CPFs válidos fictícios
+- Implementar função gerarCPFValido(): retorna string com DV correto.
+2) Gerar CNPJs válidos fictícios
+- Implementar função gerarCNPJValido(): retorna string com DV correto.
+
+3) Criar 10 Franquias (Owners)
+- Nomes realistas: "Franqueado 01" ... "Franqueado 10"
+- Cada um com documento fictício válido.
+
+4) Criar 10 Lojas (Stores)
+- Cada franquia com 1 loja: "Tecle Motos - Cidade X"
+- Endereço completo e coerente
+- CEP realista (mesmo que não exista no ViaCEP).
+
+5) Criar usuários:
+TMimports:
+- 1 Admin Global (admin@tmimports.com)
+- 10 usuários TMimports com roles variadas:
+  - 2 Gerente OP
+  - 2 Financeiro
+  - 2 ADM1
+  - 2 ADM2
+  - 1 ADM3
+  - 1 Gestor dashboard-only
+- 10 vendedores TMimports
+
+Cada loja:
+- 1 Franqueado Gestor (role FRANQUEADO_GESTOR)
+- 1 Gerente Loja
+- 10 vendedores (role VENDEDOR_LOJA)
+
+6) Criar catálogo:
+Para cada loja e para o central:
+- 10 peças (produtos) com NCM e valores
+- 10 motos com valores
+- 10 serviços:
+  - incluir serviços por tempo (15m, 30m, 45m, 1h)
+  - incluir serviços fixos (revitalização, motor, módulo, troca pneu, revisão)
+
+7) Estoque:
+Para cada loja, criar estoque dos 10 produtos com quantidades variadas:
+- alguns com 0
+- alguns com 1
+- alguns com 2 (gatilho de alerta)
+- alguns com 5 e 10
+Garantir que a tela de alertas vai aparecer.
+
+8) Clientes:
+Para cada loja:
+- 10 clientes PF (CPF válido, nascimento e sexo)
+- 10 clientes PJ (CNPJ válido, razão social, fantasia)
+Total por loja: 20 clientes.
+
+9) Vendas:
+Para cada loja:
+- 10 vendas distribuídas nos últimos 30 dias:
+  - 5 vendas só produto
+  - 3 vendas produto + serviço
+  - 2 vendas só serviço
+- Misturar formas de pagamento:
+  - Pix/dinheiro
+  - crédito parcelado (2x a 21x conforme tipo de produto)
+  - débito (taxa 1%)
+- Aplicar regras:
+  - juros cartão apenas em produtos
+  - serviços sem juros
+  - desconto por item permitido apenas Pix/Dinheiro
+  - para serviço puro: parcelamento sem juros conforme regra (45min até 2x, 1h até 3x, revitalização/motor até 5x etc)
+
+10) OS:
+Para cada loja:
+- 10 OS:
+  - 5 abertas com valor a receber
+  - 5 fechadas com valor recebido
+- OS por tempo deve exibir internamente o tempo mas para cliente “Mão de obra”.
+
+11) Contas a Receber:
+Para cada loja:
+- 10 lançamentos:
+  - 5 pendentes
+  - 3 recebidos
+  - 2 atrasados
+- vencimentos coerentes (alguns no passado, alguns no futuro)
+- valores coerentes com vendas.
+
+12) Contas a Pagar:
+Para cada loja:
+- 10 lançamentos:
+  - 5 pendentes
+  - 3 pagas
+  - 2 atrasadas
+- recorrência: criar 3 contas recorrentes (mensal, trimestral, anual) e expandir 6 meses.
+- regra recorrência: semanal, mensal, trimestral, semestral, anual.
+
+13) Pedidos Franquia:
+Criar 10 pedidos por loja para TMimports:
+- status variados:
+  - 2 pendentes
+  - 2 aprovados
+  - 2 faturados
+  - 2 enviados
+  - 2 entregues
+- incluir anexos fake de fatura (path no sistema).
+- itens misturados (peças e motos).
+
+14) Ranking e Low Movers:
+- Garantir que alguns produtos vendam muito e outros vendam pouco.
+- Ex: Produto 01 vende em quase todas as vendas; Produto 10 vende quase nunca.
+Assim ranking e triagem funcionarão naturalmente.
+
+=========================================================
+F) VALIDAÇÃO AUTOMÁTICA
+=========================================================
+- Ao finalizar seed:
+  - logar no terminal um resumo:
+    "Seed concluído: 10 franquias, 10 lojas, X clientes, X vendas, X OS..."
+- Garantir que /app/dashboard carrega e mostra números.
+- Garantir que /app/receber mostra 10 registros.
+- Garantir que /app/pagar mostra 10 registros.
+- Garantir que rankings e low movers mostram dados.
+
+ENTREGÁVEL:
+- Dashboard funcionando sem travar.
+- Rotas corretas.
+- Seed realista completo.
+- Sistema pronto para demonstração com dados reais.

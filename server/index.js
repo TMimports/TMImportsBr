@@ -27,6 +27,7 @@ const auditRoutes = require('./routes/audit');
 const invoicesRoutes = require('./routes/invoices');
 const settingsRoutes = require('./routes/settings');
 const notificationsRoutes = require('./routes/notifications');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.use('/api/audit', auditRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/login', (req, res) => {
   res.render('login');
@@ -188,8 +190,7 @@ async function initializeDatabase() {
       console.log('Default categories created');
     }
 
-    // Seed desabilitado - sistema zerado
-    // await runSeed(models);
+    await runSeed(models);
 
   } catch (error) {
     console.error('Database initialization error:', error);
