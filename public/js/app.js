@@ -5,10 +5,13 @@ let currentPage = 'dashboard';
 const menuItems = {
   ADMIN_GLOBAL: [
     { section: 'Principal', items: [
-      { id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' }
+      { id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' },
+      { id: 'rankings', label: 'Rankings', icon: 'fas fa-trophy' },
+      { id: 'low-movers', label: 'Produtos Parados', icon: 'fas fa-snowflake' }
     ]},
     { section: 'Franquias', items: [
-      { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' }
+      { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' },
+      { id: 'franquias-dashboard', label: 'Dashboard Franquias', icon: 'fas fa-chart-pie' }
     ]},
     { section: 'Produtos', items: [
       { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
@@ -206,7 +209,10 @@ async function loadPage(page) {
     'solicitar': 'Solicitar Produtos',
     'manual': 'Manual do Sistema',
     'notas-fiscais': 'Notas Fiscais',
-    'configuracoes': 'Configurações Globais'
+    'configuracoes': 'Configurações Globais',
+    'rankings': 'Rankings de Vendas',
+    'low-movers': 'Produtos Parados',
+    'franquias-dashboard': 'Dashboard por Franquia'
   };
   
   pageTitle.textContent = titles[page] || 'Dashboard';
@@ -277,6 +283,15 @@ async function loadPage(page) {
         break;
       case 'configuracoes':
         await renderSettings();
+        break;
+      case 'rankings':
+        await renderRankings();
+        break;
+      case 'low-movers':
+        await renderLowMovers();
+        break;
+      case 'franquias-dashboard':
+        await renderFranchiseDashboard();
         break;
       default:
         await renderDashboard();
@@ -394,7 +409,7 @@ function logout() {
   window.location.href = '/login';
 }
 
-let dashboardRange = 'monthly';
+let dashboardRange = localStorage.getItem('dashboardRange') || 'monthly';
 
 async function renderDashboard() {
   const content = document.getElementById('content');
@@ -450,18 +465,46 @@ async function renderDashboard() {
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>
-            <div class="stat-value">${formatCurrency(data.totalVendasMes)}</div>
-            <div class="stat-label">Vendas do Mês</div>
+            <div class="stat-value">${summary?.vendas?.total_qty || 0} | ${formatCurrency(summary?.vendas?.total_value || data.totalVendasMes)}</div>
+            <div class="stat-label">Vendas (${rangeLabel})</div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon green"><i class="fas fa-wrench"></i></div>
-            <div class="stat-value">${formatCurrency(data.totalOSMes)}</div>
-            <div class="stat-label">Serviços do Mês</div>
+            <div class="stat-icon blue"><i class="fas fa-wrench"></i></div>
+            <div class="stat-value">${summary?.os?.open_qty || 0} | ${formatCurrency(summary?.os?.open_value || 0)}</div>
+            <div class="stat-label">OS Abertas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+            <div class="stat-value">${summary?.os?.closed_qty || 0} | ${formatCurrency(summary?.os?.closed_value || 0)}</div>
+            <div class="stat-label">OS Fechadas</div>
           </div>
           <div class="stat-card">
             <div class="stat-icon ${data.saldoAtual >= 0 ? 'green' : 'red'}"><i class="fas fa-balance-scale"></i></div>
             <div class="stat-value" style="color: ${data.saldoAtual >= 0 ? 'var(--success)' : 'var(--danger)'};">${formatCurrency(data.saldoAtual)}</div>
             <div class="stat-label">Saldo Projetado</div>
+          </div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon yellow"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="stat-value">${summary?.estoque?.low_stock_qty || 0}</div>
+            <div class="stat-label">Estoque Baixo (<=2)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red"><i class="fas fa-times-circle"></i></div>
+            <div class="stat-value">${summary?.estoque?.out_stock_qty || 0}</div>
+            <div class="stat-label">Sem Estoque</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange"><i class="fas fa-truck"></i></div>
+            <div class="stat-value">${summary?.pedidos?.pending || 0}/${summary?.pedidos?.approved || 0}/${summary?.pedidos?.shipped || 0}</div>
+            <div class="stat-label">Pedidos (Pend/Aprov/Env)</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green"><i class="fas fa-check-double"></i></div>
+            <div class="stat-value">${summary?.pedidos?.delivered || 0}</div>
+            <div class="stat-label">Pedidos Recebidos</div>
           </div>
         </div>
         
@@ -814,6 +857,7 @@ async function renderDashboard() {
 
 function changeDashboardRange(range) {
   dashboardRange = range;
+  localStorage.setItem('dashboardRange', range);
   renderDashboard();
 }
 
@@ -5386,5 +5430,356 @@ document.addEventListener('click', (e) => {
     notificationsVisible = false;
   }
 });
+
+let rankingsRange = localStorage.getItem('rankingsRange') || 'monthly';
+
+async function renderRankings() {
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando rankings...</div>';
+  
+  try {
+    const [rankings, lowMovers] = await Promise.all([
+      api(`/dashboard/rankings?range=${rankingsRange}`),
+      api(`/dashboard/low-movers?range=${rankingsRange}`)
+    ]);
+    
+    const rangeLabel = rankingsRange === 'weekly' ? 'Semanal' : rankingsRange === 'monthly' ? 'Mensal' : 'Total';
+    
+    content.innerHTML = `
+      <div class="dashboard-filters" style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn ${rankingsRange === 'weekly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeRankingsRange('weekly')">Semanal</button>
+        <button class="btn ${rankingsRange === 'monthly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeRankingsRange('monthly')">Mensal</button>
+        <button class="btn ${rankingsRange === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="changeRankingsRange('all')">Total</button>
+      </div>
+      
+      <div class="tabs">
+        <button class="tab active" onclick="showRankingTab('motos')">Motos</button>
+        <button class="tab" onclick="showRankingTab('pecas')">Peças</button>
+        <button class="tab" onclick="showRankingTab('servicos')">Serviços</button>
+      </div>
+      
+      <div id="rankingMotos" class="tab-content active">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-motorcycle"></i> Top Motos Vendidas (${rangeLabel})</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>#</th><th>Produto</th><th>Qtd Vendida</th><th>Valor Total</th></tr></thead>
+                <tbody>
+                  ${(rankings?.motos || []).map((p, i) => `
+                    <tr>
+                      <td><span class="badge badge-${i < 3 ? 'warning' : 'secondary'}">${i + 1}</span></td>
+                      <td>${p.nome}</td>
+                      <td>${p.quantidade || 0}</td>
+                      <td>${formatCurrency(p.valor || 0)}</td>
+                    </tr>
+                  `).join('') || '<tr><td colspan="4" class="text-center">Nenhum dado</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="rankingPecas" class="tab-content" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-cog"></i> Top Peças Vendidas (${rangeLabel})</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>#</th><th>Produto</th><th>Qtd Vendida</th><th>Valor Total</th></tr></thead>
+                <tbody>
+                  ${(rankings?.pecas || []).map((p, i) => `
+                    <tr>
+                      <td><span class="badge badge-${i < 3 ? 'warning' : 'secondary'}">${i + 1}</span></td>
+                      <td>${p.nome}</td>
+                      <td>${p.quantidade || 0}</td>
+                      <td>${formatCurrency(p.valor || 0)}</td>
+                    </tr>
+                  `).join('') || '<tr><td colspan="4" class="text-center">Nenhum dado</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="rankingServicos" class="tab-content" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-wrench"></i> Top Serviços (${rangeLabel})</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>#</th><th>Serviço</th><th>Qtd Vendida</th><th>Valor Total</th></tr></thead>
+                <tbody>
+                  ${(rankings?.servicos || []).map((p, i) => `
+                    <tr>
+                      <td><span class="badge badge-${i < 3 ? 'warning' : 'secondary'}">${i + 1}</span></td>
+                      <td>${p.nome}</td>
+                      <td>${p.quantidade || 0}</td>
+                      <td>${formatCurrency(p.valor || 0)}</td>
+                    </tr>
+                  `).join('') || '<tr><td colspan="4" class="text-center">Nenhum dado</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    content.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erro ao carregar rankings</h3><p>${error.message}</p></div>`;
+  }
+}
+
+function changeRankingsRange(range) {
+  rankingsRange = range;
+  localStorage.setItem('rankingsRange', range);
+  renderRankings();
+}
+
+function showRankingTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('ranking' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = 'block';
+  event.target.classList.add('active');
+}
+
+async function renderLowMovers() {
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando produtos parados...</div>';
+  
+  try {
+    const lowMovers = await api(`/dashboard/low-movers?range=${rankingsRange}`);
+    
+    const rangeLabel = rankingsRange === 'weekly' ? 'Semanal' : rankingsRange === 'monthly' ? 'Mensal' : 'Total';
+    
+    content.innerHTML = `
+      <div class="dashboard-filters" style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn ${rankingsRange === 'weekly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeLowMoversRange('weekly')">Semanal</button>
+        <button class="btn ${rankingsRange === 'monthly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeLowMoversRange('monthly')">Mensal</button>
+        <button class="btn ${rankingsRange === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="changeLowMoversRange('all')">Total</button>
+      </div>
+      
+      <div class="tabs">
+        <button class="tab active" onclick="showLowMoverTab('menos')">Menos Vendidos</button>
+        <button class="tab" onclick="showLowMoverTab('sem')">Sem Venda no Período</button>
+        <button class="tab" onclick="showLowMoverTab('parados')">Parados há 30 dias</button>
+      </div>
+      
+      <div id="lowMenos" class="tab-content active">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-arrow-down"></i> Menos Vendidos (${rangeLabel})</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Produto</th><th>Tipo</th><th>Qtd Vendida</th><th>Estoque Atual</th></tr></thead>
+                <tbody>
+                  ${(lowMovers?.menosVendidos || []).map(p => `
+                    <tr>
+                      <td>${p.nome}</td>
+                      <td><span class="badge badge-secondary">${p.tipo}</span></td>
+                      <td>${p.quantidade || 0}</td>
+                      <td>${p.estoque || 0}</td>
+                    </tr>
+                  `).join('') || '<tr><td colspan="4" class="text-center">Nenhum dado</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="lowSem" class="tab-content" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-ban"></i> Sem Venda no Período (${rangeLabel})</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Produto</th><th>Tipo</th><th>Estoque Atual</th><th>Última Venda</th></tr></thead>
+                <tbody>
+                  ${(lowMovers?.semVenda || []).map(p => `
+                    <tr>
+                      <td>${p.nome}</td>
+                      <td><span class="badge badge-secondary">${p.tipo}</span></td>
+                      <td>${p.estoque || 0}</td>
+                      <td>${p.ultimaVenda ? new Date(p.ultimaVenda).toLocaleDateString('pt-BR') : 'Nunca'}</td>
+                    </tr>
+                  `).join('') || '<tr><td colspan="4" class="text-center">Nenhum dado</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="lowParados" class="tab-content" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2><i class="fas fa-snowflake"></i> Parados há 30+ Dias (com estoque)</h2></div>
+          <div class="card-body">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Produto</th><th>Tipo</th><th>Estoque</th><th>Dias Parado</th></tr></thead>
+                <tbody>
+                  ${(lowMovers?.parados30dias || []).map(p => `
+                    <tr>
+                      <td>${p.nome}</td>
+                      <td><span class="badge badge-secondary">${p.tipo}</span></td>
+                      <td>${p.estoque || 0}</td>
+                      <td><span class="badge badge-danger">${p.diasParado || 30}+</span></td>
+                    </tr>
+                  `).join('') || '<tr><td colspan="4" class="text-center">Nenhum dado</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    content.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erro ao carregar</h3><p>${error.message}</p></div>`;
+  }
+}
+
+function changeLowMoversRange(range) {
+  rankingsRange = range;
+  localStorage.setItem('rankingsRange', range);
+  renderLowMovers();
+}
+
+function showLowMoverTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('low' + tab.charAt(0).toUpperCase() + tab.slice(1)).style.display = 'block';
+  event.target.classList.add('active');
+}
+
+async function renderFranchiseDashboard() {
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando franquias...</div>';
+  
+  try {
+    const [stores, summary] = await Promise.all([
+      api('/stores'),
+      api(`/dashboard/summary?range=${dashboardRange}`)
+    ]);
+    
+    const rangeLabel = dashboardRange === 'weekly' ? 'Semanal' : dashboardRange === 'monthly' ? 'Mensal' : 'Total';
+    
+    content.innerHTML = `
+      <div class="dashboard-filters" style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn ${dashboardRange === 'weekly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeFranchiseRange('weekly')">Semanal</button>
+        <button class="btn ${dashboardRange === 'monthly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeFranchiseRange('monthly')">Mensal</button>
+        <button class="btn ${dashboardRange === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="changeFranchiseRange('all')">Total</button>
+      </div>
+      
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fas fa-store"></i> Franquias - Ranking por Performance (${rangeLabel})</h2>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Franquia</th>
+                  <th>Cidade</th>
+                  <th>Vendas</th>
+                  <th>OS</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(stores || []).filter(s => !s.is_central).map((s, i) => `
+                  <tr>
+                    <td><span class="badge badge-${i < 3 ? 'warning' : 'secondary'}">${i + 1}</span></td>
+                    <td><strong>${s.nome}</strong></td>
+                    <td>${s.cidade || '-'}</td>
+                    <td>${s.vendas_count || 0}</td>
+                    <td>${s.os_count || 0}</td>
+                    <td>
+                      <button class="btn btn-sm btn-primary" onclick="viewFranchiseDetail(${s.id})">
+                        <i class="fas fa-chart-bar"></i> Ver Dashboard
+                      </button>
+                    </td>
+                  </tr>
+                `).join('') || '<tr><td colspan="6" class="text-center">Nenhuma franquia</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div id="franchiseDetail"></div>
+    `;
+  } catch (error) {
+    content.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erro ao carregar</h3><p>${error.message}</p></div>`;
+  }
+}
+
+function changeFranchiseRange(range) {
+  dashboardRange = range;
+  localStorage.setItem('dashboardRange', range);
+  renderFranchiseDashboard();
+}
+
+async function viewFranchiseDetail(storeId) {
+  const detail = document.getElementById('franchiseDetail');
+  detail.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+  
+  try {
+    const [store, summary] = await Promise.all([
+      api(`/stores/${storeId}`),
+      api(`/dashboard/summary?range=${dashboardRange}&storeId=${storeId}`)
+    ]);
+    
+    detail.innerHTML = `
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h2><i class="fas fa-store"></i> ${store.nome} - Dashboard Detalhado</h2>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>
+              <div class="stat-value">${summary?.vendas?.total_qty || 0} | ${formatCurrency(summary?.vendas?.total_value || 0)}</div>
+              <div class="stat-label">Vendas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fas fa-wrench"></i></div>
+              <div class="stat-value">${summary?.os?.open_qty || 0} | ${formatCurrency(summary?.os?.open_value || 0)}</div>
+              <div class="stat-label">OS Abertas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+              <div class="stat-value">${summary?.os?.closed_qty || 0} | ${formatCurrency(summary?.os?.closed_value || 0)}</div>
+              <div class="stat-label">OS Fechadas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon yellow"><i class="fas fa-exclamation-triangle"></i></div>
+              <div class="stat-value">${summary?.estoque?.low_stock_qty || 0}</div>
+              <div class="stat-label">Estoque Baixo</div>
+            </div>
+          </div>
+          <div class="stats-grid" style="margin-top: 15px;">
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="fas fa-hand-holding-usd"></i></div>
+              <div class="stat-value">${summary?.receber?.pending_qty || 0} | ${formatCurrency(summary?.receber?.pending_value || 0)}</div>
+              <div class="stat-label">A Receber (Pendente)</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon red"><i class="fas fa-file-invoice-dollar"></i></div>
+              <div class="stat-value">${summary?.pagar?.pending_qty || 0} | ${formatCurrency(summary?.pagar?.pending_value || 0)}</div>
+              <div class="stat-label">A Pagar (Pendente)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    detail.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>${error.message}</p></div>`;
+  }
+}
 
 init();

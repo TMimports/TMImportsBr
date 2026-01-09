@@ -1316,6 +1316,55 @@ tr:hover td {
   border-bottom: 2px solid var(--primary);
 }
 
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+
+.tab {
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+
+.tab:hover {
+  color: var(--text-light);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab.active {
+  color: var(--primary);
+  background: rgba(255, 107, 53, 0.1);
+  border-bottom: 2px solid var(--primary);
+}
+
+.tab-content {
+  animation: fadeIn 0.3s ease;
+}
+
+.stat-icon.blue {
+  background: rgba(66, 153, 225, 0.15);
+  color: #4299e5;
+}
+
+.stat-icon.yellow {
+  background: rgba(236, 201, 75, 0.15);
+  color: #ecc94b;
+}
+
+.stat-icon.red {
+  background: rgba(245, 101, 101, 0.15);
+  color: #f56565;
+}
+
 .auto-reconcile-bar {
   display: flex;
   justify-content: space-between;

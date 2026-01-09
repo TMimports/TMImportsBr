@@ -1,0 +1,89 @@
+O sistema já tem um dashboard funcional (cards + gráficos + tabelas). Agora precisamos completar as funcionalidades faltantes conforme escopo original, sem quebrar o que já está funcionando.
+
+PRIORIDADE 1 — FILTRO DE PERÍODO EM TODOS OS DASHBOARDS
+Adicionar no topo do dashboard principal e de todos dashboards:
+- Semanal
+- Mensal
+- Total
+Esse filtro deve recalcular:
+- cards
+- gráficos
+- rankings
+- triagem
+- últimas vendas e OS
+Implementar `range=weekly|monthly|all` como parâmetro em todos endpoints.
+Persistir seleção em localStorage.
+
+PRIORIDADE 2 — CARDS E MÉTRICAS OBRIGATÓRIAS (PADRÃO GLOBAL)
+No Dashboard principal do Tecle Motos e no dashboard por franquia do TMimports, os cards devem ser:
+1) Vendas: qtd + valor total
+2) OS Abertas: qtd + valor a receber
+3) OS Fechadas: qtd + valor recebido
+4) Estoque Baixo: qtd itens <=2
+5) Sem Estoque: qtd itens =0
+6) Pedidos para TMimports: pendente/aprovado/faturado/enviado/entregue
+7) Contas a Receber: pendentes/recebidas/atrasadas (qtd+valor)
+8) Contas a Pagar: pendentes/pagas/atrasadas (qtd+valor)
+
+Não substituir os cards existentes, mas complementar ou reorganizar conforme UX.
+
+PRIORIDADE 3 — DASHBOARD DE FRANQUIAS (TMimports)
+Criar página /app/franquias/dashboard e /app/franquias/:storeId/dashboard:
+- lista de franquias com ranking por vendas e OS
+- ao clicar, abre dashboard detalhado daquela franquia com os mesmos cards e gráficos do Tecle Motos (com filtro)
+Acesso permitido:
+- Admin Global
+- Gestor dashboard-only
+- Gerente OP
+
+PRIORIDADE 4 — RANKINGS + TRIAGEM (Low Movers)
+Criar página /app/rankings com abas:
+- Produtos/Peças
+- Serviços
+- Motos
+Mostrar ranking por:
+- quantidade vendida
+- valor total vendido
+Filtro: semanal/mensal/total
+
+Criar página /app/low-movers com abas:
+- Menos vendidos (qtd e valor)
+- Sem venda no período
+- Parados há 30 dias (com estoque disponível)
+Base: vendas + estoque
+Acesso:
+- TMimports: Admin Global, Gerente OP, Gestor dashboard-only
+- Loja: apenas Franqueado Gestor e Gerente (vendedor não vê)
+
+PRIORIDADE 5 — SEED REALISTA “10 DE TUDO” (SIMULAÇÃO COMPLETA)
+Criar ou ajustar seed para garantir:
+- 10 franquias
+- 10 lojas
+- 10 vendedores TMimports
+- 10 vendedores por loja
+- 10 clientes PF e 10 PJ por loja (CPF e CNPJ válidos com DV correto)
+- 10 produtos, 10 motos, 10 serviços
+- 10 vendas por loja nos últimos 30 dias com regras de juros aplicadas corretamente (juros só em produtos)
+- 10 OS por loja (5 abertas e 5 fechadas)
+- 10 contas a pagar e 10 a receber por loja com status coerente
+- 10 pedidos por loja para TMimports com status variados
+Garantir que o dashboard e rankings reflitam esses dados.
+
+Criar endpoint admin:
+POST /api/admin/seed/reset
+que apaga e recria o banco com seed, protegido por ADMIN_GLOBAL.
+
+PRIORIDADE 6 — PERMISSÕES POR PERFIL (VALIDAR E CORRIGIR)
+Validar:
+- Tecle Motos: Gerente não vê dashboard geral, só dashboards operacionais (se existirem).
+- Tecle Motos: Vendedor vê somente dashboard próprio.
+- TMimports: ADM1/ADM2/ADM3 não vê dashboard.
+- Garantir proteção backend e frontend.
+
+ENTREGÁVEL:
+- Dashboard com filtro semanal/mensal/total funcionando.
+- Dashboard por franquia implementado.
+- Rankings + Low Movers implementados.
+- Seed com 10 de tudo realista e endpoint reset seed.
+- Permissões conforme regras.
+- Sem quebrar o dashboard atual.
