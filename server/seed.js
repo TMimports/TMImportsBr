@@ -80,9 +80,23 @@ async function runSeed(models) {
 
   const existingCustomers = await Customer.count();
   const existingSales = await Sale.count();
+  const existingStores = await Store.count();
+  
+  // Se já tem mais de 1 loja (matriz + outras) ou já foi feito seed, pula
+  // Ou se ambiente de produção (SKIP_SEED=true)
+  if (process.env.SKIP_SEED === 'true') {
+    console.log('Seed disabled by SKIP_SEED environment variable');
+    return;
+  }
   
   if (existingCustomers >= 100 && existingSales >= 50) {
     console.log('Seed already applied - skipping');
+    return;
+  }
+  
+  // Se só existe a matriz e nenhum dado, é sistema limpo para produção
+  if (existingStores === 1 && existingCustomers === 0 && existingSales === 0) {
+    console.log('Clean system detected - skipping seed for production use');
     return;
   }
   
