@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { Invoice, InvoiceItem, InvoiceEvent, FiscalData, Sale, SaleItem, ServiceOrder, Customer, Product, Store, AuditLog } = require('../models');
-const { verifyToken, isGestorOuAdmin, isAdminGlobal, filterByStore } = require('../middleware/auth');
+const { verifyToken, isGestorOuAdmin, isAdminGlobal, filterByStore, hasFiscalAccess } = require('../middleware/auth');
 
 router.use(verifyToken);
+router.use(hasFiscalAccess);
 
 router.get('/fiscal-data', async (req, res) => {
   try {

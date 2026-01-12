@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { PaymentReceivable, PaymentPayable, Customer, Store, Sale, ServiceOrder, AuditLog, sequelize } = require('../models');
-const { verifyToken, isGestorOuAdmin, filterByStore } = require('../middleware/auth');
+const { verifyToken, isGestorOuAdmin, filterByStore, hasFinanceiroAccess, hasPermission } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 router.use(verifyToken);
+router.use(hasFinanceiroAccess);
 router.use(filterByStore);
 
 function getDateRange(range) {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Sale, ServiceOrder, Product, Customer, PaymentReceivable, PaymentPayable, InventoryStore, InventoryMain, InventoryMovement, Store, Vendor, SaleItem, PurchaseRequest, sequelize } = require('../models');
-const { verifyToken, filterByStore } = require('../middleware/auth');
+const { verifyToken, filterByStore, hasDashboardGlobalAccess, logAccessDenied } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 router.use(verifyToken);
@@ -52,8 +52,15 @@ router.get('/summary', async (req, res) => {
   try {
     const { range = 'monthly', storeId } = req.query;
     const { inicio, fim } = getDateRange(range);
-    const isAdmin = req.user.perfil === 'ADMIN_GLOBAL';
-    const loja_id = storeId || req.user.loja_id;
+    const isAdmin = req.user.perfil === 'ADMIN_GLOBAL' || req.user.isAdmin;
+    
+    // Security: non-admins can only access their own store data
+    let loja_id;
+    if (isAdmin) {
+      loja_id = storeId || null; // Admin can query any store or all stores
+    } else {
+      loja_id = req.user.loja_id; // Non-admins are restricted to their store only
+    }
     
     const whereVenda = {
       data_venda: { [Op.between]: [inicio, fim] }
@@ -191,8 +198,15 @@ router.get('/summary', async (req, res) => {
 router.get('/charts', async (req, res) => {
   try {
     const { range = 'monthly', storeId } = req.query;
-    const isAdmin = req.user.perfil === 'ADMIN_GLOBAL';
-    const loja_id = storeId || req.user.loja_id;
+    const isAdmin = req.user.perfil === 'ADMIN_GLOBAL' || req.user.isAdmin;
+    
+    // Security: non-admins can only access their own store data
+    let loja_id;
+    if (isAdmin) {
+      loja_id = storeId || null;
+    } else {
+      loja_id = req.user.loja_id;
+    }
     
     const hoje = new Date();
     const vendasPorDia = [];
@@ -288,8 +302,15 @@ router.get('/rankings', async (req, res) => {
   try {
     const { range = 'monthly', storeId } = req.query;
     const { inicio, fim } = getDateRange(range);
-    const isAdmin = req.user.perfil === 'ADMIN_GLOBAL';
-    const loja_id = storeId || req.user.loja_id;
+    const isAdmin = req.user.perfil === 'ADMIN_GLOBAL' || req.user.isAdmin;
+    
+    // Security: non-admins can only access their own store data
+    let loja_id;
+    if (isAdmin) {
+      loja_id = storeId || null;
+    } else {
+      loja_id = req.user.loja_id;
+    }
     
     const whereVenda = {
       data_venda: { [Op.between]: [inicio, fim] },
@@ -360,8 +381,15 @@ router.get('/low-movers', async (req, res) => {
   try {
     const { range = 'monthly', storeId } = req.query;
     const { inicio, fim } = getDateRange(range);
-    const isAdmin = req.user.perfil === 'ADMIN_GLOBAL';
-    const loja_id = storeId || req.user.loja_id;
+    const isAdmin = req.user.perfil === 'ADMIN_GLOBAL' || req.user.isAdmin;
+    
+    // Security: non-admins can only access their own store data
+    let loja_id;
+    if (isAdmin) {
+      loja_id = storeId || null;
+    } else {
+      loja_id = req.user.loja_id;
+    }
     
     const whereVenda = {
       data_venda: { [Op.between]: [inicio, fim] },

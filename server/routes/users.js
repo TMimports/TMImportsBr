@@ -1,8 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
-const { User, Company, Store, AuditLog } = require('../models');
-const { verifyToken, isAdminGlobal, isGestorOuAdmin } = require('../middleware/auth');
+const { User, Company, Store, AuditLog, Role, UserRole } = require('../models');
+const { verifyToken, isAdminGlobal, isGestorOuAdmin, hasPermission } = require('../middleware/auth');
 
 router.use(verifyToken);
 
@@ -40,7 +40,7 @@ router.get('/', isGestorOuAdmin, async (req, res) => {
 
 router.post('/', isGestorOuAdmin, async (req, res) => {
   try {
-    const { nome, email, senha, perfil, loja_id, empresa_id, permissoes } = req.body;
+    const { nome, email, senha, perfil, loja_id, empresa_id, permissoes, role_ids } = req.body;
 
     const existente = await User.findOne({ where: { email } });
     if (existente) {
@@ -68,12 +68,30 @@ router.post('/', isGestorOuAdmin, async (req, res) => {
       primeiro_acesso: true
     });
 
+    if (role_ids && Array.isArray(role_ids) && role_ids.length > 0) {
+      const roleAssociations = role_ids.map((roleId, index) => ({
+        user_id: user.id,
+        role_id: roleId,
+        principal: index === 0
+      }));
+      await UserRole.bulkCreate(roleAssociations);
+    } else {
+      const perfilRole = await Role.findOne({ where: { codigo: perfil || 'OPERACIONAL' } });
+      if (perfilRole) {
+        await UserRole.create({
+          user_id: user.id,
+          role_id: perfilRole.id,
+          principal: true
+        });
+      }
+    }
+
     await AuditLog.create({
       user_id: req.user.id,
       acao: 'CREATE',
       tabela: 'users',
       registro_id: user.id,
-      dados_depois: { nome, email, perfil: user.perfil }
+      dados_depois: { nome, email, perfil: user.perfil, roles: role_ids }
     });
 
     res.status(201).json({ id: user.id, nome: user.nome, email: user.email });

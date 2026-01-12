@@ -201,6 +201,21 @@ async function initializeDatabase() {
 
     await runSeed(models);
 
+    // Migrate existing users to UserRole if not already assigned
+    const usersWithoutRoles = await User.findAll({
+      include: [{ model: Role, as: 'roles' }]
+    });
+    
+    for (const user of usersWithoutRoles) {
+      if (!user.roles || user.roles.length === 0) {
+        const roleForPerfil = await Role.findOne({ where: { codigo: user.perfil } });
+        if (roleForPerfil) {
+          await UserRole.create({ user_id: user.id, role_id: roleForPerfil.id, principal: true });
+          console.log(`Migrated user ${user.email} to role ${user.perfil}`);
+        }
+      }
+    }
+
   } catch (error) {
     console.error('Database initialization error:', error);
   }

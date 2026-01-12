@@ -195,6 +195,24 @@ O sistema suporta integração com:
 
 ## Mudanças Recentes
 
+- **12/01/2026:** Sistema RBAC Multi-Role Completo
+  - Implementação de permissões granulares para 11 roles distintas
+  - Multi-role: usuário pode ter múltiplas funções via checkbox (permissões = união)
+  - Dashboard Global restrito a ADMIN_GLOBAL e GESTOR_DASHBOARD
+  - Módulo Financeiro/Fiscal restrito a ADMIN_GLOBAL, FINANCEIRO e gestores de franquia
+  - GERENTE_OP: acesso operacional amplo (franquias, produtos, estoque, OS) sem financeiro
+  - ADM1_LOGISTICA: logística/expedição/transferências/pedidos
+  - ADM2_CADASTRO: criar usuários/franquias/produtos/serviços
+  - ADM3_OS_GARANTIA: OS e garantias com dashboard do módulo
+  - VENDEDOR_TMI: consulta estoque + vendas (comissão 2%)
+  - FRANQUEADO_GESTOR: total na franquia + pedidos ao estoque central
+  - GERENTE_LOJA: operacional total na franquia
+  - VENDEDOR_LOJA: estoque loja + OS + vendas + clientes (comissão 1%)
+  - Middleware backend com guards: hasDashboardGlobalAccess, hasFinanceiroAccess, hasFiscalAccess
+  - Auditoria de acesso negado registrada em AuditLog
+  - Migração automática de usuários existentes para UserRole na inicialização
+  - Fallback para perfil legado garante compatibilidade
+
 - **12/01/2026:** Dashboard do Vendedor e Limpeza de Dados
   - Novo dashboard específico para vendedores (/app/meu-dashboard)
   - Diferenciação visual por tipo: Atacado (TM Imports - laranja) e Franquia (Tecle Motos - verde)

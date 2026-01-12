@@ -4258,11 +4258,19 @@ async function openUserModal() {
         </div>
         
         <div class="form-group">
-          <label>Perfil/Função *</label>
+          <label>Perfil Principal *</label>
           <select name="perfil" id="userPerfilSelect" required>
             <option value="">Selecione primeiro a loja</option>
           </select>
           <small class="form-hint" id="perfilHint">Os perfis disponíveis dependem do tipo de loja selecionada</small>
+        </div>
+        
+        <div class="form-group">
+          <label>Funções Adicionais (Multi-Role)</label>
+          <div id="rolesCheckboxContainer" class="roles-checkbox-container">
+            <small class="form-hint">Selecione a loja para ver as funções disponíveis</small>
+          </div>
+          <small class="form-hint">O usuário terá as permissões combinadas de todas as funções selecionadas</small>
         </div>
         
         <div class="form-group">
@@ -4290,9 +4298,11 @@ function updateRolesByStore(lojaId) {
   const select = document.getElementById('userLojaSelect');
   const perfilSelect = document.getElementById('userPerfilSelect');
   const hint = document.getElementById('perfilHint');
+  const checkboxContainer = document.getElementById('rolesCheckboxContainer');
   
   if (!lojaId || !select.selectedOptions[0]) {
     perfilSelect.innerHTML = '<option value="">Selecione primeiro a loja</option>';
+    checkboxContainer.innerHTML = '<small class="form-hint">Selecione a loja para ver as funções disponíveis</small>';
     return;
   }
   
@@ -4311,6 +4321,16 @@ function updateRolesByStore(lojaId) {
   perfilSelect.innerHTML = roles.map(r => 
     `<option value="${r.codigo}">${r.nome}</option>`
   ).join('');
+  
+  checkboxContainer.innerHTML = roles.map(r => `
+    <label class="role-checkbox">
+      <input type="checkbox" name="roles" value="${r.id}" data-codigo="${r.codigo}">
+      <span class="role-label">
+        <strong>${r.nome}</strong>
+        <small>${r.descricao || ''}</small>
+      </span>
+    </label>
+  `).join('');
 }
 
 async function saveUser(event) {
@@ -4322,6 +4342,9 @@ async function saveUser(event) {
   
   data.ativo = formData.has('ativo');
   data.loja_id = parseInt(data.loja_id);
+  
+  const roleCheckboxes = document.querySelectorAll('input[name="roles"]:checked');
+  data.role_ids = Array.from(roleCheckboxes).map(cb => parseInt(cb.value));
   
   try {
     await api('/users', { method: 'POST', body: data });

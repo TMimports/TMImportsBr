@@ -105,10 +105,12 @@ const isGestorOuAdmin = async (req, res, next) => {
 
 const hasDashboardGlobalAccess = async (req, res, next) => {
   const allowedRoles = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'];
+  const allowedPerfis = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'];
   const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const hasPerfil = allowedPerfis.includes(req.user.perfil);
   const perms = req.user.aggregatedPermissions || {};
   
-  if (!req.user.isAdmin && !hasRole && !perms.dashboard_global?.includes('read')) {
+  if (!req.user.isAdmin && !hasRole && !hasPerfil && !perms.dashboard_global?.includes('read')) {
     await logAccessDenied(req.user.id, 'dashboard_global', 'read', req.originalUrl);
     return res.status(403).json({ error: 'Acesso ao Dashboard Global negado.' });
   }
@@ -137,11 +139,13 @@ const hasPermission = (resource, action = 'read') => {
 };
 
 const hasFinanceiroAccess = async (req, res, next) => {
-  const allowedRoles = ['ADMIN_GLOBAL', 'FINANCEIRO'];
+  const allowedRoles = ['ADMIN_GLOBAL', 'FINANCEIRO', 'FRANQUEADO_GESTOR'];
+  const allowedPerfis = ['ADMIN_GLOBAL', 'GESTOR_FRANQUIA', 'FINANCEIRO'];
   const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const hasPerfil = allowedPerfis.includes(req.user.perfil);
   const perms = req.user.aggregatedPermissions || {};
   
-  if (!req.user.isAdmin && !hasRole && !perms.financeiro?.includes('read')) {
+  if (!req.user.isAdmin && !hasRole && !hasPerfil && !perms.financeiro?.includes('read')) {
     await logAccessDenied(req.user.id, 'financeiro', 'access', req.originalUrl);
     return res.status(403).json({ error: 'Acesso ao módulo Financeiro negado.' });
   }
@@ -149,11 +153,13 @@ const hasFinanceiroAccess = async (req, res, next) => {
 };
 
 const hasFiscalAccess = async (req, res, next) => {
-  const allowedRoles = ['ADMIN_GLOBAL', 'FINANCEIRO'];
+  const allowedRoles = ['ADMIN_GLOBAL', 'FINANCEIRO', 'FRANQUEADO_GESTOR'];
+  const allowedPerfis = ['ADMIN_GLOBAL', 'GESTOR_FRANQUIA', 'FINANCEIRO'];
   const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const hasPerfil = allowedPerfis.includes(req.user.perfil);
   const perms = req.user.aggregatedPermissions || {};
   
-  if (!req.user.isAdmin && !hasRole && !perms.fiscal?.includes('read')) {
+  if (!req.user.isAdmin && !hasRole && !hasPerfil && !perms.fiscal?.includes('read')) {
     await logAccessDenied(req.user.id, 'fiscal', 'access', req.originalUrl);
     return res.status(403).json({ error: 'Acesso ao módulo Fiscal negado.' });
   }
