@@ -5725,8 +5725,16 @@ function changeFranchiseRange(range) {
 }
 
 async function viewFranchiseDetail(storeId) {
-  const detail = document.getElementById('franchiseDetail');
+  let detail = document.getElementById('franchiseDetail');
+  if (!detail) {
+    const content = document.getElementById('content');
+    const div = document.createElement('div');
+    div.id = 'franchiseDetail';
+    content.appendChild(div);
+    detail = div;
+  }
   detail.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+  detail.scrollIntoView({ behavior: 'smooth' });
   
   try {
     const [store, summary] = await Promise.all([
