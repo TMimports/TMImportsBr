@@ -4069,52 +4069,111 @@ async function renderUsers() {
   }
 }
 
-function openUserModal() {
-  const formContent = `
-    <form id="userForm" onsubmit="saveUser(event)">
-      <div class="form-group">
-        <label>Nome *</label>
-        <input type="text" name="nome" required>
-      </div>
-      
-      <div class="form-group">
-        <label>Email *</label>
-        <input type="email" name="email" required>
-      </div>
-      
-      <div class="form-group">
-        <label>Senha Temporária</label>
-        <input type="password" name="senha" value="temp123">
-      </div>
-      
-      <div class="form-group">
-        <label>Perfil</label>
-        <select name="perfil">
-          <option value="OPERACIONAL">Operacional</option>
-          <option value="GESTOR_FRANQUIA">Gestor de Franquia</option>
-          ${currentUser.perfil === 'ADMIN_GLOBAL' ? '<option value="ADMIN_GLOBAL">Admin Global</option>' : ''}
-        </select>
-      </div>
-      
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Cadastrar</button>
-      </div>
-    </form>
-  `;
+async function openUserModal() {
+  try {
+    const [roles, stores] = await Promise.all([
+      api('/settings/roles'),
+      api('/stores')
+    ]);
+    
+    const rolesTMI = roles.filter(r => r.escopo === 'TMIMPORTS' || r.escopo === 'AMBOS');
+    const rolesTecle = roles.filter(r => r.escopo === 'TECLE_MOTOS' || r.escopo === 'AMBOS');
+    
+    const formContent = `
+      <form id="userForm" onsubmit="saveUser(event)">
+        <div class="form-group">
+          <label>Nome *</label>
+          <input type="text" name="nome" required>
+        </div>
+        
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" name="email" required>
+        </div>
+        
+        <div class="form-group">
+          <label>Senha Temporária</label>
+          <input type="password" name="senha" value="temp123">
+          <small class="form-hint">O usuário deve alterar no primeiro acesso</small>
+        </div>
+        
+        <div class="form-group">
+          <label>Loja *</label>
+          <select name="loja_id" id="userLojaSelect" required onchange="updateRolesByStore(this.value)">
+            <option value="">Selecione a loja</option>
+            ${stores.map(s => `<option value="${s.id}" data-empresa-tipo="${s.empresa?.tipo || 'FRANQUIA'}">${s.nome}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Perfil/Função *</label>
+          <select name="perfil" id="userPerfilSelect" required>
+            <option value="">Selecione primeiro a loja</option>
+          </select>
+          <small class="form-hint" id="perfilHint">Os perfis disponíveis dependem do tipo de loja selecionada</small>
+        </div>
+        
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="ativo" checked> Usuário Ativo
+          </label>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Cadastrar</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Novo Usuário', formContent);
+    
+    window.cachedRoles = { tmi: rolesTMI, tecle: rolesTecle, all: roles };
+  } catch (error) {
+    showToast('Erro ao carregar dados: ' + error.message, 'error');
+  }
+}
+
+function updateRolesByStore(lojaId) {
+  const select = document.getElementById('userLojaSelect');
+  const perfilSelect = document.getElementById('userPerfilSelect');
+  const hint = document.getElementById('perfilHint');
   
-  openModal('Novo Usuário', formContent);
+  if (!lojaId || !select.selectedOptions[0]) {
+    perfilSelect.innerHTML = '<option value="">Selecione primeiro a loja</option>';
+    return;
+  }
+  
+  const empresaTipo = select.selectedOptions[0].dataset.empresaTipo;
+  const isMatriz = empresaTipo === 'MATRIZ';
+  
+  let roles = [];
+  if (isMatriz) {
+    roles = window.cachedRoles?.tmi || [];
+    hint.textContent = 'Perfis para TM Imports (Atacado)';
+  } else {
+    roles = window.cachedRoles?.tecle || [];
+    hint.textContent = 'Perfis para Tecle Motos (Franquia)';
+  }
+  
+  perfilSelect.innerHTML = roles.map(r => 
+    `<option value="${r.codigo}">${r.nome}</option>`
+  ).join('');
 }
 
 async function saveUser(event) {
   event.preventDefault();
   
   const form = event.target;
-  const data = Object.fromEntries(new FormData(form));
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+  
+  data.ativo = formData.has('ativo');
+  data.loja_id = parseInt(data.loja_id);
   
   try {
     await api('/users', { method: 'POST', body: data });
-    showToast('Usuário cadastrado');
+    showToast('Usuário cadastrado com sucesso');
     closeModal();
     await renderUsers();
   } catch (error) {
