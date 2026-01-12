@@ -101,6 +101,12 @@ async function init() {
   try {
     currentUser = JSON.parse(user);
     
+    // Verificar se é primeiro acesso - forçar troca de senha
+    if (currentUser.primeiro_acesso) {
+      renderDefinirSenha();
+      return;
+    }
+    
     const sidebarLogo = document.getElementById('sidebarLogo');
     if (sidebarLogo) {
       if (currentUser.perfil === 'ADMIN_GLOBAL') {
@@ -126,6 +132,103 @@ async function init() {
     console.error('Erro ao inicializar:', error);
     logout();
   }
+}
+
+function renderDefinirSenha() {
+  document.body.innerHTML = `
+    <div class="login-page">
+      <div class="login-container">
+        <div class="login-logo">
+          <img src="/images/logo-tmimports.jpg" alt="TM Imports" class="logo-img">
+        </div>
+        
+        <div class="login-box">
+          <h1><i class="fas fa-key"></i> Definir Nova Senha</h1>
+          <p style="color: #aaa; margin-bottom: 20px; text-align: center;">
+            Bem-vindo(a), <strong>${currentUser.nome}</strong>!<br>
+            Por segurança, defina uma nova senha para continuar.
+          </p>
+          
+          <form id="definirSenhaForm" onsubmit="salvarNovaSenha(event)">
+            <div class="form-group">
+              <label for="novaSenha">Nova Senha *</label>
+              <input type="password" id="novaSenha" name="novaSenha" required minlength="6" placeholder="Mínimo 6 caracteres">
+            </div>
+            
+            <div class="form-group">
+              <label for="confirmarSenha">Confirmar Nova Senha *</label>
+              <input type="password" id="confirmarSenha" name="confirmarSenha" required minlength="6" placeholder="Digite novamente">
+            </div>
+            
+            <div id="senhaError" class="error-message" style="display: none;"></div>
+            
+            <button type="submit" class="btn btn-primary btn-block" id="btnSalvarSenha">
+              <i class="fas fa-check"></i> Definir Senha e Continuar
+            </button>
+          </form>
+        </div>
+        
+        <p class="login-footer">TM Imports - Sistema de Gestão</p>
+      </div>
+    </div>
+  `;
+}
+
+async function salvarNovaSenha(event) {
+  event.preventDefault();
+  
+  const novaSenha = document.getElementById('novaSenha').value;
+  const confirmarSenha = document.getElementById('confirmarSenha').value;
+  const errorDiv = document.getElementById('senhaError');
+  const btn = document.getElementById('btnSalvarSenha');
+  
+  errorDiv.style.display = 'none';
+  
+  if (novaSenha !== confirmarSenha) {
+    errorDiv.textContent = 'As senhas não coincidem!';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  if (novaSenha.length < 6) {
+    errorDiv.textContent = 'A senha deve ter pelo menos 6 caracteres!';
+    errorDiv.style.display = 'block';
+    return;
+  }
+  
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+  
+  try {
+    const response = await fetch('/api/auth/definir-senha', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ novaSenha })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      // Atualizar usuário no localStorage
+      currentUser.primeiro_acesso = false;
+      localStorage.setItem('user', JSON.stringify(currentUser));
+      
+      // Redirecionar para o app
+      window.location.href = '/app';
+    } else {
+      errorDiv.textContent = data.error || 'Erro ao salvar senha';
+      errorDiv.style.display = 'block';
+    }
+  } catch (error) {
+    errorDiv.textContent = 'Erro de conexão. Tente novamente.';
+    errorDiv.style.display = 'block';
+  }
+  
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-check"></i> Definir Senha e Continuar';
 }
 
 function renderMenu() {
@@ -157,7 +260,17 @@ function renderUserInfo() {
   const perfilLabels = {
     'ADMIN_GLOBAL': 'Admin Global',
     'GESTOR_FRANQUIA': 'Gestor de Franquia',
-    'OPERACIONAL': 'Operacional'
+    'OPERACIONAL': 'Operacional',
+    'GESTOR_DASHBOARD': 'Gestor Dashboard',
+    'GERENTE_OP': 'Gerente Operacional',
+    'FINANCEIRO': 'Financeiro',
+    'ADM1_LOGISTICA': 'ADM Logística',
+    'ADM2_CADASTRO': 'ADM Cadastro',
+    'ADM3_OS_GARANTIA': 'ADM OS/Garantia',
+    'VENDEDOR_TMI': 'Vendedor TM Imports',
+    'FRANQUEADO_GESTOR': 'Franqueado/Gestor',
+    'GERENTE_LOJA': 'Gerente de Loja',
+    'VENDEDOR_LOJA': 'Vendedor Loja'
   };
   
   userInfo.innerHTML = `
