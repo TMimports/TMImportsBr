@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tm-erp-v3';
+const CACHE_NAME = 'tm-erp-v4';
 const urlsToCache = [
   '/app',
   '/css/style.css',
