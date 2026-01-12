@@ -5438,12 +5438,29 @@ async function renderRankings() {
   content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando rankings...</div>';
   
   try {
-    const [rankings, lowMovers] = await Promise.all([
-      api(`/dashboard/rankings?range=${rankingsRange}`),
-      api(`/dashboard/low-movers?range=${rankingsRange}`)
-    ]);
+    const data = await api(`/dashboard/rankings?range=${rankingsRange}`);
+    
+    const motos = (data.topProdutos || []).filter(p => p.tipo === 'MOTO' || p.tipo === 'SCOOTER').map(p => ({ nome: p.nome, quantidade: p.qty, valor: p.value }));
+    const pecas = (data.topProdutos || []).filter(p => p.tipo === 'PECA').map(p => ({ nome: p.nome, quantidade: p.qty, valor: p.value }));
+    const servicos = (data.topProdutos || []).filter(p => p.tipo === 'SERVICO').map(p => ({ nome: p.nome, quantidade: p.qty, valor: p.value }));
     
     const rangeLabel = rankingsRange === 'weekly' ? 'Semanal' : rankingsRange === 'monthly' ? 'Mensal' : 'Total';
+    
+    const renderTable = (items, icon, title) => {
+      if (items.length === 0) return '<tr><td colspan="5" class="text-center">Sem dados no periodo</td></tr>';
+      return items.map((p, i) => {
+        const perfColor = i < 3 ? 'success' : i < 10 ? 'primary' : 'warning';
+        const perfIcon = i < 3 ? '🥇' : i < 10 ? '🥈' : '⚠️';
+        return `
+        <tr style="border-left: 4px solid var(--${perfColor});">
+          <td><span class="badge badge-${i < 3 ? 'warning' : 'secondary'}">${i + 1}</span></td>
+          <td><span class="badge badge-${perfColor}">${perfIcon}</span></td>
+          <td>${p.nome}</td>
+          <td>${p.quantidade || 0}</td>
+          <td>${formatCurrency(p.valor || 0)}</td>
+        </tr>`;
+      }).join('');
+    };
     
     content.innerHTML = `
       <div class="dashboard-filters" style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: flex-end;">
@@ -5454,14 +5471,14 @@ async function renderRankings() {
       
       <div class="tabs">
         <button class="tab active" onclick="showRankingTab('motos')">Motos</button>
-        <button class="tab" onclick="showRankingTab('pecas')">Peças</button>
-        <button class="tab" onclick="showRankingTab('servicos')">Serviços</button>
+        <button class="tab" onclick="showRankingTab('pecas')">Pecas</button>
+        <button class="tab" onclick="showRankingTab('servicos')">Servicos</button>
       </div>
       
       <div style="margin-bottom: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
         <span><span class="badge badge-success" style="font-size: 14px;">🥇</span> Top 3 - Excelente</span>
         <span><span class="badge badge-primary" style="font-size: 14px;">🥈</span> 4-10 - Bom</span>
-        <span><span class="badge badge-warning" style="font-size: 14px;">⚠️</span> 11+ - Atenção</span>
+        <span><span class="badge badge-warning" style="font-size: 14px;">⚠️</span> 11+ - Atencao</span>
       </div>
       
       <div id="rankingMotos" class="tab-content active">
@@ -5471,20 +5488,7 @@ async function renderRankings() {
             <div class="table-container">
               <table>
                 <thead><tr><th>#</th><th>Performance</th><th>Produto</th><th>Qtd Vendida</th><th>Valor Total</th></tr></thead>
-                <tbody>
-                  ${(rankings?.motos || []).map((p, i) => {
-                    const perfColor = i < 3 ? 'success' : i < 10 ? 'primary' : 'warning';
-                    const perfIcon = i < 3 ? '🥇' : i < 10 ? '🥈' : '⚠️';
-                    return `
-                    <tr style="border-left: 4px solid var(--${perfColor});">
-                      <td><span class="badge badge-${i < 3 ? 'warning' : 'secondary'}">${i + 1}</span></td>
-                      <td><span class="badge badge-${perfColor}">${perfIcon}</span></td>
-                      <td>${p.nome}</td>
-                      <td>${p.quantidade || 0}</td>
-                      <td>${formatCurrency(p.valor || 0)}</td>
-                    </tr>
-                  `}).join('') || '<tr><td colspan="5" class="text-center">Nenhum dado</td></tr>'}
-                </tbody>
+                <tbody>${renderTable(motos)}</tbody>
               </table>
             </div>
           </div>
@@ -5493,25 +5497,12 @@ async function renderRankings() {
       
       <div id="rankingPecas" class="tab-content" style="display:none;">
         <div class="card">
-          <div class="card-header"><h2><i class="fas fa-cog"></i> Top Peças Vendidas (${rangeLabel})</h2></div>
+          <div class="card-header"><h2><i class="fas fa-cog"></i> Top Pecas Vendidas (${rangeLabel})</h2></div>
           <div class="card-body">
             <div class="table-container">
               <table>
                 <thead><tr><th>#</th><th>Performance</th><th>Produto</th><th>Qtd Vendida</th><th>Valor Total</th></tr></thead>
-                <tbody>
-                  ${(rankings?.pecas || []).map((p, i) => {
-                    const perfColor = i < 3 ? 'success' : i < 10 ? 'primary' : 'warning';
-                    const perfIcon = i < 3 ? '🥇' : i < 10 ? '🥈' : '⚠️';
-                    return `
-                    <tr style="border-left: 4px solid var(--${perfColor});">
-                      <td><span class="badge badge-${i < 3 ? 'warning' : 'secondary'}">${i + 1}</span></td>
-                      <td><span class="badge badge-${perfColor}">${perfIcon}</span></td>
-                      <td>${p.nome}</td>
-                      <td>${p.quantidade || 0}</td>
-                      <td>${formatCurrency(p.valor || 0)}</td>
-                    </tr>
-                  `}).join('') || '<tr><td colspan="5" class="text-center">Nenhum dado</td></tr>'}
-                </tbody>
+                <tbody>${renderTable(pecas)}</tbody>
               </table>
             </div>
           </div>
@@ -5520,25 +5511,12 @@ async function renderRankings() {
       
       <div id="rankingServicos" class="tab-content" style="display:none;">
         <div class="card">
-          <div class="card-header"><h2><i class="fas fa-wrench"></i> Top Serviços (${rangeLabel})</h2></div>
+          <div class="card-header"><h2><i class="fas fa-wrench"></i> Top Servicos (${rangeLabel})</h2></div>
           <div class="card-body">
             <div class="table-container">
               <table>
-                <thead><tr><th>#</th><th>Performance</th><th>Serviço</th><th>Qtd Vendida</th><th>Valor Total</th></tr></thead>
-                <tbody>
-                  ${(rankings?.servicos || []).map((p, i) => {
-                    const perfColor = i < 3 ? 'success' : i < 10 ? 'primary' : 'warning';
-                    const perfIcon = i < 3 ? '🥇' : i < 10 ? '🥈' : '⚠️';
-                    return `
-                    <tr style="border-left: 4px solid var(--${perfColor});">
-                      <td><span class="badge badge-${i < 3 ? 'warning' : 'secondary'}">${i + 1}</span></td>
-                      <td><span class="badge badge-${perfColor}">${perfIcon}</span></td>
-                      <td>${p.nome}</td>
-                      <td>${p.quantidade || 0}</td>
-                      <td>${formatCurrency(p.valor || 0)}</td>
-                    </tr>
-                  `}).join('') || '<tr><td colspan="5" class="text-center">Nenhum dado</td></tr>'}
-                </tbody>
+                <thead><tr><th>#</th><th>Performance</th><th>Servico</th><th>Qtd Vendida</th><th>Valor Total</th></tr></thead>
+                <tbody>${renderTable(servicos)}</tbody>
               </table>
             </div>
           </div>

@@ -726,7 +726,7 @@ router.get('/franchise-ranking', async (req, res) => {
             status: 'CONCLUIDA'
           }
         }),
-        Sale.sum('valor_total', {
+        Sale.sum('total', {
           where: {
             loja_id: store.id,
             data_venda: { [Op.between]: [inicio, fim] },
@@ -739,7 +739,7 @@ router.get('/franchise-ranking', async (req, res) => {
             createdAt: { [Op.between]: [inicio, fim] }
           }
         }),
-        ServiceOrder.sum('valor_total', {
+        ServiceOrder.sum('total', {
           where: {
             loja_id: store.id,
             createdAt: { [Op.between]: [inicio, fim] }
