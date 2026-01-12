@@ -32,19 +32,60 @@ function getDateRange(range) {
 
 function checkDashboardPermission(user, dashboardType) {
   const perfil = user.perfil;
-  const roles = user.roles || [];
-  const roleNames = roles.map(r => r.nome);
+  const roleCodes = user.roleCodes || [];
   
-  if (perfil === 'ADMIN_GLOBAL' || roleNames.includes('ADMIN_GLOBAL')) return true;
-  if (roleNames.includes('GESTOR_DASHBOARD') || roleNames.includes('GERENTE_OP')) return dashboardType === 'global';
-  if (roleNames.includes('FRANQUEADO_GESTOR')) return dashboardType === 'loja';
-  if (roleNames.includes('GERENTE_LOJA')) return dashboardType === 'loja_restrito';
-  if (roleNames.includes('VENDEDOR_LOJA') || roleNames.includes('VENDEDOR_TMI')) return dashboardType === 'vendedor';
-  if (['ADM1', 'ADM2', 'ADM3'].some(r => roleNames.includes(r))) return false;
+  if (user.isAdmin || perfil === 'ADMIN_GLOBAL' || roleCodes.includes('ADMIN_GLOBAL')) return true;
   
-  if (perfil === 'GESTOR_FRANQUIA') return dashboardType === 'loja';
-  if (perfil === 'OPERACIONAL') return dashboardType === 'vendedor';
+  if (dashboardType === 'global') {
+    if (roleCodes.includes('GESTOR_DASHBOARD')) return true;
+    if (roleCodes.includes('GERENTE_OP')) return false;
+    return false;
+  }
   
+  if (dashboardType === 'operacional') {
+    const opRoles = ['GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'VENDEDOR_LOJA', 'VENDEDOR_TMI'];
+    return opRoles.some(r => roleCodes.includes(r));
+  }
+  
+  if (dashboardType === 'financeiro') {
+    if (roleCodes.includes('GERENTE_OP')) return false;
+    const finRoles = ['FINANCEIRO', 'FRANQUEADO_GESTOR'];
+    return finRoles.some(r => roleCodes.includes(r));
+  }
+  
+  if (dashboardType === 'loja') {
+    return roleCodes.includes('FRANQUEADO_GESTOR') || perfil === 'GESTOR_FRANQUIA';
+  }
+  
+  if (dashboardType === 'vendedor') {
+    return ['VENDEDOR_LOJA', 'VENDEDOR_TMI'].some(r => roleCodes.includes(r)) || perfil === 'OPERACIONAL';
+  }
+  
+  return false;
+}
+
+// Centralized function to check if user can see financial values
+function canUserSeeFinancialValues(user) {
+  const perfil = user.perfil;
+  const roleCodes = user.roleCodes || [];
+  
+  // Admins always have access
+  if (user.isAdmin || perfil === 'ADMIN_GLOBAL' || roleCodes.includes('ADMIN_GLOBAL')) {
+    return true;
+  }
+  
+  // Financial roles have access
+  const financialRoles = ['FINANCEIRO', 'FRANQUEADO_GESTOR'];
+  if (financialRoles.some(r => roleCodes.includes(r))) {
+    return true;
+  }
+  
+  // Legacy GESTOR_FRANQUIA has access
+  if (perfil === 'GESTOR_FRANQUIA') {
+    return true;
+  }
+  
+  // All other roles are blocked from financial values
   return false;
 }
 
@@ -53,6 +94,7 @@ router.get('/summary', async (req, res) => {
     const { range = 'monthly', storeId } = req.query;
     const { inicio, fim } = getDateRange(range);
     const isAdmin = req.user.perfil === 'ADMIN_GLOBAL' || req.user.isAdmin;
+    const canSeeFinance = canUserSeeFinancialValues(req.user);
     
     // Security: non-admins can only access their own store data
     let loja_id;
@@ -153,33 +195,21 @@ router.get('/summary', async (req, res) => {
     const pedidosMap = {};
     pedidos.forEach(p => { pedidosMap[p.status] = parseInt(p.count) || 0; });
     
-    res.json({
+    const response = {
       range,
       vendas: {
         total_qty: parseInt(vendas[0]?.qty) || 0,
-        total_value: parseFloat(vendas[0]?.value) || 0
+        total_value: canSeeFinance ? (parseFloat(vendas[0]?.value) || 0) : 0
       },
       os: {
         open_qty: parseInt(osAbertas[0]?.qty) || 0,
-        open_value: parseFloat(osAbertas[0]?.value) || 0,
+        open_value: canSeeFinance ? (parseFloat(osAbertas[0]?.value) || 0) : 0,
         closed_qty: parseInt(osFechadas[0]?.qty) || 0,
-        closed_value: parseFloat(osFechadas[0]?.value) || 0
+        closed_value: canSeeFinance ? (parseFloat(osFechadas[0]?.value) || 0) : 0
       },
       estoque: {
         low_stock_qty: estoqueBaixo,
         out_stock_qty: estoqueSemEstoque
-      },
-      receber: {
-        pending_qty: parseInt(receberPendente[0]?.qty) || 0,
-        pending_value: parseFloat(receberPendente[0]?.value) || 0,
-        paid_qty: parseInt(receberPago[0]?.qty) || 0,
-        paid_value: parseFloat(receberPago[0]?.value) || 0
-      },
-      pagar: {
-        pending_qty: parseInt(pagarPendente[0]?.qty) || 0,
-        pending_value: parseFloat(pagarPendente[0]?.value) || 0,
-        paid_qty: parseInt(pagarPago[0]?.qty) || 0,
-        paid_value: parseFloat(pagarPago[0]?.value) || 0
       },
       pedidos: {
         pending: pedidosMap['PENDENTE'] || 0,
@@ -188,7 +218,25 @@ router.get('/summary', async (req, res) => {
         shipped: pedidosMap['ENVIADA'] || 0,
         delivered: pedidosMap['RECEBIDA'] || 0
       }
-    });
+    };
+    
+    // Only include financial data for users with financial access
+    if (canSeeFinance) {
+      response.receber = {
+        pending_qty: parseInt(receberPendente[0]?.qty) || 0,
+        pending_value: parseFloat(receberPendente[0]?.value) || 0,
+        paid_qty: parseInt(receberPago[0]?.qty) || 0,
+        paid_value: parseFloat(receberPago[0]?.value) || 0
+      };
+      response.pagar = {
+        pending_qty: parseInt(pagarPendente[0]?.qty) || 0,
+        pending_value: parseFloat(pagarPendente[0]?.value) || 0,
+        paid_qty: parseInt(pagarPago[0]?.qty) || 0,
+        paid_value: parseFloat(pagarPago[0]?.value) || 0
+      };
+    }
+    
+    res.json(response);
   } catch (error) {
     console.error('Erro ao gerar summary:', error);
     res.status(500).json({ error: 'Erro ao gerar resumo do dashboard' });
@@ -199,6 +247,7 @@ router.get('/charts', async (req, res) => {
   try {
     const { range = 'monthly', storeId } = req.query;
     const isAdmin = req.user.perfil === 'ADMIN_GLOBAL' || req.user.isAdmin;
+    const canSeeFinance = canUserSeeFinancialValues(req.user);
     
     // Security: non-admins can only access their own store data
     let loja_id;
@@ -287,11 +336,20 @@ router.get('/charts', async (req, res) => {
       raw: true
     });
     
-    res.json({
-      vendasPorDia,
+    const response = {
       osPorDia,
       pedidosPorStatus
-    });
+    };
+    
+    // Only include financial data (vendasPorDia values) for users with financial access
+    if (canSeeFinance) {
+      response.vendasPorDia = vendasPorDia;
+    } else {
+      // Return only labels without values for blocked users
+      response.vendasPorDia = vendasPorDia.map(v => ({ label: v.label, value: 0 }));
+    }
+    
+    res.json(response);
   } catch (error) {
     console.error('Erro ao gerar charts:', error);
     res.status(500).json({ error: 'Erro ao gerar gráficos' });
@@ -303,6 +361,7 @@ router.get('/rankings', async (req, res) => {
     const { range = 'monthly', storeId } = req.query;
     const { inicio, fim } = getDateRange(range);
     const isAdmin = req.user.perfil === 'ADMIN_GLOBAL' || req.user.isAdmin;
+    const canSeeFinance = canUserSeeFinancialValues(req.user);
     
     // Security: non-admins can only access their own store data
     let loja_id;
@@ -363,12 +422,12 @@ router.get('/rankings', async (req, res) => {
         nome: p.produto?.nome || 'Produto',
         tipo: p.produto?.tipo || 'PECA',
         qty: parseInt(p.dataValues?.qty || p.qty) || 0,
-        value: parseFloat(p.dataValues?.value || p.value) || 0
+        value: canSeeFinance ? (parseFloat(p.dataValues?.value || p.value) || 0) : 0
       })),
       rankingFranquias: rankingFranquias.map(f => ({
         nome: f.loja?.nome || 'Loja',
         qty: parseInt(f.dataValues?.qty || f.qty) || 0,
-        value: parseFloat(f.dataValues?.value || f.value) || 0
+        value: canSeeFinance ? (parseFloat(f.dataValues?.value || f.value) || 0) : 0
       }))
     });
   } catch (error) {
@@ -495,12 +554,8 @@ router.get('/low-movers', async (req, res) => {
   }
 });
 
-router.get('/global', async (req, res) => {
+router.get('/global', hasDashboardGlobalAccess, async (req, res) => {
   try {
-    if (req.user.perfil !== 'ADMIN_GLOBAL' && !checkDashboardPermission(req.user, 'global')) {
-      return res.status(403).json({ error: 'Acesso negado' });
-    }
-
     const hoje = new Date();
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);

@@ -195,6 +195,16 @@ O sistema suporta integração com:
 
 ## Mudanças Recentes
 
+- **12/01/2026:** Filtragem de Dados Financeiros por Role (Model B)
+  - Função centralizada `canUserSeeFinancialValues(user)` para controle de acesso
+  - Endpoints /summary, /charts, /rankings filtram valores monetários para roles sem acesso
+  - GERENTE_OP recebe apenas quantidades (valores zerados)
+  - /global-data protegido por hasDashboardGlobalAccess (403 para roles não autorizadas)
+  - /financeiro-data protegido por hasDashboardFinanceiroAccess (403 para roles não autorizadas)
+  - /operacional-data retorna apenas COUNT, sem valores monetários
+  - Roles com acesso financeiro: ADMIN_GLOBAL, FINANCEIRO, FRANQUEADO_GESTOR, GESTOR_FRANQUIA
+  - Roles bloqueadas de dados financeiros: GERENTE_OP, ADM1_LOGISTICA, ADM2_CADASTRO, ADM3_OS_GARANTIA, VENDEDOR_TMI, VENDEDOR_LOJA, GERENTE_LOJA
+
 - **12/01/2026:** Sistema RBAC Multi-Role Completo
   - Implementação de permissões granulares para 11 roles distintas
   - Multi-role: usuário pode ter múltiplas funções via checkbox (permissões = união)

@@ -70,7 +70,7 @@ async function criarSeedRealista(models, sequelize) {
   const { 
     User, Role, UserRole, Company, Store, Customer, Product, Category,
     InventoryMain, InventoryStore, Sale, SaleItem, ServiceOrder, 
-    AccountPayable, AccountReceivable, PurchaseRequest, PurchaseRequestItem,
+    PaymentPayable, PaymentReceivable, PurchaseRequest, PurchaseRequestItem,
     AuditLog
   } = models;
 
@@ -432,7 +432,7 @@ async function criarSeedRealista(models, sequelize) {
         }, { transaction });
 
         if (status === 'CONCLUIDA') {
-          await AccountReceivable.create({
+          await PaymentReceivable.create({
             loja_id: loja.id,
             venda_id: venda.id,
             descricao: `Venda #${venda.id}`,
@@ -474,7 +474,7 @@ async function criarSeedRealista(models, sequelize) {
         const dataConta = gerarDataUltimos30Dias();
         const status = p <= 5 ? 'PAGO' : 'PENDENTE';
 
-        await AccountPayable.create({
+        await PaymentPayable.create({
           loja_id: loja.id,
           descricao: `${categoriasPagar[p % categoriasPagar.length]} - ${loja.nome}`,
           categoria: categoriasPagar[p % categoriasPagar.length],
@@ -491,7 +491,7 @@ async function criarSeedRealista(models, sequelize) {
         const dataConta = gerarDataUltimos30Dias();
         const status = r <= 6 ? 'PAGO' : 'PENDENTE';
 
-        await AccountReceivable.create({
+        await PaymentReceivable.create({
           loja_id: loja.id,
           descricao: `Recebimento avulso #${r} - ${loja.nome}`,
           valor: 300 + Math.floor(Math.random() * 1500),
@@ -556,7 +556,7 @@ async function criarSeedRealista(models, sequelize) {
 
 async function resetarESeed(models, sequelize) {
   const { 
-    SaleItem, Sale, ServiceOrder, AccountPayable, AccountReceivable,
+    SaleItem, Sale, ServiceOrder, PaymentPayable, PaymentReceivable,
     PurchaseRequestItem, PurchaseRequest, InventoryStore, Customer, AuditLog
   } = models;
 
@@ -568,8 +568,8 @@ async function resetarESeed(models, sequelize) {
     await SaleItem.destroy({ where: {}, transaction });
     await Sale.destroy({ where: {}, transaction });
     await ServiceOrder.destroy({ where: {}, transaction });
-    await AccountPayable.destroy({ where: {}, transaction });
-    await AccountReceivable.destroy({ where: {}, transaction });
+    await PaymentPayable.destroy({ where: {}, transaction });
+    await PaymentReceivable.destroy({ where: {}, transaction });
     await PurchaseRequestItem.destroy({ where: {}, transaction });
     await PurchaseRequest.destroy({ where: {}, transaction });
     await InventoryStore.destroy({ where: {}, transaction });

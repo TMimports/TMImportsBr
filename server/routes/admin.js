@@ -6,12 +6,9 @@ const { criarSeedRealista, resetarESeed } = require('../seed/seedRealista');
 const models = require('../models');
 
 router.use(verifyToken);
+router.use(isAdminGlobal);
 
 router.post('/seed/reset', async (req, res) => {
-  if (!isAdminGlobal(req.user)) {
-    logAccessDenied(req, 'seed_reset');
-    return res.status(403).json({ error: 'Acesso negado. Apenas ADMIN_GLOBAL pode resetar o seed.' });
-  }
 
   try {
     console.log('Admin solicitou reset e recriação do seed realista...');
@@ -40,11 +37,6 @@ router.post('/seed/reset', async (req, res) => {
 });
 
 router.post('/seed/criar-realista', async (req, res) => {
-  if (!isAdminGlobal(req.user)) {
-    logAccessDenied(req, 'seed_criar_realista');
-    return res.status(403).json({ error: 'Acesso negado. Apenas ADMIN_GLOBAL pode criar seed.' });
-  }
-
   try {
     console.log('Admin solicitou criação do seed realista...');
     
