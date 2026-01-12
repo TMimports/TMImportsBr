@@ -703,4 +703,95 @@ router.get('/loja', filterByStore, async (req, res) => {
   }
 });
 
+router.get('/franchise-ranking', async (req, res) => {
+  try {
+    const { range = 'monthly' } = req.query;
+    const { inicio, fim } = getDateRange(range);
+    
+    if (req.user.perfil !== 'ADMIN_GLOBAL') {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    
+    const stores = await Store.findAll({
+      where: { is_central: false },
+      attributes: ['id', 'nome', 'cidade', 'uf']
+    });
+    
+    const rankings = await Promise.all(stores.map(async (store) => {
+      const [vendasCount, vendasValue, osCount, osValue, estoqueBaixo, estoqueSem] = await Promise.all([
+        Sale.count({
+          where: {
+            loja_id: store.id,
+            data_venda: { [Op.between]: [inicio, fim] },
+            status: 'CONCLUIDA'
+          }
+        }),
+        Sale.sum('valor_total', {
+          where: {
+            loja_id: store.id,
+            data_venda: { [Op.between]: [inicio, fim] },
+            status: 'CONCLUIDA'
+          }
+        }),
+        ServiceOrder.count({
+          where: {
+            loja_id: store.id,
+            createdAt: { [Op.between]: [inicio, fim] }
+          }
+        }),
+        ServiceOrder.sum('valor_total', {
+          where: {
+            loja_id: store.id,
+            createdAt: { [Op.between]: [inicio, fim] }
+          }
+        }),
+        InventoryStore.count({
+          where: {
+            loja_id: store.id,
+            quantidade: { [Op.between]: [1, 2] }
+          }
+        }),
+        InventoryStore.count({
+          where: {
+            loja_id: store.id,
+            quantidade: 0
+          }
+        })
+      ]);
+      
+      const score = (vendasValue || 0) + (osValue || 0);
+      const attentionScore = (estoqueBaixo * 10) + (estoqueSem * 20) - (vendasCount * 5);
+      
+      return {
+        id: store.id,
+        nome: store.nome,
+        cidade: store.cidade,
+        uf: store.uf,
+        vendas_count: vendasCount || 0,
+        vendas_value: vendasValue || 0,
+        os_count: osCount || 0,
+        os_value: osValue || 0,
+        estoque_baixo: estoqueBaixo || 0,
+        estoque_sem: estoqueSem || 0,
+        score,
+        attention_score: attentionScore
+      };
+    }));
+    
+    rankings.sort((a, b) => b.score - a.score);
+    rankings.forEach((r, i) => r.ranking = i + 1);
+    
+    const rankingsWithAttention = [...rankings].sort((a, b) => b.attention_score - a.attention_score);
+    rankingsWithAttention.forEach((r, i) => r.attention_priority = i + 1);
+    
+    res.json(rankings.map(r => ({
+      ...r,
+      attention_priority: rankingsWithAttention.find(ra => ra.id === r.id).attention_priority
+    })));
+  } catch (error) {
+    console.error('Erro ao gerar ranking de franquias:', error);
+    res.status(500).json({ error: 'Erro ao gerar ranking' });
+  }
+});
+
 module.exports = router;
