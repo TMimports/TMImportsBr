@@ -5737,7 +5737,7 @@ async function renderFranchiseDashboard() {
                     <td><span class="badge badge-${s.ranking <= 3 ? 'warning' : 'secondary'}">#${s.ranking}</span></td>
                     <td><span class="badge badge-${prioColor}">${prioLabel}</span></td>
                     <td><strong>${s.nome}</strong></td>
-                    <td>${s.cidade || '-'}/${s.uf || ''}</td>
+                    <td>${s.cidade || '-'}</td>
                     <td>${s.vendas_count}</td>
                     <td>${formatCurrency(s.vendas_value)}</td>
                     <td>${s.os_count}</td>

@@ -713,8 +713,8 @@ router.get('/franchise-ranking', async (req, res) => {
     }
     
     const stores = await Store.findAll({
-      where: { is_central: false },
-      attributes: ['id', 'nome', 'cidade', 'uf']
+      where: { codigo: { [Op.ne]: 'TMI-001' } },
+      attributes: ['id', 'nome', 'cidade']
     });
     
     const rankings = await Promise.all(stores.map(async (store) => {
@@ -765,8 +765,7 @@ router.get('/franchise-ranking', async (req, res) => {
       return {
         id: store.id,
         nome: store.nome,
-        cidade: store.cidade,
-        uf: store.uf,
+        cidade: store.cidade || '',
         vendas_count: vendasCount || 0,
         vendas_value: vendasValue || 0,
         os_count: osCount || 0,

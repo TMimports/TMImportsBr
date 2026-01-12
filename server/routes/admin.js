@@ -23,6 +23,109 @@ router.post('/seed/reset', async (req, res) => {
   }
 });
 
+router.post('/seed/ranking-demo', async (req, res) => {
+  try {
+    const { Store, Customer, Product, Sale, SaleItem, ServiceOrder, InventoryStore } = models;
+    const { Op } = require('sequelize');
+    
+    const stores = await Store.findAll({ where: { codigo: { [Op.ne]: 'TMI-001' } } });
+    const products = await Product.findAll({ limit: 20 });
+    
+    if (stores.length === 0 || products.length === 0) {
+      return res.status(400).json({ error: 'Primeiro execute o seed completo' });
+    }
+    
+    const vendasCriadas = [];
+    const osCriadas = [];
+    
+    for (let i = 0; i < stores.length; i++) {
+      const store = stores[i];
+      
+      let customer = await Customer.findOne({ where: { loja_id: store.id } });
+      if (!customer) {
+        customer = await Customer.create({
+          nome: `Cliente Demo ${store.nome}`,
+          email: `demo${store.id}@teste.com`,
+          telefone: '11999999999',
+          cpf_cnpj: `${String(10000000000 + store.id * 1000).padStart(11, '0')}`,
+          loja_id: store.id
+        });
+      }
+      
+      const numVendas = Math.floor(Math.random() * 8) + 2;
+      for (let v = 0; v < numVendas; v++) {
+        const dataVenda = new Date();
+        dataVenda.setDate(dataVenda.getDate() - Math.floor(Math.random() * 25));
+        
+        const produto = products[Math.floor(Math.random() * products.length)];
+        const qtd = Math.floor(Math.random() * 3) + 1;
+        const valorTotal = (produto.preco_venda || 1000) * qtd;
+        
+        const venda = await Sale.create({
+          loja_id: store.id,
+          cliente_id: customer.id,
+          data_venda: dataVenda,
+          valor_total: valorTotal,
+          status: 'CONCLUIDA',
+          forma_pagamento: ['PIX', 'CARTAO', 'BOLETO'][Math.floor(Math.random() * 3)]
+        });
+        
+        await SaleItem.create({
+          venda_id: venda.id,
+          produto_id: produto.id,
+          quantidade: qtd,
+          preco_unitario: produto.preco_venda || 1000,
+          subtotal: valorTotal
+        });
+        
+        vendasCriadas.push(venda.id);
+      }
+      
+      const numOS = Math.floor(Math.random() * 5) + 1;
+      for (let o = 0; o < numOS; o++) {
+        const dataOS = new Date();
+        dataOS.setDate(dataOS.getDate() - Math.floor(Math.random() * 20));
+        const valorOS = Math.floor(Math.random() * 500) + 100;
+        
+        const os = await ServiceOrder.create({
+          loja_id: store.id,
+          cliente_id: customer.id,
+          descricao: `Manutenção preventiva #${o + 1}`,
+          valor_total: valorOS,
+          status: Math.random() > 0.3 ? 'CONCLUIDA' : 'ABERTA',
+          createdAt: dataOS
+        });
+        
+        osCriadas.push(os.id);
+      }
+      
+      const estoques = await InventoryStore.findAll({ where: { loja_id: store.id } });
+      if (estoques.length > 0) {
+        const qtdBaixo = Math.floor(Math.random() * 3);
+        const qtdSem = Math.floor(Math.random() * 2);
+        
+        for (let e = 0; e < Math.min(qtdBaixo, estoques.length); e++) {
+          await estoques[e].update({ quantidade: Math.floor(Math.random() * 2) + 1 });
+        }
+        for (let e = qtdBaixo; e < Math.min(qtdBaixo + qtdSem, estoques.length); e++) {
+          await estoques[e].update({ quantidade: 0 });
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: 'Dados de ranking criados com sucesso',
+      vendas_criadas: vendasCriadas.length,
+      os_criadas: osCriadas.length,
+      lojas_afetadas: stores.length
+    });
+  } catch (error) {
+    console.error('Erro ao criar dados de ranking:', error);
+    res.status(500).json({ error: 'Erro ao criar dados: ' + error.message });
+  }
+});
+
 router.get('/seed/status', async (req, res) => {
   try {
     const { Store, Customer, Sale, ServiceOrder, PaymentReceivable, PaymentPayable, PurchaseRequest } = models;
