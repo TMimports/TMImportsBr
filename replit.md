@@ -195,6 +195,20 @@ O sistema suporta integração com:
 
 ## Mudanças Recentes
 
+- **12/01/2026:** Dashboard do Vendedor e Limpeza de Dados
+  - Novo dashboard específico para vendedores (/app/meu-dashboard)
+  - Diferenciação visual por tipo: Atacado (TM Imports - laranja) e Franquia (Tecle Motos - verde)
+  - Métricas do vendedor: vendas por status (pendentes, aprovadas, concluídas, canceladas)
+  - Comissões: taxa aplicada, comissão do mês e acumulada do ano
+  - Visualização de estoque: total de produtos, estoque baixo, zerado e valor total
+  - Clientes atendidos e últimas 5 vendas
+  - Comissões configuráveis: 2% atacado, 1% franquia (via Configurações)
+  - Cobertura de Estoque: renomeado de "Dias de Estoque" com tooltip explicativo
+  - Endpoint /api/admin/limpar-dados para limpeza de dados transacionais
+  - Botão "Limpar Todos os Dados" nas Configurações com dupla confirmação
+  - Preserva: usuários, produtos, categorias, vendedores, estoque, configurações
+  - Remove: vendas, OS, clientes, notas fiscais, logs, notificações
+
 - **09/01/2026:** Novas Páginas de Rankings e Dashboard de Franquias
   - Página de Rankings (/app/rankings) com abas: Motos, Peças, Serviços
   - Página Low Movers (/app/low-movers): produtos parados, menos vendidos, sem venda no período
