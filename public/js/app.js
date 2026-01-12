@@ -5782,4 +5782,9 @@ async function viewFranchiseDetail(storeId) {
   }
 }
 
+window.viewFranchiseDetail = viewFranchiseDetail;
+window.changeFranchiseRange = changeFranchiseRange;
+window.changeRankingsRange = changeRankingsRange;
+window.changeLowMoversRange = changeLowMoversRange;
+
 init();
