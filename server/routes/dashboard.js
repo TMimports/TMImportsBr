@@ -417,8 +417,32 @@ router.get('/low-movers', async (req, res) => {
     const estoqueMap = {};
     estoque.forEach(e => { estoqueMap[e.produto_id] = e.quantidade; });
     
-    const trintaDiasAtras = new Date();
-    trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
+    const ultimasVendas = await SaleItem.findAll({
+      where: { produto_id: { [Op.in]: produtosSemVenda.map(p => p.id) } },
+      include: [{
+        model: Sale,
+        where: { status: 'CONCLUIDA' },
+        attributes: ['data_venda']
+      }],
+      attributes: ['produto_id'],
+      order: [[Sale, 'data_venda', 'DESC']],
+      raw: true
+    });
+    
+    const ultimaVendaMap = {};
+    ultimasVendas.forEach(v => {
+      if (!ultimaVendaMap[v.produto_id]) {
+        ultimaVendaMap[v.produto_id] = v['Sale.data_venda'];
+      }
+    });
+    
+    const hoje = new Date();
+    const calcularDiasParado = (produtoId) => {
+      const ultimaVenda = ultimaVendaMap[produtoId];
+      if (!ultimaVenda) return null;
+      const diff = Math.floor((hoje - new Date(ultimaVenda)) / (1000 * 60 * 60 * 24));
+      return diff;
+    };
     
     res.json({
       semVenda: produtosSemVenda.map(p => ({
@@ -426,13 +450,15 @@ router.get('/low-movers', async (req, res) => {
         nome: p.nome,
         tipo: p.tipo,
         preco: p.preco_venda,
-        estoque: estoqueMap[p.id] || 0
+        estoque: estoqueMap[p.id] || 0,
+        diasParado: calcularDiasParado(p.id)
       })),
       parados30dias: produtosSemVenda.filter(p => estoqueMap[p.id] > 0).slice(0, 10).map(p => ({
         id: p.id,
         nome: p.nome,
         tipo: p.tipo,
-        estoque: estoqueMap[p.id] || 0
+        estoque: estoqueMap[p.id] || 0,
+        diasParado: calcularDiasParado(p.id)
       }))
     });
   } catch (error) {
@@ -790,6 +816,73 @@ router.get('/franchise-ranking', async (req, res) => {
   } catch (error) {
     console.error('Erro ao gerar ranking de franquias:', error);
     res.status(500).json({ error: 'Erro ao gerar ranking' });
+  }
+});
+
+router.get('/central-inventory-stats', async (req, res) => {
+  try {
+    if (req.user.perfil !== 'ADMIN_GLOBAL') {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+    
+    const { range = 'monthly' } = req.query;
+    const { inicio, fim } = getDateRange(range);
+    
+    const estoqueComProdutos = await InventoryMain.findAll({
+      include: [{
+        model: Product,
+        as: 'produto',
+        attributes: ['id', 'nome', 'tipo', 'preco_venda', 'preco_custo']
+      }],
+      where: { quantidade: { [Op.gt]: 0 } }
+    });
+    
+    let valorTotalEstoque = 0;
+    let valorTotalCusto = 0;
+    let qtdTotalItens = 0;
+    
+    estoqueComProdutos.forEach(e => {
+      const precoVenda = parseFloat(e.produto?.preco_venda || 0);
+      const precoCusto = parseFloat(e.produto?.preco_custo || 0);
+      valorTotalEstoque += e.quantidade * precoVenda;
+      valorTotalCusto += e.quantidade * precoCusto;
+      qtdTotalItens += e.quantidade;
+    });
+    
+    const vendasPeriodo = await Sale.findAll({
+      where: {
+        status: 'CONCLUIDA',
+        data_venda: { [Op.between]: [inicio, fim] }
+      },
+      attributes: ['id', 'total', 'data_venda']
+    });
+    
+    const totalVendasValor = vendasPeriodo.reduce((acc, v) => acc + parseFloat(v.total || 0), 0);
+    const totalVendasQty = vendasPeriodo.length;
+    
+    const diasNoPeriodo = Math.max(1, Math.ceil((new Date(fim) - new Date(inicio)) / (1000 * 60 * 60 * 24)));
+    const mediaDiariaVendas = totalVendasValor / diasNoPeriodo;
+    const mediaDiariaQty = totalVendasQty / diasNoPeriodo;
+    
+    const diasEstoqueParado = valorTotalEstoque > 0 && mediaDiariaVendas > 0 
+      ? Math.round(valorTotalEstoque / mediaDiariaVendas) 
+      : 0;
+    
+    res.json({
+      valorTotalEstoque,
+      valorTotalCusto,
+      qtdTotalItens,
+      qtdProdutosDiferentes: estoqueComProdutos.length,
+      totalVendasPeriodo: totalVendasValor,
+      qtdVendasPeriodo: totalVendasQty,
+      mediaDiariaVendas,
+      mediaDiariaQty,
+      diasEstoqueParado,
+      margemPotencial: valorTotalEstoque - valorTotalCusto
+    });
+  } catch (error) {
+    console.error('Erro ao calcular estatísticas do estoque central:', error);
+    res.status(500).json({ error: 'Erro ao calcular estatísticas' });
   }
 });
 

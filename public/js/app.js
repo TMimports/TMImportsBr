@@ -5622,7 +5622,7 @@ async function renderLowMovers() {
                       <td>${p.nome}</td>
                       <td><span class="badge badge-secondary">${p.tipo}</span></td>
                       <td>${p.estoque || 0}</td>
-                      <td><span class="badge badge-danger">${p.diasParado || 30}+</span></td>
+                      <td><span class="badge badge-${p.diasParado >= 60 ? 'danger' : p.diasParado >= 30 ? 'warning' : 'primary'}">${p.diasParado !== null ? p.diasParado + ' dias' : 'Nunca vendeu'}</span></td>
                     </tr>
                   `).join('') || '<tr><td colspan="4" class="text-center">Nenhum dado</td></tr>'}
                 </tbody>
@@ -5669,7 +5669,10 @@ async function renderFranchiseDashboard() {
   content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando franquias...</div>';
   
   try {
-    const rankings = await api(`/dashboard/franchise-ranking?range=${dashboardRange}`);
+    const [rankings, estoqueStats] = await Promise.all([
+      api(`/dashboard/franchise-ranking?range=${dashboardRange}`),
+      api(`/dashboard/central-inventory-stats?range=${dashboardRange}`)
+    ]);
     
     const rangeLabel = dashboardRange === 'weekly' ? 'Semanal' : dashboardRange === 'monthly' ? 'Mensal' : 'Total';
     const total = rankings.length || 1;
@@ -5681,14 +5684,66 @@ async function renderFranchiseDashboard() {
         <button class="btn ${dashboardRange === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="changeFranchiseRange('all')">Total</button>
       </div>
       
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <h2><i class="fas fa-warehouse"></i> Estoque Central - Metricas (${rangeLabel})</h2>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fas fa-boxes"></i></div>
+              <div class="stat-value">${formatCurrency(estoqueStats.valorTotalEstoque || 0)}</div>
+              <div class="stat-label">Valor Total em Estoque</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="fas fa-chart-line"></i></div>
+              <div class="stat-value">${formatCurrency(estoqueStats.margemPotencial || 0)}</div>
+              <div class="stat-label">Margem Potencial (Lucro)</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>
+              <div class="stat-value">${formatCurrency(estoqueStats.mediaDiariaVendas || 0)}/dia</div>
+              <div class="stat-label">Media Diaria de Vendas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon ${estoqueStats.diasEstoqueParado > 90 ? 'red' : estoqueStats.diasEstoqueParado > 30 ? 'yellow' : 'green'}"><i class="fas fa-calendar-times"></i></div>
+              <div class="stat-value">${estoqueStats.diasEstoqueParado || 0} dias</div>
+              <div class="stat-label">Dias de Estoque (se parar vendas)</div>
+            </div>
+          </div>
+          <div class="stats-grid" style="margin-top: 15px;">
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fas fa-cubes"></i></div>
+              <div class="stat-value">${estoqueStats.qtdTotalItens || 0} itens</div>
+              <div class="stat-label">Quantidade Total</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="fas fa-tags"></i></div>
+              <div class="stat-value">${estoqueStats.qtdProdutosDiferentes || 0}</div>
+              <div class="stat-label">Produtos Diferentes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon orange"><i class="fas fa-receipt"></i></div>
+              <div class="stat-value">${estoqueStats.qtdVendasPeriodo || 0}</div>
+              <div class="stat-label">Vendas no Periodo</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+              <div class="stat-value">${formatCurrency(estoqueStats.totalVendasPeriodo || 0)}</div>
+              <div class="stat-label">Total Vendido no Periodo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <div class="card">
         <div class="card-header">
           <h2><i class="fas fa-store"></i> Franquias - Ranking por Performance (${rangeLabel})</h2>
         </div>
         <div class="card-body">
           <div style="margin-bottom: 15px; display: flex; gap: 15px; flex-wrap: wrap;">
-            <span><span class="badge badge-danger">●</span> Alta Prioridade (precisa atenção)</span>
-            <span><span class="badge badge-warning">●</span> Média Prioridade</span>
+            <span><span class="badge badge-danger">●</span> Alta Prioridade (precisa atencao)</span>
+            <span><span class="badge badge-warning">●</span> Media Prioridade</span>
             <span><span class="badge badge-success">●</span> Baixa Prioridade (bom desempenho)</span>
           </div>
           <div class="table-container">
@@ -5702,8 +5757,8 @@ async function renderFranchiseDashboard() {
                   <th>Vendas (Qtd)</th>
                   <th>Vendas (R$)</th>
                   <th>OS</th>
-                  <th>Estoque Crítico</th>
-                  <th>Ações</th>
+                  <th>Estoque Critico</th>
+                  <th>Acoes</th>
                 </tr>
               </thead>
               <tbody>
