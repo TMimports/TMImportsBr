@@ -1,0 +1,217 @@
+Você é um engenheiro fullstack sênior. Está trabalhando em um sistema existente no Replit (ZIP já importado), com SQLite. A missão é aplicar TODAS as regras abaixo SEM quebrar funcionalidades já existentes (preservar fórmulas e regras atuais quando já existirem). Implementar com segurança, auditoria, RBAC correto, dashboards por perfil, seed realista e rotas corretas.
+
+====================================================================
+0) REQUISITOS GERAIS
+====================================================================
+- 100% responsivo (celular 360px+, tablet, notebook, PC, TV).
+- Sidebar vira hamburguer no mobile.
+- Tabelas responsivas (cards no mobile ou scroll horizontal).
+- Dashboards com cards + gráficos legíveis em qualquer tela.
+- PWA somente Tecle Motos (manifest + service worker). TMimports é apenas web.
+- Manter paleta do projeto atual.
+- Logos automáticas por ambiente/perfil:
+  - TMimports: /public/assets/brand/tmimports.jpg
+  - Tecle Motos: /public/assets/brand/teclemotos.jpg
+  Aparecer no login, header, sidebar.
+- SQLite: criar DB automaticamente, migrations e indexes.
+- Auditoria/logs obrigatórios em ações críticas (usuários, preços, pedidos, envios, recebimentos, financeiro, permissões).
+
+====================================================================
+1) ADMIN INICIAL
+====================================================================
+- Criar ADMIN_GLOBAL inicial:
+  email: admin@tmimports.com
+  senha temporária aleatória (uma vez) e exigir troca no primeiro login.
+- Mostrar senha no console apenas no primeiro start.
+- Não recriar se já existir.
+
+====================================================================
+2) DOIS AMBIENTES: TMIMPORTS (GLOBAL) e TECLE MOTOS (LOJAS)
+====================================================================
+- TMimports = franqueadora (global).
+- Tecle Motos = lojas/franquias (cada loja com store_id).
+- Admin Global TMimports acessa tudo (inclusive franquias).
+- Franqueado não acessa TMimports.
+
+====================================================================
+3) RBAC MULTI-ROLE (CHECKBOX)
+====================================================================
+- Usuário pode ter múltiplas roles.
+- Implementar roles e permissões (tabelas: roles, permissions, role_permissions, user_roles).
+- Permissão final = união.
+- Deny-by-default.
+- Guard no backend + ocultar menus no frontend.
+- Cada request tem escopo: global ou loja (store_id). Loja nunca acessa dados de outras lojas.
+
+====================================================================
+4) ROLES FINAIS (MATRIZ)
+====================================================================
+
+TMIMPORTS:
+- ADMIN_GLOBAL: acesso total.
+- GESTOR_DASHBOARD: só dashboards estratégicos (global + franquias) + rankings + low movers; sem edição; sem financeiro.
+- GERENTE_OP (modelo B): operacional forte SEM dashboard global estratégico e SEM financeiro/fiscal.
+  - Tem Dashboard Operacional.
+  - Pode: franquias (operação), pedidos franquias, estoque central, OS/garantia, produtos/motos/serviços e valores.
+  - Não pode: /app/dashboard/global, /app/dashboard/financeiro, pagar/receber, fluxo caixa, conciliação, relatórios financeiros.
+- FINANCEIRO: financeiro/fiscal total; demais módulos leitura.
+- ADM1_LOGISTICA: logística/expedição/movimentações/envio; sem financeiro; sem dashboard global.
+- ADM2_CADASTRO: criar usuários e franquias + cadastrar/editar produtos/motos/serviços e valores; sem financeiro; sem dashboard global.
+- ADM3_OS_GARANTIA: OS e garantia; sem financeiro; sem dashboard global.
+- VENDEDOR_TMI: consulta estoque central e cria pedidos/vendas de produtos/motos; não vende serviços; dashboard próprio.
+
+TECLE MOTOS (LOJA):
+- FRANQUEADO_GESTOR: acesso total à loja; dashboards completos; estoque local; pedidos TMimports; garantia; financeiro da loja; cria usuários da própria loja.
+- GERENTE_LOJA: operacional total; pedidos TMimports/garantia; dashboard operacional (OS/estoque/pedidos) mas NÃO dashboard estratégico completo (mantém sua regra).
+- VENDEDOR_LOJA: estoque local (consulta), vendas, OS, clientes; dashboard próprio; não faz pedido TMimports; sem low movers/rankings; sem financeiro completo.
+
+====================================================================
+5) USUÁRIOS NA LOJA (REGRA RÍGIDA)
+====================================================================
+- Somente FRANQUEADO_GESTOR pode criar/editar/desativar usuários da própria loja.
+- Usuário criado herda automaticamente store_id do franqueado (sem campo de escolher loja).
+- Não permitir criar roles globais dentro da loja.
+- Roles permitidas na loja: GERENTE_LOJA e VENDEDOR_LOJA.
+
+====================================================================
+6) CLIENTES (PF/PJ) — BANCO ÚNICO POR LOJA + ANTIDUPLICIDADE + SEM EXCLUSÃO PELO FRANQUEADO
+====================================================================
+- Todos vendedores da loja compartilham o mesmo banco de clientes da loja.
+- Anti-duplicidade por CPF/CNPJ: se já existir, bloquear criação e sugerir selecionar.
+- Franqueado NÃO pode excluir cliente (apenas desativar, opcional). Excluir definitivo só Admin Global.
+- Campos obrigatórios:
+  PF: nome, CPF, data nascimento, sexo (Masc/Fem/Não prefiro), email, endereço completo.
+  PJ: CNPJ, razão social, nome fantasia, data abertura, email, endereço completo.
+- ViaCEP auto preenchimento.
+
+====================================================================
+7) PEDIDOS DAS FRANQUIAS (V1)
+====================================================================
+- Gestor/gerente loja cria pedido do catálogo/estoque central.
+- Status: PENDENTE_APROVACAO, APROVADO, REJEITADO, FATURADO, ENVIADO, ENTREGUE, CANCELADO.
+- Loja cancela só se pendente.
+- TMimports aprova/rejeita.
+- Fatura manual: AVISTA, BOLETO_30, BOLETO_60; anexa PDF.
+- Estoque da loja só entra após confirmação de recebimento pelo gestor.
+- Auditoria completa.
+
+====================================================================
+8) ESTOQUE
+====================================================================
+- Estoque central separado do estoque loja.
+- Loja não altera central, apenas consulta e pede.
+- Criar área “Cadastrar novos estoques” (múltiplos estoques futuros).
+- Notificação estoque mínimo loja:
+  - mínimo global = 2
+  - <=2: estoque baixo
+  - =0: sem estoque
+- Contador no topo + card no dashboard + lista.
+
+====================================================================
+9) PRODUTOS/SERVIÇOS — IMPORTAÇÃO DE PLANILHA + NCM + ADAPTAÇÃO
+====================================================================
+- Upload de planilha deve adaptar a colunas variadas (mapeamento automático + fallback manual).
+- Manter fórmulas existentes do sistema atual.
+- Capturar e salvar NCM no import.
+- Impostos “mobilidade elétrica Brasil 2026”:
+  - criar fiscal_config (percentuais configuráveis) e aplicar defaults configuráveis.
+  - nunca hardcode rígido sem opção de ajuste.
+
+====================================================================
+10) REGRAS DE MARGEM (LOJA)
+====================================================================
+- Peça: 60% lucro líquido.
+- Moto: 26.32% lucro líquido.
+- Regras globais para todas lojas no V1.
+
+====================================================================
+11) VENDAS (LOJA) — REGRAS COMPLETAS
+====================================================================
+- Desconto por item:
+  - moto max 3.5%
+  - peça max 10%
+  - serviço max 10%
+- Desconto habilita apenas em Dinheiro ou Pix à vista.
+- Parcelamento padrão: peça até 10x; moto até 21x.
+- Crédito: juros só em produtos (peças/motos) conforme tabela 1x-21x baseada em 10.000:
+  1x=10350; 2x=10450; 3x=10530; 4x=10600; 5x=10690; 6x=10760; 7x=10870; 8x=10950;
+  9x=11030; 10x=11100; 11x=11190; 12x=11270; 13x=11350; 14x=11440; 15x=11530;
+  16x=11620; 17x=11710; 18x=11800; 19x=11890; 20x=12000; 21x=12100.
+  Calcular percentuais e aplicar para qualquer valor.
+- Débito: 10.000 -> 10.100 (taxa 1%). Aplicar percentual em qualquer valor.
+
+SERVIÇOS (LOJA) sem juros:
+- Mão de obra por tempo:
+  15m=70 (avista)
+  30m=140 (avista)
+  45m=270 (até 2x sem juros)
+  1h=330 (até 3x sem juros)
+- Fixos:
+  Revitalização=1200 (até 5x)
+  Motor=1000 (até 5x)
+  Módulo=700 (até 4x)
+  Troca pneu dianteiro=150
+  Troca pneu traseiro=290
+  Revisão=350
+- Especiais:
+  Dianteiro + adesão até 5x
+  Traseiro + adesão até 6x
+- Produto+Serviço no crédito:
+  aplicar juros só nos produtos, somar serviço sem juros, parcelar conforme limite do produto.
+
+OS no cliente:
+- Mão de obra por tempo aparece apenas “Mão de obra” (sem tempo) para o cliente.
+- Internamente mostrar tempo.
+
+====================================================================
+12) CONTAS A PAGAR — RECORRÊNCIA
+====================================================================
+- Contas recorrentes: ao cadastrar, opção recorrente e gerar instâncias futuras automaticamente.
+- Frequência: semanal, mensal, trimestral, semestral, anual.
+
+====================================================================
+13) DASHBOARDS — POR PERFIL + POR MÓDULO
+====================================================================
+- Todo módulo tem dashboard com qtd + valor + gráficos.
+- Filtro semanal/mensal/total em todos dashboards.
+- TMimports:
+  - Separar rotas:
+    /app/dashboard/global (estratégico)
+    /app/dashboard/operacional
+    /app/dashboard/financeiro
+  - /app/dashboard deve redirecionar conforme role.
+  - GERENTE_OP modelo B: somente /operacional.
+- Criar dashboard por franquia no TMimports (por loja).
+- Ranking: franquias + produtos/peças/motos/serviços (qtd+valor).
+- Low movers: menos vendidos / sem venda / parados 30 dias (vendas + estoque).
+
+====================================================================
+14) SEED REALISTA “10 DE TUDO” + RESET
+====================================================================
+- Seed automático no primeiro start se DB vazio.
+- Endpoint: POST /api/admin/seed/reset (somente ADMIN_GLOBAL) para resetar e recriar seed.
+- Gerar CPF/CNPJ fictícios válidos (DV correto).
+- Criar:
+  - 10 franquias + 10 lojas
+  - 10 vendedores TMimports
+  - por loja: 10 vendedores loja, 10 PF + 10 PJ, 10 produtos, 10 motos, 10 serviços
+  - estoque (0,1,2,5,10)
+  - 10 vendas por loja nos últimos 30 dias (misturar meios de pagamento e aplicar regras)
+  - 10 OS por loja (5 abertas/5 fechadas)
+  - 10 contas pagar + 10 receber por loja (com status coerentes e recorrências)
+  - 10 pedidos por loja para TMimports com status variados
+- Garantir que ranking e low movers tenham dados naturais (produto 01 vende muito; produto 10 vende pouco).
+
+====================================================================
+15) ENTREGÁVEL
+====================================================================
+- Tudo funcionando sem travar “Carregando…”
+- Rotas corretas por página (ex: /app/receber não pode renderizar dashboard genérico)
+- RBAC aplicado backend+frontend conforme matriz
+- Dashboards por perfil e por módulo com filtros
+- Seed realista 10 de tudo + reset endpoint
+- PWA Tecle Motos
+- Manuais internos (Ajuda TMimports e Ajuda Tecle Motos) com busca
+- Auditoria logs
+
+Implemente isso no código existente, incrementalmente, com testes básicos a cada etapa. Ao final, entregue um resumo com os arquivos alterados e como testar.

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Sale, ServiceOrder, Product, Customer, PaymentReceivable, PaymentPayable, InventoryStore, InventoryMain, InventoryMovement, Store, Vendor, SaleItem, PurchaseRequest, sequelize } = require('../models');
-const { verifyToken, filterByStore, hasDashboardGlobalAccess, logAccessDenied } = require('../middleware/auth');
+const { verifyToken, filterByStore, hasDashboardGlobalAccess, hasDashboardOperacionalAccess, hasDashboardFinanceiroAccess, logAccessDenied } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 router.use(verifyToken);
@@ -911,6 +911,188 @@ router.get('/central-inventory-stats', async (req, res) => {
   } catch (error) {
     console.error('Erro ao calcular estatísticas do estoque central:', error);
     res.status(500).json({ error: 'Erro ao calcular estatísticas' });
+  }
+});
+
+router.get('/tipo-dashboard', async (req, res) => {
+  const user = req.user;
+  const roleCodes = user.roleCodes || [];
+  
+  let tipo = 'operacional';
+  let redirecionar = '/app/dashboard/operacional';
+  
+  if (user.isAdmin || roleCodes.includes('ADMIN_GLOBAL')) {
+    tipo = 'global';
+    redirecionar = '/app/dashboard';
+  } else if (roleCodes.includes('GESTOR_DASHBOARD')) {
+    tipo = 'global';
+    redirecionar = '/app/dashboard';
+  } else if (roleCodes.includes('FINANCEIRO')) {
+    tipo = 'financeiro';
+    redirecionar = '/app/dashboard/financeiro';
+  } else if (roleCodes.includes('FRANQUEADO_GESTOR')) {
+    tipo = 'loja';
+    redirecionar = '/app/dashboard';
+  } else if (roleCodes.includes('GERENTE_OP')) {
+    tipo = 'operacional';
+    redirecionar = '/app/dashboard/operacional';
+  } else if (['GERENTE_LOJA', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA'].some(r => roleCodes.includes(r))) {
+    tipo = 'operacional';
+    redirecionar = '/app/dashboard/operacional';
+  } else if (['VENDEDOR_TMI', 'VENDEDOR_LOJA'].some(r => roleCodes.includes(r))) {
+    tipo = 'vendedor';
+    redirecionar = '/app/meu-dashboard';
+  }
+  
+  res.json({ tipo, redirecionar, roleCodes });
+});
+
+router.get('/global-data', hasDashboardGlobalAccess, async (req, res) => {
+  try {
+    const { range = 'monthly' } = req.query;
+    const { inicio, fim } = getDateRange(range);
+    
+    const [vendas, os, receber, pagar, estoqueBaixo, lojas] = await Promise.all([
+      Sale.findAll({
+        where: { data_venda: { [Op.between]: [inicio, fim] }, status: 'CONCLUIDA' },
+        attributes: [
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty'],
+          [sequelize.fn('SUM', sequelize.col('total')), 'value']
+        ],
+        raw: true
+      }),
+      ServiceOrder.findAll({
+        where: { createdAt: { [Op.between]: [inicio, fim] } },
+        attributes: [
+          'status',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty'],
+          [sequelize.fn('SUM', sequelize.col('total')), 'value']
+        ],
+        group: ['status'],
+        raw: true
+      }),
+      PaymentReceivable.findAll({
+        attributes: [
+          'status',
+          [sequelize.fn('SUM', sequelize.col('valor')), 'value']
+        ],
+        group: ['status'],
+        raw: true
+      }),
+      PaymentPayable.findAll({
+        attributes: [
+          'status',
+          [sequelize.fn('SUM', sequelize.col('valor')), 'value']
+        ],
+        group: ['status'],
+        raw: true
+      }),
+      InventoryMain.count({ where: { quantidade: { [Op.lte]: 2, [Op.gt]: 0 } } }),
+      Store.count({ where: { ativo: true } })
+    ]);
+    
+    res.json({
+      vendas: vendas[0] || { qty: 0, value: 0 },
+      os,
+      receber,
+      pagar,
+      estoqueBaixo,
+      totalLojas: lojas
+    });
+  } catch (error) {
+    console.error('Erro no dashboard global:', error);
+    res.status(500).json({ error: 'Erro ao carregar dashboard global' });
+  }
+});
+
+router.get('/operacional-data', hasDashboardOperacionalAccess, async (req, res) => {
+  try {
+    const { range = 'monthly' } = req.query;
+    const { inicio, fim } = getDateRange(range);
+    const isAdmin = req.user.isAdmin;
+    const loja_id = isAdmin ? null : req.user.loja_id;
+    
+    const whereBase = loja_id ? { loja_id } : {};
+    
+    const [os, pedidos, estoque] = await Promise.all([
+      ServiceOrder.findAll({
+        where: { ...whereBase, createdAt: { [Op.between]: [inicio, fim] } },
+        attributes: [
+          'status',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty']
+        ],
+        group: ['status'],
+        raw: true
+      }),
+      PurchaseRequest.findAll({
+        where: { ...whereBase },
+        attributes: [
+          'status',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty']
+        ],
+        group: ['status'],
+        raw: true
+      }),
+      isAdmin 
+        ? InventoryMain.count({ where: { quantidade: { [Op.lte]: 2, [Op.gt]: 0 } } })
+        : InventoryStore.count({ where: { ...whereBase, quantidade: { [Op.lte]: 2, [Op.gt]: 0 } } })
+    ]);
+    
+    res.json({ os, pedidos, estoqueBaixo: estoque });
+  } catch (error) {
+    console.error('Erro no dashboard operacional:', error);
+    res.status(500).json({ error: 'Erro ao carregar dashboard operacional' });
+  }
+});
+
+router.get('/financeiro-data', hasDashboardFinanceiroAccess, async (req, res) => {
+  try {
+    const { range = 'monthly' } = req.query;
+    const { inicio, fim } = getDateRange(range);
+    const isAdmin = req.user.isAdmin;
+    const loja_id = isAdmin ? null : req.user.loja_id;
+    
+    const whereBase = loja_id ? { loja_id } : {};
+    const whereData = { data_vencimento: { [Op.between]: [inicio, fim] } };
+    
+    const [receber, pagar, vendas] = await Promise.all([
+      PaymentReceivable.findAll({
+        where: { ...whereBase },
+        attributes: [
+          'status',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty'],
+          [sequelize.fn('SUM', sequelize.col('valor')), 'value']
+        ],
+        group: ['status'],
+        raw: true
+      }),
+      PaymentPayable.findAll({
+        where: { ...whereBase },
+        attributes: [
+          'status',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'qty'],
+          [sequelize.fn('SUM', sequelize.col('valor')), 'value']
+        ],
+        group: ['status'],
+        raw: true
+      }),
+      Sale.findAll({
+        where: { ...whereBase, data_venda: { [Op.between]: [inicio, fim] }, status: 'CONCLUIDA' },
+        attributes: [
+          [sequelize.fn('SUM', sequelize.col('total')), 'faturamento']
+        ],
+        raw: true
+      })
+    ]);
+    
+    res.json({
+      receber,
+      pagar,
+      faturamento: vendas[0]?.faturamento || 0
+    });
+  } catch (error) {
+    console.error('Erro no dashboard financeiro:', error);
+    res.status(500).json({ error: 'Erro ao carregar dashboard financeiro' });
   }
 });
 

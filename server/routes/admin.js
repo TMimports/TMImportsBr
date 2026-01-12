@@ -1,25 +1,73 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, isAdminGlobal } = require('../middleware/auth');
+const { verifyToken, isAdminGlobal, logAccessDenied } = require('../middleware/auth');
 const { resetAndSeed, runSeed } = require('../seed');
+const { criarSeedRealista, resetarESeed } = require('../seed/seedRealista');
 const models = require('../models');
 
 router.use(verifyToken);
-router.use(isAdminGlobal);
 
 router.post('/seed/reset', async (req, res) => {
+  if (!isAdminGlobal(req.user)) {
+    logAccessDenied(req, 'seed_reset');
+    return res.status(403).json({ error: 'Acesso negado. Apenas ADMIN_GLOBAL pode resetar o seed.' });
+  }
+
   try {
-    console.log('Admin requested database reset and reseed...');
+    console.log('Admin solicitou reset e recriação do seed realista...');
     
-    await resetAndSeed(models);
+    const { sequelize } = models;
+    const resultado = await resetarESeed(models, sequelize);
+    
+    await models.AuditLog.create({
+      user_id: req.user.id,
+      acao: 'SEED_RESET',
+      entidade: 'SISTEMA',
+      entidade_id: null,
+      detalhes: JSON.stringify(resultado),
+      ip: req.ip
+    });
     
     res.json({ 
       success: true, 
-      message: 'Banco de dados resetado e seed executado. Reinicie o servidor para aplicar as alterações.' 
+      message: 'Seed realista resetado e recriado com sucesso!',
+      dados: resultado
     });
   } catch (error) {
     console.error('Erro ao resetar seed:', error);
-    res.status(500).json({ error: 'Erro ao resetar banco de dados' });
+    res.status(500).json({ error: 'Erro ao resetar banco de dados: ' + error.message });
+  }
+});
+
+router.post('/seed/criar-realista', async (req, res) => {
+  if (!isAdminGlobal(req.user)) {
+    logAccessDenied(req, 'seed_criar_realista');
+    return res.status(403).json({ error: 'Acesso negado. Apenas ADMIN_GLOBAL pode criar seed.' });
+  }
+
+  try {
+    console.log('Admin solicitou criação do seed realista...');
+    
+    const { sequelize } = models;
+    const resultado = await criarSeedRealista(models, sequelize);
+    
+    await models.AuditLog.create({
+      user_id: req.user.id,
+      acao: 'SEED_CRIAR_REALISTA',
+      entidade: 'SISTEMA',
+      entidade_id: null,
+      detalhes: JSON.stringify(resultado),
+      ip: req.ip
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Seed realista criado com sucesso!',
+      dados: resultado
+    });
+  } catch (error) {
+    console.error('Erro ao criar seed:', error);
+    res.status(500).json({ error: 'Erro ao criar seed: ' + error.message });
   }
 });
 

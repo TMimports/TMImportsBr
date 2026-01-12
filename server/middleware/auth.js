@@ -117,6 +117,44 @@ const hasDashboardGlobalAccess = async (req, res, next) => {
   next();
 };
 
+const hasDashboardOperacionalAccess = async (req, res, next) => {
+  const allowedRoles = ['ADMIN_GLOBAL', 'GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'VENDEDOR_LOJA', 'VENDEDOR_TMI'];
+  const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const perms = req.user.aggregatedPermissions || {};
+  
+  if (!req.user.isAdmin && !hasRole && !perms.dashboard_operational?.includes('read')) {
+    await logAccessDenied(req.user.id, 'dashboard_operacional', 'read', req.originalUrl);
+    return res.status(403).json({ error: 'Acesso ao Dashboard Operacional negado.' });
+  }
+  next();
+};
+
+const hasDashboardFinanceiroAccess = async (req, res, next) => {
+  const allowedRoles = ['ADMIN_GLOBAL', 'FINANCEIRO', 'FRANQUEADO_GESTOR'];
+  const blockedRoles = ['GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'VENDEDOR_TMI', 'VENDEDOR_LOJA', 'GERENTE_LOJA'];
+  const isBlocked = req.user.roleCodes?.some(code => blockedRoles.includes(code)) && 
+                    !req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const perms = req.user.aggregatedPermissions || {};
+  
+  if (!req.user.isAdmin && (isBlocked || (!hasRole && !perms.dashboard_financial?.includes('read')))) {
+    await logAccessDenied(req.user.id, 'dashboard_financeiro', 'read', req.originalUrl);
+    return res.status(403).json({ error: 'Acesso ao Dashboard Financeiro negado.' });
+  }
+  next();
+};
+
+const isGerenteOPBlocked = async (req, res, next) => {
+  const blockedRoles = ['GERENTE_OP'];
+  const isBlocked = req.user.roleCodes?.includes('GERENTE_OP') && !req.user.isAdmin;
+  
+  if (isBlocked) {
+    await logAccessDenied(req.user.id, 'financeiro', 'access_blocked_gerente_op', req.originalUrl);
+    return res.status(403).json({ error: 'GERENTE_OP não tem acesso a este módulo.' });
+  }
+  next();
+};
+
 const hasPermission = (resource, action = 'read') => {
   return async (req, res, next) => {
     if (req.user.isAdmin || req.user.perfil === 'ADMIN_GLOBAL') {
@@ -206,6 +244,9 @@ module.exports = {
   isAdminGlobal,
   isGestorOuAdmin,
   hasDashboardGlobalAccess,
+  hasDashboardOperacionalAccess,
+  hasDashboardFinanceiroAccess,
+  isGerenteOPBlocked,
   hasPermission,
   hasFinanceiroAccess,
   hasFiscalAccess,
