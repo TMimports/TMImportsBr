@@ -6,6 +6,7 @@ const menuItems = {
   ADMIN_GLOBAL: [
     { section: 'Principal', items: [
       { id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' },
+      { id: 'meu-dashboard', label: 'Meu Dashboard Vendedor', icon: 'fas fa-user-tie' },
       { id: 'rankings', label: 'Rankings', icon: 'fas fa-trophy' },
       { id: 'low-movers', label: 'Produtos Parados', icon: 'fas fa-snowflake' }
     ]},
@@ -42,7 +43,8 @@ const menuItems = {
   ],
   GESTOR_FRANQUIA: [
     { section: 'Principal', items: [
-      { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-line' }
+      { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-line' },
+      { id: 'meu-dashboard', label: 'Meu Dashboard Vendedor', icon: 'fas fa-user-tie' }
     ]},
     { section: 'Produtos', items: [
       { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
@@ -70,7 +72,8 @@ const menuItems = {
   ],
   OPERACIONAL: [
     { section: 'Principal', items: [
-      { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-line' }
+      { id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' },
+      { id: 'dashboard', label: 'Dashboard Geral', icon: 'fas fa-chart-line' }
     ]},
     { section: 'Vendas', items: [
       { id: 'vendas', label: 'Minhas Vendas', icon: 'fas fa-shopping-cart' },
@@ -212,7 +215,8 @@ async function loadPage(page) {
     'configuracoes': 'Configurações Globais',
     'rankings': 'Rankings de Vendas',
     'low-movers': 'Produtos Parados',
-    'franquias-dashboard': 'Dashboard por Franquia'
+    'franquias-dashboard': 'Dashboard por Franquia',
+    'meu-dashboard': 'Meu Dashboard'
   };
   
   pageTitle.textContent = titles[page] || 'Dashboard';
@@ -221,6 +225,9 @@ async function loadPage(page) {
     switch (page) {
       case 'dashboard':
         await renderDashboard();
+        break;
+      case 'meu-dashboard':
+        await renderVendorDashboard();
         break;
       case 'produtos':
         await renderProducts();
@@ -862,6 +869,204 @@ function changeDashboardRange(range) {
   dashboardRange = range;
   localStorage.setItem('dashboardRange', range);
   renderDashboard();
+}
+
+async function renderVendorDashboard() {
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando dashboard...</div>';
+
+  try {
+    const data = await api('/vendors/me/dashboard');
+    
+    if (!data || data.error) {
+      content.innerHTML = `<div class="empty-state">
+        <i class="fas fa-user-tie"></i>
+        <h3>Voce nao esta cadastrado como vendedor</h3>
+        <p>Entre em contato com seu gestor para ser cadastrado.</p>
+      </div>`;
+      return;
+    }
+
+    const isAtacado = data.loja.tipo === 'MATRIZ';
+    const tipoLabel = isAtacado ? 'Atacado - TM Imports' : 'Franquia - Tecle Motos';
+    const corTema = isAtacado ? 'var(--primary)' : 'var(--success)';
+    const iconeTema = isAtacado ? 'fa-warehouse' : 'fa-store';
+
+    content.innerHTML = `
+      <div class="card" style="margin-bottom: 20px; border-left: 4px solid ${corTema};">
+        <div class="card-header">
+          <h2><i class="fas ${iconeTema}"></i> Meu Dashboard - ${tipoLabel}</h2>
+          <span class="badge ${isAtacado ? 'badge-primary' : 'badge-success'}">${data.vendedor.nome}</span>
+        </div>
+        <div class="card-body">
+          <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px;">
+            <div><strong>Loja:</strong> ${data.loja.nome}</div>
+            <div><strong>Cidade:</strong> ${data.loja.cidade || '-'}</div>
+            <div><strong>Taxa Comissao:</strong> <span style="color: ${corTema}; font-weight: bold;">${data.comissao.taxa}%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <h2><i class="fas fa-coins" style="color: #FFD700;"></i> Minhas Comissoes</h2>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fas fa-calendar-alt"></i></div>
+              <div class="stat-value">${data.comissao.mes.vendas}</div>
+              <div class="stat-label">Vendas Este Mes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon orange"><i class="fas fa-dollar-sign"></i></div>
+              <div class="stat-value">${formatCurrency(data.comissao.mes.totalVendas)}</div>
+              <div class="stat-label">Total Vendido (Mes)</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="fas fa-hand-holding-usd"></i></div>
+              <div class="stat-value">${formatCurrency(data.comissao.mes.comissao)}</div>
+              <div class="stat-label">Comissao do Mes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon yellow"><i class="fas fa-trophy"></i></div>
+              <div class="stat-value">${formatCurrency(data.comissao.ano.comissao)}</div>
+              <div class="stat-label">Comissao Acumulada (Ano)</div>
+            </div>
+          </div>
+          <div style="margin-top: 15px; padding: 15px; background: rgba(0,255,136,0.1); border-radius: 8px;">
+            <p style="margin: 0;">
+              <i class="fas fa-info-circle"></i> 
+              No ano voce vendeu <strong>${formatCurrency(data.comissao.ano.totalVendas)}</strong> em <strong>${data.comissao.ano.vendas}</strong> vendas.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <h2><i class="fas fa-shopping-cart"></i> Status das Minhas Vendas</h2>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-card" style="cursor: pointer;" onclick="navigateTo('/app/vendas?status=PENDENTE')">
+              <div class="stat-icon yellow"><i class="fas fa-clock"></i></div>
+              <div class="stat-value">${data.vendas.pendentes.qtd}</div>
+              <div class="stat-label">Pendentes</div>
+              <div class="stat-sublabel">${formatCurrency(data.vendas.pendentes.valor)}</div>
+            </div>
+            <div class="stat-card" style="cursor: pointer;" onclick="navigateTo('/app/vendas?status=APROVADA')">
+              <div class="stat-icon blue"><i class="fas fa-check"></i></div>
+              <div class="stat-value">${data.vendas.aprovadas.qtd}</div>
+              <div class="stat-label">Aprovadas</div>
+              <div class="stat-sublabel">${formatCurrency(data.vendas.aprovadas.valor)}</div>
+            </div>
+            <div class="stat-card" style="cursor: pointer;" onclick="navigateTo('/app/vendas?status=CONCLUIDA')">
+              <div class="stat-icon green"><i class="fas fa-check-double"></i></div>
+              <div class="stat-value">${data.vendas.concluidas.qtd}</div>
+              <div class="stat-label">Concluidas</div>
+              <div class="stat-sublabel">${formatCurrency(data.vendas.concluidas.valor)}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon red"><i class="fas fa-times"></i></div>
+              <div class="stat-value">${data.vendas.canceladas.qtd}</div>
+              <div class="stat-label">Canceladas</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <h2><i class="fas fa-boxes"></i> Estoque ${isAtacado ? 'Central' : 'da Loja'}</h2>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fas fa-cubes"></i></div>
+              <div class="stat-value">${data.estoque.total}</div>
+              <div class="stat-label">Produtos em Estoque</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon yellow"><i class="fas fa-exclamation-triangle"></i></div>
+              <div class="stat-value">${data.estoque.baixo}</div>
+              <div class="stat-label">Estoque Baixo</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon red"><i class="fas fa-times-circle"></i></div>
+              <div class="stat-value">${data.estoque.zerado}</div>
+              <div class="stat-label">Sem Estoque</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+              <div class="stat-value">${formatCurrency(data.estoque.valorTotal)}</div>
+              <div class="stat-label">Valor Total Estoque</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">
+          <h2><i class="fas fa-users"></i> Clientes e Vendas Recentes</h2>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid" style="margin-bottom: 20px;">
+            <div class="stat-card">
+              <div class="stat-icon purple"><i class="fas fa-user-check"></i></div>
+              <div class="stat-value">${data.clientesAtendidos}</div>
+              <div class="stat-label">Clientes Atendidos</div>
+            </div>
+          </div>
+          
+          ${data.vendasRecentes.length > 0 ? `
+            <h4 style="margin-bottom: 10px;">Ultimas 5 Vendas</h4>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${data.vendasRecentes.map(v => `
+                    <tr>
+                      <td>${formatDate(v.data)}</td>
+                      <td>${v.cliente}</td>
+                      <td>${formatCurrency(v.total)}</td>
+                      <td><span class="badge badge-${v.status === 'CONCLUIDA' ? 'success' : v.status === 'PENDENTE' ? 'warning' : v.status === 'APROVADA' ? 'primary' : 'danger'}">${v.status}</span></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : '<p style="color: var(--text-muted);">Nenhuma venda registrada ainda.</p>'}
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 20px;">
+        <button class="btn btn-primary" onclick="navigateTo('/app/vendas')">
+          <i class="fas fa-plus"></i> Nova Venda
+        </button>
+        <button class="btn btn-secondary" onclick="navigateTo('/app/clientes')" style="margin-left: 10px;">
+          <i class="fas fa-users"></i> Ver Clientes
+        </button>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Erro ao carregar dashboard do vendedor:', error);
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+      <h3>Erro ao carregar Dashboard</h3>
+      <p>${error.message || 'Voce pode nao estar cadastrado como vendedor.'}</p>
+      <button class="btn btn-primary" onclick="renderVendorDashboard()" style="margin-top: 20px;">
+        <i class="fas fa-redo"></i> Tentar Novamente
+      </button>
+    </div>`;
+  }
 }
 
 let productsData = [];
