@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Store, Company, Role, UserRole } = require('../models');
+const { User, Store, Company, Role, UserRole, AuditLog } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tm-imports-tecle-motos-secret-2024';
 
@@ -37,7 +37,7 @@ const verifyToken = async (req, res, next) => {
     let isAdmin = false;
     
     userRoles.forEach(role => {
-      if (role.permissoes?.all === true) {
+      if (role.codigo === 'ADMIN_GLOBAL') {
         isAdmin = true;
       }
       if (role.permissoes && typeof role.permissoes === 'object') {
@@ -68,25 +68,55 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-const isAdminGlobal = (req, res, next) => {
+const logAccessDenied = async (userId, resource, action, route) => {
+  try {
+    await AuditLog.create({
+      user_id: userId,
+      acao: 'ACESSO_NEGADO',
+      entidade: resource || 'rota',
+      entidade_id: null,
+      dados_anteriores: null,
+      dados_novos: { route, action, resource },
+      ip: null
+    });
+  } catch (e) {
+    console.error('Erro ao registrar acesso negado:', e.message);
+  }
+};
+
+const isAdminGlobal = async (req, res, next) => {
   if (!req.user.isAdmin && req.user.perfil !== 'ADMIN_GLOBAL') {
+    await logAccessDenied(req.user.id, 'admin', 'access', req.originalUrl);
     return res.status(403).json({ error: 'Acesso negado. Apenas Admin Global.' });
   }
   next();
 };
 
-const isGestorOuAdmin = (req, res, next) => {
-  const allowedRoles = ['ADMIN_GLOBAL', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'GERENTE_OP'];
+const isGestorOuAdmin = async (req, res, next) => {
+  const allowedRoles = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'GERENTE_OP'];
   const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
   
   if (!req.user.isAdmin && !hasRole && !['ADMIN_GLOBAL', 'GESTOR_FRANQUIA'].includes(req.user.perfil)) {
+    await logAccessDenied(req.user.id, 'gestor', 'access', req.originalUrl);
     return res.status(403).json({ error: 'Acesso negado.' });
   }
   next();
 };
 
+const hasDashboardGlobalAccess = async (req, res, next) => {
+  const allowedRoles = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'];
+  const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const perms = req.user.aggregatedPermissions || {};
+  
+  if (!req.user.isAdmin && !hasRole && !perms.dashboard_global?.includes('read')) {
+    await logAccessDenied(req.user.id, 'dashboard_global', 'read', req.originalUrl);
+    return res.status(403).json({ error: 'Acesso ao Dashboard Global negado.' });
+  }
+  next();
+};
+
 const hasPermission = (resource, action = 'read') => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (req.user.isAdmin || req.user.perfil === 'ADMIN_GLOBAL') {
       return next();
     }
@@ -97,12 +127,37 @@ const hasPermission = (resource, action = 'read') => {
     }
     
     const legacyPerms = req.user.permissoes || {};
-    if (legacyPerms[resource]) {
+    if (legacyPerms[resource] && (legacyPerms[resource] === true || legacyPerms[resource].includes(action))) {
       return next();
     }
     
-    return res.status(403).json({ error: 'Permissão negada' });
+    await logAccessDenied(req.user.id, resource, action, req.originalUrl);
+    return res.status(403).json({ error: `Permissão negada para ${action} em ${resource}` });
   };
+};
+
+const hasFinanceiroAccess = async (req, res, next) => {
+  const allowedRoles = ['ADMIN_GLOBAL', 'FINANCEIRO'];
+  const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const perms = req.user.aggregatedPermissions || {};
+  
+  if (!req.user.isAdmin && !hasRole && !perms.financeiro?.includes('read')) {
+    await logAccessDenied(req.user.id, 'financeiro', 'access', req.originalUrl);
+    return res.status(403).json({ error: 'Acesso ao módulo Financeiro negado.' });
+  }
+  next();
+};
+
+const hasFiscalAccess = async (req, res, next) => {
+  const allowedRoles = ['ADMIN_GLOBAL', 'FINANCEIRO'];
+  const hasRole = req.user.roleCodes?.some(code => allowedRoles.includes(code));
+  const perms = req.user.aggregatedPermissions || {};
+  
+  if (!req.user.isAdmin && !hasRole && !perms.fiscal?.includes('read')) {
+    await logAccessDenied(req.user.id, 'fiscal', 'access', req.originalUrl);
+    return res.status(403).json({ error: 'Acesso ao módulo Fiscal negado.' });
+  }
+  next();
 };
 
 const filterByStore = (req, res, next) => {
@@ -123,13 +178,33 @@ const filterByCompany = (req, res, next) => {
   next();
 };
 
+const checkStoreScope = async (req, res, next) => {
+  if (req.user.isAdmin || req.user.perfil === 'ADMIN_GLOBAL') {
+    return next();
+  }
+  
+  const requestedStoreId = req.params.storeId || req.body.loja_id || req.query.loja_id;
+  
+  if (requestedStoreId && parseInt(requestedStoreId) !== req.user.loja_id) {
+    await logAccessDenied(req.user.id, 'store_scope', 'access', req.originalUrl);
+    return res.status(403).json({ error: 'Acesso negado. Você só pode acessar dados da sua loja.' });
+  }
+  
+  next();
+};
+
 module.exports = {
   JWT_SECRET,
   generateToken,
   verifyToken,
   isAdminGlobal,
   isGestorOuAdmin,
+  hasDashboardGlobalAccess,
   hasPermission,
+  hasFinanceiroAccess,
+  hasFiscalAccess,
   filterByStore,
-  filterByCompany
+  filterByCompany,
+  checkStoreScope,
+  logAccessDenied
 };
