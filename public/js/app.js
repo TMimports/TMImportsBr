@@ -43,8 +43,7 @@ const menuItems = {
   ],
   GESTOR_FRANQUIA: [
     { section: 'Principal', items: [
-      { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-line' },
-      { id: 'meu-dashboard', label: 'Meu Dashboard Vendedor', icon: 'fas fa-user-tie' }
+      { id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' }
     ]},
     { section: 'Produtos', items: [
       { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
@@ -558,8 +557,8 @@ let dashboardRange = localStorage.getItem('dashboardRange') || 'monthly';
 async function renderDashboard() {
   const content = document.getElementById('content');
   
-  // Apenas ADMIN_GLOBAL e gestores podem ver o dashboard global
-  const perfisPermitidos = ['ADMIN_GLOBAL', 'GESTOR_FRANQUIA', 'GESTOR_DASHBOARD', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'];
+  // Apenas ADMIN_GLOBAL e GESTOR_DASHBOARD (gestor TM Imports) podem ver o dashboard global
+  const perfisPermitidos = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'];
   if (!perfisPermitidos.includes(currentUser.perfil)) {
     content.innerHTML = `
       <div class="card" style="text-align: center; padding: 60px;">
