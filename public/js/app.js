@@ -5934,6 +5934,23 @@ async function renderSettings() {
           </table>
         </div>
         
+        <div class="form-section" style="border: 2px solid var(--danger); background: rgba(255,0,0,0.05);">
+          <h3 style="color: var(--danger);"><i class="fas fa-exclamation-triangle"></i> Manutencao do Sistema</h3>
+          <p style="color: var(--text-muted); margin-bottom: 15px;">
+            <strong>ATENCAO:</strong> Estas acoes sao irreversiveis e afetam todos os dados do sistema.
+          </p>
+          <div class="form-row">
+            <div class="form-group">
+              <button class="btn btn-danger" onclick="limparDadosSistema()">
+                <i class="fas fa-eraser"></i> Limpar Todos os Dados
+              </button>
+              <small style="color: var(--text-muted); display: block; margin-top: 5px;">
+                Remove vendas, clientes, OS, notas fiscais, etc. Mantem usuarios, produtos e configuracoes.
+              </small>
+            </div>
+          </div>
+        </div>
+        
         <div class="form-actions">
           <button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Salvar Configurações</button>
         </div>
@@ -5941,6 +5958,30 @@ async function renderSettings() {
     `;
   } catch (error) {
     content.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Erro ao carregar configurações</h3><p>' + error.message + '</p></div>';
+  }
+}
+
+async function limparDadosSistema() {
+  const confirma1 = confirm('ATENCAO: Esta acao ira APAGAR todos os dados transacionais do sistema!\n\nSerao removidos:\n- Vendas e itens\n- Ordens de servico\n- Clientes\n- Contas a receber/pagar\n- Notas fiscais\n- Solicitacoes de compra\n- Logs de auditoria\n\nDeseja continuar?');
+  
+  if (!confirma1) return;
+  
+  const confirma2 = prompt('Para confirmar, digite "LIMPAR" (em maiusculas):');
+  
+  if (confirma2 !== 'LIMPAR') {
+    showToast('Operacao cancelada', 'info');
+    return;
+  }
+  
+  try {
+    const result = await api('/admin/limpar-dados', { method: 'POST' });
+    
+    if (result.success) {
+      showToast('Dados limpos com sucesso! Sistema pronto para uso.', 'success');
+      setTimeout(() => location.reload(), 2000);
+    }
+  } catch (error) {
+    showToast('Erro ao limpar dados: ' + error.message, 'error');
   }
 }
 

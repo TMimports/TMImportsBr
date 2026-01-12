@@ -126,6 +126,81 @@ router.post('/seed/ranking-demo', async (req, res) => {
   }
 });
 
+router.post('/limpar-dados', async (req, res) => {
+  try {
+    console.log('Admin solicitou limpeza de dados do sistema...');
+    
+    const { 
+      Sale, SaleItem, ServiceOrder, ServiceOrderItem, 
+      Customer, PaymentReceivable, PaymentPayable, 
+      PurchaseRequest, PurchaseRequestItem, AuditLog,
+      InventoryMovement, BankTransaction, Invoice, InvoiceItem, InvoiceEvent,
+      InventoryMain, InventoryStore, Notification
+    } = models;
+    
+    await InvoiceEvent.destroy({ where: {}, truncate: true, cascade: true });
+    await InvoiceItem.destroy({ where: {}, truncate: true, cascade: true });
+    await Invoice.destroy({ where: {}, truncate: true, cascade: true });
+    
+    await BankTransaction.destroy({ where: {}, truncate: true, cascade: true });
+    
+    await SaleItem.destroy({ where: {}, truncate: true, cascade: true });
+    await Sale.destroy({ where: {}, truncate: true, cascade: true });
+    
+    if (ServiceOrderItem) {
+      await ServiceOrderItem.destroy({ where: {}, truncate: true, cascade: true });
+    }
+    await ServiceOrder.destroy({ where: {}, truncate: true, cascade: true });
+    
+    await PaymentReceivable.destroy({ where: {}, truncate: true, cascade: true });
+    await PaymentPayable.destroy({ where: {}, truncate: true, cascade: true });
+    
+    await PurchaseRequestItem.destroy({ where: {}, truncate: true, cascade: true });
+    await PurchaseRequest.destroy({ where: {}, truncate: true, cascade: true });
+    
+    await Customer.destroy({ where: {}, truncate: true, cascade: true });
+    
+    await InventoryMovement.destroy({ where: {}, truncate: true, cascade: true });
+    
+    if (Notification) {
+      await Notification.destroy({ where: {}, truncate: true, cascade: true });
+    }
+    
+    await AuditLog.destroy({ where: {}, truncate: true, cascade: true });
+    
+    console.log('Dados transacionais limpos com sucesso');
+    
+    res.json({
+      success: true,
+      message: 'Todos os dados transacionais foram limpos. O sistema está pronto para uso.',
+      dados_removidos: [
+        'Vendas e itens de venda',
+        'Ordens de serviço',
+        'Clientes',
+        'Contas a receber e pagar',
+        'Solicitações de compra',
+        'Movimentações de estoque',
+        'Transações bancárias',
+        'Notas fiscais',
+        'Notificações',
+        'Logs de auditoria'
+      ],
+      dados_mantidos: [
+        'Usuários e perfis',
+        'Empresas e lojas',
+        'Produtos e categorias',
+        'Vendedores',
+        'Estoque (quantidades mantidas)',
+        'Configurações do sistema',
+        'Contas bancárias'
+      ]
+    });
+  } catch (error) {
+    console.error('Erro ao limpar dados:', error);
+    res.status(500).json({ error: 'Erro ao limpar dados: ' + error.message });
+  }
+});
+
 router.get('/seed/status', async (req, res) => {
   try {
     const { Store, Customer, Sale, ServiceOrder, PaymentReceivable, PaymentPayable, PurchaseRequest } = models;
