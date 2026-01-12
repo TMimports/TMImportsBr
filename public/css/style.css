@@ -442,8 +442,8 @@ tr:hover td {
 }
 
 .badge-success { background: rgba(0, 255, 136, 0.2); color: var(--success); }
-.badge-warning { background: rgba(255, 184, 0, 0.2); color: var(--warning); }
-.badge-danger { background: rgba(255, 68, 68, 0.2); color: var(--danger); }
+.badge-warning { background: var(--warning); color: #000; }
+.badge-danger { background: var(--danger); color: #fff !important; }
 .badge-primary { background: rgba(255, 107, 53, 0.2); color: var(--primary); }
 .badge-secondary { background: rgba(136, 136, 136, 0.2); color: var(--text-muted); }
 
@@ -649,12 +649,12 @@ tr:hover td {
 
 .badge-warning {
   background: var(--warning);
-  color: #000;
+  color: #000 !important;
 }
 
 .badge-danger {
-  background: var(--danger);
-  color: #fff;
+  background: var(--danger) !important;
+  color: #fff !important;
 }
 
 .manual-container {

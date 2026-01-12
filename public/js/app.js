@@ -2678,7 +2678,6 @@ async function renderVendors() {
                   <th>Email</th>
                   <th>Telefone</th>
                   <th>Comissao</th>
-                  <th>Desconto Maximo</th>
                   <th>Acoes</th>
                 </tr>
               </thead>
@@ -2689,7 +2688,6 @@ async function renderVendors() {
                     <td>${v.email || '-'}</td>
                     <td>${v.telefone || '-'}</td>
                     <td>${v.comissao || 0}%</td>
-                    <td>${v.desconto_maximo || 0}%</td>
                     <td class="actions">
                       <button class="btn btn-sm btn-secondary" onclick="viewVendor(${v.id})" title="Ver cadastro completo">
                         <i class="fas fa-eye"></i>
@@ -2735,15 +2733,9 @@ function openVendorModal() {
         </div>
       </div>
       
-      <div class="form-row">
-        <div class="form-group">
-          <label>Comissão (%)</label>
-          <input type="number" step="0.01" name="comissao" value="5">
-        </div>
-        <div class="form-group">
-          <label>Desconto Máximo (%)</label>
-          <input type="number" step="0.01" name="desconto_maximo" value="10" min="0" max="100">
-        </div>
+      <div class="form-group">
+        <label>Comissão (%)</label>
+        <input type="number" step="0.01" name="comissao" value="5">
       </div>
       
       <div class="modal-footer">
@@ -2813,10 +2805,6 @@ async function viewVendor(id) {
               <label>Comissao</label>
               <span>${vendor.comissao || 0}%</span>
             </div>
-            <div class="detail-item">
-              <label>Desconto Maximo</label>
-              <span>${vendor.desconto_maximo || 0}%</span>
-            </div>
           </div>
         </div>
         
@@ -2880,15 +2868,9 @@ async function editVendor(id) {
           <input type="text" name="cpf" value="${vendor.cpf || ''}">
         </div>
         
-        <div class="form-row">
-          <div class="form-group">
-            <label>Comissao (%)</label>
-            <input type="number" step="0.01" name="comissao" value="${vendor.comissao || 5}">
-          </div>
-          <div class="form-group">
-            <label>Desconto Maximo (%)</label>
-            <input type="number" step="0.01" name="desconto_maximo" value="${vendor.desconto_maximo || 10}" min="0" max="100">
-          </div>
+        <div class="form-group">
+          <label>Comissao (%)</label>
+          <input type="number" step="0.01" name="comissao" value="${vendor.comissao || 5}">
         </div>
         
         <div class="form-group">
