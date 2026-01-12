@@ -84,6 +84,32 @@ const menuItems = {
       { id: 'produtos', label: 'Produtos', icon: 'fas fa-box' },
       { id: 'estoque', label: 'Estoque', icon: 'fas fa-warehouse' }
     ]}
+  ],
+  GERENTE_OP: [
+    { section: 'Principal', items: [
+      { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-chart-line' },
+      { id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' }
+    ]},
+    { section: 'Franquias', items: [
+      { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' }
+    ]},
+    { section: 'Produtos', items: [
+      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
+    ]},
+    { section: 'Estoque', items: [
+      { id: 'estoque-central', label: 'Estoque Central', icon: 'fas fa-warehouse' },
+      { id: 'solicitacoes', label: 'Solicitações', icon: 'fas fa-truck' }
+    ]},
+    { section: 'Vendas', items: [
+      { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' },
+      { id: 'vendedores', label: 'Vendedores', icon: 'fas fa-user-tie' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' },
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
+    ]}
   ]
 };
 
