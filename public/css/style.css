@@ -654,6 +654,7 @@ tr:hover td {
 
 .badge-danger {
   background: var(--danger);
+  color: #fff;
 }
 
 .manual-container {
@@ -935,15 +936,63 @@ tr:hover td {
   margin: 5px 0;
 }
 
-.detail-section {
-  margin-bottom: 20px;
+.detail-view {
+  padding: 10px 0;
 }
 
-.detail-section h3 {
+.detail-section {
+  margin-bottom: 25px;
+  background: var(--bg-dark);
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.detail-section h3,
+.detail-section h4 {
   color: var(--primary);
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.detail-item.full-width {
+  grid-column: span 2;
+}
+
+.detail-item label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.detail-item span {
+  color: var(--text-light);
+  font-size: 1rem;
+}
+
+@media (max-width: 600px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .detail-item.full-width {
+    grid-column: span 1;
+  }
 }
 
 @media (max-width: 768px) {

@@ -2372,7 +2372,13 @@ async function renderCustomers() {
                     <td>${c.telefone || '-'}</td>
                     <td>${c.email || '-'}</td>
                     <td class="actions">
-                      <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id})">
+                      <button class="btn btn-sm btn-secondary" onclick="viewCustomer(${c.id})" title="Ver cadastro completo">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button class="btn btn-sm btn-primary" onclick="editCustomer(${c.id})" title="Editar">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id})" title="Excluir">
                         <i class="fas fa-trash"></i>
                       </button>
                     </td>
@@ -2456,6 +2462,199 @@ async function deleteCustomer(id) {
   }
 }
 
+async function viewCustomer(id) {
+  try {
+    const customer = await api(`/customers/${id}`);
+    
+    const content = `
+      <div class="detail-view">
+        <div class="detail-section">
+          <h4><i class="fas fa-user"></i> Dados Pessoais</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Nome</label>
+              <span>${customer.nome || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>CPF/CNPJ</label>
+              <span>${customer.cpf_cnpj || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>RG</label>
+              <span>${customer.rg || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Data de Nascimento</label>
+              <span>${customer.data_nascimento ? formatDate(customer.data_nascimento) : '-'}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="detail-section">
+          <h4><i class="fas fa-phone"></i> Contato</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Telefone</label>
+              <span>${customer.telefone || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Celular</label>
+              <span>${customer.celular || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Email</label>
+              <span>${customer.email || '-'}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="detail-section">
+          <h4><i class="fas fa-map-marker-alt"></i> Endereco</h4>
+          <div class="detail-grid">
+            <div class="detail-item full-width">
+              <label>Endereco Completo</label>
+              <span>${customer.endereco || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Cidade</label>
+              <span>${customer.cidade || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Estado</label>
+              <span>${customer.estado || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>CEP</label>
+              <span>${customer.cep || '-'}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="detail-section">
+          <h4><i class="fas fa-info-circle"></i> Informacoes Adicionais</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Cadastrado em</label>
+              <span>${customer.createdAt ? formatDate(customer.createdAt) : '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Loja</label>
+              <span>${customer.loja?.nome || '-'}</span>
+            </div>
+            <div class="detail-item full-width">
+              <label>Observacoes</label>
+              <span>${customer.observacoes || '-'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="editCustomer(${id})">
+          <i class="fas fa-edit"></i> Editar
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+      </div>
+    `;
+    
+    openModal('Cadastro do Cliente', content);
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function editCustomer(id) {
+  try {
+    const customer = await api(`/customers/${id}`);
+    
+    const formContent = `
+      <form id="customerForm" onsubmit="updateCustomer(event, ${id})">
+        <div class="form-group">
+          <label>Nome *</label>
+          <input type="text" name="nome" value="${customer.nome || ''}" required>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>CPF/CNPJ</label>
+            <input type="text" name="cpf_cnpj" value="${customer.cpf_cnpj || ''}">
+          </div>
+          <div class="form-group">
+            <label>RG</label>
+            <input type="text" name="rg" value="${customer.rg || ''}">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Telefone</label>
+            <input type="text" name="telefone" value="${customer.telefone || ''}">
+          </div>
+          <div class="form-group">
+            <label>Celular</label>
+            <input type="text" name="celular" value="${customer.celular || ''}">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" name="email" value="${customer.email || ''}">
+        </div>
+        
+        <div class="form-group">
+          <label>Endereco</label>
+          <textarea name="endereco" rows="2">${customer.endereco || ''}</textarea>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Cidade</label>
+            <input type="text" name="cidade" value="${customer.cidade || ''}">
+          </div>
+          <div class="form-group">
+            <label>Estado</label>
+            <input type="text" name="estado" value="${customer.estado || ''}" maxlength="2">
+          </div>
+          <div class="form-group">
+            <label>CEP</label>
+            <input type="text" name="cep" value="${customer.cep || ''}">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Observacoes</label>
+          <textarea name="observacoes" rows="3">${customer.observacoes || ''}</textarea>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Editar Cliente', formContent);
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function updateCustomer(event, id) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api(`/customers/${id}`, { method: 'PUT', body: data });
+    showToast('Cliente atualizado');
+    closeModal();
+    await renderCustomers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
 async function renderVendors() {
   const content = document.getElementById('content');
   
@@ -2478,8 +2677,9 @@ async function renderVendors() {
                   <th>Nome</th>
                   <th>Email</th>
                   <th>Telefone</th>
-                  <th>Comissão</th>
-                  <th>Desconto Máximo</th>
+                  <th>Comissao</th>
+                  <th>Desconto Maximo</th>
+                  <th>Acoes</th>
                 </tr>
               </thead>
               <tbody>
@@ -2490,6 +2690,19 @@ async function renderVendors() {
                     <td>${v.telefone || '-'}</td>
                     <td>${v.comissao || 0}%</td>
                     <td>${v.desconto_maximo || 0}%</td>
+                    <td class="actions">
+                      <button class="btn btn-sm btn-secondary" onclick="viewVendor(${v.id})" title="Ver cadastro completo">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      ${currentUser.perfil !== 'OPERACIONAL' ? `
+                      <button class="btn btn-sm btn-primary" onclick="editVendor(${v.id})" title="Editar">
+                        <i class="fas fa-edit"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger" onclick="deleteVendor(${v.id})" title="Excluir">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                      ` : ''}
+                    </td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -2553,6 +2766,171 @@ async function saveVendor(event) {
     await api('/vendors', { method: 'POST', body: data });
     showToast('Vendedor cadastrado');
     closeModal();
+    await renderVendors();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function viewVendor(id) {
+  try {
+    const vendor = await api(`/vendors/${id}`);
+    
+    const content = `
+      <div class="detail-view">
+        <div class="detail-section">
+          <h4><i class="fas fa-user-tie"></i> Dados do Vendedor</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Nome</label>
+              <span>${vendor.nome || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>CPF</label>
+              <span>${vendor.cpf || '-'}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="detail-section">
+          <h4><i class="fas fa-phone"></i> Contato</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Telefone</label>
+              <span>${vendor.telefone || '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Email</label>
+              <span>${vendor.email || '-'}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="detail-section">
+          <h4><i class="fas fa-percentage"></i> Configuracoes de Venda</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Comissao</label>
+              <span>${vendor.comissao || 0}%</span>
+            </div>
+            <div class="detail-item">
+              <label>Desconto Maximo</label>
+              <span>${vendor.desconto_maximo || 0}%</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="detail-section">
+          <h4><i class="fas fa-info-circle"></i> Informacoes Adicionais</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Cadastrado em</label>
+              <span>${vendor.createdAt ? formatDate(vendor.createdAt) : '-'}</span>
+            </div>
+            <div class="detail-item">
+              <label>Loja</label>
+              <span>${vendor.loja?.nome || '-'}</span>
+            </div>
+            <div class="detail-item full-width">
+              <label>Observacoes</label>
+              <span>${vendor.observacoes || '-'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="editVendor(${id})">
+          <i class="fas fa-edit"></i> Editar
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Fechar</button>
+      </div>
+    `;
+    
+    openModal('Cadastro do Vendedor', content);
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function editVendor(id) {
+  try {
+    const vendor = await api(`/vendors/${id}`);
+    
+    const formContent = `
+      <form id="vendorForm" onsubmit="updateVendor(event, ${id})">
+        <div class="form-group">
+          <label>Nome *</label>
+          <input type="text" name="nome" value="${vendor.nome || ''}" required>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" value="${vendor.email || ''}">
+          </div>
+          <div class="form-group">
+            <label>Telefone</label>
+            <input type="text" name="telefone" value="${vendor.telefone || ''}">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>CPF</label>
+          <input type="text" name="cpf" value="${vendor.cpf || ''}">
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>Comissao (%)</label>
+            <input type="number" step="0.01" name="comissao" value="${vendor.comissao || 5}">
+          </div>
+          <div class="form-group">
+            <label>Desconto Maximo (%)</label>
+            <input type="number" step="0.01" name="desconto_maximo" value="${vendor.desconto_maximo || 10}" min="0" max="100">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Observacoes</label>
+          <textarea name="observacoes" rows="3">${vendor.observacoes || ''}</textarea>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Editar Vendedor', formContent);
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function updateVendor(event, id) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const data = Object.fromEntries(new FormData(form));
+  
+  try {
+    await api(`/vendors/${id}`, { method: 'PUT', body: data });
+    showToast('Vendedor atualizado');
+    closeModal();
+    await renderVendors();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function deleteVendor(id) {
+  if (!confirm('Excluir este vendedor?')) return;
+  
+  try {
+    await api(`/vendors/${id}`, { method: 'DELETE' });
+    showToast('Vendedor excluido');
     await renderVendors();
   } catch (error) {
     showToast(error.message, 'error');
@@ -5229,11 +5607,11 @@ async function renderSettings() {
           <h3><i class="fas fa-boxes"></i> Estoque e Margens</h3>
           <div class="form-row">
             <div class="form-group">
-              <label>Estoque Mínimo Alerta (unidades)</label>
+              <label>Estoque Minimo Alerta (unidades)</label>
               <input type="number" id="estoque_minimo_alerta" value="${config.estoque_minimo_alerta || 2}" min="0">
             </div>
             <div class="form-group">
-              <label>Margem Franqueado Peças (%)</label>
+              <label>Margem Franqueado Pecas (%)</label>
               <input type="number" id="margem_franqueado_peca" value="${config.margem_franqueado_peca || 60}" step="1" min="0" max="200">
             </div>
             <div class="form-group">
@@ -5244,7 +5622,40 @@ async function renderSettings() {
         </div>
         
         <div class="form-section">
-          <h3><i class="fas fa-table"></i> Tabela de Taxas Cartão de Crédito</h3>
+          <h3><i class="fas fa-building"></i> Configuracoes de Atacado (TM Imports)</h3>
+          <p style="color: var(--text-muted); margin-bottom: 15px; font-size: 0.9rem;">
+            Formula: Preco Venda = Custo + (Custo x Markup %). Ex: Custo R$ 5.000 x 42% = R$ 7.100
+          </p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Markup Atacado Motos (%)</label>
+              <input type="number" id="markup_atacado_moto" value="${config.markup_atacado_moto || 42}" step="0.5" min="0" max="100">
+            </div>
+            <div class="form-group">
+              <label>Desconto Maximo Atacado (R$)</label>
+              <input type="number" id="desconto_max_atacado" value="${config.desconto_max_atacado || 100}" step="10" min="0">
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3><i class="fas fa-hand-holding-usd"></i> Comissoes de Vendedores</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Comissao Atacado - TM Imports (%)</label>
+              <input type="number" id="comissao_atacado" value="${config.comissao_atacado || 2}" step="0.5" min="0" max="20">
+              <small style="color: var(--text-muted);">Vendedores da matriz</small>
+            </div>
+            <div class="form-group">
+              <label>Comissao Franquia - Tecle Motos (%)</label>
+              <input type="number" id="comissao_franquia" value="${config.comissao_franquia || 1}" step="0.5" min="0" max="20">
+              <small style="color: var(--text-muted);">Vendedores das lojas</small>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-section">
+          <h3><i class="fas fa-table"></i> Tabela de Taxas Cartao de Credito</h3>
           <div class="taxas-grid" id="taxasGrid">
             ${renderTaxasCartao(config.taxas_cartao || {})}
           </div>
@@ -5314,6 +5725,10 @@ async function saveSettings() {
     estoque_minimo_alerta: parseInt(document.getElementById('estoque_minimo_alerta').value),
     margem_franqueado_peca: parseFloat(document.getElementById('margem_franqueado_peca').value),
     margem_franqueado_moto: parseFloat(document.getElementById('margem_franqueado_moto').value),
+    markup_atacado_moto: parseFloat(document.getElementById('markup_atacado_moto').value),
+    desconto_max_atacado: parseFloat(document.getElementById('desconto_max_atacado').value),
+    comissao_atacado: parseFloat(document.getElementById('comissao_atacado').value),
+    comissao_franquia: parseFloat(document.getElementById('comissao_franquia').value),
     taxas_cartao
   };
   

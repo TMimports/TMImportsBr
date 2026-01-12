@@ -35,7 +35,9 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const customer = await Customer.findByPk(req.params.id);
+    const customer = await Customer.findByPk(req.params.id, {
+      include: [{ model: Store, as: 'loja' }]
+    });
     if (!customer) {
       return res.status(404).json({ error: 'Cliente não encontrado' });
     }
