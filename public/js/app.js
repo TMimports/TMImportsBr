@@ -825,6 +825,8 @@ async function renderDashboard() {
           </div>
         </div>
         
+        <div id="minhasComissoes"></div>
+        
         <div class="card" style="margin-top: 20px;">
           <div class="card-header">
             <h2><i class="fas fa-warehouse"></i> Estoque TM Imports - Produtos Disponíveis</h2>
@@ -841,6 +843,7 @@ async function renderDashboard() {
       `;
       
       carregarEstoqueTMImports();
+      carregarMinhasComissoes();
     }
   } catch (error) {
     console.error('Erro ao carregar dashboard:', error);
@@ -4440,6 +4443,65 @@ function filtrarEstoqueTM() {
   });
 }
 
+async function carregarMinhasComissoes() {
+  const container = document.getElementById('minhasComissoes');
+  if (!container) return;
+  
+  try {
+    const data = await api('/vendors/me/comissoes');
+    
+    if (!data || data.error) {
+      container.innerHTML = '';
+      return;
+    }
+    
+    const tipoLabel = data.tipo_loja === 'MATRIZ' ? 'Atacado (TM Imports)' : 'Franquia (Tecle Motos)';
+    
+    container.innerHTML = `
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header">
+          <h2><i class="fas fa-coins"></i> Minhas Comissoes - ${data.vendedor_nome}</h2>
+          <span class="badge badge-primary">${tipoLabel} - ${data.taxa_comissao}%</span>
+        </div>
+        <div class="card-body">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>
+              <div class="stat-value">${data.mes_atual.qtd_vendas}</div>
+              <div class="stat-label">Vendas Este Mes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon blue"><i class="fas fa-dollar-sign"></i></div>
+              <div class="stat-value">${formatCurrency(data.mes_atual.total_vendas)}</div>
+              <div class="stat-label">Total Vendido (Mes)</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><i class="fas fa-hand-holding-usd"></i></div>
+              <div class="stat-value">${formatCurrency(data.mes_atual.comissao)}</div>
+              <div class="stat-label">Comissao do Mes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon yellow"><i class="fas fa-chart-line"></i></div>
+              <div class="stat-value">${formatCurrency(data.ano_atual.comissao)}</div>
+              <div class="stat-label">Comissao Acumulada (Ano)</div>
+            </div>
+          </div>
+          <div style="margin-top: 15px; padding: 15px; background: rgba(0,255,136,0.1); border-radius: 8px;">
+            <p style="margin: 0; color: var(--text-muted);">
+              <i class="fas fa-info-circle"></i> 
+              Sua taxa de comissao e de <strong style="color: var(--success);">${data.taxa_comissao}%</strong> sobre o valor das vendas concluidas.
+              No ano, voce fez <strong>${data.ano_atual.qtd_vendas}</strong> vendas totalizando <strong>${formatCurrency(data.ano_atual.total_vendas)}</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    container.innerHTML = '';
+    console.log('Usuario nao e vendedor ou erro ao carregar comissoes:', error.message);
+  }
+}
+
 function adicionarAoCarrinho(produtoId, produtoNome, disponivelMax, precoCusto) {
   const qtdStr = prompt(`Quantas unidades de "${produtoNome}" deseja solicitar?\n(Disponível: ${disponivelMax})`, '1');
   if (!qtdStr) return;
@@ -6102,10 +6164,10 @@ async function renderFranchiseDashboard() {
               <div class="stat-value">${formatCurrency(estoqueStats.mediaDiariaVendas || 0)}/dia</div>
               <div class="stat-label">Media Diaria de Vendas</div>
             </div>
-            <div class="stat-card">
-              <div class="stat-icon ${estoqueStats.diasEstoqueParado > 90 ? 'red' : estoqueStats.diasEstoqueParado > 30 ? 'yellow' : 'green'}"><i class="fas fa-calendar-times"></i></div>
+            <div class="stat-card" title="Quantos dias o estoque atual duraria se voce parar de comprar. Calculado: Valor Estoque / Media Diaria de Vendas. Verde = mais de 90 dias, Amarelo = 30-90 dias, Vermelho = menos de 30 dias.">
+              <div class="stat-icon ${estoqueStats.diasEstoqueParado > 90 ? 'green' : estoqueStats.diasEstoqueParado > 30 ? 'yellow' : 'red'}"><i class="fas fa-hourglass-half"></i></div>
               <div class="stat-value">${estoqueStats.diasEstoqueParado || 0} dias</div>
-              <div class="stat-label">Dias de Estoque (se parar vendas)</div>
+              <div class="stat-label">Cobertura de Estoque <i class="fas fa-question-circle" style="font-size: 0.7rem;"></i></div>
             </div>
           </div>
           <div class="stats-grid" style="margin-top: 15px;">
