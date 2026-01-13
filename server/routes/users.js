@@ -43,7 +43,7 @@ router.get('/:id', isGestorOuAdmin, async (req, res) => {
     const user = await User.findByPk(req.params.id, {
       include: [
         { model: Store, as: 'loja', include: [{ model: Company, as: 'empresa' }] },
-        { model: UserRole, include: [{ model: Role }] }
+        { model: Role, as: 'roles' }
       ]
     });
 
@@ -55,6 +55,11 @@ router.get('/:id', isGestorOuAdmin, async (req, res) => {
       return res.status(403).json({ error: 'Sem permissão para ver este usuário' });
     }
 
+    const userRoles = await UserRole.findAll({
+      where: { user_id: user.id },
+      include: [{ model: Role }]
+    });
+
     res.json({
       id: user.id,
       nome: user.nome,
@@ -63,7 +68,7 @@ router.get('/:id', isGestorOuAdmin, async (req, res) => {
       ativo: user.ativo,
       loja_id: user.loja_id,
       loja: user.loja,
-      UserRoles: user.UserRoles
+      UserRoles: userRoles
     });
   } catch (error) {
     console.error('Erro ao buscar usuário:', error);
