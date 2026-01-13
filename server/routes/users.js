@@ -42,7 +42,7 @@ router.get('/:id', isGestorOuAdmin, async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id, {
       include: [
-        { model: Store, as: 'loja', include: [{ model: Company }] },
+        { model: Store, as: 'loja', include: [{ model: Company, as: 'empresa' }] },
         { model: UserRole, include: [{ model: Role }] }
       ]
     });
