@@ -43,7 +43,7 @@ const menuItems = {
   ],
   GESTOR_FRANQUIA: [
     { section: 'Principal', items: [
-      { id: 'dashboard', label: 'Dashboard da Loja', icon: 'fas fa-chart-line' }
+      { id: 'dashboard/loja', label: 'Dashboard da Loja', icon: 'fas fa-chart-line' }
     ]},
     { section: 'Produtos', items: [
       { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
@@ -385,6 +385,9 @@ async function loadPage(page) {
       case 'dashboard/pessoal':
         await renderDashboardPessoal();
         break;
+      case 'dashboard/loja':
+        await renderDashboardLoja();
+        break;
       case 'meu-dashboard':
         await renderVendorDashboard();
         break;
@@ -619,7 +622,8 @@ function canAccessDashboard(type) {
   const accessRules = {
     global: ['GESTOR_DASHBOARD'],
     financeiro: ['FINANCEIRO', 'FRANQUEADO_GESTOR'],
-    operacional: ['GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'VENDEDOR_LOJA'],
+    operacional: ['GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'VENDEDOR_LOJA'],
+    loja: ['GESTOR_FRANQUIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'],
     pessoal: ['VENDEDOR_TMI', 'VENDEDOR_LOJA', 'GERENTE_OP', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA']
   };
   
@@ -864,6 +868,107 @@ async function renderDashboardFinanceiro() {
 async function renderDashboardPessoal() {
   await fetchUserAuthContext();
   await renderVendorDashboard();
+}
+
+async function renderDashboardLoja() {
+  await fetchUserAuthContext();
+  
+  const perfisLoja = ['GESTOR_FRANQUIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'];
+  if (!perfisLoja.includes(currentUser.perfil)) {
+    renderAccessDenied('Loja');
+    return;
+  }
+  
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando dashboard da loja...</div>';
+  
+  try {
+    const [lojaData, summary] = await Promise.all([
+      api('/dashboard/loja'),
+      api('/dashboard/summary?range=' + dashboardRange)
+    ]);
+    
+    const rangeLabel = dashboardRange === 'weekly' ? 'Semanal' : dashboardRange === 'monthly' ? 'Mensal' : 'Total';
+    const lojaNome = currentUser.loja?.nome || 'Minha Loja';
+    
+    content.innerHTML = `
+      <div class="dashboard-logo-section">
+        <img src="/images/logo-tecle.png" alt="Tecle Motos" class="dashboard-logo" onerror="this.src='/images/logo-tmimports.jpg'">
+        <h1 class="dashboard-title">${lojaNome} - Dashboard</h1>
+      </div>
+      
+      <div class="dashboard-filters" style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn ${dashboardRange === 'weekly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('weekly')">Semanal</button>
+        <button class="btn ${dashboardRange === 'monthly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('monthly')">Mensal</button>
+        <button class="btn ${dashboardRange === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('all')">Total</button>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-shopping-cart"></i></div>
+          <div class="stat-value">${summary?.vendas?.total_qty || lojaData?.totalVendas || 0}</div>
+          <div class="stat-label">Vendas (${rangeLabel})</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+          <div class="stat-value">${formatCurrency(summary?.vendas?.total_value || lojaData?.totalVendasValor || 0)}</div>
+          <div class="stat-label">Faturamento (${rangeLabel})</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue"><i class="fas fa-wrench"></i></div>
+          <div class="stat-value">${summary?.os?.open_qty || lojaData?.osAbertas || 0}</div>
+          <div class="stat-label">OS Abertas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon purple"><i class="fas fa-users"></i></div>
+          <div class="stat-value">${lojaData?.totalClientes || 0}</div>
+          <div class="stat-label">Clientes</div>
+        </div>
+      </div>
+      
+      <div class="stats-grid" style="margin-top: 20px;">
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-boxes"></i></div>
+          <div class="stat-value">${lojaData?.estoqueBaixo || 0}</div>
+          <div class="stat-label">Estoque Baixo</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="stat-value">${lojaData?.estoqueZerado || 0}</div>
+          <div class="stat-label">Estoque Zerado</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-hand-holding-usd"></i></div>
+          <div class="stat-value">${formatCurrency(lojaData?.aReceber || 0)}</div>
+          <div class="stat-label">A Receber</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="fas fa-file-invoice-dollar"></i></div>
+          <div class="stat-value">${formatCurrency(lojaData?.aPagar || 0)}</div>
+          <div class="stat-label">A Pagar</div>
+        </div>
+      </div>
+      
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header"><h3><i class="fas fa-bolt"></i> Ações Rápidas</h3></div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 20px;">
+          <button class="btn btn-primary" onclick="navigateTo('vendas')"><i class="fas fa-plus"></i> Nova Venda</button>
+          <button class="btn btn-secondary" onclick="navigateTo('os')"><i class="fas fa-wrench"></i> Nova OS</button>
+          <button class="btn btn-secondary" onclick="navigateTo('clientes')"><i class="fas fa-users"></i> Clientes</button>
+          <button class="btn btn-secondary" onclick="navigateTo('estoque')"><i class="fas fa-warehouse"></i> Estoque</button>
+          <button class="btn btn-secondary" onclick="navigateTo('solicitar')"><i class="fas fa-truck"></i> Solicitar Produtos</button>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Erro no dashboard da loja:', error);
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-exclamation-triangle"></i>
+      <h3>Erro ao carregar Dashboard</h3>
+      <p>${error.message}</p>
+      <button class="btn btn-primary" onclick="renderDashboardLoja()"><i class="fas fa-sync"></i> Tentar Novamente</button>
+    </div>`;
+  }
 }
 
 async function renderDashboard() {

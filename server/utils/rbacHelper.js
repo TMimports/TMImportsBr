@@ -9,15 +9,17 @@ const dashboardHomeByRole = {
   ADM2_CADASTRO: '/app/dashboard/operacional',
   ADM3_OS_GARANTIA: '/app/dashboard/operacional',
   VENDEDOR_TMI: '/app/dashboard/pessoal',
-  FRANQUEADO_GESTOR: '/app/dashboard/operacional',
-  GERENTE_LOJA: '/app/dashboard/operacional',
+  GESTOR_FRANQUIA: '/app/dashboard/loja',
+  FRANQUEADO_GESTOR: '/app/dashboard/loja',
+  GERENTE_LOJA: '/app/dashboard/loja',
   VENDEDOR_LOJA: '/app/dashboard/pessoal'
 };
 
 const dashboardAccessRules = {
   global: ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'],
   financeiro: ['ADMIN_GLOBAL', 'FINANCEIRO', 'FRANQUEADO_GESTOR'],
-  operacional: ['ADMIN_GLOBAL', 'GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'VENDEDOR_LOJA'],
+  operacional: ['ADMIN_GLOBAL', 'GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'VENDEDOR_LOJA'],
+  loja: ['GESTOR_FRANQUIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'],
   pessoal: ['VENDEDOR_TMI', 'VENDEDOR_LOJA', 'ADMIN_GLOBAL', 'GERENTE_OP', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA']
 };
 
