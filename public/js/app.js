@@ -149,7 +149,8 @@ async function init() {
     
     const sidebarLogo = document.getElementById('sidebarLogo');
     if (sidebarLogo) {
-      if (currentUser.perfil === 'ADMIN_GLOBAL') {
+      const perfisTMImports = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD', 'GERENTE_OP', 'FINANCEIRO', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'VENDEDOR_TMI'];
+      if (perfisTMImports.includes(currentUser.perfil)) {
         sidebarLogo.src = '/images/logo-tmimports.jpg';
         sidebarLogo.alt = 'TM Imports';
       } else {
