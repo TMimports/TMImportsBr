@@ -43,7 +43,7 @@ const menuItems = {
   ],
   GESTOR_FRANQUIA: [
     { section: 'Principal', items: [
-      { id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' }
+      { id: 'dashboard', label: 'Dashboard da Loja', icon: 'fas fa-chart-line' }
     ]},
     { section: 'Produtos', items: [
       { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
@@ -869,8 +869,12 @@ async function renderDashboardPessoal() {
 async function renderDashboard() {
   const content = document.getElementById('content');
   
-  // Apenas ADMIN_GLOBAL e GESTOR_DASHBOARD (gestor TM Imports) podem ver o dashboard global
-  const perfisPermitidos = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'];
+  // ADMIN_GLOBAL e GESTOR_DASHBOARD veem dashboard global
+  // GESTOR_FRANQUIA e FRANQUEADO_GESTOR veem dashboard da loja
+  const perfisGlobal = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'];
+  const perfisLoja = ['GESTOR_FRANQUIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'];
+  const perfisPermitidos = [...perfisGlobal, ...perfisLoja];
+  
   if (!perfisPermitidos.includes(currentUser.perfil)) {
     content.innerHTML = `
       <div class="card" style="text-align: center; padding: 60px;">
@@ -885,6 +889,8 @@ async function renderDashboard() {
     return;
   }
   
+  const isLojaView = perfisLoja.includes(currentUser.perfil);
+  
   content.innerHTML = `<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando dashboard...</div>`;
   
   console.log('Dashboard fetch start', dashboardRange);
@@ -894,7 +900,7 @@ async function renderDashboard() {
   );
   
   try {
-    const endpoint = currentUser.perfil === 'ADMIN_GLOBAL' ? '/dashboard/global' : '/dashboard/loja';
+    const endpoint = isLojaView ? '/dashboard/loja' : '/dashboard/global';
     
     const fetchWithTimeout = async (url) => {
       try {
