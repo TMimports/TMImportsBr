@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { ServiceOrder, ServiceOrderItem, Customer, Vendor, Product, Store, InventoryStore, PaymentReceivable, AuditLog } = require('../models');
 const { verifyToken, isGestorOuAdmin, filterByStore } = require('../middleware/auth');
+const { requireAnyPermission, requirePermission } = require('../middleware/permissions');
 const { Op } = require('sequelize');
 
 router.use(verifyToken);
 router.use(filterByStore);
 
-router.get('/', async (req, res) => {
+router.get('/', requireAnyPermission('os.view', 'os.manage', 'os.approve'), async (req, res) => {
   try {
     const { status, data_inicio, data_fim } = req.query;
     const where = { ...req.storeFilter };
@@ -35,7 +36,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAnyPermission('os.view', 'os.manage', 'os.approve'), async (req, res) => {
   try {
     const order = await ServiceOrder.findByPk(req.params.id, {
       include: [
@@ -57,7 +58,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('os.manage'), async (req, res) => {
   try {
     const { 
       cliente_id, vendedor_id, veiculo_marca, veiculo_modelo, 
@@ -121,7 +122,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('os.manage'), async (req, res) => {
   try {
     const order = await ServiceOrder.findByPk(req.params.id);
     if (!order) {
@@ -148,7 +149,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.post('/:id/concluir', isGestorOuAdmin, async (req, res) => {
+router.post('/:id/concluir', requirePermission('os.close'), async (req, res) => {
   try {
     const order = await ServiceOrder.findByPk(req.params.id, {
       include: [{ model: ServiceOrderItem, as: 'itens' }]
@@ -190,7 +191,7 @@ router.post('/:id/concluir', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.delete('/:id', isGestorOuAdmin, async (req, res) => {
+router.delete('/:id', requirePermission('os.manage'), async (req, res) => {
   try {
     const order = await ServiceOrder.findByPk(req.params.id);
     if (!order) {

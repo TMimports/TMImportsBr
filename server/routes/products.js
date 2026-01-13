@@ -4,6 +4,7 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const { Product, Category, InventoryMain, InventoryStore, AuditLog } = require('../models');
 const { verifyToken, isGestorOuAdmin } = require('../middleware/auth');
+const { requireAnyPermission, requirePermission } = require('../middleware/permissions');
 const { Op } = require('sequelize');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -110,7 +111,7 @@ router.get('/exportar', async (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', requireAnyPermission('catalog.view', 'catalog.manage', 'services.view', 'services.manage'), async (req, res) => {
   try {
     const { tipo, categoria_id, busca, ativo } = req.query;
     const where = {};
@@ -138,7 +139,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAnyPermission('catalog.view', 'catalog.manage', 'services.view', 'services.manage'), async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id, {
       include: [
@@ -158,7 +159,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', isGestorOuAdmin, async (req, res) => {
+router.post('/', requireAnyPermission('catalog.manage', 'services.manage'), async (req, res) => {
   try {
     const dados = req.body;
     
@@ -200,7 +201,7 @@ router.post('/', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', isGestorOuAdmin, async (req, res) => {
+router.put('/:id', requireAnyPermission('catalog.manage', 'services.manage'), async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id);
     if (!product) {
@@ -235,11 +236,8 @@ router.put('/:id', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.delete('/limpar-tudo', isGestorOuAdmin, async (req, res) => {
+router.delete('/limpar-tudo', requirePermission('admin.seed_reset'), async (req, res) => {
   try {
-    if (req.user.perfil !== 'ADMIN_GLOBAL') {
-      return res.status(403).json({ error: 'Apenas Admin Global pode limpar todos os produtos' });
-    }
 
     await InventoryMain.destroy({ where: {} });
     await InventoryStore.destroy({ where: {} });
@@ -259,7 +257,7 @@ router.delete('/limpar-tudo', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.delete('/:id', isGestorOuAdmin, async (req, res) => {
+router.delete('/:id', requireAnyPermission('catalog.manage', 'services.manage'), async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id);
     if (!product) {

@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { PaymentReceivable, PaymentPayable, Customer, Store, Sale, ServiceOrder, AuditLog, sequelize } = require('../models');
 const { verifyToken, isGestorOuAdmin, filterByStore, hasFinanceiroAccess, hasPermission } = require('../middleware/auth');
+const { requireAnyPermission, requirePermission } = require('../middleware/permissions');
 const { Op } = require('sequelize');
 
 router.use(verifyToken);
-router.use(hasFinanceiroAccess);
+router.use(requireAnyPermission('finance.view', 'finance.manage_receivable', 'finance.manage_payable', 'finance.manage_cashflow'));
 router.use(filterByStore);
 
 function getDateRange(range) {
@@ -59,7 +60,7 @@ router.get('/receber', async (req, res) => {
   }
 });
 
-router.post('/receber', isGestorOuAdmin, async (req, res) => {
+router.post('/receber', requirePermission('finance.manage_receivable'), async (req, res) => {
   try {
     const conta = await PaymentReceivable.create({
       ...req.body,
@@ -81,7 +82,7 @@ router.post('/receber', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.put('/receber/:id', isGestorOuAdmin, async (req, res) => {
+router.put('/receber/:id', requirePermission('finance.manage_receivable'), async (req, res) => {
   try {
     const conta = await PaymentReceivable.findByPk(req.params.id);
     if (!conta) {
@@ -96,7 +97,7 @@ router.put('/receber/:id', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.post('/receber/:id/baixar', isGestorOuAdmin, async (req, res) => {
+router.post('/receber/:id/baixar', requirePermission('finance.manage_receivable'), async (req, res) => {
   try {
     const { valor_pago, data_pagamento } = req.body;
     const conta = await PaymentReceivable.findByPk(req.params.id);
@@ -160,7 +161,7 @@ router.get('/pagar', async (req, res) => {
   }
 });
 
-router.post('/pagar', isGestorOuAdmin, async (req, res) => {
+router.post('/pagar', requirePermission('finance.manage_payable'), async (req, res) => {
   try {
     const { recorrente, ...dados } = req.body;
     const contas = [];
@@ -197,7 +198,7 @@ router.post('/pagar', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.put('/pagar/:id', isGestorOuAdmin, async (req, res) => {
+router.put('/pagar/:id', requirePermission('finance.manage_payable'), async (req, res) => {
   try {
     const conta = await PaymentPayable.findByPk(req.params.id);
     if (!conta) {
@@ -212,7 +213,7 @@ router.put('/pagar/:id', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.post('/pagar/:id/baixar', isGestorOuAdmin, async (req, res) => {
+router.post('/pagar/:id/baixar', requirePermission('finance.manage_payable'), async (req, res) => {
   try {
     const { valor_pago, data_pagamento } = req.body;
     const conta = await PaymentPayable.findByPk(req.params.id);
@@ -241,7 +242,7 @@ router.post('/pagar/:id/baixar', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.delete('/pagar/:id', isGestorOuAdmin, async (req, res) => {
+router.delete('/pagar/:id', requirePermission('finance.manage_payable'), async (req, res) => {
   try {
     const conta = await PaymentPayable.findByPk(req.params.id);
     if (!conta) {

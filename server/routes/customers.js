@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { Customer, Store, AuditLog } = require('../models');
 const { verifyToken, filterByStore } = require('../middleware/auth');
+const { requireAnyPermission, requirePermission } = require('../middleware/permissions');
 const { Op } = require('sequelize');
 
 router.use(verifyToken);
 router.use(filterByStore);
 
-router.get('/', async (req, res) => {
+router.get('/', requireAnyPermission('customers.view', 'customers.manage'), async (req, res) => {
   try {
     const { busca } = req.query;
     const where = { ...req.storeFilter };
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAnyPermission('customers.view', 'customers.manage'), async (req, res) => {
   try {
     const customer = await Customer.findByPk(req.params.id, {
       include: [{ model: Store, as: 'loja' }]
@@ -48,7 +49,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('customers.manage'), async (req, res) => {
   try {
     const customer = await Customer.create({
       ...req.body,
@@ -70,7 +71,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('customers.manage'), async (req, res) => {
   try {
     const customer = await Customer.findByPk(req.params.id);
     if (!customer) {
@@ -85,7 +86,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('customers.manage'), async (req, res) => {
   try {
     const customer = await Customer.findByPk(req.params.id);
     if (!customer) {

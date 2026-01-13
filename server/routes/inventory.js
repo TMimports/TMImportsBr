@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { Product, InventoryMain, InventoryStore, Store, InventoryMovement, AuditLog } = require('../models');
 const { verifyToken, isGestorOuAdmin, isAdminGlobal, filterByStore } = require('../middleware/auth');
+const { requireAnyPermission, requirePermission } = require('../middleware/permissions');
 
 router.use(verifyToken);
 
-router.get('/central', async (req, res) => {
+router.get('/central', requireAnyPermission('stock_central.view', 'stock_central.manage'), async (req, res) => {
   try {
     const inventory = await InventoryMain.findAll({
       include: [{ model: Product, as: 'produto' }]
@@ -17,7 +18,7 @@ router.get('/central', async (req, res) => {
   }
 });
 
-router.get('/central-disponivel', async (req, res) => {
+router.get('/central-disponivel', requireAnyPermission('stock_central.view', 'stock_central.manage', 'franchise_orders.create'), async (req, res) => {
   try {
     const { Op } = require('sequelize');
     const inventory = await InventoryMain.findAll({
@@ -34,7 +35,7 @@ router.get('/central-disponivel', async (req, res) => {
   }
 });
 
-router.get('/loja', filterByStore, async (req, res) => {
+router.get('/loja', filterByStore, requireAnyPermission('stock_store.view', 'stock_store.manage'), async (req, res) => {
   try {
     const where = req.storeFilter;
     const inventory = await InventoryStore.findAll({
@@ -51,7 +52,7 @@ router.get('/loja', filterByStore, async (req, res) => {
   }
 });
 
-router.post('/entrada', isGestorOuAdmin, async (req, res) => {
+router.post('/entrada', requireAnyPermission('stock_central.manage', 'stock_store.manage'), async (req, res) => {
   try {
     const { produto_id, quantidade, loja_id, observacoes } = req.body;
     
@@ -114,7 +115,7 @@ router.post('/entrada', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.post('/saida', isGestorOuAdmin, async (req, res) => {
+router.post('/saida', requireAnyPermission('stock_central.manage', 'stock_store.manage'), async (req, res) => {
   try {
     const { produto_id, quantidade, loja_id, observacoes } = req.body;
     

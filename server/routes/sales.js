@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { Sale, SaleItem, Customer, Vendor, Product, Store, InventoryStore, InventoryMain, PaymentReceivable, AuditLog } = require('../models');
 const { verifyToken, isGestorOuAdmin, filterByStore } = require('../middleware/auth');
+const { requireAnyPermission, requirePermission } = require('../middleware/permissions');
 const { Op } = require('sequelize');
 
 router.use(verifyToken);
 router.use(filterByStore);
 
-router.get('/', async (req, res) => {
+router.get('/', requireAnyPermission('sales.view', 'sales.manage', 'sales.approve'), async (req, res) => {
   try {
     const { status, data_inicio, data_fim, cliente_id } = req.query;
     const where = { ...req.storeFilter };
@@ -36,7 +37,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAnyPermission('sales.view', 'sales.manage', 'sales.approve'), async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id, {
       include: [
@@ -58,7 +59,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('sales.manage'), async (req, res) => {
   try {
     const { cliente_id, vendedor_id, itens, forma_pagamento, parcelas, observacoes, desconto, status } = req.body;
     
@@ -114,7 +115,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', isGestorOuAdmin, async (req, res) => {
+router.put('/:id', requirePermission('sales.manage'), async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id);
     if (!sale) {
@@ -141,7 +142,7 @@ router.put('/:id', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.post('/:id/aprovar', isGestorOuAdmin, async (req, res) => {
+router.post('/:id/aprovar', requirePermission('sales.approve'), async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id, {
       include: [{ model: SaleItem, as: 'itens' }]
@@ -160,7 +161,7 @@ router.post('/:id/aprovar', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.post('/:id/concluir', isGestorOuAdmin, async (req, res) => {
+router.post('/:id/concluir', requirePermission('sales.approve'), async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id, {
       include: [{ model: SaleItem, as: 'itens' }]
@@ -209,7 +210,7 @@ router.post('/:id/concluir', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.post('/:id/cancelar', isGestorOuAdmin, async (req, res) => {
+router.post('/:id/cancelar', requirePermission('sales.approve'), async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id);
     if (!sale) {
@@ -224,7 +225,7 @@ router.post('/:id/cancelar', isGestorOuAdmin, async (req, res) => {
   }
 });
 
-router.delete('/:id', isGestorOuAdmin, async (req, res) => {
+router.delete('/:id', requirePermission('sales.manage'), async (req, res) => {
   try {
     const sale = await Sale.findByPk(req.params.id);
     if (!sale) {

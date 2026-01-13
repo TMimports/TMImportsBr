@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { AuditLog, User } = require('../models');
 const { verifyToken, isAdminGlobal } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/permissions');
 const { Op } = require('sequelize');
 
 router.use(verifyToken);
-router.use(isAdminGlobal);
+router.use(requirePermission('audit.view'));
 
 router.get('/', async (req, res) => {
   try {
