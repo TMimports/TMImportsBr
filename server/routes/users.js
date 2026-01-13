@@ -179,6 +179,11 @@ router.put('/:id', isGestorOuAdmin, async (req, res) => {
           principal: index === 0
         }));
         await UserRole.bulkCreate(roleAssociations);
+        
+        const primeiraRole = await Role.findByPk(role_ids[0]);
+        if (primeiraRole) {
+          await user.update({ perfil: primeiraRole.codigo });
+        }
       }
     }
 
