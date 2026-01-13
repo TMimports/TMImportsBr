@@ -4645,6 +4645,9 @@ async function renderUsers() {
                     <td><span class="badge badge-${u.perfil === 'ADMIN_GLOBAL' ? 'primary' : u.perfil === 'GESTOR_FRANQUIA' ? 'warning' : 'secondary'}">${u.perfil}</span></td>
                     <td><span class="badge badge-${u.ativo ? 'success' : 'danger'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td class="actions">
+                      <button class="btn btn-sm btn-warning" onclick="openEditUserModal(${u.id})">
+                        <i class="fas fa-edit"></i> Editar
+                      </button>
                       <button class="btn btn-sm btn-danger" onclick="confirmDeleteUser(${u.id}, '${u.nome.replace(/'/g, "\\'")}')">
                         <i class="fas fa-trash"></i> Apagar
                       </button>
@@ -4790,6 +4793,155 @@ async function saveUser(event) {
   try {
     await api('/users', { method: 'POST', body: data });
     showToast('Usuário cadastrado com sucesso');
+    closeModal();
+    await renderUsers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function openEditUserModal(userId) {
+  try {
+    const [user, roles, stores] = await Promise.all([
+      api(`/users/${userId}`),
+      api('/settings/roles'),
+      api('/stores')
+    ]);
+    
+    const rolesTMI = roles.filter(r => r.escopo === 'TMIMPORTS' || r.escopo === 'AMBOS');
+    const rolesTecle = roles.filter(r => r.escopo === 'TECLE_MOTOS' || r.escopo === 'AMBOS');
+    
+    const userStore = stores.find(s => s.id === user.loja_id);
+    const isMatriz = userStore?.empresa?.tipo === 'MATRIZ';
+    const availableRoles = isMatriz ? rolesTMI : rolesTecle;
+    
+    const userRoleIds = (user.UserRoles || []).map(ur => ur.role_id);
+    
+    const formContent = `
+      <form id="editUserForm" onsubmit="updateUser(event, ${userId})">
+        <div class="form-group">
+          <label>Nome *</label>
+          <input type="text" name="nome" value="${user.nome}" required>
+        </div>
+        
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" name="email" value="${user.email}" required>
+        </div>
+        
+        <div class="form-group">
+          <label>Nova Senha (deixe em branco para manter)</label>
+          <input type="password" name="senha" placeholder="Digite para alterar">
+        </div>
+        
+        <div class="form-group">
+          <label>Loja *</label>
+          <select name="loja_id" id="editUserLojaSelect" required onchange="updateEditRolesByStore(this.value, ${userId})">
+            ${stores.map(s => `<option value="${s.id}" data-empresa-tipo="${s.empresa?.tipo || 'FRANQUIA'}" ${s.id === user.loja_id ? 'selected' : ''}>${s.nome}</option>`).join('')}
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Perfil Principal *</label>
+          <select name="perfil" id="editUserPerfilSelect" required>
+            ${availableRoles.map(r => 
+              `<option value="${r.codigo}" ${r.codigo === user.perfil ? 'selected' : ''}>${r.nome}</option>`
+            ).join('')}
+          </select>
+          <small class="form-hint" id="editPerfilHint">${isMatriz ? 'Perfis para TM Imports (Atacado)' : 'Perfis para Tecle Motos (Franquia)'}</small>
+        </div>
+        
+        <div class="form-group">
+          <label>Funções Adicionais (Multi-Role)</label>
+          <div id="editRolesCheckboxContainer" class="roles-checkbox-container">
+            ${availableRoles.map(r => `
+              <label class="role-checkbox">
+                <input type="checkbox" name="roles" value="${r.id}" data-codigo="${r.codigo}" ${userRoleIds.includes(r.id) ? 'checked' : ''}>
+                <span class="role-label">
+                  <strong>${r.nome}</strong>
+                  <small>${r.descricao || ''}</small>
+                </span>
+              </label>
+            `).join('')}
+          </div>
+          <small class="form-hint">O usuário terá as permissões combinadas de todas as funções selecionadas</small>
+        </div>
+        
+        <div class="form-group">
+          <label>
+            <input type="checkbox" name="ativo" ${user.ativo ? 'checked' : ''}> Usuário Ativo
+          </label>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+        </div>
+      </form>
+    `;
+    
+    openModal('Editar Usuário: ' + user.nome, formContent);
+    
+    window.cachedRoles = { tmi: rolesTMI, tecle: rolesTecle, all: roles };
+    window.editingUserId = userId;
+  } catch (error) {
+    showToast('Erro ao carregar usuário: ' + error.message, 'error');
+  }
+}
+
+function updateEditRolesByStore(lojaId, userId) {
+  const select = document.getElementById('editUserLojaSelect');
+  const perfilSelect = document.getElementById('editUserPerfilSelect');
+  const hint = document.getElementById('editPerfilHint');
+  const checkboxContainer = document.getElementById('editRolesCheckboxContainer');
+  
+  if (!lojaId || !select.selectedOptions[0]) return;
+  
+  const empresaTipo = select.selectedOptions[0].dataset.empresaTipo;
+  const isMatriz = empresaTipo === 'MATRIZ';
+  
+  let roles = [];
+  if (isMatriz) {
+    roles = window.cachedRoles?.tmi || [];
+    hint.textContent = 'Perfis para TM Imports (Atacado)';
+  } else {
+    roles = window.cachedRoles?.tecle || [];
+    hint.textContent = 'Perfis para Tecle Motos (Franquia)';
+  }
+  
+  perfilSelect.innerHTML = roles.map(r => 
+    `<option value="${r.codigo}">${r.nome}</option>`
+  ).join('');
+  
+  checkboxContainer.innerHTML = roles.map(r => `
+    <label class="role-checkbox">
+      <input type="checkbox" name="roles" value="${r.id}" data-codigo="${r.codigo}">
+      <span class="role-label">
+        <strong>${r.nome}</strong>
+        <small>${r.descricao || ''}</small>
+      </span>
+    </label>
+  `).join('');
+}
+
+async function updateUser(event, userId) {
+  event.preventDefault();
+  
+  const form = event.target;
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+  
+  data.ativo = formData.has('ativo');
+  data.loja_id = parseInt(data.loja_id);
+  
+  if (!data.senha) delete data.senha;
+  
+  const roleCheckboxes = document.querySelectorAll('#editUserForm input[name="roles"]:checked');
+  data.role_ids = Array.from(roleCheckboxes).map(cb => parseInt(cb.value));
+  
+  try {
+    await api(`/users/${userId}`, { method: 'PUT', body: data });
+    showToast('Usuário atualizado com sucesso');
     closeModal();
     await renderUsers();
   } catch (error) {

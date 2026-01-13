@@ -38,6 +38,39 @@ router.get('/', isGestorOuAdmin, async (req, res) => {
   }
 });
 
+router.get('/:id', isGestorOuAdmin, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id, {
+      include: [
+        { model: Store, as: 'loja', include: [{ model: Company }] },
+        { model: UserRole, include: [{ model: Role }] }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    if (req.user.perfil !== 'ADMIN_GLOBAL' && user.loja_id !== req.user.loja_id) {
+      return res.status(403).json({ error: 'Sem permissão para ver este usuário' });
+    }
+
+    res.json({
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+      perfil: user.perfil,
+      ativo: user.ativo,
+      loja_id: user.loja_id,
+      loja: user.loja,
+      UserRoles: user.UserRoles
+    });
+  } catch (error) {
+    console.error('Erro ao buscar usuário:', error);
+    res.status(500).json({ error: 'Erro ao buscar usuário' });
+  }
+});
+
 router.post('/', isGestorOuAdmin, async (req, res) => {
   try {
     const { nome, email, senha, perfil, loja_id, empresa_id, permissoes, role_ids } = req.body;
@@ -103,7 +136,7 @@ router.post('/', isGestorOuAdmin, async (req, res) => {
 
 router.put('/:id', isGestorOuAdmin, async (req, res) => {
   try {
-    const { nome, email, perfil, ativo, loja_id, permissoes } = req.body;
+    const { nome, email, senha, perfil, ativo, loja_id, permissoes, role_ids } = req.body;
     const user = await User.findByPk(req.params.id);
 
     if (!user) {
@@ -116,14 +149,33 @@ router.put('/:id', isGestorOuAdmin, async (req, res) => {
 
     const dadosAntes = { nome: user.nome, email: user.email, perfil: user.perfil, ativo: user.ativo };
 
-    await user.update({
+    const updateData = {
       nome: nome || user.nome,
       email: email || user.email,
       perfil: req.user.perfil === 'ADMIN_GLOBAL' ? (perfil || user.perfil) : user.perfil,
       ativo: ativo !== undefined ? ativo : user.ativo,
       loja_id: req.user.perfil === 'ADMIN_GLOBAL' ? (loja_id || user.loja_id) : user.loja_id,
       permissoes: permissoes || user.permissoes
-    });
+    };
+
+    if (senha && senha.trim() !== '') {
+      updateData.senha = await bcrypt.hash(senha, 10);
+    }
+
+    await user.update(updateData);
+
+    if (role_ids && Array.isArray(role_ids) && req.user.perfil === 'ADMIN_GLOBAL') {
+      await UserRole.destroy({ where: { user_id: user.id } });
+      
+      if (role_ids.length > 0) {
+        const roleAssociations = role_ids.map((roleId, index) => ({
+          user_id: user.id,
+          role_id: roleId,
+          principal: index === 0
+        }));
+        await UserRole.bulkCreate(roleAssociations);
+      }
+    }
 
     await AuditLog.create({
       user_id: req.user.id,
@@ -131,7 +183,7 @@ router.put('/:id', isGestorOuAdmin, async (req, res) => {
       tabela: 'users',
       registro_id: user.id,
       dados_antes: dadosAntes,
-      dados_depois: { nome: user.nome, email: user.email, perfil: user.perfil, ativo: user.ativo }
+      dados_depois: { nome: user.nome, email: user.email, perfil: user.perfil, ativo: user.ativo, roles: role_ids }
     });
 
     res.json({ message: 'Usuário atualizado' });
