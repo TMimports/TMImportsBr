@@ -109,20 +109,37 @@ const menuItems = {
     ]}
   ],
   GESTOR_DASHBOARD: [
-    { section: 'Principal', items: [
+    { section: 'Dashboards', items: [
       { id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' },
       { id: 'rankings', label: 'Rankings', icon: 'fas fa-trophy' },
+      { id: 'low-movers', label: 'Produtos Parados', icon: 'fas fa-snowflake' },
       { id: 'franquias-dashboard', label: 'Dashboard Franquias', icon: 'fas fa-chart-pie' }
     ]},
-    { section: 'Visualização', items: [
-      { id: 'estoque-central', label: 'Estoque', icon: 'fas fa-warehouse' },
+    { section: 'Franquias', items: [
+      { id: 'franquias', label: 'Ver Franquias', icon: 'fas fa-store' }
+    ]},
+    { section: 'Produtos e Estoque', items: [
+      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' },
+      { id: 'estoque-central', label: 'Estoque Central', icon: 'fas fa-warehouse' },
+      { id: 'solicitacoes', label: 'Solicitações', icon: 'fas fa-truck' }
+    ]},
+    { section: 'Vendas e OS', items: [
       { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
-      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' }
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'notas-fiscais', label: 'Notas Fiscais', icon: 'fas fa-file-invoice' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' },
+      { id: 'vendedores', label: 'Vendedores', icon: 'fas fa-user-tie' }
     ]},
     { section: 'Financeiro', items: [
       { id: 'receber', label: 'Contas a Receber', icon: 'fas fa-hand-holding-usd' },
       { id: 'pagar', label: 'Contas a Pagar', icon: 'fas fa-file-invoice-dollar' },
+      { id: 'conciliacao', label: 'Conciliação Bancária', icon: 'fas fa-university' },
       { id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'usuarios', label: 'Ver Usuários', icon: 'fas fa-users-cog' },
+      { id: 'auditoria', label: 'Logs de Auditoria', icon: 'fas fa-history' },
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
     ]}
   ]
 };
