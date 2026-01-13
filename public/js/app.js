@@ -107,6 +107,23 @@ const menuItems = {
       { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' },
       { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
     ]}
+  ],
+  GESTOR_DASHBOARD: [
+    { section: 'Principal', items: [
+      { id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' },
+      { id: 'rankings', label: 'Rankings', icon: 'fas fa-trophy' },
+      { id: 'franquias-dashboard', label: 'Dashboard Franquias', icon: 'fas fa-chart-pie' }
+    ]},
+    { section: 'Visualização', items: [
+      { id: 'estoque-central', label: 'Estoque', icon: 'fas fa-warehouse' },
+      { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' }
+    ]},
+    { section: 'Financeiro', items: [
+      { id: 'receber', label: 'Contas a Receber', icon: 'fas fa-hand-holding-usd' },
+      { id: 'pagar', label: 'Contas a Pagar', icon: 'fas fa-file-invoice-dollar' },
+      { id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' }
+    ]}
   ]
 };
 
