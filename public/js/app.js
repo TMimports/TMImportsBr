@@ -289,7 +289,24 @@ async function init() {
   try {
     currentUser = JSON.parse(user);
     
-    // Verificar se é primeiro acesso - forçar troca de senha
+    const meResponse = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!meResponse.ok) {
+      if (meResponse.status === 401) {
+        logout();
+        return;
+      }
+    } else {
+      const meData = await meResponse.json();
+      currentUser.permissions = meData.permissions || [];
+      currentUser.moduleSummary = meData.moduleSummary || {};
+      currentUser.dashboardHome = meData.dashboardHome;
+      currentUser.is_admin_global = meData.user?.is_admin_global || false;
+      currentUser.primeiro_acesso = meData.user?.primeiro_acesso || false;
+    }
+    
     if (currentUser.primeiro_acesso) {
       renderDefinirSenha();
       return;
@@ -298,7 +315,7 @@ async function init() {
     const sidebarLogo = document.getElementById('sidebarLogo');
     if (sidebarLogo) {
       const perfisTMImports = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD', 'GERENTE_OP', 'FINANCEIRO', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'VENDEDOR_TMI'];
-      if (perfisTMImports.includes(currentUser.perfil)) {
+      if (perfisTMImports.includes(currentUser.perfil) || currentUser.is_admin_global) {
         sidebarLogo.src = '/images/logo-tmimports.jpg';
         sidebarLogo.alt = 'TM Imports';
       } else {
@@ -420,9 +437,88 @@ async function salvarNovaSenha(event) {
   btn.innerHTML = '<i class="fas fa-check"></i> Definir Senha e Continuar';
 }
 
+function buildDynamicMenu() {
+  const perms = currentUser.permissions || [];
+  const isAdmin = currentUser.perfil === 'ADMIN_GLOBAL' || currentUser.is_admin_global;
+  
+  if (isAdmin) {
+    return menuItems.ADMIN_GLOBAL;
+  }
+  
+  const hasPermission = (key) => isAdmin || perms.includes(key);
+  const hasAnyPermission = (...keys) => isAdmin || keys.some(k => perms.includes(k));
+  
+  const menu = [];
+  
+  if (hasAnyPermission('dashboard.view_global', 'dashboard.view_operational', 'dashboard.view_financial', 'dashboard.view_personal')) {
+    const dashboardItems = [];
+    if (hasPermission('dashboard.view_global')) dashboardItems.push({ id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' });
+    if (hasPermission('dashboard.view_operational')) dashboardItems.push({ id: 'dashboard/operacional', label: 'Dashboard Operacional', icon: 'fas fa-tachometer-alt' });
+    if (hasPermission('dashboard.view_financial')) dashboardItems.push({ id: 'dashboard/financeiro', label: 'Dashboard Financeiro', icon: 'fas fa-dollar-sign' });
+    if (hasPermission('dashboard.view_personal')) dashboardItems.push({ id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' });
+    if (hasAnyPermission('analytics.rankings.view')) dashboardItems.push({ id: 'rankings', label: 'Rankings', icon: 'fas fa-trophy' });
+    if (hasAnyPermission('analytics.low_movers.view')) dashboardItems.push({ id: 'low-movers', label: 'Produtos Parados', icon: 'fas fa-snowflake' });
+    if (dashboardItems.length) menu.push({ section: 'Principal', items: dashboardItems });
+  }
+  
+  if (hasAnyPermission('franchises.view', 'franchises.manage')) {
+    menu.push({ section: 'Franquias', items: [
+      { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' },
+      { id: 'franquias-dashboard', label: 'Dashboard Franquias', icon: 'fas fa-chart-pie' }
+    ]});
+  }
+  
+  if (hasAnyPermission('catalog.view', 'catalog.manage', 'services.view', 'services.manage')) {
+    menu.push({ section: 'Produtos', items: [
+      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
+    ]});
+  }
+  
+  const estoqueItems = [];
+  if (hasAnyPermission('stock_central.view', 'stock_central.manage')) {
+    estoqueItems.push({ id: 'estoque-central', label: 'Estoque Central', icon: 'fas fa-warehouse' });
+  }
+  if (hasAnyPermission('stock_store.view', 'stock_store.manage')) {
+    estoqueItems.push({ id: 'estoque', label: 'Estoque da Loja', icon: 'fas fa-store' });
+  }
+  if (hasAnyPermission('franchise_orders.view', 'franchise_orders.approve')) {
+    estoqueItems.push({ id: 'solicitacoes', label: 'Solicitações', icon: 'fas fa-truck' });
+  }
+  if (hasAnyPermission('franchise_orders.create')) {
+    estoqueItems.push({ id: 'solicitar', label: 'Solicitar Produtos', icon: 'fas fa-cart-plus' });
+  }
+  if (estoqueItems.length) menu.push({ section: 'Estoque', items: estoqueItems });
+  
+  const vendasItems = [];
+  if (hasAnyPermission('sales.view', 'sales.manage')) vendasItems.push({ id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' });
+  if (hasAnyPermission('os.view', 'os.manage')) vendasItems.push({ id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' });
+  if (hasPermission('finance.view')) vendasItems.push({ id: 'notas-fiscais', label: 'Notas Fiscais', icon: 'fas fa-file-invoice' });
+  if (hasAnyPermission('customers.view', 'customers.manage')) vendasItems.push({ id: 'clientes', label: 'Clientes', icon: 'fas fa-users' });
+  vendasItems.push({ id: 'vendedores', label: 'Vendedores', icon: 'fas fa-user-tie' });
+  if (vendasItems.length) menu.push({ section: 'Vendas', items: vendasItems });
+  
+  if (hasAnyPermission('finance.view', 'finance.manage_payable', 'finance.manage_receivable', 'finance.manage_cashflow')) {
+    const finItems = [];
+    if (hasAnyPermission('finance.view', 'finance.manage_receivable')) finItems.push({ id: 'receber', label: 'Contas a Receber', icon: 'fas fa-hand-holding-usd' });
+    if (hasAnyPermission('finance.view', 'finance.manage_payable')) finItems.push({ id: 'pagar', label: 'Contas a Pagar', icon: 'fas fa-file-invoice-dollar' });
+    if (hasAnyPermission('finance.view')) finItems.push({ id: 'conciliacao', label: 'Conciliação Bancária', icon: 'fas fa-university' });
+    if (hasAnyPermission('finance.view', 'finance.manage_cashflow')) finItems.push({ id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' });
+    if (finItems.length) menu.push({ section: 'Financeiro', items: finItems });
+  }
+  
+  const sistemaItems = [];
+  if (hasAnyPermission('users.view', 'users.manage', 'users.permissions_manage')) sistemaItems.push({ id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' });
+  if (hasAnyPermission('settings.view', 'settings.manage')) sistemaItems.push({ id: 'configuracoes', label: 'Configurações', icon: 'fas fa-cog' });
+  if (hasPermission('audit.view')) sistemaItems.push({ id: 'auditoria', label: 'Logs de Auditoria', icon: 'fas fa-history' });
+  sistemaItems.push({ id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' });
+  if (sistemaItems.length) menu.push({ section: 'Sistema', items: sistemaItems });
+  
+  return menu.length ? menu : [{ section: 'Principal', items: [{ id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' }] }];
+}
+
 function renderMenu() {
   const nav = document.getElementById('sidebarNav');
-  const userMenu = menuItems[currentUser.perfil] || menuItems.OPERACIONAL;
+  const userMenu = buildDynamicMenu();
   
   let html = '';
   for (const section of userMenu) {
@@ -723,9 +819,11 @@ function showToast(message, type = 'success') {
   setTimeout(() => toast.remove(), 5000);
 }
 
-function openModal(title, content) {
+function openModal(title, content, size = 'normal') {
   const modal = document.getElementById('modal');
   const dialog = document.getElementById('modalDialog');
+  
+  dialog.className = size === 'large' ? 'modal-content large' : 'modal-content';
   
   dialog.innerHTML = `
     <div class="modal-header">
@@ -4797,6 +4895,9 @@ async function renderUsers() {
                     <td><span class="badge badge-${u.perfil === 'ADMIN_GLOBAL' ? 'primary' : u.perfil === 'GESTOR_FRANQUIA' ? 'warning' : 'secondary'}">${u.perfil}</span></td>
                     <td><span class="badge badge-${u.ativo ? 'success' : 'danger'}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td class="actions">
+                      <button class="btn btn-sm btn-info" onclick="openPermissionsModal(${u.id}, '${u.nome.replace(/'/g, "\\'")}')">
+                        <i class="fas fa-key"></i> Permissões
+                      </button>
                       <button class="btn btn-sm btn-warning" onclick="openEditUserModal(${u.id})">
                         <i class="fas fa-edit"></i> Editar
                       </button>
@@ -5128,6 +5229,150 @@ async function deleteUser(id) {
   try {
     await api(`/users/${id}`, { method: 'DELETE' });
     showToast('Usuário apagado com sucesso');
+    closeModal();
+    await renderUsers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+
+async function openPermissionsModal(userId, userName) {
+  try {
+    const [catalog, userPerms] = await Promise.all([
+      api('/users/permissions/catalog'),
+      api(`/users/${userId}/permissions`)
+    ]);
+    
+    if (userPerms.isAdminGlobal) {
+      showToast('ADMIN_GLOBAL tem acesso total. Permissões não podem ser alteradas.', 'warning');
+      return;
+    }
+    
+    const modules = catalog.modules || [];
+    const userPermissions = userPerms.permissions || [];
+    
+    let modulesHtml = '';
+    for (const mod of modules) {
+      const allPermsInModule = mod.permissions.map(p => p.key);
+      const userHasAll = allPermsInModule.every(k => userPermissions.includes(k));
+      
+      modulesHtml += `
+        <div class="permissions-module">
+          <div class="module-header" onclick="togglePermissionsModule('${mod.code}')">
+            <label class="module-select-all">
+              <input type="checkbox" class="module-checkbox" data-module="${mod.code}" 
+                ${userHasAll ? 'checked' : ''} 
+                onchange="toggleModulePermissions('${mod.code}', this.checked); event.stopPropagation();">
+              <i class="fas fa-${mod.icon || 'folder'}"></i>
+              <strong>${mod.label}</strong>
+            </label>
+            <i class="fas fa-chevron-down module-toggle-icon" id="icon-${mod.code}"></i>
+          </div>
+          <div class="module-permissions" id="perms-${mod.code}" style="display: none;">
+            ${mod.permissions.map(p => `
+              <label class="permission-item">
+                <input type="checkbox" name="permissions" value="${p.key}" data-module="${mod.code}"
+                  ${userPermissions.includes(p.key) ? 'checked' : ''}
+                  onchange="updateModuleCheckbox('${mod.code}')">
+                <span>
+                  <strong>${p.label}</strong>
+                  ${p.description ? `<small>${p.description}</small>` : ''}
+                </span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    
+    const formContent = `
+      <div class="permissions-editor">
+        <div class="permissions-actions">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="selectAllPermissions()">
+            <i class="fas fa-check-double"></i> Selecionar Tudo
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="selectReadOnlyPermissions()">
+            <i class="fas fa-eye"></i> Somente Leitura
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="clearAllPermissions()">
+            <i class="fas fa-times"></i> Limpar Tudo
+          </button>
+        </div>
+        
+        <div class="permissions-list">
+          ${modulesHtml}
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+          <button type="button" class="btn btn-primary" onclick="saveUserPermissions(${userId})">
+            <i class="fas fa-save"></i> Salvar Permissões
+          </button>
+        </div>
+      </div>
+    `;
+    
+    openModal(`Permissões: ${userName}`, formContent, 'large');
+    window.permissionsUserId = userId;
+    window.permissionsCatalog = modules;
+  } catch (error) {
+    showToast('Erro ao carregar permissões: ' + error.message, 'error');
+  }
+}
+
+function togglePermissionsModule(moduleCode) {
+  const permsDiv = document.getElementById(`perms-${moduleCode}`);
+  const icon = document.getElementById(`icon-${moduleCode}`);
+  if (permsDiv.style.display === 'none') {
+    permsDiv.style.display = 'block';
+    icon.classList.remove('fa-chevron-down');
+    icon.classList.add('fa-chevron-up');
+  } else {
+    permsDiv.style.display = 'none';
+    icon.classList.remove('fa-chevron-up');
+    icon.classList.add('fa-chevron-down');
+  }
+}
+
+function toggleModulePermissions(moduleCode, checked) {
+  const checkboxes = document.querySelectorAll(`input[name="permissions"][data-module="${moduleCode}"]`);
+  checkboxes.forEach(cb => cb.checked = checked);
+}
+
+function updateModuleCheckbox(moduleCode) {
+  const checkboxes = document.querySelectorAll(`input[name="permissions"][data-module="${moduleCode}"]`);
+  const moduleCheckbox = document.querySelector(`.module-checkbox[data-module="${moduleCode}"]`);
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  moduleCheckbox.checked = allChecked;
+}
+
+function selectAllPermissions() {
+  document.querySelectorAll('input[name="permissions"]').forEach(cb => cb.checked = true);
+  document.querySelectorAll('.module-checkbox').forEach(cb => cb.checked = true);
+}
+
+function selectReadOnlyPermissions() {
+  document.querySelectorAll('input[name="permissions"]').forEach(cb => {
+    cb.checked = cb.value.includes('.view');
+  });
+  document.querySelectorAll('.module-checkbox').forEach(cb => {
+    const moduleCode = cb.dataset.module;
+    updateModuleCheckbox(moduleCode);
+  });
+}
+
+function clearAllPermissions() {
+  document.querySelectorAll('input[name="permissions"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('.module-checkbox').forEach(cb => cb.checked = false);
+}
+
+async function saveUserPermissions(userId) {
+  const checkboxes = document.querySelectorAll('input[name="permissions"]:checked');
+  const permissions = Array.from(checkboxes).map(cb => cb.value);
+  
+  try {
+    await api(`/users/${userId}/permissions`, { method: 'PUT', body: { permissions } });
+    showToast('Permissões salvas com sucesso. O usuário precisará fazer login novamente.');
     closeModal();
     await renderUsers();
   } catch (error) {

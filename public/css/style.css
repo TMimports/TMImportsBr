@@ -2009,3 +2009,140 @@ tr:hover td {
 .role-checkbox input[type="checkbox"]:checked + .role-label strong {
   color: var(--accent);
 }
+
+/* Permissions Editor Styles */
+.permissions-editor {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.permissions-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.permissions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.permissions-module {
+  background: var(--bg-darker);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.permissions-module .module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.permissions-module .module-header:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.module-select-all {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.module-select-all input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.module-select-all i {
+  color: var(--primary);
+  width: 20px;
+  text-align: center;
+}
+
+.module-select-all strong {
+  color: var(--text-light);
+}
+
+.module-toggle-icon {
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.module-permissions {
+  padding: 10px 15px 15px 45px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-card);
+}
+
+.permission-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.permission-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.permission-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.permission-item span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.permission-item strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-light);
+}
+
+.permission-item small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.permission-item input[type="checkbox"]:checked + span strong {
+  color: var(--success);
+}
+
+/* Modal large variant */
+.modal-content.large {
+  max-width: 800px;
+  width: 95%;
+}
+
+/* Button info style */
+.btn-info {
+  background: #17a2b8;
+  color: white;
+}
+
+.btn-info:hover {
+  background: #138496;
+}
