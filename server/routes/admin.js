@@ -353,6 +353,9 @@ router.post('/debug/criar-usuarios-teste', async (req, res) => {
       { email: 'teste.gestor@tmimports.com', nome: 'Gestor Dashboard Teste', role: 'GESTOR_DASHBOARD', loja_id: null },
       { email: 'teste.financeiro@tmimports.com', nome: 'Financeiro Teste', role: 'FINANCEIRO', loja_id: null },
       { email: 'teste.gerenteop@tmimports.com', nome: 'Gerente OP Teste', role: 'GERENTE_OP', loja_id: null },
+      { email: 'teste.adm1@tmimports.com', nome: 'ADM1 Logística Teste', role: 'ADM1_LOGISTICA', loja_id: null },
+      { email: 'teste.adm2@tmimports.com', nome: 'ADM2 Cadastro Teste', role: 'ADM2_CADASTRO', loja_id: null },
+      { email: 'teste.adm3@tmimports.com', nome: 'ADM3 OS/Garantia Teste', role: 'ADM3_OS_GARANTIA', loja_id: null },
       { email: 'teste.vendedor.tmi@tmimports.com', nome: 'Vendedor TMI Teste', role: 'VENDEDOR_TMI', loja_id: null },
       { email: 'teste.franqueado@tecle.com', nome: 'Franqueado Teste', role: 'FRANQUEADO_GESTOR', loja_id: store?.id },
       { email: 'teste.gerente.loja@tecle.com', nome: 'Gerente Loja Teste', role: 'GERENTE_LOJA', loja_id: store?.id },
@@ -363,13 +366,14 @@ router.post('/debug/criar-usuarios-teste', async (req, res) => {
       let user = await User.findOne({ where: { email: tu.email } });
       
       if (!user) {
+        const empresa = await models.Company.findOne({ where: { tipo: 'MATRIZ' } });
         user = await User.create({
           nome: tu.nome,
           email: tu.email,
           senha: senhaHash,
-          perfil: tu.role === 'ADMIN_GLOBAL' ? 'ADMIN_GLOBAL' : 'OPERACIONAL',
+          perfil: tu.role,
           loja_id: tu.loja_id,
-          empresa_id: 1,
+          empresa_id: empresa?.id || null,
           ativo: true,
           primeiro_acesso: false
         });

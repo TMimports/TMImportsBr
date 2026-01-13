@@ -5,22 +5,21 @@ const dashboardHomeByRole = {
   GESTOR_DASHBOARD: '/app/dashboard/global',
   FINANCEIRO: '/app/dashboard/financeiro',
   GERENTE_OP: '/app/dashboard/operacional',
-  ADM1_LOGISTICA: '/app/dashboard/operacional',
+  ADM1_LOGISTICA: '/app/dashboard/financeiro',
   ADM2_CADASTRO: '/app/dashboard/operacional',
   ADM3_OS_GARANTIA: '/app/dashboard/operacional',
   VENDEDOR_TMI: '/app/dashboard/pessoal',
-  GESTOR_FRANQUIA: '/app/dashboard/loja',
-  FRANQUEADO_GESTOR: '/app/dashboard/loja',
-  GERENTE_LOJA: '/app/dashboard/loja',
+  GESTOR_FRANQUIA: '/app/dashboard/operacional',
+  FRANQUEADO_GESTOR: '/app/dashboard/operacional',
+  GERENTE_LOJA: '/app/dashboard/operacional',
   VENDEDOR_LOJA: '/app/dashboard/pessoal'
 };
 
 const dashboardAccessRules = {
   global: ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'],
-  financeiro: ['ADMIN_GLOBAL', 'FINANCEIRO', 'FRANQUEADO_GESTOR'],
-  operacional: ['ADMIN_GLOBAL', 'GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'VENDEDOR_LOJA'],
-  loja: ['GESTOR_FRANQUIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'],
-  pessoal: ['VENDEDOR_TMI', 'VENDEDOR_LOJA', 'ADMIN_GLOBAL', 'GERENTE_OP', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA']
+  financeiro: ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD', 'FINANCEIRO', 'ADM1_LOGISTICA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'],
+  operacional: ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD', 'GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'VENDEDOR_LOJA'],
+  pessoal: ['VENDEDOR_TMI', 'VENDEDOR_LOJA', 'ADMIN_GLOBAL', 'GESTOR_DASHBOARD', 'GERENTE_OP', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA']
 };
 
 async function resolveAuthContext(userId) {

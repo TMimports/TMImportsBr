@@ -8,6 +8,7 @@ const models = require('./models');
 const { sequelize, User, Company, Store, Category, Role, UserRole, Setting } = models;
 const { runSeed } = require('./seed');
 
+const { verifyToken, blockGestorDashboardWrite } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const companiesRoutes = require('./routes/companies');

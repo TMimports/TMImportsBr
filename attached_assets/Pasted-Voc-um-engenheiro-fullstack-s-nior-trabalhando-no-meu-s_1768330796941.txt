@@ -1,0 +1,169 @@
+Você é um engenheiro fullstack sênior trabalhando no meu sistema no Replit. O sistema está confundindo as permissões. Quero que você implemente (ou corrija) o RBAC de forma clara, auditável e 100% aplicada no BACKEND e no FRONTEND, seguindo exatamente a hierarquia e as regras abaixo.
+
+IMPORTANTE:
+- A permissão real deve ser validada no BACKEND (Express) e o FRONTEND só deve ocultar menus com base no que o backend liberar.
+- O RBAC deve suportar múltiplas funções por usuário (checkbox), e as permissões finais são a UNIÃO das funções marcadas.
+- O ADMIN_GLOBAL sempre tem acesso total (não pode ser bloqueado).
+- Implementar /api/me para depuração: deve retornar roles e permissões do usuário logado.
+
+=====================================================================
+1) HIERARQUIA OFICIAL DE FUNÇÕES (V1)
+=====================================================================
+
+TMIMPORTS (GLOBAL):
+1. ADMIN_GLOBAL
+2. GESTOR_DASHBOARD
+3. GERENTE_OP
+4. FINANCEIRO
+5. ADM1_LOGISTICA
+6. ADM2_CADASTRO
+7. ADM3_OS_GARANTIA
+8. VENDEDOR_TMI
+
+TECLE MOTOS (LOJA):
+9. FRANQUEADO_GESTOR
+10. GERENTE_LOJA
+11. VENDEDOR_LOJA
+
+=====================================================================
+2) REGRA ESPECIAL DO GESTOR_DASHBOARD (ALTERAÇÃO)
+=====================================================================
+O GESTOR_DASHBOARD deve ter acesso a TUDO (inclusive financeiro), porém SOMENTE LEITURA.
+Ele pode VER todas as telas e dados, mas NÃO pode:
+- cadastrar, editar, excluir
+- aprovar, faturar, movimentar estoque
+- criar/editar usuários
+É “VISÃO TOTAL” + “ZERO AÇÕES”.
+
+=====================================================================
+3) DASHBOARDS POR PERFIL (REDIRECT CORRETO)
+=====================================================================
+Criar rotas:
+- /app/dashboard/global
+- /app/dashboard/operacional
+- /app/dashboard/financeiro
+- /app/dashboard/pessoal
+
+E /app/dashboard redireciona por papel:
+- ADMIN_GLOBAL -> /app/dashboard/global
+- GESTOR_DASHBOARD -> /app/dashboard/global (somente leitura, mas vê financeiro em leitura)
+- GERENTE_OP -> /app/dashboard/operacional (modelo B: sem global e sem financeiro)
+- FINANCEIRO -> /app/dashboard/financeiro
+- ADM1_LOGISTICA -> /app/dashboard/financeiro (pois agora ele tem acesso ao financeiro)
+- Vendedores -> /app/dashboard/pessoal
+- FRANQUEADO_GESTOR -> /app/dashboard/operacional
+- GERENTE_LOJA -> /app/dashboard/operacional
+- VENDEDOR_LOJA -> /app/dashboard/pessoal
+
+=====================================================================
+4) PERMISSÕES “VIEW vs MANAGE”
+=====================================================================
+Permissões mínimas:
+- VIEW_DASHBOARD_GLOBAL / VIEW_DASHBOARD_OPERATIONAL / VIEW_DASHBOARD_FINANCIAL / VIEW_DASHBOARD_PERSONAL
+- VIEW_FINANCE / MANAGE_FINANCE
+- VIEW_USERS / MANAGE_USERS / MANAGE_STORE_USERS
+- VIEW_FRANCHISES / MANAGE_FRANCHISES
+- VIEW_ORDERS / MANAGE_ORDERS / APPROVE_ORDERS / INVOICE_ORDERS / SHIP_ORDERS
+- VIEW_STOCK_CENTRAL / MANAGE_STOCK_CENTRAL
+- VIEW_STOCK_STORE / MANAGE_STOCK_STORE
+- VIEW_CATALOG / MANAGE_CATALOG / IMPORT_CATALOG
+- VIEW_OS / MANAGE_OS
+- VIEW_WARRANTY / MANAGE_WARRANTY
+- VIEW_CUSTOMERS / MANAGE_CUSTOMERS / DELETE_CUSTOMERS
+- VIEW_RANKINGS / VIEW_LOW_MOVERS
+- SEED_RESET (somente ADMIN_GLOBAL)
+
+=====================================================================
+5) MAPA DE ACESSO POR ROLE (OBRIGATÓRIO)
+=====================================================================
+
+ADMIN_GLOBAL:
+- TODAS as permissões VIEW e MANAGE.
+
+GESTOR_DASHBOARD (VISÃO TOTAL SOMENTE LEITURA):
+- TODAS as permissões VIEW_* (inclui VIEW_FINANCE)
+- NENHUMA permissão MANAGE_*
+- qualquer POST/PUT/DELETE deve retornar 403.
+
+GERENTE_OP (modelo B):
+- VIEW_DASHBOARD_OPERATIONAL
+- VIEW+MANAGE: pedidos franquias (exceto financeiro), estoque central, OS/garantia, catálogo
+- NÃO pode: VIEW_DASHBOARD_GLOBAL, VIEW_FINANCE, MANAGE_FINANCE
+
+FINANCEIRO:
+- VIEW_DASHBOARD_FINANCIAL
+- VIEW+MANAGE_FINANCE
+- VIEW do resto para conferência.
+
+ADM1_LOGISTICA (ATUALIZAÇÃO: TEM ACESSO AO FINANCEIRO):
+- VIEW_DASHBOARD_FINANCIAL
+- VIEW+MANAGE_FINANCE
+- VIEW+MANAGE_ORDERS (envio/status logístico)
+- VIEW+MANAGE_STOCK_CENTRAL (movimentações/expedição)
+Observação: ele pode operar financeiro, mas o sistema deve registrar auditoria em todas ações financeiras desse role.
+
+ADM2_CADASTRO:
+- VIEW+MANAGE_USERS
+- VIEW+MANAGE_FRANCHISES
+- VIEW+MANAGE_CATALOG + IMPORT_CATALOG
+- sem financeiro.
+
+ADM3_OS_GARANTIA:
+- VIEW+MANAGE_OS + VIEW+MANAGE_WARRANTY
+- sem financeiro.
+
+VENDEDOR_TMI:
+- VIEW_CATALOG + VIEW_STOCK_CENTRAL
+- dashboard pessoal
+- sem serviços e sem financeiro.
+
+LOJA (Tecle Motos):
+FRANQUEADO_GESTOR:
+- tudo da loja (VIEW+MANAGE) incluindo financeiro da loja
+- MANAGE_STORE_USERS (único que cria usuários da loja).
+
+GERENTE_LOJA:
+- operação total da loja, sem criar usuários
+- financeiro da loja: VIEW+MANAGE_FINANCE (por padrão)
+- dashboard operacional.
+
+VENDEDOR_LOJA:
+- vendas/OS/clientes
+- dashboard pessoal
+- sem financeiro e sem pedidos TMimports.
+
+=====================================================================
+6) REGRAS CRÍTICAS DE SEGURANÇA
+=====================================================================
+- Backend retorna 403 para qualquer violação.
+- Frontend mostra “Acesso negado”.
+- Registrar auditoria quando acesso for negado (userId, rota, timestamp).
+- Gestor Dashboard: ocultar/desabilitar toda ação de escrita; e bloquear no backend também.
+
+=====================================================================
+7) /api/me (DEBUG OBRIGATÓRIO)
+=====================================================================
+Criar GET /api/me:
+{
+  user: {id, nome, email, perfil, storeId},
+  roles: [...],
+  permissions: [...],
+  dashboardHome: "/app/dashboard/..."
+}
+
+=====================================================================
+8) ENTREGÁVEIS (PROVAS)
+=====================================================================
+Ao finalizar:
+1) Liste arquivos alterados/criados.
+2) Crie usuários teste (email/senha) e mostre /api/me para:
+   - GESTOR_DASHBOARD (visão total, sem ações)
+   - FINANCEIRO
+   - ADM1_LOGISTICA (financeiro + logística)
+   - GERENTE_OP (modelo B)
+3) Provar com logs:
+   - Gestor Dashboard abre financeiro em leitura e qualquer escrita retorna 403
+   - Financeiro e ADM1 conseguem operar pagar/receber/fluxo
+   - Gerente OP é bloqueado do financeiro e do dashboard global
+4) Ajustar menus e botões no frontend para refletir permissões.
+Implemente agora no código existente sem quebrar funcionalidades atuais.

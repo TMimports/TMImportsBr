@@ -104,7 +104,10 @@ router.get('/me', verifyToken, async (req, res) => {
   } else if (roleCodes.includes('GERENTE_OP')) {
     dashboardHome = '/app/dashboard/operacional';
     scope = 'TMIMPORTS';
-  } else if (roleCodes.includes('ADM1_LOGISTICA') || roleCodes.includes('ADM2_CADASTRO') || roleCodes.includes('ADM3_OS_GARANTIA')) {
+  } else if (roleCodes.includes('ADM1_LOGISTICA')) {
+    dashboardHome = '/app/dashboard/financeiro';
+    scope = 'TMIMPORTS';
+  } else if (roleCodes.includes('ADM2_CADASTRO') || roleCodes.includes('ADM3_OS_GARANTIA')) {
     dashboardHome = '/app/dashboard/operacional';
     scope = 'TMIMPORTS';
   } else if (roleCodes.includes('VENDEDOR_TMI')) {
@@ -127,6 +130,10 @@ router.get('/me', verifyToken, async (req, res) => {
     scope = 'STORE';
   }
   
+  const isGestorDashboard = roleCodes.includes('GESTOR_DASHBOARD');
+  const isAlsoAdmin = user.isAdmin || roleCodes.includes('ADMIN_GLOBAL');
+  const isReadOnly = isGestorDashboard && !isAlsoAdmin;
+  
   res.json({
     user: {
       id: user.id,
@@ -142,7 +149,7 @@ router.get('/me', verifyToken, async (req, res) => {
     permissions: permissions,
     scope: scope,
     dashboardHome: dashboardHome,
-    // Legacy fields for backwards compatibility
+    isReadOnly: isReadOnly,
     loja: user.loja,
     Company: user.Company,
     permissoes: user.permissoes

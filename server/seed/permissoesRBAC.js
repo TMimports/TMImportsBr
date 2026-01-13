@@ -22,14 +22,23 @@ const permissoesPorRole = {
   },
   GESTOR_DASHBOARD: {
     dashboard_global: ['read'],
+    dashboard_operational: ['read'],
+    dashboard_financial: ['read'],
+    financeiro: ['read'],
+    fiscal: ['read'],
     franquias: ['read'],
     rankings: ['read'],
     low_movers: ['read'],
     catalogo: ['read'],
     estoque_central: ['read'],
+    estoque_loja: ['read'],
     pedidos: ['read'],
     os: ['read'],
-    clientes: ['read']
+    garantia: ['read'],
+    clientes: ['read'],
+    usuarios: ['read'],
+    usuarios_loja: ['read'],
+    configuracoes: ['read']
   },
   GERENTE_OP: {
     dashboard_operational: ['read'],
@@ -51,6 +60,9 @@ const permissoesPorRole = {
     franquias: ['read']
   },
   ADM1_LOGISTICA: {
+    dashboard_financial: ['read'],
+    financeiro: ['read', 'create', 'update', 'delete'],
+    fiscal: ['read', 'create', 'update'],
     pedidos: ['read', 'update', 'ship', 'confirm'],
     estoque_central: ['read', 'create', 'update'],
     franquias: ['read']

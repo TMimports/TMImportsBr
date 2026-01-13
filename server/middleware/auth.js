@@ -3,6 +3,22 @@ const { User, Store, Company, Role, UserRole, AuditLog } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tm-imports-tecle-motos-secret-2024';
 
+const logAccessDenied = async (userId, resource, action, route) => {
+  try {
+    await AuditLog.create({
+      user_id: userId,
+      acao: 'ACESSO_NEGADO',
+      entidade: resource || 'rota',
+      entidade_id: null,
+      dados_anteriores: null,
+      dados_novos: { route, action, resource },
+      ip: null
+    });
+  } catch (e) {
+    console.error('Erro ao registrar acesso negado:', e.message);
+  }
+};
+
 const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, email: user.email, perfil: user.perfil, token_version: user.token_version || 0 },
@@ -66,25 +82,31 @@ const verifyToken = async (req, res, next) => {
     user.roleCodes = userRoles.map(r => r.codigo);
 
     req.user = user;
+    
+    const isGestorDashboard = user.roleCodes?.includes('GESTOR_DASHBOARD') || user.perfil === 'GESTOR_DASHBOARD';
+    const isAlsoAdmin = user.isAdmin || user.roleCodes?.includes('ADMIN_GLOBAL');
+    
+    if (isGestorDashboard && !isAlsoAdmin) {
+      const writeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+      const allowedEndpoints = [
+        '/api/auth/definir-senha',
+        '/api/auth/logout',
+        '/api/auth/me'
+      ];
+      const isAllowedEndpoint = allowedEndpoints.some(ep => req.originalUrl.startsWith(ep));
+      
+      if (writeMethods.includes(req.method) && !isAllowedEndpoint) {
+        await logAccessDenied(user.id, 'write_blocked', req.method, req.originalUrl);
+        return res.status(403).json({ 
+          error: 'GESTOR_DASHBOARD tem acesso somente leitura. Ações de escrita não são permitidas.',
+          code: 'READONLY_ROLE'
+        });
+      }
+    }
+    
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Token inválido' });
-  }
-};
-
-const logAccessDenied = async (userId, resource, action, route) => {
-  try {
-    await AuditLog.create({
-      user_id: userId,
-      acao: 'ACESSO_NEGADO',
-      entidade: resource || 'rota',
-      entidade_id: null,
-      dados_anteriores: null,
-      dados_novos: { route, action, resource },
-      ip: null
-    });
-  } catch (e) {
-    console.error('Erro ao registrar acesso negado:', e.message);
   }
 };
 
@@ -241,6 +263,37 @@ const checkStoreScope = async (req, res, next) => {
   next();
 };
 
+const GESTOR_ALLOWED_ENDPOINTS = [
+  '/api/auth/definir-senha',
+  '/api/auth/logout',
+  '/api/auth/me'
+];
+
+const blockGestorDashboardWrite = async (req, res, next) => {
+  const isGestorDashboard = req.user.roleCodes?.includes('GESTOR_DASHBOARD') || req.user.perfil === 'GESTOR_DASHBOARD';
+  const isAlsoAdmin = req.user.isAdmin || req.user.roleCodes?.includes('ADMIN_GLOBAL');
+  
+  if (isGestorDashboard && !isAlsoAdmin) {
+    const writeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+    const isAllowedEndpoint = GESTOR_ALLOWED_ENDPOINTS.some(ep => req.originalUrl.startsWith(ep));
+    
+    if (writeMethods.includes(req.method) && !isAllowedEndpoint) {
+      await logAccessDenied(req.user.id, 'write_blocked', req.method, req.originalUrl);
+      return res.status(403).json({ 
+        error: 'GESTOR_DASHBOARD tem acesso somente leitura. Ações de escrita não são permitidas.',
+        code: 'READONLY_ROLE'
+      });
+    }
+  }
+  next();
+};
+
+const isGestorDashboardReadOnly = (req) => {
+  const isGestorDashboard = req.user.roleCodes?.includes('GESTOR_DASHBOARD') || req.user.perfil === 'GESTOR_DASHBOARD';
+  const isAlsoAdmin = req.user.isAdmin || req.user.roleCodes?.includes('ADMIN_GLOBAL');
+  return isGestorDashboard && !isAlsoAdmin;
+};
+
 module.exports = {
   JWT_SECRET,
   generateToken,
@@ -257,5 +310,7 @@ module.exports = {
   filterByStore,
   filterByCompany,
   checkStoreScope,
+  blockGestorDashboardWrite,
+  isGestorDashboardReadOnly,
   logAccessDenied
 };

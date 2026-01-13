@@ -231,11 +231,19 @@ const menuItems = {
   ],
   ADM1_LOGISTICA: [
     { section: 'Principal', items: [
-      { id: 'dashboard/operacional', label: 'Dashboard Operacional', icon: 'fas fa-chart-line' }
+      { id: 'dashboard/financeiro', label: 'Dashboard Financeiro', icon: 'fas fa-chart-line' }
     ]},
-    { section: 'Estoque', items: [
+    { section: 'Logística', items: [
       { id: 'estoque-central', label: 'Estoque Central', icon: 'fas fa-warehouse' },
-      { id: 'solicitacoes', label: 'Solicitações', icon: 'fas fa-truck' }
+      { id: 'solicitacoes', label: 'Solicitações', icon: 'fas fa-truck' },
+      { id: 'vendas', label: 'Pedidos', icon: 'fas fa-shopping-cart' }
+    ]},
+    { section: 'Financeiro', items: [
+      { id: 'receber', label: 'Contas a Receber', icon: 'fas fa-hand-holding-usd' },
+      { id: 'pagar', label: 'Contas a Pagar', icon: 'fas fa-file-invoice-dollar' },
+      { id: 'conciliacao', label: 'Conciliação Bancária', icon: 'fas fa-university' },
+      { id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' },
+      { id: 'notas-fiscais', label: 'Notas Fiscais', icon: 'fas fa-file-invoice' }
     ]},
     { section: 'Sistema', items: [
       { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
@@ -783,10 +791,10 @@ function canAccessDashboard(type) {
   
   const accessRules = {
     global: ['GESTOR_DASHBOARD'],
-    financeiro: ['FINANCEIRO', 'FRANQUEADO_GESTOR'],
-    operacional: ['GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'VENDEDOR_LOJA'],
+    financeiro: ['GESTOR_DASHBOARD', 'FINANCEIRO', 'ADM1_LOGISTICA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'],
+    operacional: ['GESTOR_DASHBOARD', 'GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'VENDEDOR_LOJA'],
     loja: ['GESTOR_FRANQUIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA'],
-    pessoal: ['VENDEDOR_TMI', 'VENDEDOR_LOJA', 'GERENTE_OP', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA']
+    pessoal: ['GESTOR_DASHBOARD', 'VENDEDOR_TMI', 'VENDEDOR_LOJA', 'GERENTE_OP', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA']
   };
   
   return roles.some(r => (accessRules[type] || []).includes(r));
