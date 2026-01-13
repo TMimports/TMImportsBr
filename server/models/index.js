@@ -37,7 +37,8 @@ const User = sequelize.define('User', {
   empresa_id: { type: DataTypes.INTEGER, allowNull: true },
   loja_id: { type: DataTypes.INTEGER, allowNull: true },
   permissoes: { type: DataTypes.JSON, defaultValue: {} },
-  ultimo_acesso: { type: DataTypes.DATE }
+  ultimo_acesso: { type: DataTypes.DATE },
+  token_version: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'users', timestamps: true });
 
 const UserRole = sequelize.define('UserRole', {

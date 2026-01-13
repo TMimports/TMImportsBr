@@ -170,6 +170,11 @@ router.put('/:id', isGestorOuAdmin, async (req, res) => {
     await user.update(updateData);
 
     if (role_ids && Array.isArray(role_ids) && req.user.perfil === 'ADMIN_GLOBAL') {
+      const rolesAnteriores = await UserRole.findAll({ where: { user_id: user.id } });
+      const roleIdsAnteriores = rolesAnteriores.map(r => r.role_id);
+      
+      const mudouRoles = JSON.stringify(roleIdsAnteriores.sort()) !== JSON.stringify(role_ids.sort());
+      
       await UserRole.destroy({ where: { user_id: user.id } });
       
       if (role_ids.length > 0) {
@@ -182,8 +187,21 @@ router.put('/:id', isGestorOuAdmin, async (req, res) => {
         
         const primeiraRole = await Role.findByPk(role_ids[0]);
         if (primeiraRole) {
-          await user.update({ perfil: primeiraRole.codigo });
+          if (mudouRoles) {
+            await user.update({ 
+              perfil: primeiraRole.codigo,
+              primeiro_acesso: true,
+              token_version: (user.token_version || 0) + 1
+            });
+          } else {
+            await user.update({ perfil: primeiraRole.codigo });
+          }
         }
+      } else if (mudouRoles) {
+        await user.update({ 
+          primeiro_acesso: true,
+          token_version: (user.token_version || 0) + 1
+        });
       }
     }
 

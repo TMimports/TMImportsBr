@@ -5,7 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'tm-imports-tecle-motos-secret-2024
 
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user.id, email: user.email, perfil: user.perfil },
+    { id: user.id, email: user.email, perfil: user.perfil, token_version: user.token_version || 0 },
     JWT_SECRET,
     { expiresIn: '24h' }
   );
@@ -30,6 +30,10 @@ const verifyToken = async (req, res, next) => {
 
     if (!user || !user.ativo) {
       return res.status(401).json({ error: 'Usuário não encontrado ou inativo' });
+    }
+
+    if (decoded.token_version !== undefined && decoded.token_version !== (user.token_version || 0)) {
+      return res.status(401).json({ error: 'Sessão expirada. Faça login novamente.', code: 'TOKEN_VERSION_MISMATCH' });
     }
 
     const userRoles = user.roles || [];
