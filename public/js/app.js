@@ -140,6 +140,130 @@ const menuItems = {
       { id: 'auditoria', label: 'Logs de Auditoria', icon: 'fas fa-history' },
       { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
     ]}
+  ],
+  FINANCEIRO: [
+    { section: 'Principal', items: [
+      { id: 'dashboard/financeiro', label: 'Dashboard Financeiro', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Financeiro', items: [
+      { id: 'receber', label: 'Contas a Receber', icon: 'fas fa-hand-holding-usd' },
+      { id: 'pagar', label: 'Contas a Pagar', icon: 'fas fa-file-invoice-dollar' },
+      { id: 'conciliacao', label: 'Conciliação Bancária', icon: 'fas fa-university' },
+      { id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' },
+      { id: 'notas-fiscais', label: 'Notas Fiscais', icon: 'fas fa-file-invoice' }
+    ]},
+    { section: 'Consultas', items: [
+      { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' }
+    ]}
+  ],
+  VENDEDOR_TMI: [
+    { section: 'Principal', items: [
+      { id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' }
+    ]},
+    { section: 'Vendas', items: [
+      { id: 'vendas', label: 'Minhas Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' }
+    ]},
+    { section: 'Consultas', items: [
+      { id: 'produtos', label: 'Produtos', icon: 'fas fa-box' },
+      { id: 'estoque-central', label: 'Estoque', icon: 'fas fa-warehouse' }
+    ]}
+  ],
+  VENDEDOR_LOJA: [
+    { section: 'Principal', items: [
+      { id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' }
+    ]},
+    { section: 'Vendas', items: [
+      { id: 'vendas', label: 'Minhas Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' }
+    ]},
+    { section: 'Consultas', items: [
+      { id: 'produtos', label: 'Produtos', icon: 'fas fa-box' },
+      { id: 'estoque', label: 'Estoque da Loja', icon: 'fas fa-warehouse' }
+    ]}
+  ],
+  FRANQUEADO_GESTOR: [
+    { section: 'Principal', items: [
+      { id: 'dashboard/loja', label: 'Dashboard da Loja', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Produtos', items: [
+      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' }
+    ]},
+    { section: 'Estoque', items: [
+      { id: 'estoque', label: 'Estoque da Loja', icon: 'fas fa-warehouse' },
+      { id: 'solicitar', label: 'Solicitar Produtos', icon: 'fas fa-truck' }
+    ]},
+    { section: 'Vendas', items: [
+      { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'notas-fiscais', label: 'Notas Fiscais', icon: 'fas fa-file-invoice' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' },
+      { id: 'vendedores', label: 'Vendedores', icon: 'fas fa-user-tie' }
+    ]},
+    { section: 'Financeiro', items: [
+      { id: 'receber', label: 'Contas a Receber', icon: 'fas fa-hand-holding-usd' },
+      { id: 'pagar', label: 'Contas a Pagar', icon: 'fas fa-file-invoice-dollar' },
+      { id: 'fluxo', label: 'Fluxo de Caixa', icon: 'fas fa-chart-bar' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' },
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
+    ]}
+  ],
+  GERENTE_LOJA: [
+    { section: 'Principal', items: [
+      { id: 'dashboard/loja', label: 'Dashboard da Loja', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Estoque', items: [
+      { id: 'estoque', label: 'Estoque da Loja', icon: 'fas fa-warehouse' },
+      { id: 'solicitar', label: 'Solicitar Produtos', icon: 'fas fa-truck' }
+    ]},
+    { section: 'Vendas', items: [
+      { id: 'vendas', label: 'Vendas', icon: 'fas fa-shopping-cart' },
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' },
+      { id: 'clientes', label: 'Clientes', icon: 'fas fa-users' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
+    ]}
+  ],
+  ADM1_LOGISTICA: [
+    { section: 'Principal', items: [
+      { id: 'dashboard/operacional', label: 'Dashboard Operacional', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Estoque', items: [
+      { id: 'estoque-central', label: 'Estoque Central', icon: 'fas fa-warehouse' },
+      { id: 'solicitacoes', label: 'Solicitações', icon: 'fas fa-truck' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
+    ]}
+  ],
+  ADM2_CADASTRO: [
+    { section: 'Principal', items: [
+      { id: 'dashboard/operacional', label: 'Dashboard Operacional', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Cadastros', items: [
+      { id: 'produtos', label: 'Produtos / Serviços', icon: 'fas fa-box' },
+      { id: 'franquias', label: 'Franquias', icon: 'fas fa-store' },
+      { id: 'usuarios', label: 'Usuários', icon: 'fas fa-users-cog' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
+    ]}
+  ],
+  ADM3_OS_GARANTIA: [
+    { section: 'Principal', items: [
+      { id: 'dashboard/operacional', label: 'Dashboard Operacional', icon: 'fas fa-chart-line' }
+    ]},
+    { section: 'Ordens de Serviço', items: [
+      { id: 'os', label: 'Ordens de Serviço', icon: 'fas fa-wrench' }
+    ]},
+    { section: 'Sistema', items: [
+      { id: 'manual', label: 'Manual do Sistema', icon: 'fas fa-book' }
+    ]}
   ]
 };
 
