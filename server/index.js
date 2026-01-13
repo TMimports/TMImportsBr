@@ -89,6 +89,10 @@ app.get('/app/:page', (req, res) => {
   res.render('app');
 });
 
+app.get('/app/:page/:subpage', (req, res) => {
+  res.render('app');
+});
+
 async function initializeDatabase() {
   try {
     await sequelize.sync();
