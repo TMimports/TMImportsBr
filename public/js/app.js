@@ -6,7 +6,6 @@ const menuItems = {
   ADMIN_GLOBAL: [
     { section: 'Principal', items: [
       { id: 'dashboard', label: 'Dashboard Global', icon: 'fas fa-chart-line' },
-      { id: 'meu-dashboard', label: 'Meu Dashboard Vendedor', icon: 'fas fa-user-tie' },
       { id: 'rankings', label: 'Rankings', icon: 'fas fa-trophy' },
       { id: 'low-movers', label: 'Produtos Parados', icon: 'fas fa-snowflake' }
     ]},
@@ -85,7 +84,7 @@ const menuItems = {
   ],
   GERENTE_OP: [
     { section: 'Principal', items: [
-      { id: 'meu-dashboard', label: 'Meu Dashboard', icon: 'fas fa-user-tie' }
+      { id: 'dashboard/operacional', label: 'Dashboard Operacional', icon: 'fas fa-chart-line' }
     ]},
     { section: 'Franquias', items: [
       { id: 'franquias', label: 'Gerenciar Franquias', icon: 'fas fa-store' }
