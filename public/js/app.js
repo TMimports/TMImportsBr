@@ -319,6 +319,13 @@ async function navigate(page) {
   await loadPage(page);
 }
 
+function navigateTo(page) {
+  if (page.startsWith('/app/')) {
+    page = page.replace('/app/', '');
+  }
+  navigate(page);
+}
+
 async function loadPage(page) {
   const content = document.getElementById('content');
   const pageTitle = document.getElementById('pageTitle');
