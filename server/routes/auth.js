@@ -10,7 +10,7 @@ router.post('/login', async (req, res) => {
     
     const user = await User.findOne({
       where: { email },
-      attributes: ['id', 'nome', 'email', 'senha', 'perfil', 'ativo', 'primeiro_acesso', 'empresa_id', 'loja_id', 'permissoes'],
+      attributes: ['id', 'nome', 'email', 'senha', 'perfil', 'ativo', 'primeiro_acesso', 'empresa_id', 'loja_id', 'permissoes', 'token_version'],
       include: [
         { model: Store, as: 'loja' },
         { model: Company }

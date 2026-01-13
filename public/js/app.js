@@ -656,6 +656,10 @@ async function api(endpoint, options = {}) {
   const response = await fetch(`${API_URL}/api${endpoint}`, config);
   
   if (response.status === 401) {
+    const errorData = await response.json().catch(() => ({}));
+    if (errorData.code === 'TOKEN_VERSION_MISMATCH') {
+      alert('Sua função foi alterada pelo administrador.\n\nVocê será redirecionado para fazer login novamente com sua nova função.');
+    }
     logout();
     throw new Error('Sessão expirada');
   }
