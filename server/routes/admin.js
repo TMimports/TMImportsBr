@@ -271,4 +271,133 @@ router.get('/seed/status', async (req, res) => {
   }
 });
 
+router.get('/debug/rbac-test', async (req, res) => {
+  try {
+    const { User, Role, UserRole, Store } = models;
+    const { resolveAuthContext, dashboardAccessRules } = require('../utils/rbacHelper');
+    
+    const roles = await Role.findAll({ where: { ativo: true }, order: [['ordem', 'ASC']] });
+    const users = await User.findAll({
+      include: [
+        { model: Store, as: 'loja' },
+        { model: Role, as: 'roles', through: { attributes: ['principal'] } }
+      ],
+      limit: 50
+    });
+    
+    const rbacReport = [];
+    
+    for (const user of users) {
+      const authContext = await resolveAuthContext(user.id);
+      
+      if (authContext) {
+        rbacReport.push({
+          email: user.email,
+          nome: user.nome,
+          perfil: user.perfil,
+          loja: user.loja?.nome || 'TM Imports (Matriz)',
+          roles: authContext.roles,
+          dashboardHome: authContext.dashboardHome,
+          scope: authContext.scope,
+          podeAcessar: {
+            global: authContext.canAccessDashboard.global,
+            financeiro: authContext.canAccessDashboard.financeiro,
+            operacional: authContext.canAccessDashboard.operacional,
+            pessoal: authContext.canAccessDashboard.pessoal
+          },
+          permissionsCount: authContext.permissions.length,
+          permissions: authContext.permissions.slice(0, 10)
+        });
+      }
+    }
+    
+    console.log('=== RBAC DEBUG REPORT ===');
+    rbacReport.forEach(r => {
+      console.log(`\n[${r.email}]`);
+      console.log(`  Roles: ${r.roles.join(', ') || 'nenhuma'}`);
+      console.log(`  DashboardHome: ${r.dashboardHome}`);
+      console.log(`  Pode acessar: Global=${r.podeAcessar.global}, Financeiro=${r.podeAcessar.financeiro}, Operacional=${r.podeAcessar.operacional}, Pessoal=${r.podeAcessar.pessoal}`);
+    });
+    console.log('========================');
+    
+    res.json({
+      success: true,
+      totalUsers: users.length,
+      totalRoles: roles.length,
+      rolesDisponiveis: roles.map(r => ({ codigo: r.codigo, nome: r.nome, escopo: r.escopo })),
+      dashboardAccessRules: dashboardAccessRules,
+      rbacReport: rbacReport
+    });
+  } catch (error) {
+    console.error('Erro no debug RBAC:', error);
+    res.status(500).json({ error: 'Erro ao executar teste RBAC: ' + error.message });
+  }
+});
+
+router.post('/debug/criar-usuarios-teste', async (req, res) => {
+  try {
+    const { User, Role, UserRole, Store } = models;
+    const bcrypt = require('bcryptjs');
+    
+    const roles = await Role.findAll({ where: { ativo: true } });
+    const roleMap = {};
+    roles.forEach(r => { roleMap[r.codigo] = r.id; });
+    
+    const store = await Store.findOne({ where: { codigo: { [require('sequelize').Op.ne]: 'TMI-001' } } });
+    
+    const senhaHash = await bcrypt.hash('teste123', 10);
+    const usuariosTeste = [];
+    
+    const testUsers = [
+      { email: 'teste.admin@tmimports.com', nome: 'Admin Teste', role: 'ADMIN_GLOBAL', loja_id: null },
+      { email: 'teste.gestor@tmimports.com', nome: 'Gestor Dashboard Teste', role: 'GESTOR_DASHBOARD', loja_id: null },
+      { email: 'teste.financeiro@tmimports.com', nome: 'Financeiro Teste', role: 'FINANCEIRO', loja_id: null },
+      { email: 'teste.gerenteop@tmimports.com', nome: 'Gerente OP Teste', role: 'GERENTE_OP', loja_id: null },
+      { email: 'teste.vendedor.tmi@tmimports.com', nome: 'Vendedor TMI Teste', role: 'VENDEDOR_TMI', loja_id: null },
+      { email: 'teste.franqueado@tecle.com', nome: 'Franqueado Teste', role: 'FRANQUEADO_GESTOR', loja_id: store?.id },
+      { email: 'teste.gerente.loja@tecle.com', nome: 'Gerente Loja Teste', role: 'GERENTE_LOJA', loja_id: store?.id },
+      { email: 'teste.vendedor.loja@tecle.com', nome: 'Vendedor Loja Teste', role: 'VENDEDOR_LOJA', loja_id: store?.id }
+    ];
+    
+    for (const tu of testUsers) {
+      let user = await User.findOne({ where: { email: tu.email } });
+      
+      if (!user) {
+        user = await User.create({
+          nome: tu.nome,
+          email: tu.email,
+          senha: senhaHash,
+          perfil: tu.role === 'ADMIN_GLOBAL' ? 'ADMIN_GLOBAL' : 'OPERACIONAL',
+          loja_id: tu.loja_id,
+          empresa_id: 1,
+          ativo: true,
+          primeiro_acesso: false
+        });
+      }
+      
+      await UserRole.destroy({ where: { user_id: user.id } });
+      
+      if (roleMap[tu.role]) {
+        await UserRole.create({ user_id: user.id, role_id: roleMap[tu.role], principal: true });
+      }
+      
+      usuariosTeste.push({
+        email: tu.email,
+        senha: 'teste123',
+        role: tu.role,
+        loja_id: tu.loja_id
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Usuários de teste criados com sucesso',
+      usuarios: usuariosTeste
+    });
+  } catch (error) {
+    console.error('Erro ao criar usuários de teste:', error);
+    res.status(500).json({ error: 'Erro ao criar usuários: ' + error.message });
+  }
+});
+
 module.exports = router;

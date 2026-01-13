@@ -327,6 +327,10 @@ async function loadPage(page) {
   
   const titles = {
     'dashboard': 'Dashboard',
+    'dashboard/global': 'Dashboard Global',
+    'dashboard/operacional': 'Dashboard Operacional',
+    'dashboard/financeiro': 'Dashboard Financeiro',
+    'dashboard/pessoal': 'Dashboard Pessoal',
     'produtos': 'Produtos / Serviços',
     'categorias': 'Categorias',
     'importar': 'Importar Planilha',
@@ -360,7 +364,19 @@ async function loadPage(page) {
   try {
     switch (page) {
       case 'dashboard':
-        await renderDashboard();
+        await redirectToUserDashboard();
+        break;
+      case 'dashboard/global':
+        await renderDashboardGlobal();
+        break;
+      case 'dashboard/operacional':
+        await renderDashboardOperacional();
+        break;
+      case 'dashboard/financeiro':
+        await renderDashboardFinanceiro();
+        break;
+      case 'dashboard/pessoal':
+        await renderDashboardPessoal();
         break;
       case 'meu-dashboard':
         await renderVendorDashboard();
@@ -553,6 +569,295 @@ function logout() {
 }
 
 let dashboardRange = localStorage.getItem('dashboardRange') || 'monthly';
+let userAuthContext = null;
+
+async function fetchUserAuthContext() {
+  if (userAuthContext) return userAuthContext;
+  try {
+    userAuthContext = await api('/auth/me');
+    console.log('User Auth Context:', userAuthContext);
+    return userAuthContext;
+  } catch (e) {
+    console.error('Error fetching auth context:', e);
+    return null;
+  }
+}
+
+async function redirectToUserDashboard() {
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Verificando permissões...</div>';
+  
+  const authContext = await fetchUserAuthContext();
+  
+  if (!authContext) {
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-exclamation-triangle"></i>
+      <h3>Erro ao verificar permissões</h3>
+    </div>`;
+    return;
+  }
+  
+  const dashboardPath = authContext.dashboardHome?.replace('/app/', '') || 'dashboard/operacional';
+  console.log('Redirecting to:', dashboardPath);
+  navigateTo(dashboardPath);
+}
+
+function canAccessDashboard(type) {
+  if (!userAuthContext) return false;
+  const roles = userAuthContext.roles || [];
+  const isAdmin = roles.includes('ADMIN_GLOBAL') || currentUser?.perfil === 'ADMIN_GLOBAL';
+  
+  if (isAdmin) return true;
+  
+  const accessRules = {
+    global: ['GESTOR_DASHBOARD'],
+    financeiro: ['FINANCEIRO', 'FRANQUEADO_GESTOR'],
+    operacional: ['GERENTE_OP', 'ADM1_LOGISTICA', 'ADM2_CADASTRO', 'ADM3_OS_GARANTIA', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA', 'VENDEDOR_LOJA'],
+    pessoal: ['VENDEDOR_TMI', 'VENDEDOR_LOJA', 'GERENTE_OP', 'FRANQUEADO_GESTOR', 'GERENTE_LOJA']
+  };
+  
+  return roles.some(r => (accessRules[type] || []).includes(r));
+}
+
+function renderAccessDenied(dashboardType) {
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="card" style="text-align: center; padding: 60px;">
+      <i class="fas fa-lock" style="font-size: 48px; color: var(--danger); margin-bottom: 20px;"></i>
+      <h2>Acesso Negado</h2>
+      <p style="color: var(--text-muted); margin: 20px 0;">
+        Você não tem permissão para acessar o Dashboard ${dashboardType}.
+      </p>
+      <p style="color: var(--text-muted); font-size: 14px;">
+        Suas roles: ${userAuthContext?.roles?.join(', ') || 'nenhuma'}
+      </p>
+      <button class="btn btn-primary" onclick="redirectToUserDashboard()" style="margin-top: 20px;">
+        <i class="fas fa-home"></i> Ir para meu Dashboard
+      </button>
+    </div>
+  `;
+}
+
+async function renderDashboardGlobal() {
+  await fetchUserAuthContext();
+  
+  if (!canAccessDashboard('global')) {
+    renderAccessDenied('Global');
+    return;
+  }
+  
+  await renderDashboard();
+}
+
+async function renderDashboardOperacional() {
+  await fetchUserAuthContext();
+  
+  if (!canAccessDashboard('operacional')) {
+    renderAccessDenied('Operacional');
+    return;
+  }
+  
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando dashboard operacional...</div>';
+  
+  try {
+    const [operData, summary] = await Promise.all([
+      api('/dashboard/operacional-data?range=' + dashboardRange),
+      api('/dashboard/summary?range=' + dashboardRange)
+    ]);
+    
+    const rangeLabel = dashboardRange === 'weekly' ? 'Semanal' : dashboardRange === 'monthly' ? 'Mensal' : 'Total';
+    
+    const osMap = {};
+    (operData.os || []).forEach(o => { osMap[o.status] = parseInt(o.qty) || 0; });
+    const pedidosMap = {};
+    (operData.pedidos || []).forEach(p => { pedidosMap[p.status] = parseInt(p.qty) || 0; });
+    
+    content.innerHTML = `
+      <div class="dashboard-logo-section">
+        <img src="/images/logo-tecle.png" alt="Dashboard" class="dashboard-logo" onerror="this.src='/images/logo-tmimports.jpg'">
+        <h1 class="dashboard-title">Dashboard Operacional</h1>
+      </div>
+      
+      <div class="dashboard-filters" style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn ${dashboardRange === 'weekly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('weekly')">Semanal</button>
+        <button class="btn ${dashboardRange === 'monthly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('monthly')">Mensal</button>
+        <button class="btn ${dashboardRange === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('all')">Total</button>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue"><i class="fas fa-clipboard-list"></i></div>
+          <div class="stat-value">${osMap['ABERTA'] || 0}</div>
+          <div class="stat-label">OS Abertas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-tools"></i></div>
+          <div class="stat-value">${osMap['EM_EXECUCAO'] || 0}</div>
+          <div class="stat-label">OS em Execução</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+          <div class="stat-value">${osMap['CONCLUIDA'] || 0}</div>
+          <div class="stat-label">OS Concluídas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon yellow"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="stat-value">${operData.estoqueBaixo || 0}</div>
+          <div class="stat-label">Estoque Baixo</div>
+        </div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon purple"><i class="fas fa-clock"></i></div>
+          <div class="stat-value">${pedidosMap['PENDENTE'] || 0}</div>
+          <div class="stat-label">Pedidos Pendentes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue"><i class="fas fa-thumbs-up"></i></div>
+          <div class="stat-value">${pedidosMap['APROVADA'] || 0}</div>
+          <div class="stat-label">Pedidos Aprovados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-truck"></i></div>
+          <div class="stat-value">${pedidosMap['ENVIADA'] || 0}</div>
+          <div class="stat-label">Pedidos Enviados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-box-open"></i></div>
+          <div class="stat-value">${pedidosMap['RECEBIDA'] || 0}</div>
+          <div class="stat-label">Pedidos Recebidos</div>
+        </div>
+      </div>
+      
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header"><h3><i class="fas fa-bolt"></i> Ações Rápidas</h3></div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 20px;">
+          <button class="btn btn-primary" onclick="navigateTo('os')"><i class="fas fa-wrench"></i> Ordens de Serviço</button>
+          <button class="btn btn-secondary" onclick="navigateTo('solicitacoes')"><i class="fas fa-truck"></i> Pedidos</button>
+          <button class="btn btn-secondary" onclick="navigateTo('estoque-central')"><i class="fas fa-warehouse"></i> Estoque Central</button>
+          <button class="btn btn-secondary" onclick="navigateTo('produtos')"><i class="fas fa-box"></i> Catálogo</button>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Erro no dashboard operacional:', error);
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-exclamation-triangle"></i>
+      <h3>Erro ao carregar dashboard</h3>
+      <p>${error.message}</p>
+    </div>`;
+  }
+}
+
+async function renderDashboardFinanceiro() {
+  await fetchUserAuthContext();
+  
+  if (!canAccessDashboard('financeiro')) {
+    renderAccessDenied('Financeiro');
+    return;
+  }
+  
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Carregando dashboard financeiro...</div>';
+  
+  try {
+    const finData = await api('/dashboard/financeiro-data?range=' + dashboardRange);
+    
+    const rangeLabel = dashboardRange === 'weekly' ? 'Semanal' : dashboardRange === 'monthly' ? 'Mensal' : 'Total';
+    
+    const receberMap = {};
+    (finData.receber || []).forEach(r => { receberMap[r.status] = parseFloat(r.value) || 0; });
+    const pagarMap = {};
+    (finData.pagar || []).forEach(p => { pagarMap[p.status] = parseFloat(p.value) || 0; });
+    
+    const totalReceber = Object.values(receberMap).reduce((a, b) => a + b, 0);
+    const totalPagar = Object.values(pagarMap).reduce((a, b) => a + b, 0);
+    const saldo = totalReceber - totalPagar;
+    
+    content.innerHTML = `
+      <div class="dashboard-logo-section">
+        <img src="/images/logo-tmimports.jpg" alt="Financeiro" class="dashboard-logo">
+        <h1 class="dashboard-title">Dashboard Financeiro</h1>
+      </div>
+      
+      <div class="dashboard-filters" style="margin-bottom: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn ${dashboardRange === 'weekly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('weekly')">Semanal</button>
+        <button class="btn ${dashboardRange === 'monthly' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('monthly')">Mensal</button>
+        <button class="btn ${dashboardRange === 'all' ? 'btn-primary' : 'btn-secondary'}" onclick="changeDashboardRange('all')">Total</button>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-arrow-down"></i></div>
+          <div class="stat-value">${formatCurrency(totalReceber)}</div>
+          <div class="stat-label">Total a Receber</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red"><i class="fas fa-arrow-up"></i></div>
+          <div class="stat-value">${formatCurrency(totalPagar)}</div>
+          <div class="stat-label">Total a Pagar</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon ${saldo >= 0 ? 'green' : 'red'}"><i class="fas fa-balance-scale"></i></div>
+          <div class="stat-value" style="color: ${saldo >= 0 ? 'var(--success)' : 'var(--danger)'}">${formatCurrency(saldo)}</div>
+          <div class="stat-label">Saldo Projetado</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue"><i class="fas fa-chart-line"></i></div>
+          <div class="stat-value">${formatCurrency(finData.faturamento || 0)}</div>
+          <div class="stat-label">Faturamento (${rangeLabel})</div>
+        </div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+          <div class="stat-value">${formatCurrency(receberMap['PENDENTE'] || 0)}</div>
+          <div class="stat-label">Receber Pendente</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-check"></i></div>
+          <div class="stat-value">${formatCurrency(receberMap['PAGO'] || 0)}</div>
+          <div class="stat-label">Receber Pago</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+          <div class="stat-value">${formatCurrency(pagarMap['PENDENTE'] || 0)}</div>
+          <div class="stat-label">Pagar Pendente</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green"><i class="fas fa-check"></i></div>
+          <div class="stat-value">${formatCurrency(pagarMap['PAGO'] || 0)}</div>
+          <div class="stat-label">Pagar Pago</div>
+        </div>
+      </div>
+      
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-header"><h3><i class="fas fa-bolt"></i> Ações Rápidas</h3></div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 20px;">
+          <button class="btn btn-primary" onclick="navigateTo('receber')"><i class="fas fa-arrow-down"></i> Contas a Receber</button>
+          <button class="btn btn-secondary" onclick="navigateTo('pagar')"><i class="fas fa-arrow-up"></i> Contas a Pagar</button>
+          <button class="btn btn-secondary" onclick="navigateTo('fluxo')"><i class="fas fa-chart-area"></i> Fluxo de Caixa</button>
+          <button class="btn btn-secondary" onclick="navigateTo('conciliacao')"><i class="fas fa-sync"></i> Conciliação</button>
+        </div>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Erro no dashboard financeiro:', error);
+    content.innerHTML = `<div class="empty-state">
+      <i class="fas fa-exclamation-triangle"></i>
+      <h3>Erro ao carregar dashboard</h3>
+      <p>${error.message}</p>
+    </div>`;
+  }
+}
+
+async function renderDashboardPessoal() {
+  await fetchUserAuthContext();
+  await renderVendorDashboard();
+}
 
 async function renderDashboard() {
   const content = document.getElementById('content');

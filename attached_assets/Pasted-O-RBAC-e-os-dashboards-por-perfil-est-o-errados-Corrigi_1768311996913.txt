@@ -1,0 +1,158 @@
+O RBAC e os dashboards por perfil estão errados. Corrigir com prioridade máxima e de forma verificável.
+
+OBJETIVO:
+1) Garantir que roles e permissões estejam corretas e persistidas (multi-role via user_roles).
+2) Garantir que cada perfil tenha seu dashboard correto:
+   - ADMIN_GLOBAL: Global + Operacional + Financeiro (acesso total)
+   - GESTOR_DASHBOARD: acesso ao Dashboard Global Estratégico (leitura)
+   - FINANCEIRO: acesso ao Financeiro e Dashboard Financeiro
+   - GERENTE_OP (modelo B): somente Dashboard Operacional (sem global e sem financeiro)
+   - Vendedores/loja: dashboard próprio
+3) Criar ferramentas de debug para validar o RBAC no navegador.
+
+PASSO 1 — VERIFICAR E CORRIGIR PERSISTÊNCIA DAS ROLES (MULTI-ROLE)
+- Garantir tabelas: roles, user_roles e opcional permissions/role_permissions.
+- Na tela de criar/editar usuário, os checkboxes devem salvar TODAS as roles marcadas na tabela user_roles.
+- Ao editar, deve carregar roles existentes corretamente (checked).
+- Garantir que login/session retorna userId.
+
+PASSO 2 — RESOLVER PERMISSÕES NO BACKEND (FONTE DE VERDADE)
+- Criar uma função única `resolveAuthContext(userId)` que retorna:
+  - roles[] do usuário (via user_roles)
+  - permissions[] (derivadas por role_permissions OU mapeadas via matriz fixa)
+  - scope: "TMIMPORTS" ou "STORE"
+  - storeId quando for loja
+- Guard padrão `requirePermission("...")` deve verificar em permissions[] (não em user.role string).
+- Deny-by-default.
+
+PASSO 3 — CRIAR ENDPOINT DE DEBUG RBAC (OBRIGATÓRIO)
+Criar endpoint:
+GET /api/me
+Retorna JSON com:
+{
+  user: {id, name, email, storeId},
+  roles: [...],
+  permissions: [...],
+  dashboardHome: "/app/dashboard/global|operacional|financeiro|pessoal"
+}
+Esse endpoint deve funcionar para qualquer usuário logado e servir para validar o RBAC.
+
+PASSO 4 — CRIAR DASHBOARDS SEPARADOS E REDIRECT INTELIGENTE
+- Criar rotas:
+  /app/dashboard/global
+  /app/dashboard/operacional
+  /app/dashboard/financeiro
+  /app/dashboard/pessoal
+- Alterar /app/dashboard para redirecionar com base em `dashboardHome` vindo do backend (/api/me).
+- Regras:
+  - ADMIN_GLOBAL -> /app/dashboard/global
+  - GESTOR_DASHBOARD -> /app/dashboard/global
+  - FINANCEIRO -> /app/dashboard/financeiro
+  - GERENTE_OP -> /app/dashboard/operacional
+  - VENDEDOR_LOJA e VENDEDOR_TMI -> /app/dashboard/pessoal
+  - FRANQUEADO_GESTOR -> /app/dashboard/operacional (loja completo)
+  - GERENTE_LOJA -> /app/dashboard/operacional (loja operacional)
+- Garantir que acessar uma rota sem permissão retorna 403 (backend) e o frontend mostra “Acesso negado”.
+
+PASSO 5 — MATRIZ DE PERMISSÕES (IMPLEMENTAR EXATAMENTE)
+Definir permissions finais (mínimo necessário):
+- view_dashboard_global
+- view_dashboard_operational
+- view_dashboard_financial
+- view_finance
+- manage_finance
+- view_orders / manage_orders
+- view_stock_central / manage_stock_central
+- view_stock_store / manage_stock_store
+- view_catalog / manage_catalog / import_catalog
+- view_os / manage_os
+- view_customers / manage_customers
+- manage_users (TMimports) / manage_store_users (loja)
+
+Mapeamento obrigatório:
+ADMIN_GLOBAL:
+- tudo
+
+GESTOR_DASHBOARD:
+- view_dashboard_global
+- view_franchises (leitura)
+- view_rankings + view_low_movers
+
+FINANCEIRO:
+- view_dashboard_financial
+- view_finance + manage_finance
+- leitura do resto
+
+GERENTE_OP (MODELO B):
+- view_dashboard_operational
+- view_orders/manage_orders/approve_orders/ship_orders
+- view_stock_central/manage_stock_central
+- view_catalog/manage_catalog/import_catalog
+- view_os/manage_os + view_warranty/manage_warranty
+- NÃO pode ter view_dashboard_global
+- NÃO pode ter view_finance nem manage_finance
+
+ADM1_LOGISTICA:
+- view_dashboard_operational (apenas logística se necessário)
+- manage_orders/ship_orders
+- manage_stock_central
+
+ADM2_CADASTRO:
+- manage_users + manage_franchises
+- manage_catalog/import_catalog
+
+ADM3_OS_GARANTIA:
+- manage_os/manage_warranty
+
+VENDEDOR_TMI:
+- view_catalog/view_stock_central
+- dashboard_pessoal
+
+FRANQUEADO_GESTOR (LOJA):
+- view_dashboard_operational
+- manage_store_users (único que cria usuários loja)
+- manage_stock_store
+- view_finance/manage_finance (financeiro da loja)
+- pedidos TMimports
+
+GERENTE_LOJA:
+- view_dashboard_operational
+- manage_stock_store
+- manage_orders (pedidos TMimports)
+- view_finance/manage_finance (financeiro da loja)
+- NÃO pode manage_store_users
+
+VENDEDOR_LOJA:
+- dashboard_pessoal
+- vendas/OS/clientes
+- NÃO pode view_finance
+- NÃO pode pedidos TMimports
+- NÃO pode rankings/low movers
+
+PASSO 6 — FRONTEND: MENU E WIDGETS POR PERFIL
+- Menu deve ser montado com base em permissions[] (não em strings fixas).
+- Cada dashboard deve renderizar os widgets corretos.
+- Pessoal (vendedor): só “minhas vendas / minhas OS / meus clientes recentes”.
+- Global: KPIs globais + rankings + low movers.
+- Financeiro: pagar/receber/fluxo.
+- Operacional: pedidos/estoque/OS/alertas.
+
+PASSO 7 — TESTE AUTOMÁTICO (OBRIGATÓRIO)
+Criar script ou rota /api/debug/rbac-test (apenas ADMIN_GLOBAL) que:
+- cria usuários de teste para cada role
+- faz login programático ou retorna as credenciais
+- imprime no terminal:
+  - user email
+  - roles
+  - dashboardHome
+  - pode acessar global? financeiro? operacional?
+Assim fica impossível “achar” que funcionou sem provar.
+
+ENTREGÁVEIS:
+- /api/me funcionando e mostrando roles+perms+dashboardHome.
+- Redirect /app/dashboard funcionando por perfil.
+- Gestor Dashboard acessa /app/dashboard/global (somente leitura).
+- Financeiro acessa /app/dashboard/financeiro e /app/receber /app/pagar.
+- Gerente OP acessa somente /app/dashboard/operacional e é bloqueado do global/financeiro.
+- Vendedores acessam /app/dashboard/pessoal e não veem dashboards globais.
+- Sem quebrar outras áreas do sistema.

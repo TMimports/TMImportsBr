@@ -74,17 +74,78 @@ router.post('/definir-senha', verifyToken, async (req, res) => {
 });
 
 router.get('/me', verifyToken, async (req, res) => {
+  const user = req.user;
+  const roleCodes = user.roleCodes || [];
+  const aggregatedPermissions = user.aggregatedPermissions || {};
+  
+  // Flatten permissions to array format: ["resource:action", ...]
+  const permissions = [];
+  Object.entries(aggregatedPermissions).forEach(([resource, actions]) => {
+    if (Array.isArray(actions)) {
+      actions.forEach(action => {
+        permissions.push(`${resource}:${action}`);
+      });
+    }
+  });
+  
+  // Determine dashboardHome based on roles
+  let dashboardHome = '/app/dashboard/operacional';
+  let scope = user.loja_id ? 'STORE' : 'TMIMPORTS';
+  
+  if (user.isAdmin || roleCodes.includes('ADMIN_GLOBAL')) {
+    dashboardHome = '/app/dashboard/global';
+    scope = 'TMIMPORTS';
+  } else if (roleCodes.includes('GESTOR_DASHBOARD')) {
+    dashboardHome = '/app/dashboard/global';
+    scope = 'TMIMPORTS';
+  } else if (roleCodes.includes('FINANCEIRO')) {
+    dashboardHome = '/app/dashboard/financeiro';
+    scope = 'TMIMPORTS';
+  } else if (roleCodes.includes('GERENTE_OP')) {
+    dashboardHome = '/app/dashboard/operacional';
+    scope = 'TMIMPORTS';
+  } else if (roleCodes.includes('ADM1_LOGISTICA') || roleCodes.includes('ADM2_CADASTRO') || roleCodes.includes('ADM3_OS_GARANTIA')) {
+    dashboardHome = '/app/dashboard/operacional';
+    scope = 'TMIMPORTS';
+  } else if (roleCodes.includes('VENDEDOR_TMI')) {
+    dashboardHome = '/app/dashboard/pessoal';
+    scope = 'TMIMPORTS';
+  } else if (roleCodes.includes('FRANQUEADO_GESTOR')) {
+    dashboardHome = '/app/dashboard/operacional';
+    scope = 'STORE';
+  } else if (roleCodes.includes('GERENTE_LOJA')) {
+    dashboardHome = '/app/dashboard/operacional';
+    scope = 'STORE';
+  } else if (roleCodes.includes('VENDEDOR_LOJA')) {
+    dashboardHome = '/app/dashboard/pessoal';
+    scope = 'STORE';
+  } else if (user.perfil === 'GESTOR_FRANQUIA') {
+    dashboardHome = '/app/dashboard/operacional';
+    scope = 'STORE';
+  } else if (user.perfil === 'OPERACIONAL') {
+    dashboardHome = '/app/dashboard/pessoal';
+    scope = 'STORE';
+  }
+  
   res.json({
-    id: req.user.id,
-    nome: req.user.nome,
-    email: req.user.email,
-    perfil: req.user.perfil,
-    primeiro_acesso: req.user.primeiro_acesso,
-    empresa_id: req.user.empresa_id,
-    loja_id: req.user.loja_id,
-    loja: req.user.loja,
-    Company: req.user.Company,
-    permissoes: req.user.permissoes
+    user: {
+      id: user.id,
+      name: user.nome,
+      email: user.email,
+      storeId: user.loja_id,
+      storeName: user.loja?.nome || null,
+      companyId: user.empresa_id,
+      perfil: user.perfil,
+      primeiro_acesso: user.primeiro_acesso
+    },
+    roles: roleCodes,
+    permissions: permissions,
+    scope: scope,
+    dashboardHome: dashboardHome,
+    // Legacy fields for backwards compatibility
+    loja: user.loja,
+    Company: user.Company,
+    permissoes: user.permissoes
   });
 });
 

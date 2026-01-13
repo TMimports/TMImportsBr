@@ -195,6 +195,20 @@ O sistema suporta integração com:
 
 ## Mudanças Recentes
 
+- **13/01/2026:** Sistema RBAC Completo com Dashboards Separados
+  - Endpoint /api/me retorna: user, roles[], permissions[], scope, dashboardHome
+  - Função centralizada resolveAuthContext(userId) em server/utils/rbacHelper.js
+  - Dashboards separados: /app/dashboard/global, /operacional, /financeiro, /pessoal
+  - Redirect inteligente baseado em dashboardHome do /api/me
+  - Endpoint de debug /api/admin/debug/rbac-test para validação RBAC
+  - Endpoint /api/admin/debug/criar-usuarios-teste para criar usuários de teste
+  - Frontend verifica permissões via canAccessDashboard() antes de renderizar
+  - Regras de acesso por dashboard:
+    - Global: ADMIN_GLOBAL, GESTOR_DASHBOARD
+    - Financeiro: ADMIN_GLOBAL, FINANCEIRO, FRANQUEADO_GESTOR
+    - Operacional: ADMIN_GLOBAL, GERENTE_OP, ADM1-3, FRANQUEADO_GESTOR, GERENTE_LOJA, VENDEDOR_LOJA
+    - Pessoal: VENDEDOR_TMI, VENDEDOR_LOJA, e gestores
+
 - **12/01/2026:** Filtragem de Dados Financeiros por Role (Model B)
   - Função centralizada `canUserSeeFinancialValues(user)` para controle de acesso
   - Endpoints /summary, /charts, /rankings filtram valores monetários para roles sem acesso
