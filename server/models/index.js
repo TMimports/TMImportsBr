@@ -48,6 +48,21 @@ const UserRole = sequelize.define('UserRole', {
   principal: { type: DataTypes.BOOLEAN, defaultValue: false }
 }, { tableName: 'user_roles', timestamps: true });
 
+const Permission = sequelize.define('Permission', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  key: { type: DataTypes.STRING(100), allowNull: false, unique: true },
+  module: { type: DataTypes.STRING(50), allowNull: false },
+  label: { type: DataTypes.STRING(150), allowNull: false },
+  description: { type: DataTypes.TEXT },
+  sort_order: { type: DataTypes.INTEGER, defaultValue: 0 }
+}, { tableName: 'permissions', timestamps: true });
+
+const UserPermission = sequelize.define('UserPermission', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  permission_key: { type: DataTypes.STRING(100), allowNull: false }
+}, { tableName: 'user_permissions', timestamps: true, indexes: [{ unique: true, fields: ['user_id', 'permission_key'] }] });
+
 const Company = sequelize.define('Company', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   nome: { type: DataTypes.STRING(150), allowNull: false },
@@ -610,11 +625,16 @@ UserRole.belongsTo(Role, { foreignKey: 'role_id', as: 'role' });
 User.hasMany(UserRole, { foreignKey: 'user_id', as: 'userRoles' });
 Role.hasMany(UserRole, { foreignKey: 'role_id', as: 'roleUsers' });
 
+User.hasMany(UserPermission, { foreignKey: 'user_id', as: 'userPermissions' });
+UserPermission.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 module.exports = {
   sequelize,
   Role,
   User,
   UserRole,
+  Permission,
+  UserPermission,
   Company,
   Store,
   Category,

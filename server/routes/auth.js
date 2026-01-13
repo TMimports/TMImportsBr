@@ -75,64 +75,47 @@ router.post('/definir-senha', verifyToken, async (req, res) => {
 
 router.get('/me', verifyToken, async (req, res) => {
   const user = req.user;
-  const roleCodes = user.roleCodes || [];
-  const aggregatedPermissions = user.aggregatedPermissions || {};
+  const permissions = user.permissions || [];
   
-  // Flatten permissions to array format: ["resource:action", ...]
-  const permissions = [];
-  Object.entries(aggregatedPermissions).forEach(([resource, actions]) => {
-    if (Array.isArray(actions)) {
-      actions.forEach(action => {
-        permissions.push(`${resource}:${action}`);
-      });
-    }
-  });
-  
-  // Determine dashboardHome based on roles
-  let dashboardHome = '/app/dashboard/operacional';
+  let dashboardHome = '/app/dashboard/pessoal';
   let scope = user.loja_id ? 'STORE' : 'TMIMPORTS';
   
-  if (user.isAdmin || roleCodes.includes('ADMIN_GLOBAL')) {
+  if (user.isAdmin || user.perfil === 'ADMIN_GLOBAL') {
     dashboardHome = '/app/dashboard/global';
     scope = 'TMIMPORTS';
-  } else if (roleCodes.includes('GESTOR_DASHBOARD')) {
+  } else if (permissions.includes('dashboard.view_global')) {
     dashboardHome = '/app/dashboard/global';
-    scope = 'TMIMPORTS';
-  } else if (roleCodes.includes('FINANCEIRO')) {
+  } else if (permissions.includes('dashboard.view_financial')) {
     dashboardHome = '/app/dashboard/financeiro';
-    scope = 'TMIMPORTS';
-  } else if (roleCodes.includes('GERENTE_OP')) {
+  } else if (permissions.includes('dashboard.view_operational')) {
     dashboardHome = '/app/dashboard/operacional';
-    scope = 'TMIMPORTS';
-  } else if (roleCodes.includes('ADM1_LOGISTICA')) {
-    dashboardHome = '/app/dashboard/financeiro';
-    scope = 'TMIMPORTS';
-  } else if (roleCodes.includes('ADM2_CADASTRO') || roleCodes.includes('ADM3_OS_GARANTIA')) {
-    dashboardHome = '/app/dashboard/operacional';
-    scope = 'TMIMPORTS';
-  } else if (roleCodes.includes('VENDEDOR_TMI')) {
+  } else if (permissions.includes('dashboard.view_personal')) {
     dashboardHome = '/app/dashboard/pessoal';
-    scope = 'TMIMPORTS';
-  } else if (roleCodes.includes('FRANQUEADO_GESTOR')) {
-    dashboardHome = '/app/dashboard/operacional';
-    scope = 'STORE';
-  } else if (roleCodes.includes('GERENTE_LOJA')) {
-    dashboardHome = '/app/dashboard/operacional';
-    scope = 'STORE';
-  } else if (roleCodes.includes('VENDEDOR_LOJA')) {
-    dashboardHome = '/app/dashboard/pessoal';
-    scope = 'STORE';
-  } else if (user.perfil === 'GESTOR_FRANQUIA') {
-    dashboardHome = '/app/dashboard/operacional';
-    scope = 'STORE';
-  } else if (user.perfil === 'OPERACIONAL') {
-    dashboardHome = '/app/dashboard/pessoal';
-    scope = 'STORE';
   }
   
-  const isGestorDashboard = roleCodes.includes('GESTOR_DASHBOARD');
-  const isAlsoAdmin = user.isAdmin || roleCodes.includes('ADMIN_GLOBAL');
-  const isReadOnly = isGestorDashboard && !isAlsoAdmin;
+  const moduleSummary = {};
+  const moduleViewPermissions = {
+    'DASHBOARD': ['dashboard.view_global', 'dashboard.view_operational', 'dashboard.view_financial', 'dashboard.view_personal'],
+    'CLIENTES': ['customers.view'],
+    'CATALOGO': ['catalog.view'],
+    'SERVICOS': ['services.view'],
+    'VENDAS': ['sales.view'],
+    'ORDEM_SERVICO': ['os.view'],
+    'ESTOQUE_CENTRAL': ['stock_central.view'],
+    'ESTOQUE_LOJA': ['stock_store.view'],
+    'PEDIDOS': ['franchise_orders.view'],
+    'FINANCEIRO': ['finance.view'],
+    'USUARIOS': ['users.view'],
+    'FRANQUIAS': ['franchises.view'],
+    'ANALYTICS': ['analytics.rankings.view', 'analytics.low_movers.view'],
+    'RELATORIOS': ['reports.view'],
+    'CONFIGURACOES': ['settings.view'],
+    'AUDITORIA': ['audit.view']
+  };
+  
+  Object.entries(moduleViewPermissions).forEach(([module, viewPerms]) => {
+    moduleSummary[module] = user.isAdmin || viewPerms.some(p => permissions.includes(p));
+  });
   
   res.json({
     user: {
@@ -143,16 +126,15 @@ router.get('/me', verifyToken, async (req, res) => {
       storeName: user.loja?.nome || null,
       companyId: user.empresa_id,
       perfil: user.perfil,
-      primeiro_acesso: user.primeiro_acesso
+      primeiro_acesso: user.primeiro_acesso,
+      is_admin_global: user.isAdmin || user.perfil === 'ADMIN_GLOBAL'
     },
-    roles: roleCodes,
     permissions: permissions,
+    moduleSummary: moduleSummary,
     scope: scope,
     dashboardHome: dashboardHome,
-    isReadOnly: isReadOnly,
     loja: user.loja,
-    Company: user.Company,
-    permissoes: user.permissoes
+    Company: user.Company
   });
 });
 

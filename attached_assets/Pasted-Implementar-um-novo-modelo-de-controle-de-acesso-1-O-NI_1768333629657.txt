@@ -1,0 +1,193 @@
+Implementar um novo modelo de controle de acesso:
+
+1) O ÚNICO perfil que continua existindo é:
+- ADMIN_GLOBAL (acesso total sempre, não pode ser bloqueado)
+
+2) Para todos os demais usuários NÃO existe perfil/role.
+Eles terão permissões diretas selecionadas no cadastro/edição do usuário.
+
+3) A interface de permissões deve ser organizada por MÓDULO (igual ao menu lateral).
+Cada módulo deve ter:
+- Um checkbox “Selecionar tudo do módulo”
+- Checkboxes individuais por permissão
+Ao marcar “Selecionar tudo do módulo”, marcar automaticamente todas as permissões daquele módulo.
+Ao desmarcar, remover todas as permissões do módulo.
+Se o usuário desmarcar uma permissão individual, o “Selecionar tudo” do módulo deve ficar desmarcado automaticamente.
+
+====================================================================
+A) CATÁLOGO DE PERMISSÕES (por módulo do menu lateral)
+====================================================================
+
+DASHBOARD
+- dashboard.view_global
+- dashboard.view_operational
+- dashboard.view_financial
+- dashboard.view_personal
+
+CLIENTES
+- customers.view
+- customers.manage
+- customers.delete (opcional: recomendado só ADMIN_GLOBAL)
+
+CATÁLOGO (Produtos/Peças/Motos)
+- catalog.view
+- catalog.manage
+- catalog.import_spreadsheet
+- catalog.manage_taxes
+
+SERVIÇOS
+- services.view
+- services.manage
+
+VENDAS
+- sales.view
+- sales.manage
+- sales.apply_discount
+- sales.override_discount_limit (opcional)
+- sales.refund_or_cancel (opcional)
+
+ORDEM DE SERVIÇO (OS)
+- os.view
+- os.manage
+- os.close
+
+ESTOQUE
+CENTRAL (TMimports)
+- stock_central.view
+- stock_central.manage
+- stock_central.transfer_to_store
+LOJA (Tecle Motos)
+- stock_store.view
+- stock_store.manage
+
+PEDIDOS (Franquia -> TMimports)
+- franchise_orders.view
+- franchise_orders.create
+- franchise_orders.approve
+- franchise_orders.invoice
+- franchise_orders.ship
+- franchise_orders.confirm_receipt
+- franchise_orders.cancel
+
+FINANCEIRO (GLOBAL e LOJA – mesmo módulo, muda só o escopo)
+- finance.view
+- finance.manage_payable
+- finance.manage_receivable
+- finance.manage_cashflow
+- finance.manage_recurring
+
+USUÁRIOS
+- users.view
+- users.manage
+- users.permissions_manage
+
+FRANQUIAS/LOJAS (somente TMimports)
+- franchises.view
+- franchises.manage
+
+ANALYTICS
+- analytics.rankings.view
+- analytics.low_movers.view
+
+RELATÓRIOS
+- reports.view
+- reports.export
+
+CONFIGURAÇÕES
+- settings.view
+- settings.manage
+
+AUDITORIA
+- audit.view
+
+ADMIN (somente ADMIN_GLOBAL)
+- admin.seed_reset
+
+====================================================================
+B) BANCO DE DADOS (permissões diretas)
+====================================================================
+Criar/usar tabelas:
+- users (manter campo is_admin_global boolean OU perfil fixo ADMIN_GLOBAL)
+- permissions (key, module, label, description, sort_order)
+- user_permissions (user_id, permission_key)
+
+ADMIN_GLOBAL:
+- bypass total: sempre tem tudo, mesmo sem registros em user_permissions.
+
+====================================================================
+C) BACKEND (SEGURANÇA)
+====================================================================
+Criar middleware:
+- requirePermission("permission.key")
+Regra:
+- Se usuário é ADMIN_GLOBAL => permitir sempre
+- Senão => verificar se permission.key existe em user_permissions
+
+Rotas devem ser protegidas por permissões:
+- Financeiro: exige finance.view e finance.manage_* conforme ação
+- Clientes: customers.view / customers.manage
+- etc
+
+Ao negar acesso:
+- retornar 403
+- registrar auditoria (userId, rota, método, timestamp)
+
+Criar endpoint de debug:
+GET /api/me
+Retorna:
+{
+  user: {id, name, email, scope, store_id, is_admin_global},
+  permissions: [...],
+  moduleSummary: { "FINANCEIRO": true/false, ... } (opcional),
+  dashboardHome: "/app/dashboard/...."
+}
+
+====================================================================
+D) FRONTEND (cadastro/edição do usuário)
+====================================================================
+Na tela de permissões:
+- Exibir por MÓDULO (mesma ordem do menu lateral)
+- Cada módulo com:
+  [ ] Selecionar tudo do módulo
+  lista de permissões individuais
+- Implementar lógica:
+  - marcar “Selecionar tudo” => marca todas as permissões do módulo
+  - desmarcar => limpa todas as permissões do módulo
+  - desmarcar uma permissão individual => “Selecionar tudo” desmarca automaticamente
+- Adicionar botões gerais:
+  - Selecionar tudo (todos módulos)
+  - Somente leitura (marcar apenas permissões *.view)
+  - Limpar tudo
+
+Menu lateral:
+- Mostrar módulo apenas se houver permissão de VIEW daquele módulo
+- Botões de criar/editar só se houver MANAGE do módulo
+
+====================================================================
+E) TECLE MOTOS (LOJA) — FINANCEIRO DO FRANQUEADO
+====================================================================
+Garantir que exista o módulo Financeiro também na área da loja.
+Se o usuário da loja tiver finance.view:
+- mostrar menu Financeiro
+- liberar /pagar, /receber, /fluxo, /recorrencias conforme permissões manage_*
+Isso vale especialmente para o Gestor da franquia: ele deve conseguir ter financeiro da loja quando marcado.
+
+====================================================================
+F) MIGRAÇÃO DOS USUÁRIOS EXISTENTES
+====================================================================
+- Manter ADMIN_GLOBAL como único perfil fixo.
+- Para os demais usuários atuais (que tinham perfis), criar um mapeamento de migração:
+  - converter o “perfil antigo” em permissões equivalentes na tabela user_permissions
+- Depois, remover dependência de perfis antigos no código (exceto ADMIN_GLOBAL).
+
+====================================================================
+G) ENTREGÁVEIS (PROVAS)
+====================================================================
+- Lista de arquivos alterados/criados
+- /api/me funcionando
+- Demonstração (via logs/prints) que:
+  - ADMIN_GLOBAL acessa tudo
+  - um usuário com apenas FINANCEIRO marcado acessa financeiro e não acessa estoque/vendas
+  - marcar “Selecionar tudo do módulo Financeiro” marca todas as permissões financeiras automaticamente
+- Garantir 403 em ações sem permissão
+- Não quebrar funcionalidades existentes

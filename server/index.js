@@ -5,8 +5,9 @@ const bcrypt = require('bcryptjs');
 const cors = require('cors');
 
 const models = require('./models');
-const { sequelize, User, Company, Store, Category, Role, UserRole, Setting } = models;
+const { sequelize, User, Company, Store, Category, Role, UserRole, Setting, Permission } = models;
 const { runSeed } = require('./seed');
+const { seedPermissions, migrateUserPermissions } = require('./seed/seedPermissions');
 
 const { verifyToken, blockGestorDashboardWrite } = require('./middleware/auth');
 const authRoutes = require('./routes/auth');
@@ -205,6 +206,9 @@ async function initializeDatabase() {
     }
 
     await runSeed(models);
+
+    await seedPermissions();
+    await migrateUserPermissions();
 
     // Migrate existing users to UserRole if not already assigned
     const usersWithoutRoles = await User.findAll({

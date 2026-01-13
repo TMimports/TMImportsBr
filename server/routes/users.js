@@ -1,8 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const router = express.Router();
-const { User, Company, Store, AuditLog, Role, UserRole } = require('../models');
-const { verifyToken, isAdminGlobal, isGestorOuAdmin, hasPermission } = require('../middleware/auth');
+const { User, Company, Store, AuditLog, Role, UserRole, Permission, UserPermission } = require('../models');
+const { verifyToken, isAdminGlobal, isGestorOuAdmin } = require('../middleware/auth');
+const { requirePermission, requireAnyPermission } = require('../middleware/permissions');
+const { MODULES_ORDER } = require('../seed/permissionsData');
 
 router.use(verifyToken);
 
@@ -260,6 +262,120 @@ router.delete('/:id', isAdminGlobal, async (req, res) => {
   } catch (error) {
     console.error('Erro ao excluir usuário:', error);
     res.status(500).json({ error: 'Erro ao excluir usuário' });
+  }
+});
+
+router.get('/permissions/catalog', requireAnyPermission('users.view', 'users.permissions_manage'), async (req, res) => {
+  try {
+    const permissions = await Permission.findAll({
+      order: [['sort_order', 'ASC'], ['module', 'ASC']]
+    });
+    
+    const grouped = {};
+    for (const perm of permissions) {
+      if (!grouped[perm.module]) {
+        const moduleInfo = MODULES_ORDER.find(m => m.code === perm.module) || { label: perm.module, icon: 'folder' };
+        grouped[perm.module] = {
+          code: perm.module,
+          label: moduleInfo.label,
+          icon: moduleInfo.icon,
+          permissions: []
+        };
+      }
+      grouped[perm.module].permissions.push({
+        key: perm.key,
+        label: perm.label,
+        description: perm.description
+      });
+    }
+    
+    const modulesOrdered = MODULES_ORDER.filter(m => grouped[m.code]).map(m => grouped[m.code]);
+    
+    res.json({ modules: modulesOrdered });
+  } catch (error) {
+    console.error('Erro ao listar permissões:', error);
+    res.status(500).json({ error: 'Erro ao listar permissões' });
+  }
+});
+
+router.get('/:id/permissions', requireAnyPermission('users.view', 'users.permissions_manage'), async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    
+    if (user.perfil === 'ADMIN_GLOBAL') {
+      return res.json({ permissions: ['*'], isAdminGlobal: true });
+    }
+    
+    const userPerms = await UserPermission.findAll({
+      where: { user_id: user.id },
+      attributes: ['permission_key']
+    });
+    
+    res.json({ 
+      permissions: userPerms.map(p => p.permission_key),
+      isAdminGlobal: false
+    });
+  } catch (error) {
+    console.error('Erro ao buscar permissões do usuário:', error);
+    res.status(500).json({ error: 'Erro ao buscar permissões' });
+  }
+});
+
+router.put('/:id/permissions', requirePermission('users.permissions_manage'), async (req, res) => {
+  try {
+    const { permissions } = req.body;
+    const user = await User.findByPk(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    
+    if (user.perfil === 'ADMIN_GLOBAL') {
+      return res.status(400).json({ error: 'Não é possível alterar permissões do ADMIN_GLOBAL' });
+    }
+    
+    if (!req.user.isAdmin && req.user.perfil !== 'ADMIN_GLOBAL') {
+      if (user.loja_id !== req.user.loja_id) {
+        return res.status(403).json({ error: 'Sem permissão para alterar este usuário' });
+      }
+    }
+    
+    const oldPerms = await UserPermission.findAll({
+      where: { user_id: user.id },
+      attributes: ['permission_key']
+    });
+    
+    await UserPermission.destroy({ where: { user_id: user.id } });
+    
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      const newPerms = permissions.map(perm => ({
+        user_id: user.id,
+        permission_key: perm
+      }));
+      await UserPermission.bulkCreate(newPerms);
+    }
+    
+    await user.update({ 
+      token_version: (user.token_version || 0) + 1,
+      primeiro_acesso: true
+    });
+    
+    await AuditLog.create({
+      user_id: req.user.id,
+      acao: 'UPDATE_PERMISSIONS',
+      entidade: 'users',
+      entidade_id: user.id,
+      dados_anteriores: { permissions: oldPerms.map(p => p.permission_key) },
+      dados_novos: { permissions }
+    });
+    
+    res.json({ message: 'Permissões atualizadas com sucesso' });
+  } catch (error) {
+    console.error('Erro ao atualizar permissões:', error);
+    res.status(500).json({ error: 'Erro ao atualizar permissões' });
   }
 });
 

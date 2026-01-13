@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Store, Company, Role, UserRole, AuditLog } = require('../models');
+const { User, Store, Company, Role, UserRole, AuditLog, UserPermission } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tm-imports-tecle-motos-secret-2024';
 
@@ -80,6 +80,12 @@ const verifyToken = async (req, res, next) => {
     user.aggregatedPermissions = aggregatedPermissions;
     user.isAdmin = isAdmin || user.perfil === 'ADMIN_GLOBAL';
     user.roleCodes = userRoles.map(r => r.codigo);
+
+    const userPerms = await UserPermission.findAll({
+      where: { user_id: user.id },
+      attributes: ['permission_key']
+    });
+    user.permissions = userPerms.map(p => p.permission_key);
 
     req.user = user;
     
