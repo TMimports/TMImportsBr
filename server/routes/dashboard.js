@@ -817,7 +817,11 @@ router.get('/franchise-ranking', async (req, res) => {
     const { range = 'monthly' } = req.query;
     const { inicio, fim } = getDateRange(range);
     
-    if (req.user.perfil !== 'ADMIN_GLOBAL') {
+    const allowedRoles = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'];
+    const userRoles = req.user.roleCodes || [req.user.perfil];
+    const hasAccess = userRoles.some(r => allowedRoles.includes(r)) || req.user.perfil === 'ADMIN_GLOBAL';
+    
+    if (!hasAccess) {
       return res.status(403).json({ error: 'Acesso negado' });
     }
     
@@ -904,7 +908,11 @@ router.get('/franchise-ranking', async (req, res) => {
 
 router.get('/central-inventory-stats', async (req, res) => {
   try {
-    if (req.user.perfil !== 'ADMIN_GLOBAL') {
+    const allowedRoles = ['ADMIN_GLOBAL', 'GESTOR_DASHBOARD'];
+    const userRoles = req.user.roleCodes || [req.user.perfil];
+    const hasAccess = userRoles.some(r => allowedRoles.includes(r)) || req.user.perfil === 'ADMIN_GLOBAL';
+    
+    if (!hasAccess) {
       return res.status(403).json({ error: 'Acesso negado' });
     }
     
