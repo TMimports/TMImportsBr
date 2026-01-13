@@ -57,7 +57,7 @@ router.get('/:id', isGestorOuAdmin, async (req, res) => {
 
     const userRoles = await UserRole.findAll({
       where: { user_id: user.id },
-      include: [{ model: Role }]
+      include: [{ model: Role, as: 'role' }]
     });
 
     res.json({
