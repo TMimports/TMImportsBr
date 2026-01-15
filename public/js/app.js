@@ -823,7 +823,7 @@ function openModal(title, content, size = 'normal') {
   const modal = document.getElementById('modal');
   const dialog = document.getElementById('modalDialog');
   
-  dialog.className = size === 'large' ? 'modal-content large' : 'modal-content';
+  dialog.className = size === 'large' ? 'modal-dialog large' : 'modal-dialog';
   
   dialog.innerHTML = `
     <div class="modal-header">

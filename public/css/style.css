@@ -2132,7 +2132,7 @@ tr:hover td {
 }
 
 /* Modal large variant */
-.modal-content.large {
+.modal-dialog.large {
   max-width: 800px;
   width: 95%;
 }
