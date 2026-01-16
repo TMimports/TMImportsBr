@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { ImportExport } from '../components/ImportExport';
+import { buscarCNPJ, formatCNPJ } from '../services/cnpj';
 
 interface Loja {
   id: number;
@@ -10,25 +11,32 @@ interface Loja {
   nomeFantasia: string;
   endereco: string;
   telefone: string;
+  email: string;
   ativo: boolean;
-  grupo: { nome: string };
 }
+
+const initialForm = {
+  id: 0,
+  cnpj: '',
+  razaoSocial: '',
+  nomeFantasia: '',
+  endereco: '',
+  telefone: '',
+  email: ''
+};
 
 export function Lojas() {
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    cnpj: '',
-    razaoSocial: '',
-    nomeFantasia: '',
-    endereco: '',
-    telefone: '',
-    email: ''
-  });
+  const [buscando, setBuscando] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [form, setForm] = useState(initialForm);
+  const [selecionados, setSelecionados] = useState<number[]>([]);
 
   const loadLojas = () => {
+    setLoading(true);
     api.get<Loja[]>('/lojas')
       .then(setLojas)
       .catch(console.error)
@@ -39,19 +47,106 @@ export function Lojas() {
     loadLojas();
   }, []);
 
+  const handleBuscarCNPJ = async () => {
+    if (!form.cnpj || form.cnpj.replace(/\D/g, '').length !== 14) {
+      alert('Digite um CNPJ valido com 14 digitos');
+      return;
+    }
+    
+    setBuscando(true);
+    const dados = await buscarCNPJ(form.cnpj);
+    setBuscando(false);
+    
+    if (dados) {
+      setForm({
+        ...form,
+        cnpj: dados.cnpj,
+        razaoSocial: dados.razaoSocial,
+        nomeFantasia: dados.nomeFantasia,
+        endereco: dados.endereco,
+        telefone: dados.telefone,
+        email: dados.email
+      });
+    } else {
+      alert('CNPJ nao encontrado na Receita Federal');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/lojas', form);
+      if (editando && form.id) {
+        await api.put(`/lojas/${form.id}`, form);
+      } else {
+        await api.post('/lojas', form);
+      }
       setModalOpen(false);
-      setForm({ cnpj: '', razaoSocial: '', nomeFantasia: '', endereco: '', telefone: '', email: '' });
+      setForm(initialForm);
+      setEditando(false);
       loadLojas();
     } catch (err: any) {
       alert(err.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEditar = (loja: Loja) => {
+    setForm({
+      id: loja.id,
+      cnpj: loja.cnpj,
+      razaoSocial: loja.razaoSocial,
+      nomeFantasia: loja.nomeFantasia || '',
+      endereco: loja.endereco || '',
+      telefone: loja.telefone || '',
+      email: loja.email || ''
+    });
+    setEditando(true);
+    setModalOpen(true);
+  };
+
+  const handleExcluir = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir esta loja?')) return;
+    try {
+      await api.delete(`/lojas/${id}`);
+      loadLojas();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleExcluirSelecionados = async () => {
+    if (selecionados.length === 0) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selecionados.length} loja(s)?`)) return;
+    
+    try {
+      await Promise.all(selecionados.map(id => api.delete(`/lojas/${id}`)));
+      setSelecionados([]);
+      loadLojas();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const toggleSelecao = (id: number) => {
+    setSelecionados(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleTodos = () => {
+    if (selecionados.length === lojas.length) {
+      setSelecionados([]);
+    } else {
+      setSelecionados(lojas.map(l => l.id));
+    }
+  };
+
+  const abrirNovo = () => {
+    setForm(initialForm);
+    setEditando(false);
+    setModalOpen(true);
   };
 
   if (loading) {
@@ -64,7 +159,12 @@ export function Lojas() {
         <h1 className="text-2xl font-bold">Lojas</h1>
         <div className="flex gap-2">
           <ImportExport entity="lojas" onImportSuccess={loadLojas} />
-          <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova Loja</button>
+          {selecionados.length > 0 && (
+            <button onClick={handleExcluirSelecionados} className="btn btn-danger">
+              Excluir ({selecionados.length})
+            </button>
+          )}
+          <button onClick={abrirNovo} className="btn btn-primary">+ Nova Loja</button>
         </div>
       </div>
 
@@ -72,29 +172,56 @@ export function Lojas() {
         <table className="w-full">
           <thead>
             <tr>
+              <th className="text-left p-3 border-b border-zinc-700">
+                <input
+                  type="checkbox"
+                  checked={selecionados.length === lojas.length && lojas.length > 0}
+                  onChange={toggleTodos}
+                  className="rounded"
+                />
+              </th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Nome Fantasia</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">CNPJ</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Telefone</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
             </tr>
           </thead>
           <tbody>
             {lojas.length === 0 ? (
               <tr>
-                <td colSpan={4} className="p-4 text-center text-gray-500">
+                <td colSpan={6} className="p-4 text-center text-gray-500">
                   Nenhuma loja encontrada
                 </td>
               </tr>
             ) : (
               lojas.map(loja => (
-                <tr key={loja.id} className="hover:bg-zinc-700 cursor-pointer">
+                <tr key={loja.id} className="hover:bg-zinc-700">
+                  <td className="p-3 border-b border-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.includes(loja.id)}
+                      onChange={() => toggleSelecao(loja.id)}
+                      className="rounded"
+                    />
+                  </td>
                   <td className="p-3 border-b border-zinc-700">{loja.nomeFantasia || loja.razaoSocial}</td>
-                  <td className="p-3 border-b border-zinc-700 font-mono text-sm">{loja.cnpj}</td>
+                  <td className="p-3 border-b border-zinc-700 font-mono text-sm">{formatCNPJ(loja.cnpj)}</td>
                   <td className="p-3 border-b border-zinc-700">{loja.telefone || '-'}</td>
                   <td className="p-3 border-b border-zinc-700">
                     <span className={`badge ${loja.ativo ? 'badge-success' : 'badge-danger'}`}>
                       {loja.ativo ? 'Ativa' : 'Inativa'}
                     </span>
+                  </td>
+                  <td className="p-3 border-b border-zinc-700">
+                    <div className="table-actions">
+                      <button onClick={() => handleEditar(loja)} className="btn btn-sm btn-secondary">
+                        Editar
+                      </button>
+                      <button onClick={() => handleExcluir(loja.id)} className="btn btn-sm btn-danger">
+                        Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -103,18 +230,29 @@ export function Lojas() {
         </table>
       </div>
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nova Loja">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Loja' : 'Nova Loja'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">CNPJ *</label>
-            <input
-              type="text"
-              value={form.cnpj}
-              onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
-              className="input"
-              placeholder="00.000.000/0000-00"
-              required
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={form.cnpj}
+                onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+                className="input"
+                placeholder="00.000.000/0000-00"
+                required
+              />
+              <button
+                type="button"
+                onClick={handleBuscarCNPJ}
+                disabled={buscando}
+                className="btn btn-secondary whitespace-nowrap"
+              >
+                {buscando ? 'Buscando...' : 'Buscar'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Clique em Buscar para preencher automaticamente</p>
           </div>
           <div>
             <label className="label">Razao Social *</label>
@@ -144,23 +282,25 @@ export function Lojas() {
               className="input"
             />
           </div>
-          <div>
-            <label className="label">Telefone</label>
-            <input
-              type="text"
-              value={form.telefone}
-              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-              className="input"
-            />
-          </div>
-          <div>
-            <label className="label">Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="input"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Telefone</label>
+              <input
+                type="text"
+                value={form.telefone}
+                onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="label">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="input"
+              />
+            </div>
           </div>
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">

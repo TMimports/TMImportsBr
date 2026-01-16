@@ -9,7 +9,6 @@ interface Usuario {
   role: string;
   ativo: boolean;
   loja?: { nomeFantasia: string };
-  grupo?: { nome: string };
 }
 
 interface Loja {
@@ -17,21 +16,43 @@ interface Loja {
   nomeFantasia: string;
 }
 
+const initialForm = {
+  id: 0,
+  nome: '',
+  email: '',
+  senha: '',
+  role: 'VENDEDOR',
+  lojaId: ''
+};
+
+const roleLabels: Record<string, string> = {
+  ADMIN_GERAL: 'Administrador Geral',
+  ADMIN_REDE: 'Administrador de Rede',
+  DONO_LOJA: 'Dono da Loja',
+  GERENTE_LOJA: 'Gerente da Loja',
+  VENDEDOR: 'Vendedor'
+};
+
+const roleDescriptions: Record<string, string> = {
+  ADMIN_GERAL: 'Define produtos, servicos, precos, margens, regras, comissoes. Ve tudo.',
+  ADMIN_REDE: 'Cria grupos, lojas, usuarios. Vincula lojas a donos. Nao mexe em preco.',
+  DONO_LOJA: 'Ve sua loja: estoque, vendas, OS, financeiro, comissoes da equipe.',
+  GERENTE_LOJA: 'Opera vendas, OS, clientes. Confirma pagamentos. Nao altera precos.',
+  VENDEDOR: 'Cria vendas, OS, orcamentos. Atende clientes. Ve apenas suas comissoes.'
+};
+
 export function Usuarios() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    nome: '',
-    email: '',
-    senha: '',
-    role: 'VENDEDOR',
-    lojaId: ''
-  });
+  const [editando, setEditando] = useState(false);
+  const [form, setForm] = useState(initialForm);
+  const [selecionados, setSelecionados] = useState<number[]>([]);
 
   const loadData = () => {
+    setLoading(true);
     Promise.all([
       api.get<Usuario[]>('/usuarios'),
       api.get<Loja[]>('/lojas')
@@ -52,12 +73,22 @@ export function Usuarios() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/usuarios', {
-        ...form,
+      const dados = {
+        nome: form.nome,
+        email: form.email,
+        senha: form.senha || undefined,
+        role: form.role,
         lojaId: form.lojaId ? parseInt(form.lojaId) : null
-      });
+      };
+      
+      if (editando && form.id) {
+        await api.put(`/usuarios/${form.id}`, dados);
+      } else {
+        await api.post('/usuarios', dados);
+      }
       setModalOpen(false);
-      setForm({ nome: '', email: '', senha: '', role: 'VENDEDOR', lojaId: '' });
+      setForm(initialForm);
+      setEditando(false);
       loadData();
     } catch (err: any) {
       alert(err.message);
@@ -66,12 +97,60 @@ export function Usuarios() {
     }
   };
 
-  const roleLabels: Record<string, string> = {
-    ADMIN_GERAL: 'Admin Geral',
-    ADMIN_REDE: 'Admin Rede',
-    DONO_LOJA: 'Dono de Loja',
-    GERENTE_LOJA: 'Gerente',
-    VENDEDOR: 'Vendedor'
+  const handleEditar = (usuario: Usuario) => {
+    setForm({
+      id: usuario.id,
+      nome: usuario.nome,
+      email: usuario.email,
+      senha: '',
+      role: usuario.role,
+      lojaId: ''
+    });
+    setEditando(true);
+    setModalOpen(true);
+  };
+
+  const handleExcluir = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este usuario?')) return;
+    try {
+      await api.delete(`/usuarios/${id}`);
+      loadData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleExcluirSelecionados = async () => {
+    if (selecionados.length === 0) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selecionados.length} usuario(s)?`)) return;
+    
+    try {
+      await Promise.all(selecionados.map(id => api.delete(`/usuarios/${id}`)));
+      setSelecionados([]);
+      loadData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const toggleSelecao = (id: number) => {
+    setSelecionados(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleTodos = () => {
+    if (selecionados.length === usuarios.length) {
+      setSelecionados([]);
+    } else {
+      setSelecionados(usuarios.map(u => u.id));
+    }
+  };
+
+  const abrirNovo = () => {
+    setForm(initialForm);
+    setEditando(false);
+    setModalOpen(true);
   };
 
   if (loading) {
@@ -82,30 +161,54 @@ export function Usuarios() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Usuarios</h1>
-        <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Novo Usuario</button>
+        <div className="flex gap-2">
+          {selecionados.length > 0 && (
+            <button onClick={handleExcluirSelecionados} className="btn btn-danger">
+              Excluir ({selecionados.length})
+            </button>
+          )}
+          <button onClick={abrirNovo} className="btn btn-primary">+ Novo Usuario</button>
+        </div>
       </div>
 
       <div className="card">
         <table className="w-full">
           <thead>
             <tr>
+              <th className="text-left p-3 border-b border-zinc-700">
+                <input
+                  type="checkbox"
+                  checked={selecionados.length === usuarios.length && usuarios.length > 0}
+                  onChange={toggleTodos}
+                  className="rounded"
+                />
+              </th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Nome</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Email</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Perfil</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Loja</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
             </tr>
           </thead>
           <tbody>
             {usuarios.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-4 text-center text-gray-500">
+                <td colSpan={7} className="p-4 text-center text-gray-500">
                   Nenhum usuario encontrado
                 </td>
               </tr>
             ) : (
               usuarios.map(usuario => (
-                <tr key={usuario.id} className="hover:bg-zinc-700 cursor-pointer">
+                <tr key={usuario.id} className="hover:bg-zinc-700">
+                  <td className="p-3 border-b border-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.includes(usuario.id)}
+                      onChange={() => toggleSelecao(usuario.id)}
+                      className="rounded"
+                    />
+                  </td>
                   <td className="p-3 border-b border-zinc-700">{usuario.nome}</td>
                   <td className="p-3 border-b border-zinc-700">{usuario.email}</td>
                   <td className="p-3 border-b border-zinc-700">
@@ -117,6 +220,16 @@ export function Usuarios() {
                       {usuario.ativo ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
+                  <td className="p-3 border-b border-zinc-700">
+                    <div className="table-actions">
+                      <button onClick={() => handleEditar(usuario)} className="btn btn-sm btn-secondary">
+                        Editar
+                      </button>
+                      <button onClick={() => handleExcluir(usuario.id)} className="btn btn-sm btn-danger">
+                        Excluir
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
@@ -124,7 +237,7 @@ export function Usuarios() {
         </table>
       </div>
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Novo Usuario">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Usuario' : 'Novo Usuario'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Nome *</label>
@@ -147,13 +260,13 @@ export function Usuarios() {
             />
           </div>
           <div>
-            <label className="label">Senha *</label>
+            <label className="label">{editando ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}</label>
             <input
               type="password"
               value={form.senha}
               onChange={(e) => setForm({ ...form, senha: e.target.value })}
               className="input"
-              required
+              required={!editando}
             />
           </div>
           <div>
@@ -164,11 +277,14 @@ export function Usuarios() {
               className="input"
             >
               <option value="VENDEDOR">Vendedor</option>
-              <option value="GERENTE_LOJA">Gerente</option>
-              <option value="DONO_LOJA">Dono de Loja</option>
-              <option value="ADMIN_REDE">Admin Rede</option>
-              <option value="ADMIN_GERAL">Admin Geral</option>
+              <option value="GERENTE_LOJA">Gerente da Loja</option>
+              <option value="DONO_LOJA">Dono da Loja</option>
+              <option value="ADMIN_REDE">Administrador de Rede</option>
+              <option value="ADMIN_GERAL">Administrador Geral</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1">
+              {roleDescriptions[form.role]}
+            </p>
           </div>
           <div>
             <label className="label">Loja</label>

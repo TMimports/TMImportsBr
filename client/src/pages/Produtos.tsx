@@ -11,16 +11,28 @@ interface Produto {
   custo: number;
   percentualLucro: number;
   preco: number;
+  descricao: string;
 }
+
+const initialForm = {
+  id: 0,
+  nome: '',
+  tipo: 'PECA',
+  custo: '',
+  descricao: ''
+};
 
 export function Produtos() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ nome: '', tipo: 'PECA', custo: '', descricao: '' });
+  const [editando, setEditando] = useState(false);
+  const [form, setForm] = useState(initialForm);
+  const [selecionados, setSelecionados] = useState<number[]>([]);
 
   const loadProdutos = () => {
+    setLoading(true);
     api.get<Produto[]>('/produtos')
       .then(setProdutos)
       .catch(console.error)
@@ -31,16 +43,30 @@ export function Produtos() {
     loadProdutos();
   }, []);
 
+  const calcularPreco = (custo: number, tipo: string) => {
+    const percentualCusto = tipo === 'MOTO' ? 0.7368 : 0.40;
+    return custo / percentualCusto;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/produtos', {
-        ...form,
-        custo: parseFloat(form.custo)
-      });
+      const dados = {
+        nome: form.nome,
+        tipo: form.tipo,
+        custo: parseFloat(form.custo),
+        descricao: form.descricao
+      };
+      
+      if (editando && form.id) {
+        await api.put(`/produtos/${form.id}`, dados);
+      } else {
+        await api.post('/produtos', dados);
+      }
       setModalOpen(false);
-      setForm({ nome: '', tipo: 'PECA', custo: '', descricao: '' });
+      setForm(initialForm);
+      setEditando(false);
       loadProdutos();
     } catch (err: any) {
       alert(err.message);
@@ -48,6 +74,63 @@ export function Produtos() {
       setSaving(false);
     }
   };
+
+  const handleEditar = (produto: Produto) => {
+    setForm({
+      id: produto.id,
+      nome: produto.nome,
+      tipo: produto.tipo,
+      custo: String(produto.custo),
+      descricao: produto.descricao || ''
+    });
+    setEditando(true);
+    setModalOpen(true);
+  };
+
+  const handleExcluir = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este produto?')) return;
+    try {
+      await api.delete(`/produtos/${id}`);
+      loadProdutos();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleExcluirSelecionados = async () => {
+    if (selecionados.length === 0) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selecionados.length} produto(s)?`)) return;
+    
+    try {
+      await Promise.all(selecionados.map(id => api.delete(`/produtos/${id}`)));
+      setSelecionados([]);
+      loadProdutos();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const toggleSelecao = (id: number) => {
+    setSelecionados(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleTodos = () => {
+    if (selecionados.length === produtos.length) {
+      setSelecionados([]);
+    } else {
+      setSelecionados(produtos.map(p => p.id));
+    }
+  };
+
+  const abrirNovo = () => {
+    setForm(initialForm);
+    setEditando(false);
+    setModalOpen(true);
+  };
+
+  const precoCalculado = form.custo ? calcularPreco(parseFloat(form.custo), form.tipo) : 0;
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Carregando...</div>;
@@ -59,7 +142,12 @@ export function Produtos() {
         <h1 className="text-2xl font-bold">Produtos</h1>
         <div className="flex gap-2">
           <ImportExport entity="produtos" onImportSuccess={loadProdutos} />
-          <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Novo Produto</button>
+          {selecionados.length > 0 && (
+            <button onClick={handleExcluirSelecionados} className="btn btn-danger">
+              Excluir ({selecionados.length})
+            </button>
+          )}
+          <button onClick={abrirNovo} className="btn btn-primary">+ Novo Produto</button>
         </div>
       </div>
 
@@ -67,24 +155,41 @@ export function Produtos() {
         <table className="w-full">
           <thead>
             <tr>
+              <th className="text-left p-3 border-b border-zinc-700">
+                <input
+                  type="checkbox"
+                  checked={selecionados.length === produtos.length && produtos.length > 0}
+                  onChange={toggleTodos}
+                  className="rounded"
+                />
+              </th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Codigo</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Nome</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Tipo</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Custo</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Lucro %</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Preco</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
             </tr>
           </thead>
           <tbody>
             {produtos.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">
+                <td colSpan={8} className="p-4 text-center text-gray-500">
                   Nenhum produto encontrado
                 </td>
               </tr>
             ) : (
               produtos.map(produto => (
-                <tr key={produto.id} className="hover:bg-zinc-700 cursor-pointer">
+                <tr key={produto.id} className="hover:bg-zinc-700">
+                  <td className="p-3 border-b border-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.includes(produto.id)}
+                      onChange={() => toggleSelecao(produto.id)}
+                      className="rounded"
+                    />
+                  </td>
                   <td className="p-3 border-b border-zinc-700 font-mono text-sm">{produto.codigo}</td>
                   <td className="p-3 border-b border-zinc-700">{produto.nome}</td>
                   <td className="p-3 border-b border-zinc-700">
@@ -99,6 +204,16 @@ export function Produtos() {
                   <td className="p-3 border-b border-zinc-700 font-semibold text-green-400">
                     R$ {Number(produto.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </td>
+                  <td className="p-3 border-b border-zinc-700">
+                    <div className="table-actions">
+                      <button onClick={() => handleEditar(produto)} className="btn btn-sm btn-secondary">
+                        Editar
+                      </button>
+                      <button onClick={() => handleExcluir(produto.id)} className="btn btn-sm btn-danger">
+                        Excluir
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
@@ -106,7 +221,7 @@ export function Produtos() {
         </table>
       </div>
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Novo Produto">
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Produto' : 'Novo Produto'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Nome *</label>
@@ -125,12 +240,9 @@ export function Produtos() {
               onChange={(e) => setForm({ ...form, tipo: e.target.value })}
               className="input"
             >
-              <option value="MOTO">Moto (26.32% lucro)</option>
-              <option value="PECA">Peca (60% lucro)</option>
+              <option value="MOTO">Moto (Lucro 26,32% | Custo 73,68%)</option>
+              <option value="PECA">Peca (Lucro 60% | Custo 40%)</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">
-              O preco e calculado automaticamente com base no tipo
-            </p>
           </div>
           <div>
             <label className="label">Custo (R$) *</label>
@@ -143,6 +255,17 @@ export function Produtos() {
               required
             />
           </div>
+          {form.custo && (
+            <div className="p-3 bg-zinc-700 rounded-lg">
+              <p className="text-sm text-gray-400">Preco calculado automaticamente:</p>
+              <p className="text-xl font-bold text-green-400">
+                R$ {precoCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-gray-500">
+                Formula: Custo / {form.tipo === 'MOTO' ? '73,68%' : '40%'} = Preco
+              </p>
+            </div>
+          )}
           <div>
             <label className="label">Descricao</label>
             <textarea
