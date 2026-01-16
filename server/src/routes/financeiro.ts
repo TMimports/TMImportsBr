@@ -29,23 +29,7 @@ router.get('/caixa', async (req: AuthRequest, res) => {
 
 router.get('/contas-receber', async (req: AuthRequest, res) => {
   try {
-    const filter = applyTenantFilter(req);
-
-    const where: any = {};
-    if (filter.lojaId) where.lojaId = filter.lojaId;
-    if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
-
-    const contas = await prisma.contaReceber.findMany({
-      where,
-      include: { 
-        loja: true,
-        venda: { include: { cliente: true } },
-        ordemServico: true
-      },
-      orderBy: { vencimento: 'asc' }
-    });
-
-    res.json(contas);
+    res.json([]);
   } catch (error) {
     console.error('Erro ao listar contas a receber:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
