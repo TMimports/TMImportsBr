@@ -122,4 +122,29 @@ router.put('/:id', requireAdminRede, async (req, res) => {
   }
 });
 
+router.delete('/:id', requireAdminRede, async (req, res) => {
+  try {
+    const lojaId = Number(req.params.id);
+
+    const usuariosCount = await prisma.usuario.count({ where: { lojaId } });
+    if (usuariosCount > 0) {
+      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${usuariosCount} usuario(s) vinculado(s) a esta loja.` });
+    }
+
+    const unidadesCount = await prisma.unidadeFisica.count({ where: { lojaId } });
+    if (unidadesCount > 0) {
+      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${unidadesCount} unidade(s) vinculada(s) a esta loja.` });
+    }
+
+    await prisma.loja.delete({ where: { id: lojaId } });
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Erro ao excluir loja:', error);
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Nao e possivel excluir. Existem registros vinculados a esta loja.' });
+    }
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;
