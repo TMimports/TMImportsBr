@@ -1,0 +1,308 @@
+Você é um engenheiro de software sênior. Construa um ERP WEB chamado “Sistema Integrado de Gestão – Tecle Motos | TM Imports” no Replit.
+
+REGRA ABSOLUTA (CONTRATO):
+- Implementar EXATAMENTE o que está especificado neste prompt — nem mais, nem menos.
+- NÃO inventar módulos, campos, integrações, relatórios, automações, telas ou regras não descritas.
+- Se algo estiver ambíguo, escolha a opção mais simples e mínima que atenda o texto (sem expandir escopo).
+- Antes de codar, escreva um “Mapa de Requisitos” (lista numerada) e depois implemente item por item.
+
+STACK (sem discutir alternativas):
+- Frontend: React (Vite) + TypeScript
+- UI: Tailwind CSS
+- Backend: Node.js + Express
+- Banco: PostgreSQL (use ORM Prisma)
+- Auth: login por email + senha (hash bcrypt) + sessão por JWT
+- Deploy: rodar no Replit (scripts de start/dev)
+NÃO adicionar bibliotecas extras que não sejam necessárias.
+
+ARQUITETURA OBRIGATÓRIA:
+1) Banco com migrações Prisma
+2) Backend com rotas REST organizadas por módulo
+3) Middleware de autenticação e middleware de autorização (RBAC + escopo por Grupo/Loja)
+4) Frontend com rotas protegidas por perfil
+5) Auditoria mínima: createdAt/updatedAt e createdBy em entidades principais (sem logs avançados)
+
+========================
+1) MULTI-TENANT (GRUPO / LOJA) – ISOLAMENTO
+========================
+Entidades:
+- Grupo (dono)
+- Loja (pertence a 1 Grupo)
+
+Regras:
+- Usuários de um Grupo NÃO enxergam dados de outros Grupos.
+- Existe “Gerente Geral do Grupo” que enxerga todas as lojas do MESMO grupo.
+- Todas as queries do backend devem aplicar filtro de tenant (grupoId e/ou lojaId) conforme perfil.
+
+========================
+2) PERFIS (RBAC)
+========================
+Perfis e permissões:
+
+A) Administrador Geral do Sistema:
+- Pode definir Produtos, Serviços, Preços, Margens, Regras, Comissões
+- Enxerga tudo no sistema
+
+B) Administrador de Rede:
+- Cria Grupos, Lojas, Usuários
+- Vincula lojas a grupos
+- NÃO pode mexer em preço
+
+C) Dono da Loja:
+- Vê somente sua loja: Estoque, Vendas, OS, Financeiro, Comissões da equipe
+
+D) Gerente da Loja:
+- Opera Vendas, OS, Clientes
+- Confirma pagamentos (financeiro)
+- NÃO altera preços
+
+E) Vendedor:
+- Cria Vendas, OS e Orçamentos
+- Vê apenas suas comissões
+
+F) Técnico:
+- NÃO usa o sistema (não criar login/telas para técnico)
+
+Implementação:
+- Tabela User com role e vínculo com grupoId e/ou lojaId conforme papel.
+- Middleware RBAC por rota + checagem de escopo.
+
+========================
+3) CRIAÇÃO DE LOJA COM CNPJ (CONSULTA RECEITA)
+========================
+Tela/fluxo somente para Administrador de Rede:
+1) Informar CNPJ
+2) Consultar Receita Federal e preencher: razão social, nome fantasia, endereço
+3) Admin confirma
+4) Define Grupo dono
+5) Loja criada
+
+IMPORTANTE:
+- Se não houver API oficial disponível no ambiente, implemente “consulta” como integração via endpoint configurável (ENV) + fallback de preenchimento manual, mas mantendo a etapa “Consultar” e o preenchimento automático quando a API responder.
+- Não adicionar serviços externos extras além do estritamente necessário.
+
+========================
+4) PRODUTOS (MODELO)
+========================
+Produto (modelo):
+- Código automático
+- Nome
+- Tipo: moto | peça
+- Custo
+- Percentual de lucro
+- Preço calculado
+
+Fórmula:
+Preço = Custo ÷ Percentual de custo
+
+Padrões por tipo:
+- Moto: lucro 26,32% e percentual de custo 73,68%
+- Peça: lucro 60% e percentual de custo 40%
+- Permitir alterar manualmente (preço e/ou lucro)
+
+Importar/Exportar CSV com colunas:
+Código | Produto | Custo | Lucro % | Preço
+
+Regras:
+- Administrador de Rede NÃO altera preço.
+- Apenas Admin Geral pode definir regras de preço/margem global.
+
+========================
+5) UNIDADE FÍSICA (MOTO / PEÇA SERIADA)
+========================
+Para cada moto ou peça seriada: “Unidade Física”
+Campos:
+- produtoId (modelo)
+- cor
+- chassi
+- codigoMotor
+- ano
+- numeroSerie (opcional)
+- status: estoque | vendida | manutenção | reservada
+- lojaId
+
+Regra:
+- Venda de moto exige selecionar a Unidade Física.
+- Ao vender, status da unidade física vira “vendida”.
+
+========================
+6) ESTOQUE
+========================
+Por loja:
+- produtoId
+- quantidade
+- estoqueMinimo
+- estoqueMaximo
+- alertas de mínimo
+
+Consulta entre lojas do MESMO grupo.
+
+Transferência (somente entre lojas do mesmo grupo):
+- Solicitar
+- Aprovar
+- Registrar saída e entrada
+
+Regra: NÃO existe venda entre lojas.
+
+========================
+7) SERVIÇOS
+========================
+Serviços por tempo (interno):
+- 15 min = 70
+- 30 min = 140
+- 45 min = 270
+- 60 min = 330
+Para cliente: mostrar como “Mão de Obra”.
+
+Serviços fixos:
+- Revitalização 1290
+- Manutenção motor 1200
+- Manutenção módulo 1000
+- Revisão 350
+- Pneu dianteiro 150
+- Pneu traseiro 290
+- Solda 250
+
+Permitir criar novos serviços.
+
+========================
+8) ORDEM DE SERVIÇO (OS)
+========================
+Status: Orçamento | Em execução | Executada
+
+Campos:
+- número
+- data
+- cliente
+- moto (referência ou descrição mínima)
+- técnico (campo texto ou referência simples; técnico não loga)
+- serviços (itens)
+- produtos (itens)
+- valor total
+- garantia: 3 meses (padrão fixo)
+- observações
+- status
+
+Regra: desconto máximo na OS = 10%.
+
+Ações:
+- “Enviar por email” (envio simples)
+- “Enviar por WhatsApp” (link de compartilhamento com texto pronto, sem integração extra)
+- “Imprimir” (página de impressão)
+
+========================
+9) VENDAS
+========================
+Tipo: Venda | Orçamento
+
+Fluxo:
+- Seleciona cliente
+- Seleciona vendedor
+- Seleciona produto(s)
+- Se produto for moto: selecionar Unidade Física e puxar cor/chassi/motor/ano
+
+Desconto máximo por item:
+- Moto: 3,5%
+- Peça: 10%
+- Serviço: 10%
+
+Pagamento:
+- Pix, Dinheiro, Cartão
+
+Regras:
+- Desconto apenas para Pix e Dinheiro
+- Cartão sempre no valor base (sem desconto)
+- Parcelamento: apenas campo informativo (“calculado pela máquina”)
+- Loja recebe 100% na hora (apenas registro)
+
+========================
+10) GARANTIAS E REVISÕES (POR MOTO)
+========================
+- Garantia geral: 3 meses
+- Garantia 1 ano: motor, módulo, bateria
+- Para ter 1 ano: revisões a cada 3 meses
+- 1ª revisão grátis; demais pagas
+
+Controlar por moto:
+- datas de revisões
+- quantidade
+- status de garantia
+
+Alertas:
+- 20 dias antes
+- todo dia até o prazo
+
+Tela:
+- Agendamento de revisões
+
+========================
+11) FINANCEIRO
+========================
+- Caixa por loja
+- Venda/OS só entra no caixa após CONFIRMAÇÃO do financeiro (feito por Gerente da Loja, conforme RBAC)
+
+Formas: Pix, Dinheiro, Cartão
+
+Contas a pagar (categorias fixas):
+- Luz, Água, Gás, Internet, Aluguel, IPTU, Condomínio, Fornecedores, Outros
+
+Campos:
+- descrição
+- valor
+- vencimento
+- recorrente (sim/não)
+
+Alertas:
+- 5 dias antes
+- todo dia até pagar
+- ícone visual no sistema
+
+========================
+12) COMISSÕES
+========================
+Técnico:
+- 25% sobre mão de obra
+- nunca sobre peça
+- nunca estorna após execução
+
+Vendedor:
+- 1% sobre venda de moto
+- checkbox “permitir comissão em peça” (apenas checkbox + base para lógica; padrão DESLIGADO)
+
+Período:
+- semanal, quinzenal, mensal
+
+========================
+13) DASHBOARDS POR PERFIL
+========================
+- Admin Geral: visão total
+- Dono da Loja: vendas, OS, garantias, revisões, estoque, financeiro
+- Gerente: operação diária
+- Vendedor: suas vendas, suas OS, suas comissões, revisões a agendar
+- Financeiro: caixa, contas, comissões + alertas visuais (OS abertas, revisões vencendo, estoque mínimo, contas a pagar)
+
+========================
+14) FORA DO ESCOPO (NÃO IMPLEMENTAR)
+========================
+- NF-e/fiscal
+- contabilidade
+- CRM/marketing
+- automações extras
+- telas para técnico operar
+- venda entre lojas
+
+========================
+ENTREGÁVEIS OBRIGATÓRIOS
+========================
+1) Código completo (frontend + backend + prisma)
+2) Scripts: dev, build, start
+3) Seed de dados mínimo: 1 grupo, 1 loja, 1 admin geral, 1 admin rede, 1 dono, 1 gerente, 1 vendedor; + serviços fixos e por tempo
+4) Checklist de aceite: liste 25 testes manuais curtos validando regras (descontos, RBAC, confirmação financeira, alertas, isolamento por grupo, venda com unidade física etc.)
+5) Não criar nada além do que foi pedido.
+
+COMECE AGORA:
+- Passo 1: Escreva o “Mapa de Requisitos” numerado (com base no prompt).
+- Passo 2: Desenhe o schema Prisma.
+- Passo 3: Implemente backend.
+- Passo 4: Implemente frontend.
+- Passo 5: Gere seed e checklist.

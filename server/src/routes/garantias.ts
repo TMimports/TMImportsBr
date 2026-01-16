@@ -1,0 +1,149 @@
+import { Router } from 'express';
+import { prisma } from '../index.js';
+import { verifyToken, AuthRequest } from '../middleware/auth.js';
+
+const router = Router();
+
+router.use(verifyToken);
+
+router.get('/', async (req: AuthRequest, res) => {
+  try {
+    const garantias = await prisma.garantia.findMany({
+      include: { unidadeFisica: { include: { produto: true, loja: true } } },
+      orderBy: { dataFim: 'asc' }
+    });
+
+    res.json(garantias);
+  } catch (error) {
+    console.error('Erro ao listar garantias:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/alertas', async (req: AuthRequest, res) => {
+  try {
+    const hoje = new Date();
+    const limite = new Date();
+    limite.setDate(limite.getDate() + 20);
+
+    const garantias = await prisma.garantia.findMany({
+      where: {
+        ativa: true,
+        dataFim: { gte: hoje, lte: limite }
+      },
+      include: { unidadeFisica: { include: { produto: true } } },
+      orderBy: { dataFim: 'asc' }
+    });
+
+    res.json(garantias);
+  } catch (error) {
+    console.error('Erro ao listar alertas:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.post('/', async (req: AuthRequest, res) => {
+  try {
+    const { unidadeFisicaId, tipoGarantia, meses } = req.body;
+
+    const dataInicio = new Date();
+    const dataFim = new Date();
+    dataFim.setMonth(dataFim.getMonth() + Number(meses));
+
+    const garantia = await prisma.garantia.create({
+      data: {
+        unidadeFisicaId: Number(unidadeFisicaId),
+        tipoGarantia,
+        meses: Number(meses),
+        dataInicio,
+        dataFim
+      }
+    });
+
+    res.status(201).json(garantia);
+  } catch (error) {
+    console.error('Erro ao criar garantia:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/revisoes', async (req: AuthRequest, res) => {
+  try {
+    const revisoes = await prisma.revisao.findMany({
+      include: { unidadeFisica: { include: { produto: true } } },
+      orderBy: { dataAgendada: 'asc' }
+    });
+
+    res.json(revisoes);
+  } catch (error) {
+    console.error('Erro ao listar revisões:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/revisoes/alertas', async (req: AuthRequest, res) => {
+  try {
+    const hoje = new Date();
+    const limite = new Date();
+    limite.setDate(limite.getDate() + 20);
+
+    const revisoes = await prisma.revisao.findMany({
+      where: {
+        dataRealizada: null,
+        dataAgendada: { gte: hoje, lte: limite }
+      },
+      include: { unidadeFisica: { include: { produto: true } } },
+      orderBy: { dataAgendada: 'asc' }
+    });
+
+    res.json(revisoes);
+  } catch (error) {
+    console.error('Erro ao listar alertas:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.post('/revisoes', async (req: AuthRequest, res) => {
+  try {
+    const { unidadeFisicaId, dataAgendada, gratuita, valor } = req.body;
+
+    const ultimaRevisao = await prisma.revisao.findFirst({
+      where: { unidadeFisicaId: Number(unidadeFisicaId) },
+      orderBy: { numero: 'desc' }
+    });
+
+    const numero = (ultimaRevisao?.numero || 0) + 1;
+    const isGratuita = numero === 1 || gratuita;
+
+    const revisao = await prisma.revisao.create({
+      data: {
+        unidadeFisicaId: Number(unidadeFisicaId),
+        numero,
+        dataAgendada: new Date(dataAgendada),
+        gratuita: isGratuita,
+        valor: isGratuita ? null : (valor ? Number(valor) : null)
+      }
+    });
+
+    res.status(201).json(revisao);
+  } catch (error) {
+    console.error('Erro ao agendar revisão:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.put('/revisoes/:id/realizar', async (req: AuthRequest, res) => {
+  try {
+    const revisao = await prisma.revisao.update({
+      where: { id: Number(req.params.id) },
+      data: { dataRealizada: new Date() }
+    });
+
+    res.json(revisao);
+  } catch (error) {
+    console.error('Erro ao realizar revisão:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+export default router;

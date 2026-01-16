@@ -1,32 +1,33 @@
 {
-  "name": "tecle-motos",
+  "name": "tecle-motos-erp",
   "version": "1.0.0",
-  "description": "Dashboard de Mobilidade Elétrica - Gestão de motos e scooters elétricas",
-  "main": "index.js",
+  "description": "Sistema Integrado de Gestão - Tecle Motos | TM Imports",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "tsx watch server/src/index.ts",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "tsx server/src/index.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx server/prisma/seed.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "@types/node": "^22.13.11",
-    "bcryptjs": "^3.0.3",
-    "chart.js": "^4.5.1",
-    "cookie-parser": "^1.4.7",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "csrf-csrf": "^4.0.3",
-    "ejs": "^3.1.10",
-    "express": "^5.2.1",
-    "express-session": "^1.18.2",
-    "jsonwebtoken": "^9.0.3",
-    "multer": "^2.0.2",
-    "pdfkit": "^0.17.2",
-    "pg": "^8.16.3",
-    "pg-hstore": "^2.3.4",
-    "sequelize": "^6.37.7",
-    "sqlite3": "^5.1.7",
-    "xlsx": "^0.18.5"
+    "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.19.7",
+    "concurrently": "^9.2.1",
+    "prisma": "^5.22.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

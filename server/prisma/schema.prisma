@@ -1,0 +1,391 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN_GERAL
+  ADMIN_REDE
+  DONO_LOJA
+  GERENTE_LOJA
+  VENDEDOR
+}
+
+enum TipoProduto {
+  MOTO
+  PECA
+}
+
+enum StatusUnidade {
+  ESTOQUE
+  VENDIDA
+  MANUTENCAO
+  RESERVADA
+}
+
+enum StatusOS {
+  ORCAMENTO
+  EM_EXECUCAO
+  EXECUTADA
+}
+
+enum TipoVenda {
+  VENDA
+  ORCAMENTO
+}
+
+enum FormaPagamento {
+  PIX
+  DINHEIRO
+  CARTAO
+}
+
+enum StatusTransferencia {
+  SOLICITADA
+  APROVADA
+  REJEITADA
+  CONCLUIDA
+}
+
+enum CategoriaConta {
+  LUZ
+  AGUA
+  GAS
+  INTERNET
+  ALUGUEL
+  IPTU
+  CONDOMINIO
+  FORNECEDORES
+  OUTROS
+}
+
+enum PeriodoComissao {
+  SEMANAL
+  QUINZENAL
+  MENSAL
+}
+
+model Grupo {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  lojas     Loja[]
+  usuarios  User[]
+}
+
+model Loja {
+  id           Int      @id @default(autoincrement())
+  cnpj         String   @unique
+  razaoSocial  String
+  nomeFantasia String?
+  endereco     String?
+  telefone     String?
+  email        String?
+  ativo        Boolean  @default(true)
+  grupoId      Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  grupo        Grupo    @relation(fields: [grupoId], references: [id])
+  usuarios     User[]
+  estoques     Estoque[]
+  unidades     UnidadeFisica[]
+  vendas       Venda[]
+  ordensServico OrdemServico[]
+  caixa        Caixa[]
+  contasPagar  ContaPagar[]
+  transferenciasOrigem  Transferencia[] @relation("TransferenciaOrigem")
+  transferenciasDestino Transferencia[] @relation("TransferenciaDestino")
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  email       String   @unique
+  senha       String
+  role        Role
+  ativo       Boolean  @default(true)
+  grupoId     Int?
+  lojaId      Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   Int?
+  
+  grupo       Grupo?   @relation(fields: [grupoId], references: [id])
+  loja        Loja?    @relation(fields: [lojaId], references: [id])
+  vendas      Venda[]  @relation("VendaVendedor")
+  comissoes   Comissao[]
+}
+
+model Produto {
+  id              Int         @id @default(autoincrement())
+  codigo          String      @unique @default(cuid())
+  nome            String
+  tipo            TipoProduto
+  custo           Decimal     @db.Decimal(10, 2)
+  percentualLucro Decimal     @db.Decimal(5, 2)
+  preco           Decimal     @db.Decimal(10, 2)
+  ativo           Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  createdBy       Int?
+  
+  estoques        Estoque[]
+  unidades        UnidadeFisica[]
+  itensVenda      ItemVenda[]
+  itensOS         ItemOS[]
+}
+
+model Servico {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  preco     Decimal  @db.Decimal(10, 2)
+  duracao   Int?     // em minutos, null se fixo
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy Int?
+  
+  itensVenda ItemVenda[]
+  itensOS    ItemOS[]
+}
+
+model UnidadeFisica {
+  id          Int          @id @default(autoincrement())
+  produtoId   Int
+  cor         String?
+  chassi      String?
+  codigoMotor String?
+  ano         Int?
+  numeroSerie String?
+  status      StatusUnidade @default(ESTOQUE)
+  lojaId      Int
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  createdBy   Int?
+  
+  produto     Produto      @relation(fields: [produtoId], references: [id])
+  loja        Loja         @relation(fields: [lojaId], references: [id])
+  itensVenda  ItemVenda[]
+  ordensServico OrdemServico[]
+  garantias   Garantia[]
+  revisoes    Revisao[]
+}
+
+model Estoque {
+  id            Int      @id @default(autoincrement())
+  produtoId     Int
+  lojaId        Int
+  quantidade    Int      @default(0)
+  estoqueMinimo Int      @default(0)
+  estoqueMaximo Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  produto       Produto  @relation(fields: [produtoId], references: [id])
+  loja          Loja     @relation(fields: [lojaId], references: [id])
+  
+  @@unique([produtoId, lojaId])
+}
+
+model Transferencia {
+  id             Int                @id @default(autoincrement())
+  produtoId      Int
+  lojaOrigemId   Int
+  lojaDestinoId  Int
+  quantidade     Int
+  status         StatusTransferencia @default(SOLICITADA)
+  solicitadoPor  Int
+  aprovadoPor    Int?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  
+  lojaOrigem     Loja               @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
+  lojaDestino    Loja               @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
+}
+
+model Cliente {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  cpfCnpj   String?
+  telefone  String?
+  email     String?
+  endereco  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy Int?
+  
+  vendas    Venda[]
+  ordensServico OrdemServico[]
+}
+
+model Venda {
+  id              Int           @id @default(autoincrement())
+  tipo            TipoVenda
+  clienteId       Int
+  vendedorId      Int
+  lojaId          Int
+  formaPagamento  FormaPagamento
+  desconto        Decimal       @db.Decimal(10, 2) @default(0)
+  valorTotal      Decimal       @db.Decimal(10, 2)
+  parcelas        Int?
+  confirmadaFinanceiro Boolean  @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  createdBy       Int?
+  
+  cliente         Cliente       @relation(fields: [clienteId], references: [id])
+  vendedor        User          @relation("VendaVendedor", fields: [vendedorId], references: [id])
+  loja            Loja          @relation(fields: [lojaId], references: [id])
+  itens           ItemVenda[]
+  comissoes       Comissao[]
+}
+
+model ItemVenda {
+  id              Int          @id @default(autoincrement())
+  vendaId         Int
+  produtoId       Int?
+  servicoId       Int?
+  unidadeFisicaId Int?
+  quantidade      Int          @default(1)
+  precoUnitario   Decimal      @db.Decimal(10, 2)
+  desconto        Decimal      @db.Decimal(5, 2) @default(0)
+  
+  venda           Venda        @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produto         Produto?     @relation(fields: [produtoId], references: [id])
+  servico         Servico?     @relation(fields: [servicoId], references: [id])
+  unidadeFisica   UnidadeFisica? @relation(fields: [unidadeFisicaId], references: [id])
+}
+
+model OrdemServico {
+  id              Int        @id @default(autoincrement())
+  numero          String     @unique @default(cuid())
+  clienteId       Int
+  unidadeFisicaId Int?
+  motoDescricao   String?
+  tecnico         String?
+  status          StatusOS   @default(ORCAMENTO)
+  desconto        Decimal    @db.Decimal(5, 2) @default(0)
+  valorTotal      Decimal    @db.Decimal(10, 2)
+  garantiaMeses   Int        @default(3)
+  observacoes     String?
+  lojaId          Int
+  confirmadaFinanceiro Boolean @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  createdBy       Int?
+  
+  cliente         Cliente    @relation(fields: [clienteId], references: [id])
+  unidadeFisica   UnidadeFisica? @relation(fields: [unidadeFisicaId], references: [id])
+  loja            Loja       @relation(fields: [lojaId], references: [id])
+  itens           ItemOS[]
+  comissoes       Comissao[]
+}
+
+model ItemOS {
+  id              Int          @id @default(autoincrement())
+  ordemServicoId  Int
+  produtoId       Int?
+  servicoId       Int?
+  quantidade      Int          @default(1)
+  precoUnitario   Decimal      @db.Decimal(10, 2)
+  
+  ordemServico    OrdemServico @relation(fields: [ordemServicoId], references: [id], onDelete: Cascade)
+  produto         Produto?     @relation(fields: [produtoId], references: [id])
+  servico         Servico?     @relation(fields: [servicoId], references: [id])
+}
+
+model Garantia {
+  id              Int           @id @default(autoincrement())
+  unidadeFisicaId Int
+  tipoGarantia    String        // geral, motor, modulo, bateria
+  meses           Int
+  dataInicio      DateTime
+  dataFim         DateTime
+  ativa           Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  unidadeFisica   UnidadeFisica @relation(fields: [unidadeFisicaId], references: [id])
+}
+
+model Revisao {
+  id              Int           @id @default(autoincrement())
+  unidadeFisicaId Int
+  numero          Int           // 1ª, 2ª, 3ª...
+  dataAgendada    DateTime
+  dataRealizada   DateTime?
+  gratuita        Boolean       @default(false)
+  valor           Decimal?      @db.Decimal(10, 2)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  unidadeFisica   UnidadeFisica @relation(fields: [unidadeFisicaId], references: [id])
+}
+
+model Caixa {
+  id              Int           @id @default(autoincrement())
+  lojaId          Int
+  data            DateTime      @default(now())
+  tipo            String        // entrada, saida
+  descricao       String
+  valor           Decimal       @db.Decimal(10, 2)
+  formaPagamento  FormaPagamento?
+  referencia      String?       // venda_id, os_id, conta_id
+  createdAt       DateTime      @default(now())
+  
+  loja            Loja          @relation(fields: [lojaId], references: [id])
+}
+
+model ContaPagar {
+  id          Int           @id @default(autoincrement())
+  lojaId      Int
+  categoria   CategoriaConta
+  descricao   String
+  valor       Decimal       @db.Decimal(10, 2)
+  vencimento  DateTime
+  recorrente  Boolean       @default(false)
+  pago        Boolean       @default(false)
+  dataPago    DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdBy   Int?
+  
+  loja        Loja          @relation(fields: [lojaId], references: [id])
+}
+
+model Comissao {
+  id              Int           @id @default(autoincrement())
+  usuarioId       Int
+  vendaId         Int?
+  ordemServicoId  Int?
+  tipo            String        // vendedor, tecnico
+  valor           Decimal       @db.Decimal(10, 2)
+  periodo         PeriodoComissao
+  pago            Boolean       @default(false)
+  dataPago        DateTime?
+  createdAt       DateTime      @default(now())
+  
+  usuario         User          @relation(fields: [usuarioId], references: [id])
+  venda           Venda?        @relation(fields: [vendaId], references: [id])
+  ordemServico    OrdemServico? @relation(fields: [ordemServicoId], references: [id])
+}
+
+model Configuracao {
+  id                    Int     @id @default(autoincrement())
+  comissaoVendedorMoto  Decimal @db.Decimal(5, 2) @default(1)
+  comissaoTecnico       Decimal @db.Decimal(5, 2) @default(25)
+  comissaoPecaHabilitada Boolean @default(false)
+  periodoComissao       PeriodoComissao @default(MENSAL)
+  descontoMaxMoto       Decimal @db.Decimal(5, 2) @default(3.5)
+  descontoMaxPeca       Decimal @db.Decimal(5, 2) @default(10)
+  descontoMaxServico    Decimal @db.Decimal(5, 2) @default(10)
+  descontoMaxOS         Decimal @db.Decimal(5, 2) @default(10)
+}
