@@ -26,7 +26,7 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-900 p-4">
       <div className="card w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-orange-500">Tecle Motos</h1>
+          <img src="/logo.png" alt="Tecle Motos" className="w-32 h-32 mx-auto mb-4" />
           <p className="text-gray-400">Sistema Integrado de Gestão</p>
         </div>
 

@@ -62,9 +62,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   return (
     <div className="flex min-h-screen bg-zinc-900">
       <aside className="sidebar">
-        <div className="mb-8">
-          <h1 className="text-xl font-bold text-orange-500">Tecle Motos</h1>
-          <p className="text-sm text-gray-500">Sistema de Gestão</p>
+        <div className="mb-6 text-center">
+          <img src="/logo.png" alt="Tecle Motos" className="w-20 h-20 mx-auto" />
         </div>
         
         <nav className="space-y-1">
