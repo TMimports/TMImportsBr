@@ -123,7 +123,8 @@ router.post('/produtos', verifyToken, upload.single('arquivo'), async (req, res)
             tipo,
             custo,
             percentualLucro,
-            preco
+            preco,
+            ativo: true
           }
         });
         produtosAtualizados.push(produtoAtualizado);
