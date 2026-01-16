@@ -1,0 +1,108 @@
+Quero implementar um fluxo de CADASTRO DE FRANQUEADO com provisionamento automático de acesso.
+
+REGRAS:
+- Não alterar regras de negócio existentes além do necessário para este fluxo.
+- Não criar “outro dashboard” separado. É o MESMO dashboard do sistema, porém com dados filtrados pela franquia (loja/grupo) do franqueado.
+- Manter RBAC/escopo: franqueado vê apenas sua franquia.
+
+OBJETIVO:
+Quando um ADMIN cadastrar um FRANQUEADO, o sistema deve:
+1) Criar o Grupo/Loja da franquia (se já existe modelo, reaproveitar).
+2) Criar um usuário para o franqueado com:
+   - email = email informado no cadastro
+   - role = "GESTOR" (ou equivalente de Dono/Franqueado no sistema)
+   - vinculado à loja/grupo da franquia
+3) Gerar uma senha temporária automaticamente.
+4) Enviar/mostrar essa senha temporária para o admin copiar (sem necessidade de integração de email se não existir).
+5) Forçar troca de senha no primeiro login.
+
+====================================================
+1) MODELAGEM (BANCO)
+====================================================
+Adicionar/garantir estes campos na tabela User:
+- passwordHash (já existe)
+- mustChangePassword BOOLEAN default true (novo)
+- tempPasswordCreatedAt DATETIME (opcional)
+- status (opcional) "ACTIVE" etc (somente se já existir padrão; se não existir, não inventar)
+
+Ao criar franqueado:
+- mustChangePassword = true
+
+====================================================
+2) CRIAÇÃO DO FRANQUEADO (BACKEND)
+====================================================
+Criar endpoint (ou adaptar o existente) de "criar franqueado" disponível apenas para ADMIN (Admin Rede/Administrador Geral conforme RBAC).
+
+Payload mínimo:
+- nome do franqueado
+- email
+- dados da loja (nome, CNPJ etc se já existe no fluxo)
+- grupoId ou criação de novo grupo (se o modelo do sistema pede)
+
+Comportamento:
+- Validar email único
+- Gerar senha temporária segura:
+  - 12 caracteres
+  - incluir letras + números
+- Salvar hash bcrypt
+- Retornar resposta incluindo:
+  - userId
+  - email
+  - tempPassword (APENAS nessa resposta de criação, para o admin copiar)
+  - mustChangePassword true
+
+IMPORTANTE:
+- Não guardar a senha temporária em texto puro no banco.
+- Apenas retornar no momento da criação e depois nunca mais.
+
+====================================================
+3) LOGIN E TROCA OBRIGATÓRIA NO 1º ACESSO
+====================================================
+No fluxo de login:
+- Se credenciais ok e user.mustChangePassword == true:
+  - redirecionar obrigatoriamente para tela "/trocar-senha"
+  - bloquear acesso às demais rotas até trocar.
+
+Criar tela /trocar-senha:
+- Campos: senha atual (a temporária), nova senha, confirmar nova senha
+- Regras:
+  - nova senha mínima 8 caracteres (simples)
+  - confirmar igual
+- Ao salvar:
+  - atualizar passwordHash
+  - mustChangePassword = false
+  - redirecionar para /dashboard
+
+====================================================
+4) DASHBOARD “IDÊNTICO” PARA O FRANQUEADO
+====================================================
+Não criar dashboard novo.
+O franqueado usa o mesmo /dashboard, porém:
+- Todas as consultas do backend devem filtrar por lojaId/grupoId do usuário (tenant scope).
+- Sidebar deve esconder itens que franqueado não pode ver (ex.: Grupos/Lojas/Usuários se não for permitido).
+- O conteúdo do dashboard deve refletir apenas os dados daquela franquia.
+
+====================================================
+5) UI DO CADASTRO DE FRANQUEADO
+====================================================
+Na tela de administração:
+- Form simples para cadastrar franqueado:
+  - nome
+  - email
+  - loja (nome) e CNPJ (se já existe o fluxo de loja por CNPJ, integrar)
+Ao finalizar cadastro:
+- Mostrar modal/caixa “Acesso do franqueado criado”
+  - Email: xxx
+  - Senha temporária: yyy
+  - Aviso: “No primeiro login será obrigatório trocar a senha”
+- Botão “Copiar”
+
+====================================================
+ENTREGA/PROVA
+====================================================
+- Listar arquivos alterados
+- Mostrar as migrations Prisma
+- Mostrar o endpoint criado e exemplo de response
+- Mostrar o guard de rota no frontend para forçar /trocar-senha
+- Mostrar como o RBAC/tenant filtra dados para franqueado
+COMECE implementando a modelagem + endpoint + fluxo de mustChangePassword e depois a tela.

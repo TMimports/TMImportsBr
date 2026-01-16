@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from './ui';
 
 interface LayoutProps {
   children: ReactNode;
@@ -73,71 +75,91 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   };
 
   return (
-    <div className="flex min-h-screen bg-zinc-900">
+    <div className="flex min-h-screen bg-zinc-950">
       <div 
-        className={`fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity ${menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setMenuOpen(false)}
       />
 
       <aside className={`
         fixed md:static inset-y-0 left-0 z-50
-        w-64 bg-zinc-800 min-h-screen border-r border-zinc-700 flex flex-col
+        w-64 bg-zinc-900 min-h-screen border-r border-zinc-800 flex flex-col
         transform transition-transform duration-300 ease-in-out
         ${menuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="p-4 text-center border-b border-zinc-700 flex items-center justify-between md:justify-center">
-          <img src="/logo.png" alt="Tecle Motos" className="w-12 h-12 md:w-16 md:h-16" />
+        <div className="h-16 px-4 border-b border-zinc-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Tecle Motos" className="w-10 h-10" />
+            <div className="hidden md:block">
+              <p className="text-sm font-semibold text-white">Tecle Motos</p>
+              <p className="text-xs text-orange-500">Sistema ERP</p>
+            </div>
+          </div>
           <button 
             onClick={() => setMenuOpen(false)}
-            className="md:hidden text-gray-400 hover:text-white p-2"
+            className="md:hidden text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {items.map(item => (
-            <div
+            <button
               key={item.id}
               onClick={() => handleNavigate(item.id)}
-              className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
+              className={`
+                w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                transition-all duration-200 text-left
+                ${currentPage === item.id 
+                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' 
+                  : 'text-gray-400 hover:bg-zinc-800 hover:text-white'
+                }
+              `}
             >
-              <span>{item.icon}</span>
-              <span className="text-sm">{item.label}</span>
-            </div>
+              <span className="text-base">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
           ))}
         </nav>
 
-        <div className="p-3 border-t border-zinc-700">
-          <div className="p-3 bg-zinc-700 rounded-lg mb-2">
-            <p className="text-sm font-medium truncate">{user?.nome}</p>
-            <p className="text-xs text-gray-400">{roleLabels[user?.role || ''] || user?.role}</p>
-            {user?.loja && <p className="text-xs text-orange-400 truncate">{user.loja.nomeFantasia}</p>}
+        <div className="p-3 border-t border-zinc-800">
+          <div className="p-3 bg-zinc-800/50 rounded-lg mb-3">
+            <p className="text-sm font-medium text-white truncate">{user?.nome}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{roleLabels[user?.role || ''] || user?.role}</p>
+            {user?.loja && (
+              <p className="text-xs text-orange-400 mt-1 truncate">{user.loja.nomeFantasia}</p>
+            )}
           </div>
-          <button onClick={logout} className="btn btn-danger w-full text-sm">
-            Sair
-          </button>
+          <Button variant="danger" size="sm" fullWidth onClick={logout}>
+            Sair do Sistema
+          </Button>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col min-h-screen">
-        <header className="md:hidden bg-zinc-800 border-b border-zinc-700 p-3 flex items-center justify-between sticky top-0 z-30">
+        <header className="md:hidden h-14 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between sticky top-0 z-30">
           <button 
             onClick={() => setMenuOpen(true)}
-            className="text-gray-300 hover:text-white p-2"
+            className="text-gray-400 hover:text-white p-2 -ml-2 rounded-lg hover:bg-zinc-800 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <img src="/logo.png" alt="Tecle Motos" className="w-8 h-8" />
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="Tecle Motos" className="w-8 h-8" />
+            <span className="text-sm font-semibold text-white">Tecle Motos</span>
+          </div>
           <div className="w-10" />
         </header>
 
-        <main className="flex-1 p-3 md:p-6 overflow-y-auto">
-          {children}
+        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-zinc-950">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

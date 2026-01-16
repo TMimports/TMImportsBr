@@ -2,39 +2,96 @@
 
 * {
   -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  background-color: #0a0a0a;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #09090b;
   color: #ffffff;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #18181b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 @media (max-width: 768px) {
-  .card {
-    padding: 1rem !important;
-  }
-  
-  .btn {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-  }
-  
-  table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-  
   .hide-mobile {
     display: none !important;
   }
 }
 
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Legacy utility classes for backward compatibility */
 .btn {
-  @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn-primary {
@@ -58,11 +115,11 @@ body {
 }
 
 .card {
-  @apply bg-zinc-800 rounded-xl p-6 border border-zinc-700;
+  @apply bg-zinc-900 border border-zinc-800 rounded-xl p-4 md:p-6;
 }
 
 .input {
-  @apply w-full px-4 py-2 bg-zinc-700 border border-zinc-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500;
+  @apply w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-colors;
 }
 
 .label {
@@ -70,7 +127,7 @@ body {
 }
 
 .nav-item {
-  @apply flex items-center gap-3 px-3 py-2 rounded-lg text-gray-300 hover:bg-zinc-700 hover:text-white cursor-pointer transition-all;
+  @apply flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-zinc-800 hover:text-white cursor-pointer transition-all;
 }
 
 .nav-item.active {

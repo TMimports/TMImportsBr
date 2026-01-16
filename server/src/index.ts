@@ -25,6 +25,7 @@ import rankingRoutes from './routes/ranking.js';
 export const prisma = new PrismaClient();
 
 const app = express();
+const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(cors());
 app.use(express.json());
@@ -48,16 +49,18 @@ app.use('/api/transferencias', transferenciasRoutes);
 app.use('/api/importacao', importacaoRoutes);
 app.use('/api/ranking', rankingRoutes);
 
-app.use(express.static(path.join(process.cwd(), 'client/dist')));
+if (!isDev) {
+  app.use(express.static(path.join(process.cwd(), 'client/dist')));
 
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(process.cwd(), 'client/dist/index.html'));
-  }
-});
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(process.cwd(), 'client/dist/index.html'));
+    }
+  });
+}
 
-const PORT = process.env.PORT || 5000;
+const PORT = isDev ? 3001 : (process.env.PORT || 5000);
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor rodando em http://0.0.0.0:${PORT}`);
+  console.log(`Servidor ${isDev ? 'DEV' : 'PROD'} rodando em http://0.0.0.0:${PORT}`);
 });
