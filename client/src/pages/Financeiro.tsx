@@ -27,11 +27,12 @@ export function Financeiro() {
 
   useEffect(() => {
     Promise.all([
-      api.get<{ contasPagar: ContaPagar[]; contasReceber: ContaReceber[] }>('/financeiro')
+      api.get<ContaPagar[]>('/financeiro/contas-pagar').catch(() => []),
+      api.get<ContaReceber[]>('/financeiro/contas-receber').catch(() => [])
     ])
-      .then(([data]) => {
-        setContasPagar(data.contasPagar || []);
-        setContasReceber(data.contasReceber || []);
+      .then(([pagar, receber]) => {
+        setContasPagar(pagar);
+        setContasReceber(receber);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
