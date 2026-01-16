@@ -1,31 +1,56 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { Modal } from '../components/Modal';
+import { Button, Input, Select } from '../components/ui';
 
 interface ContaPagar {
   id: number;
   descricao: string;
+  categoria: string;
   valor: number;
-  dataVencimento: string;
+  vencimento: string;
   pago: boolean;
-  fornecedor?: string;
+  loja?: { nomeFantasia: string };
 }
 
 interface ContaReceber {
   id: number;
   valor: number;
-  dataVencimento: string;
+  vencimento: string;
   pago: boolean;
   venda?: { id: number };
   ordemServico?: { id: number };
 }
 
+interface Loja {
+  id: number;
+  nomeFantasia: string;
+}
+
+const categorias = [
+  'LUZ', 'AGUA', 'GAS', 'INTERNET', 'ALUGUEL', 'IPTU', 'CONDOMINIO', 'FORNECEDORES', 'OUTROS'
+];
+
+const initialForm = {
+  lojaId: '',
+  categoria: 'OUTROS',
+  descricao: '',
+  valor: '',
+  vencimento: ''
+};
+
 export function Financeiro() {
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>([]);
   const [contasReceber, setContasReceber] = useState<ContaReceber[]>([]);
+  const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'pagar' | 'receber'>('receber');
+  const [tab, setTab] = useState<'pagar' | 'receber'>('pagar');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(initialForm);
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true);
     Promise.all([
       api.get<ContaPagar[]>('/financeiro/contas-pagar').catch(() => []),
       api.get<ContaReceber[]>('/financeiro/contas-receber').catch(() => [])
@@ -36,117 +61,228 @@ export function Financeiro() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
+    api.get<Loja[]>('/lojas').then(setLojas).catch(console.error);
   }, []);
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64">Carregando...</div>;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.post('/financeiro/contas-pagar', {
+        lojaId: Number(form.lojaId),
+        categoria: form.categoria,
+        descricao: form.descricao,
+        valor: Number(form.valor),
+        vencimento: form.vencimento
+      });
+      setModalOpen(false);
+      setForm(initialForm);
+      loadData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleMarcarPago = async (id: number) => {
+    try {
+      await api.put(`/financeiro/contas-pagar/${id}/pagar`, {});
+      loadData();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Financeiro</h1>
-        <button className="btn btn-primary">+ Nova Conta</button>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold text-white">Financeiro</h1>
+        <Button variant="primary" onClick={() => setModalOpen(true)}>+ Nova Conta a Pagar</Button>
       </div>
 
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setTab('receber')}
-          className={`btn ${tab === 'receber' ? 'btn-primary' : 'btn-secondary'}`}
-        >
-          Contas a Receber ({contasReceber.length})
-        </button>
-        <button
+      <div className="flex gap-2">
+        <Button
+          variant={tab === 'pagar' ? 'primary' : 'secondary'}
           onClick={() => setTab('pagar')}
-          className={`btn ${tab === 'pagar' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Contas a Pagar ({contasPagar.length})
-        </button>
+        </Button>
+        <Button
+          variant={tab === 'receber' ? 'primary' : 'secondary'}
+          onClick={() => setTab('receber')}
+        >
+          Contas a Receber ({contasReceber.length})
+        </Button>
       </div>
 
-      {tab === 'receber' ? (
+      {tab === 'pagar' ? (
         <div className="card">
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Origem</th>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Valor</th>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Vencimento</th>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contasReceber.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-4 text-center text-gray-500">
-                    Nenhuma conta a receber
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-gray-400 text-sm border-b border-zinc-800">
+                  <th className="pb-3 font-medium">Descricao</th>
+                  <th className="pb-3 font-medium">Categoria</th>
+                  <th className="pb-3 font-medium">Loja</th>
+                  <th className="pb-3 font-medium">Valor</th>
+                  <th className="pb-3 font-medium">Vencimento</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">Acoes</th>
                 </tr>
-              ) : (
-                contasReceber.map(conta => (
-                  <tr key={conta.id} className="hover:bg-zinc-700">
-                    <td className="p-3 border-b border-zinc-700">
-                      {conta.venda ? `Venda #${conta.venda.id}` : conta.ordemServico ? `OS #${conta.ordemServico.id}` : '-'}
-                    </td>
-                    <td className="p-3 border-b border-zinc-700 font-semibold text-green-400">
-                      R$ {Number(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="p-3 border-b border-zinc-700">
-                      {new Date(conta.dataVencimento).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="p-3 border-b border-zinc-700">
-                      <span className={`badge ${conta.pago ? 'badge-success' : 'badge-warning'}`}>
-                        {conta.pago ? 'Pago' : 'Pendente'}
-                      </span>
-                    </td>
+              </thead>
+              <tbody className="text-sm">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-gray-500">Carregando...</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : contasPagar.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-gray-500">Nenhuma conta a pagar</td>
+                  </tr>
+                ) : (
+                  contasPagar.map(conta => (
+                    <tr key={conta.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                      <td className="py-3 text-white">{conta.descricao}</td>
+                      <td className="py-3">
+                        <span className="px-2 py-1 rounded text-xs font-medium bg-zinc-700 text-gray-300">
+                          {conta.categoria}
+                        </span>
+                      </td>
+                      <td className="py-3 text-gray-300">{conta.loja?.nomeFantasia || '-'}</td>
+                      <td className="py-3 font-semibold text-red-400">
+                        R$ {Number(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3 text-gray-300">
+                        {new Date(conta.vencimento).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="py-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${conta.pago ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                          {conta.pago ? 'Pago' : 'Pendente'}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        {!conta.pago && (
+                          <Button variant="success" size="sm" onClick={() => handleMarcarPago(conta.id)}>
+                            Marcar Pago
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         <div className="card">
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Descricao</th>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Fornecedor</th>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Valor</th>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Vencimento</th>
-                <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contasPagar.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-4 text-center text-gray-500">
-                    Nenhuma conta a pagar
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-gray-400 text-sm border-b border-zinc-800">
+                  <th className="pb-3 font-medium">Origem</th>
+                  <th className="pb-3 font-medium">Valor</th>
+                  <th className="pb-3 font-medium">Vencimento</th>
+                  <th className="pb-3 font-medium">Status</th>
                 </tr>
-              ) : (
-                contasPagar.map(conta => (
-                  <tr key={conta.id} className="hover:bg-zinc-700">
-                    <td className="p-3 border-b border-zinc-700">{conta.descricao}</td>
-                    <td className="p-3 border-b border-zinc-700">{conta.fornecedor || '-'}</td>
-                    <td className="p-3 border-b border-zinc-700 font-semibold text-red-400">
-                      R$ {Number(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="p-3 border-b border-zinc-700">
-                      {new Date(conta.dataVencimento).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="p-3 border-b border-zinc-700">
-                      <span className={`badge ${conta.pago ? 'badge-success' : 'badge-warning'}`}>
-                        {conta.pago ? 'Pago' : 'Pendente'}
-                      </span>
-                    </td>
+              </thead>
+              <tbody className="text-sm">
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-500">Carregando...</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : contasReceber.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-500">Nenhuma conta a receber</td>
+                  </tr>
+                ) : (
+                  contasReceber.map(conta => (
+                    <tr key={conta.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                      <td className="py-3 text-white">
+                        {conta.venda ? `Venda #${conta.venda.id}` : conta.ordemServico ? `OS #${conta.ordemServico.id}` : '-'}
+                      </td>
+                      <td className="py-3 font-semibold text-green-400">
+                        R$ {Number(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="py-3 text-gray-300">
+                        {new Date(conta.vencimento).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="py-3">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${conta.pago ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                          {conta.pago ? 'Recebido' : 'Pendente'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
+
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Nova Conta a Pagar"
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Select
+            label="Loja *"
+            value={form.lojaId}
+            onChange={(e) => setForm({ ...form, lojaId: e.target.value })}
+            required
+            placeholder="Selecione uma loja"
+            options={lojas.map(l => ({ value: l.id, label: l.nomeFantasia }))}
+          />
+
+          <Select
+            label="Categoria *"
+            value={form.categoria}
+            onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+            required
+            options={categorias.map(c => ({ value: c, label: c }))}
+          />
+
+          <Input
+            label="Descricao *"
+            value={form.descricao}
+            onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+            required
+          />
+
+          <Input
+            label="Valor *"
+            type="number"
+            step="0.01"
+            value={form.valor}
+            onChange={(e) => setForm({ ...form, valor: e.target.value })}
+            required
+          />
+
+          <Input
+            label="Vencimento *"
+            type="date"
+            value={form.vencimento}
+            onChange={(e) => setForm({ ...form, vencimento: e.target.value })}
+            required
+          />
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" type="button" onClick={() => setModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" type="submit" loading={saving}>
+              Cadastrar
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
