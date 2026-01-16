@@ -74,7 +74,7 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
         });
       } else {
         setResultado(data);
-        if (data.importados > 0) {
+        if (data.importados > 0 || data.criados > 0 || data.atualizados > 0) {
           onSuccess?.();
         }
       }
