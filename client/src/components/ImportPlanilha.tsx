@@ -118,6 +118,11 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
           colunas: ['Produto (nome)', 'Cor', 'Chassi', 'Motor', 'Ano'],
           descricao: 'Gera codigo automatico (TMUNI00001) e vincula ao produto moto cadastrado.'
         };
+      default:
+        return {
+          colunas: ['Dados'],
+          descricao: 'Importar dados'
+        };
     }
   };
 
