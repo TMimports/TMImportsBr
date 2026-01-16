@@ -178,9 +178,19 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
             <div className={`p-4 rounded-lg ${resultado.sucesso ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
               {resultado.sucesso ? (
                 <div>
-                  <p className="text-green-400 font-medium">
-                    {resultado.importados} {tipoLabel[tipo].toLowerCase()} importados com sucesso!
-                  </p>
+                  {(resultado.criados > 0 || resultado.importados > 0) && (
+                    <p className="text-green-400 font-medium">
+                      {resultado.criados || resultado.importados} {tipoLabel[tipo].toLowerCase()} criados!
+                    </p>
+                  )}
+                  {resultado.atualizados > 0 && (
+                    <p className="text-blue-400 font-medium">
+                      {resultado.atualizados} {tipoLabel[tipo].toLowerCase()} atualizados!
+                    </p>
+                  )}
+                  {resultado.criados === 0 && resultado.atualizados === 0 && !resultado.importados && (
+                    <p className="text-yellow-400 font-medium">Nenhum registro processado.</p>
+                  )}
                   {resultado.erros > 0 && (
                     <div className="mt-2">
                       <p className="text-yellow-400 text-sm">{resultado.erros} linhas com erro:</p>

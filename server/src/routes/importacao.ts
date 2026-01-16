@@ -93,7 +93,8 @@ router.post('/produtos', verifyToken, upload.single('arquivo'), async (req, res)
     const sheet = workbook.Sheets[sheetName];
     const dados = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
 
-    const produtos: any[] = [];
+    const produtosCriados: any[] = [];
+    const produtosAtualizados: any[] = [];
     let erros: string[] = [];
 
     for (let i = 1; i < dados.length; i++) {
@@ -110,15 +111,24 @@ router.post('/produtos', verifyToken, upload.single('arquivo'), async (req, res)
         continue;
       }
 
-      const existente = await prisma.produto.findFirst({ where: { nome } });
-      if (existente) {
-        erros.push(`Linha ${i + 1}: Produto "${nome}" ja existe`);
-        continue;
-      }
-
       const percentualCusto = tipo === 'MOTO' ? 0.7368 : 0.40;
       const percentualLucro = tipo === 'MOTO' ? 26.32 : 60;
       const preco = custo > 0 ? custo / percentualCusto : 0;
+
+      const existente = await prisma.produto.findFirst({ where: { nome } });
+      if (existente) {
+        const produtoAtualizado = await prisma.produto.update({
+          where: { id: existente.id },
+          data: {
+            tipo,
+            custo,
+            percentualLucro,
+            preco
+          }
+        });
+        produtosAtualizados.push(produtoAtualizado);
+        continue;
+      }
 
       const codigo = await gerarCodigoProduto(tipo);
 
@@ -134,15 +144,16 @@ router.post('/produtos', verifyToken, upload.single('arquivo'), async (req, res)
         }
       });
 
-      produtos.push(produto);
+      produtosCriados.push(produto);
     }
 
     res.json({
       sucesso: true,
-      importados: produtos.length,
+      criados: produtosCriados.length,
+      atualizados: produtosAtualizados.length,
       erros: erros.length,
       detalhesErros: erros.slice(0, 10),
-      produtos: produtos.slice(0, 5)
+      produtos: [...produtosCriados, ...produtosAtualizados].slice(0, 5)
     });
   } catch (error: any) {
     console.error('Erro na importacao:', error);
