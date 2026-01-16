@@ -141,14 +141,23 @@ router.put('/:id', requireAdminRede, async (req: AuthRequest, res) => {
 
 router.delete('/:id', requireAdminRede, async (req, res) => {
   try {
-    await prisma.user.update({
-      where: { id: Number(req.params.id) },
-      data: { ativo: false }
+    const userId = Number(req.params.id);
+
+    const vendasCount = await prisma.venda.count({ where: { vendedorId: userId } });
+    if (vendasCount > 0) {
+      return res.status(400).json({ error: `Nao e possivel excluir. Este usuario possui ${vendasCount} venda(s) registrada(s).` });
+    }
+
+    await prisma.user.delete({
+      where: { id: userId }
     });
 
-    res.json({ message: 'Usuário desativado com sucesso' });
-  } catch (error) {
-    console.error('Erro ao desativar usuário:', error);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Erro ao excluir usuario:', error);
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Nao e possivel excluir. Existem registros vinculados a este usuario.' });
+    }
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
