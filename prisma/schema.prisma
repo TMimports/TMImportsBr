@@ -132,6 +132,7 @@ model Produto {
   custo           Decimal     @db.Decimal(10, 2)
   percentualLucro Decimal     @db.Decimal(5, 2)
   preco           Decimal     @db.Decimal(10, 2)
+  descricao       String?
   ativo           Boolean     @default(true)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -159,9 +160,10 @@ model Servico {
 
 model UnidadeFisica {
   id          Int          @id @default(autoincrement())
+  codigo      String       @unique @default(cuid())
   produtoId   Int
   cor         String?
-  chassi      String?
+  chassi      String?      @unique
   codigoMotor String?
   ano         Int?
   numeroSerie String?

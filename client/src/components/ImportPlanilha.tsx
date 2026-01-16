@@ -1,0 +1,210 @@
+import { useState, useRef } from 'react';
+import { Modal } from './Modal';
+
+interface ImportPlanilhaProps {
+  tipo: 'produtos' | 'servicos' | 'unidades';
+  onSuccess?: () => void;
+}
+
+interface Loja {
+  id: number;
+  nomeFantasia: string;
+}
+
+export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [resultado, setResultado] = useState<any>(null);
+  const [lojaId, setLojaId] = useState('');
+  const [lojas, setLojas] = useState<Loja[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenModal = async () => {
+    setModalOpen(true);
+    setResultado(null);
+    
+    if (tipo === 'unidades') {
+      try {
+        const response = await fetch('/api/lojas', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setLojas(data);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar lojas:', e);
+      }
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (tipo === 'unidades' && !lojaId) {
+      alert('Selecione uma loja para importar as unidades');
+      return;
+    }
+
+    setImporting(true);
+    setResultado(null);
+
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    if (lojaId) {
+      formData.append('lojaId', lojaId);
+    }
+
+    try {
+      const response = await fetch(`/api/importacao/${tipo}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setResultado({
+          sucesso: false,
+          erro: data.error || 'Erro ao importar'
+        });
+      } else {
+        setResultado(data);
+        if (data.importados > 0) {
+          onSuccess?.();
+        }
+      }
+    } catch (err: any) {
+      setResultado({
+        sucesso: false,
+        erro: err.message || 'Erro ao importar'
+      });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const tipoLabel = {
+    produtos: 'Produtos',
+    servicos: 'Servicos',
+    unidades: 'Unidades (Motos)'
+  };
+
+  const getModeloInfo = () => {
+    switch (tipo) {
+      case 'produtos':
+        return {
+          colunas: ['Codigo', 'Produto', 'Valor de Custo', '...', 'Categoria do produto (Moto/Peca)'],
+          descricao: 'Sistema gera codigo automatico (TMMOT para motos, TMPEC para pecas) e calcula preco com formula Custo / Percentual'
+        };
+      case 'servicos':
+        return {
+          colunas: ['Nome', 'Preco', 'Duracao (min)'],
+          descricao: 'Duracao em minutos (15, 30, 45, 60). Deixe vazio para servicos fixos.'
+        };
+      case 'unidades':
+        return {
+          colunas: ['Produto (nome)', 'Cor', 'Chassi', 'Motor', 'Ano'],
+          descricao: 'Gera codigo automatico (TMUNI00001) e vincula ao produto moto cadastrado.'
+        };
+    }
+  };
+
+  const modelo = getModeloInfo();
+
+  return (
+    <>
+      <button onClick={handleOpenModal} className="btn btn-success">
+        Importar Planilha
+      </button>
+
+      <Modal 
+        isOpen={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+        title={`Importar ${tipoLabel[tipo]}`}
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-zinc-700 rounded-lg">
+            <h4 className="font-medium mb-2">Formato esperado da planilha:</h4>
+            <div className="text-sm text-gray-300 space-y-1">
+              <p><strong>Colunas:</strong> {modelo.colunas.join(' | ')}</p>
+              <p className="text-gray-400">{modelo.descricao}</p>
+            </div>
+          </div>
+
+          {tipo === 'unidades' && (
+            <div>
+              <label className="label">Loja de destino *</label>
+              <select
+                value={lojaId}
+                onChange={(e) => setLojaId(e.target.value)}
+                className="input"
+                required
+              >
+                <option value="">Selecione uma loja</option>
+                {lojas.map(l => (
+                  <option key={l.id} value={l.id}>{l.nomeFantasia}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="label">Arquivo (XLS, XLSX ou CSV)</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xls,.xlsx,.csv"
+              onChange={handleImport}
+              disabled={importing}
+              className="input"
+            />
+          </div>
+
+          {importing && (
+            <div className="p-4 bg-blue-500/20 rounded-lg text-center">
+              <p className="text-blue-400">Importando... Aguarde...</p>
+            </div>
+          )}
+
+          {resultado && (
+            <div className={`p-4 rounded-lg ${resultado.sucesso ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+              {resultado.sucesso ? (
+                <div>
+                  <p className="text-green-400 font-medium">
+                    {resultado.importados} {tipoLabel[tipo].toLowerCase()} importados com sucesso!
+                  </p>
+                  {resultado.erros > 0 && (
+                    <div className="mt-2">
+                      <p className="text-yellow-400 text-sm">{resultado.erros} linhas com erro:</p>
+                      <ul className="text-xs text-gray-400 mt-1 list-disc list-inside">
+                        {resultado.detalhesErros?.map((err: string, i: number) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-red-400">{resultado.erro}</p>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+            <button onClick={() => setModalOpen(false)} className="btn btn-secondary">
+              Fechar
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}

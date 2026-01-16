@@ -19,6 +19,8 @@ import comissoesRoutes from './routes/comissoes.js';
 import dashboardRoutes from './routes/dashboard.js';
 import garantiasRoutes from './routes/garantias.js';
 import transferenciasRoutes from './routes/transferencias.js';
+import importacaoRoutes from './routes/importacao.js';
+import rankingRoutes from './routes/ranking.js';
 
 export const prisma = new PrismaClient();
 
@@ -43,6 +45,8 @@ app.use('/api/comissoes', comissoesRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/garantias', garantiasRoutes);
 app.use('/api/transferencias', transferenciasRoutes);
+app.use('/api/importacao', importacaoRoutes);
+app.use('/api/ranking', rankingRoutes);
 
 app.use(express.static(path.join(process.cwd(), 'client/dist')));
 

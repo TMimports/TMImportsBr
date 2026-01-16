@@ -10,6 +10,7 @@ interface LayoutProps {
 const menuItems = {
   ADMIN_GERAL: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'ranking', label: 'Ranking', icon: '🏆' },
     { id: 'lojas', label: 'Lojas', icon: '🏪' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
     { id: 'produtos', label: 'Produtos', icon: '📦' },

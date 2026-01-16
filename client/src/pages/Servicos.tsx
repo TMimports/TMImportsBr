@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { ImportExport } from '../components/ImportExport';
+import { ImportPlanilha } from '../components/ImportPlanilha';
 
 interface Servico {
   id: number;
@@ -127,6 +128,7 @@ export function Servicos() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Servicos</h1>
         <div className="flex gap-2">
+          <ImportPlanilha tipo="servicos" onSuccess={loadServicos} />
           <ImportExport entity="servicos" onImportSuccess={loadServicos} />
           {selecionados.length > 0 && (
             <button onClick={handleExcluirSelecionados} className="btn btn-danger">

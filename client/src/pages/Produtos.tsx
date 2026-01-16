@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { ImportExport } from '../components/ImportExport';
+import { ImportPlanilha } from '../components/ImportPlanilha';
 
 interface Produto {
   id: number;
@@ -141,6 +142,7 @@ export function Produtos() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Produtos</h1>
         <div className="flex gap-2">
+          <ImportPlanilha tipo="produtos" onSuccess={loadProdutos} />
           <ImportExport entity="produtos" onImportSuccess={loadProdutos} />
           {selecionados.length > 0 && (
             <button onClick={handleExcluirSelecionados} className="btn btn-danger">

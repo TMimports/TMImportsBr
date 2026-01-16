@@ -16,6 +16,7 @@ import { OrdensServico } from './pages/OrdensServico';
 import { Financeiro } from './pages/Financeiro';
 import { Garantias } from './pages/Garantias';
 import { Comissoes } from './pages/Comissoes';
+import { Ranking } from './pages/Ranking';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -37,6 +38,8 @@ function AppContent() {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
+      case 'ranking':
+        return <Ranking />;
       case 'vendas':
         return <Vendas />;
       case 'produtos':
