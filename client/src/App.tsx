@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
+import { TrocarSenha } from './pages/TrocarSenha';
 import { Dashboard } from './pages/Dashboard';
 import { Vendas } from './pages/Vendas';
 import { Produtos } from './pages/Produtos';
@@ -17,9 +18,10 @@ import { Financeiro } from './pages/Financeiro';
 import { Garantias } from './pages/Garantias';
 import { Comissoes } from './pages/Comissoes';
 import { Ranking } from './pages/Ranking';
+import { Franqueados } from './pages/Franqueados';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, mustChangePassword, refreshUser } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
 
   if (loading) {
@@ -32,6 +34,10 @@ function AppContent() {
 
   if (!user) {
     return <Login />;
+  }
+
+  if (mustChangePassword) {
+    return <TrocarSenha onSuccess={refreshUser} />;
   }
 
   const renderPage = () => {
@@ -66,6 +72,8 @@ function AppContent() {
         return <Garantias />;
       case 'comissoes':
         return <Comissoes />;
+      case 'franqueados':
+        return <Franqueados />;
       default:
         return (
           <div className="card">

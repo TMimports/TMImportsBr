@@ -63,17 +63,17 @@ async function gerarCodigoOS(): Promise<string> {
   return `${prefixo}${ano}${String(numero).padStart(4, '0')}`;
 }
 
-async function gerarCodigoUnidade(): Promise<string> {
+async function gerarNumeroSerieUnidade(): Promise<string> {
   const prefixo = 'TMUNI';
   
   const ultimo = await prisma.unidadeFisica.findFirst({
-    where: { codigo: { startsWith: prefixo } },
-    orderBy: { codigo: 'desc' }
+    where: { numeroSerie: { startsWith: prefixo } },
+    orderBy: { numeroSerie: 'desc' }
   });
   
   let numero = 1;
-  if (ultimo) {
-    const match = ultimo.codigo.match(/\d+$/);
+  if (ultimo && ultimo.numeroSerie) {
+    const match = ultimo.numeroSerie.match(/\d+$/);
     if (match) {
       numero = parseInt(match[0]) + 1;
     }
@@ -264,17 +264,17 @@ router.post('/unidades', verifyToken, upload.single('arquivo'), async (req, res)
         }
       }
 
-      const codigo = await gerarCodigoUnidade();
+      const numeroSerie = await gerarNumeroSerieUnidade();
 
       const unidade = await prisma.unidadeFisica.create({
         data: {
-          codigo,
           produtoId: produto.id,
           lojaId: parseInt(lojaId),
           cor: cor || null,
           chassi: chassi || null,
           codigoMotor: motor || null,
           ano,
+          numeroSerie,
           status: 'ESTOQUE'
         }
       });
@@ -308,7 +308,7 @@ router.get('/gerar-codigo/:tipo', verifyToken, async (req, res) => {
         codigo = await gerarCodigoOS();
         break;
       case 'UNIDADE':
-        codigo = await gerarCodigoUnidade();
+        codigo = await gerarNumeroSerieUnidade();
         break;
       default:
         return res.status(400).json({ error: 'Tipo invalido' });
@@ -322,4 +322,4 @@ router.get('/gerar-codigo/:tipo', verifyToken, async (req, res) => {
 
 export default router;
 
-export { gerarCodigoProduto, gerarCodigoOS, gerarCodigoUnidade };
+export { gerarCodigoProduto, gerarCodigoOS, gerarNumeroSerieUnidade };

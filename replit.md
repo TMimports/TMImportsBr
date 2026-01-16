@@ -13,6 +13,8 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Comprehensive financial management (AR/AP, cash flow, bank reconciliation)
 - PWA Support for mobile installation and offline capabilities
 - Granular RBAC permission system with 5 roles
+- Franchisee registration with CNPJ lookup (BrasilAPI) and temporary password
+- Mandatory password change on first login for new franchisees
 
 ## Development vs Production
 

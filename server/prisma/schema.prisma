@@ -106,17 +106,18 @@ model Loja {
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  nome        String
-  email       String   @unique
-  senha       String
-  role        Role
-  ativo       Boolean  @default(true)
-  grupoId     Int?
-  lojaId      Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   Int?
+  id                 Int      @id @default(autoincrement())
+  nome               String
+  email              String   @unique
+  senha              String
+  role               Role
+  ativo              Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  grupoId            Int?
+  lojaId             Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  createdBy          Int?
   
   grupo       Grupo?   @relation(fields: [grupoId], references: [id])
   loja        Loja?    @relation(fields: [lojaId], references: [id])

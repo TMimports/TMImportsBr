@@ -7,8 +7,10 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, senha: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isAdmin: boolean;
   isAdminRede: boolean;
+  mustChangePassword: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,11 +54,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const userData = await auth.me();
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Erro ao atualizar usuario:', error);
+    }
+  };
+
   const isAdmin = user?.role === 'ADMIN_GERAL';
   const isAdminRede = user?.role === 'ADMIN_GERAL' || user?.role === 'ADMIN_REDE';
+  const mustChangePassword = user?.mustChangePassword ?? false;
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isAdminRede }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, isAdmin, isAdminRede, mustChangePassword }}>
       {children}
     </AuthContext.Provider>
   );

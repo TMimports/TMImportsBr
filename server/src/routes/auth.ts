@@ -46,7 +46,8 @@ router.post('/login', async (req, res) => {
         grupoId: user.grupoId,
         lojaId: user.lojaId,
         loja: user.loja,
-        grupo: user.grupo
+        grupo: user.grupo,
+        mustChangePassword: user.mustChangePassword
       }
     });
   } catch (error) {
@@ -74,10 +75,53 @@ router.get('/me', verifyToken, async (req: AuthRequest, res) => {
       grupoId: user.grupoId,
       lojaId: user.lojaId,
       loja: user.loja,
-      grupo: user.grupo
+      grupo: user.grupo,
+      mustChangePassword: user.mustChangePassword
     });
   } catch (error) {
     console.error('Erro ao buscar usuário:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.post('/trocar-senha', verifyToken, async (req: AuthRequest, res) => {
+  try {
+    const { senhaAtual, novaSenha, confirmarSenha } = req.body;
+
+    if (!senhaAtual || !novaSenha || !confirmarSenha) {
+      return res.status(400).json({ error: 'Todos os campos sao obrigatorios' });
+    }
+
+    if (novaSenha !== confirmarSenha) {
+      return res.status(400).json({ error: 'Nova senha e confirmacao nao conferem' });
+    }
+
+    if (novaSenha.length < 8) {
+      return res.status(400).json({ error: 'Nova senha deve ter no minimo 8 caracteres' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario nao encontrado' });
+    }
+
+    const senhaValida = await bcrypt.compare(senhaAtual, user.senha);
+    if (!senhaValida) {
+      return res.status(401).json({ error: 'Senha atual incorreta' });
+    }
+
+    const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        senha: novaSenhaHash,
+        mustChangePassword: false
+      }
+    });
+
+    res.json({ success: true, message: 'Senha alterada com sucesso' });
+  } catch (error) {
+    console.error('Erro ao trocar senha:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

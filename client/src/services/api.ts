@@ -9,6 +9,7 @@ export interface User {
   lojaId: number | null;
   loja?: { id: number; nomeFantasia: string };
   grupo?: { id: number; nome: string };
+  mustChangePassword?: boolean;
 }
 
 export interface LoginResponse {
