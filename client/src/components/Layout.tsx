@@ -35,10 +35,15 @@ const menuItems = {
   ],
   DONO_LOJA: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'usuarios', label: 'Usuarios', icon: '👥' },
+    { id: 'produtos', label: 'Produtos', icon: '📦' },
+    { id: 'unidades', label: 'Unidades (Motos)', icon: '🏍️' },
     { id: 'estoque', label: 'Estoque', icon: '📋' },
+    { id: 'clientes', label: 'Clientes', icon: '👤' },
     { id: 'vendas', label: 'Vendas', icon: '💰' },
     { id: 'os', label: 'Ordens de Servico', icon: '🔩' },
     { id: 'financeiro', label: 'Financeiro', icon: '💵' },
+    { id: 'garantias', label: 'Garantias', icon: '📜' },
     { id: 'comissoes', label: 'Comissoes', icon: '💸' },
   ],
   GERENTE_LOJA: [
