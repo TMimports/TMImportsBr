@@ -78,10 +78,21 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
   try {
-    const { cnpj, razaoSocial, nomeFantasia, endereco, telefone, email, grupoId } = req.body;
+    const { cnpj, razaoSocial, nomeFantasia, endereco, telefone, email, cep, bairro, cidade, uf } = req.body;
 
-    if (!cnpj || !razaoSocial || !grupoId) {
-      return res.status(400).json({ error: 'CNPJ, razão social e grupo são obrigatórios' });
+    if (!cnpj || !razaoSocial) {
+      return res.status(400).json({ error: 'CNPJ e razão social são obrigatórios' });
+    }
+
+    let grupoId = 1;
+    const grupo = await prisma.grupo.findFirst();
+    if (grupo) {
+      grupoId = grupo.id;
+    } else {
+      const novoGrupo = await prisma.grupo.create({
+        data: { nome: 'Tecle Motos', cnpj: cnpj.replace(/\D/g, '') }
+      });
+      grupoId = novoGrupo.id;
     }
 
     const loja = await prisma.loja.create({
@@ -92,7 +103,7 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
         endereco,
         telefone,
         email,
-        grupoId: Number(grupoId)
+        grupoId
       }
     });
 
@@ -126,7 +137,7 @@ router.delete('/:id', requireAdminRede, async (req, res) => {
   try {
     const lojaId = Number(req.params.id);
 
-    const usuariosCount = await prisma.usuario.count({ where: { lojaId } });
+    const usuariosCount = await prisma.user.count({ where: { lojaId } });
     if (usuariosCount > 0) {
       return res.status(400).json({ error: `Nao e possivel excluir. Existem ${usuariosCount} usuario(s) vinculado(s) a esta loja.` });
     }

@@ -21,6 +21,10 @@ const initialForm = {
   razaoSocial: '',
   nomeFantasia: '',
   endereco: '',
+  cep: '',
+  bairro: '',
+  cidade: '',
+  uf: '',
   telefone: '',
   email: ''
 };
@@ -64,6 +68,10 @@ export function Lojas() {
         razaoSocial: dados.razaoSocial,
         nomeFantasia: dados.nomeFantasia,
         endereco: dados.endereco,
+        cep: dados.cep,
+        bairro: dados.bairro,
+        cidade: dados.cidade,
+        uf: dados.uf,
         telefone: dados.telefone,
         email: dados.email
       });
@@ -76,10 +84,16 @@ export function Lojas() {
     e.preventDefault();
     setSaving(true);
     try {
+      const enderecoCompleto = [form.endereco, form.bairro, form.cidade, form.uf, form.cep].filter(Boolean).join(', ');
+      const dados = {
+        ...form,
+        endereco: enderecoCompleto
+      };
+      
       if (editando && form.id) {
-        await api.put(`/lojas/${form.id}`, form);
+        await api.put(`/lojas/${form.id}`, dados);
       } else {
-        await api.post('/lojas', form);
+        await api.post('/lojas', dados);
       }
       setModalOpen(false);
       setForm(initialForm);
@@ -99,6 +113,10 @@ export function Lojas() {
       razaoSocial: loja.razaoSocial,
       nomeFantasia: loja.nomeFantasia || '',
       endereco: loja.endereco || '',
+      cep: '',
+      bairro: '',
+      cidade: '',
+      uf: '',
       telefone: loja.telefone || '',
       email: loja.email || ''
     });
@@ -280,7 +298,50 @@ export function Lojas() {
               value={form.endereco}
               onChange={(e) => setForm({ ...form, endereco: e.target.value })}
               className="input"
+              placeholder="Rua, numero, complemento"
             />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="label">CEP</label>
+              <input
+                type="text"
+                value={form.cep}
+                onChange={(e) => setForm({ ...form, cep: e.target.value })}
+                className="input"
+                placeholder="00000-000"
+              />
+            </div>
+            <div>
+              <label className="label">Bairro</label>
+              <input
+                type="text"
+                value={form.bairro}
+                onChange={(e) => setForm({ ...form, bairro: e.target.value })}
+                className="input"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label">Cidade</label>
+                <input
+                  type="text"
+                  value={form.cidade}
+                  onChange={(e) => setForm({ ...form, cidade: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label">UF</label>
+                <input
+                  type="text"
+                  value={form.uf}
+                  onChange={(e) => setForm({ ...form, uf: e.target.value })}
+                  className="input"
+                  maxLength={2}
+                />
+              </div>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -290,6 +351,7 @@ export function Lojas() {
                 value={form.telefone}
                 onChange={(e) => setForm({ ...form, telefone: e.target.value })}
                 className="input"
+                placeholder="(00) 0000-0000"
               />
             </div>
             <div>

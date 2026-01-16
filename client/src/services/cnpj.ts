@@ -5,6 +5,22 @@ export interface CNPJData {
   endereco: string;
   telefone: string;
   email: string;
+  cep: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
+}
+
+function formatarTelefone(dddTelefone: string): string {
+  if (!dddTelefone) return '';
+  const numeros = dddTelefone.replace(/\D/g, '');
+  if (numeros.length === 10) {
+    return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`;
+  }
+  if (numeros.length === 11) {
+    return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`;
+  }
+  return dddTelefone;
 }
 
 export async function buscarCNPJ(cnpj: string): Promise<CNPJData | null> {
@@ -26,10 +42,7 @@ export async function buscarCNPJ(cnpj: string): Promise<CNPJData | null> {
     const endereco = [
       data.logradouro,
       data.numero,
-      data.complemento,
-      data.bairro,
-      data.municipio,
-      data.uf
+      data.complemento
     ].filter(Boolean).join(', ');
 
     return {
@@ -37,8 +50,12 @@ export async function buscarCNPJ(cnpj: string): Promise<CNPJData | null> {
       razaoSocial: data.razao_social || '',
       nomeFantasia: data.nome_fantasia || data.razao_social || '',
       endereco: endereco,
-      telefone: data.ddd_telefone_1 || '',
-      email: data.email || ''
+      telefone: formatarTelefone(data.ddd_telefone_1),
+      email: data.email || '',
+      cep: data.cep || '',
+      bairro: data.bairro || '',
+      cidade: data.municipio || '',
+      uf: data.uf || ''
     };
   } catch (error) {
     console.error('Erro ao buscar CNPJ:', error);
