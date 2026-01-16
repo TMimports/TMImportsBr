@@ -1,10 +1,36 @@
 @import "tailwindcss";
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   background-color: #0a0a0a;
   color: #ffffff;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: 1rem !important;
+  }
+  
+  .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  .hide-mobile {
+    display: none !important;
+  }
 }
 
 .btn {
