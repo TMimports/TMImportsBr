@@ -31,6 +31,8 @@ export function Produtos() {
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [selecionados, setSelecionados] = useState<number[]>([]);
+  const [busca, setBusca] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState<string>('TODOS');
 
   const loadProdutos = () => {
     setLoading(true);
@@ -117,14 +119,6 @@ export function Produtos() {
     );
   };
 
-  const toggleTodos = () => {
-    if (selecionados.length === produtos.length) {
-      setSelecionados([]);
-    } else {
-      setSelecionados(produtos.map(p => p.id));
-    }
-  };
-
   const abrirNovo = () => {
     setForm(initialForm);
     setEditando(false);
@@ -132,6 +126,14 @@ export function Produtos() {
   };
 
   const precoCalculado = form.custo ? calcularPreco(parseFloat(form.custo), form.tipo) : 0;
+
+  const produtosFiltrados = produtos.filter(p => {
+    const matchBusca = busca === '' || 
+      p.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      p.codigo.toLowerCase().includes(busca.toLowerCase());
+    const matchTipo = filtroTipo === 'TODOS' || p.tipo === filtroTipo;
+    return matchBusca && matchTipo;
+  });
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Carregando...</div>;
@@ -153,6 +155,48 @@ export function Produtos() {
         </div>
       </div>
 
+      <div className="card mb-4">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Buscar por nome ou codigo..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="input w-full pl-10"
+              />
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setFiltroTipo('TODOS')}
+              className={`btn ${filtroTipo === 'TODOS' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => setFiltroTipo('PECA')}
+              className={`btn ${filtroTipo === 'PECA' ? 'btn-success' : 'btn-secondary'}`}
+            >
+              Pecas
+            </button>
+            <button
+              onClick={() => setFiltroTipo('MOTO')}
+              className={`btn ${filtroTipo === 'MOTO' ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              Motos
+            </button>
+          </div>
+          <div className="text-sm text-gray-400">
+            {produtosFiltrados.length} de {produtos.length} produtos
+          </div>
+        </div>
+      </div>
+
       <div className="card">
         <table className="w-full">
           <thead>
@@ -160,8 +204,14 @@ export function Produtos() {
               <th className="text-left p-3 border-b border-zinc-700">
                 <input
                   type="checkbox"
-                  checked={selecionados.length === produtos.length && produtos.length > 0}
-                  onChange={toggleTodos}
+                  checked={selecionados.length === produtosFiltrados.length && produtosFiltrados.length > 0}
+                  onChange={() => {
+                    if (selecionados.length === produtosFiltrados.length) {
+                      setSelecionados([]);
+                    } else {
+                      setSelecionados(produtosFiltrados.map(p => p.id));
+                    }
+                  }}
                   className="rounded"
                 />
               </th>
@@ -175,14 +225,14 @@ export function Produtos() {
             </tr>
           </thead>
           <tbody>
-            {produtos.length === 0 ? (
+            {produtosFiltrados.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-4 text-center text-gray-500">
                   Nenhum produto encontrado
                 </td>
               </tr>
             ) : (
-              produtos.map(produto => (
+              produtosFiltrados.map(produto => (
                 <tr key={produto.id} className="hover:bg-zinc-700">
                   <td className="p-3 border-b border-zinc-700">
                     <input
