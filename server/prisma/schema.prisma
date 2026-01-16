@@ -115,6 +115,13 @@ model User {
   mustChangePassword Boolean  @default(false)
   grupoId            Int?
   lojaId             Int?
+  cpf                String?
+  telefone           String?
+  banco              String?
+  agencia            String?
+  conta              String?
+  tipoConta          String?
+  chavePix           String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   createdBy          Int?

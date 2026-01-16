@@ -25,6 +25,13 @@ router.get('/', async (req: AuthRequest, res) => {
         ativo: true,
         grupoId: true,
         lojaId: true,
+        cpf: true,
+        telefone: true,
+        banco: true,
+        agencia: true,
+        conta: true,
+        tipoConta: true,
+        chavePix: true,
         loja: { select: { id: true, nomeFantasia: true } },
         grupo: { select: { id: true, nome: true } },
         createdAt: true
@@ -70,7 +77,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
   try {
-    const { nome, email, senha, role, grupoId, lojaId } = req.body;
+    const { nome, email, senha, role, grupoId, lojaId, cpf, telefone, banco, agencia, conta, tipoConta, chavePix } = req.body;
 
     if (!nome || !email || !senha || !role) {
       return res.status(400).json({ error: 'Nome, email, senha e perfil são obrigatórios' });
@@ -86,6 +93,13 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
         role,
         grupoId: grupoId ? Number(grupoId) : null,
         lojaId: lojaId ? Number(lojaId) : null,
+        cpf: cpf || null,
+        telefone: telefone || null,
+        banco: banco || null,
+        agencia: agencia || null,
+        conta: conta || null,
+        tipoConta: tipoConta || null,
+        chavePix: chavePix || null,
         createdBy: req.user!.id
       },
       select: {
@@ -110,9 +124,23 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
 
 router.put('/:id', requireAdminRede, async (req: AuthRequest, res) => {
   try {
-    const { nome, email, senha, role, ativo, grupoId, lojaId } = req.body;
+    const { nome, email, senha, role, ativo, grupoId, lojaId, cpf, telefone, banco, agencia, conta, tipoConta, chavePix } = req.body;
 
-    const data: any = { nome, email, role, ativo, grupoId, lojaId };
+    const data: any = { 
+      nome, 
+      email, 
+      role, 
+      ativo, 
+      grupoId, 
+      lojaId,
+      cpf: cpf || null,
+      telefone: telefone || null,
+      banco: banco || null,
+      agencia: agencia || null,
+      conta: conta || null,
+      tipoConta: tipoConta || null,
+      chavePix: chavePix || null
+    };
 
     if (senha) {
       data.senha = await bcrypt.hash(senha, 10);
@@ -128,7 +156,14 @@ router.put('/:id', requireAdminRede, async (req: AuthRequest, res) => {
         role: true,
         ativo: true,
         grupoId: true,
-        lojaId: true
+        lojaId: true,
+        cpf: true,
+        telefone: true,
+        banco: true,
+        agencia: true,
+        conta: true,
+        tipoConta: true,
+        chavePix: true
       }
     });
 

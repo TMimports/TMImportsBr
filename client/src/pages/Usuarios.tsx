@@ -22,7 +22,14 @@ const initialForm = {
   email: '',
   senha: '',
   role: 'VENDEDOR',
-  lojaId: ''
+  lojaId: '',
+  cpf: '',
+  telefone: '',
+  banco: '',
+  agencia: '',
+  conta: '',
+  tipoConta: 'CORRENTE',
+  chavePix: ''
 };
 
 const roleLabels: Record<string, string> = {
@@ -78,7 +85,14 @@ export function Usuarios() {
         email: form.email,
         senha: form.senha || undefined,
         role: form.role,
-        lojaId: form.lojaId ? parseInt(form.lojaId) : null
+        lojaId: form.lojaId ? parseInt(form.lojaId) : null,
+        cpf: form.cpf || null,
+        telefone: form.telefone || null,
+        banco: form.banco || null,
+        agencia: form.agencia || null,
+        conta: form.conta || null,
+        tipoConta: form.tipoConta || null,
+        chavePix: form.chavePix || null
       };
       
       if (editando && form.id) {
@@ -97,14 +111,21 @@ export function Usuarios() {
     }
   };
 
-  const handleEditar = (usuario: Usuario) => {
+  const handleEditar = (usuario: any) => {
     setForm({
       id: usuario.id,
       nome: usuario.nome,
       email: usuario.email,
       senha: '',
       role: usuario.role,
-      lojaId: ''
+      lojaId: usuario.lojaId ? String(usuario.lojaId) : '',
+      cpf: usuario.cpf || '',
+      telefone: usuario.telefone || '',
+      banco: usuario.banco || '',
+      agencia: usuario.agencia || '',
+      conta: usuario.conta || '',
+      tipoConta: usuario.tipoConta || 'CORRENTE',
+      chavePix: usuario.chavePix || ''
     });
     setEditando(true);
     setModalOpen(true);
@@ -299,6 +320,96 @@ export function Usuarios() {
               ))}
             </select>
           </div>
+
+          {(form.role === 'VENDEDOR' || form.role === 'GERENTE_LOJA') && (
+            <>
+              <div className="border-t border-zinc-700 pt-4 mt-4">
+                <h3 className="text-lg font-semibold text-white mb-3">Dados Pessoais</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">CPF</label>
+                  <input
+                    type="text"
+                    value={form.cpf}
+                    onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                    className="input"
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+                <div>
+                  <label className="label">Telefone</label>
+                  <input
+                    type="text"
+                    value={form.telefone}
+                    onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                    className="input"
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-zinc-700 pt-4 mt-4">
+                <h3 className="text-lg font-semibold text-white mb-3">Dados Bancarios</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Banco</label>
+                  <input
+                    type="text"
+                    value={form.banco}
+                    onChange={(e) => setForm({ ...form, banco: e.target.value })}
+                    className="input"
+                    placeholder="Ex: Nubank, Bradesco"
+                  />
+                </div>
+                <div>
+                  <label className="label">Tipo de Conta</label>
+                  <select
+                    value={form.tipoConta}
+                    onChange={(e) => setForm({ ...form, tipoConta: e.target.value })}
+                    className="input"
+                  >
+                    <option value="CORRENTE">Corrente</option>
+                    <option value="POUPANCA">Poupanca</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Agencia</label>
+                  <input
+                    type="text"
+                    value={form.agencia}
+                    onChange={(e) => setForm({ ...form, agencia: e.target.value })}
+                    className="input"
+                    placeholder="0000"
+                  />
+                </div>
+                <div>
+                  <label className="label">Conta</label>
+                  <input
+                    type="text"
+                    value={form.conta}
+                    onChange={(e) => setForm({ ...form, conta: e.target.value })}
+                    className="input"
+                    placeholder="00000-0"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="label">Chave PIX</label>
+                <input
+                  type="text"
+                  value={form.chavePix}
+                  onChange={(e) => setForm({ ...form, chavePix: e.target.value })}
+                  className="input"
+                  placeholder="CPF, Email, Telefone ou Chave Aleatoria"
+                />
+              </div>
+            </>
+          )}
+
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
               Cancelar
