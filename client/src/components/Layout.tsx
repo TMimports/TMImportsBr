@@ -13,7 +13,7 @@ const menuItems = {
   ADMIN_GERAL: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'ranking', label: 'Ranking', icon: '🏆' },
-    { id: 'franqueados', label: 'Franqueados', icon: '🤝' },
+    { id: 'grupos', label: 'Grupos', icon: '🏢' },
     { id: 'lojas', label: 'Lojas', icon: '🏪' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
     { id: 'produtos', label: 'Produtos', icon: '📦' },
@@ -29,7 +29,7 @@ const menuItems = {
   ],
   ADMIN_REDE: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'franqueados', label: 'Franqueados', icon: '🤝' },
+    { id: 'grupos', label: 'Grupos', icon: '🏢' },
     { id: 'lojas', label: 'Lojas', icon: '🏪' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
   ],

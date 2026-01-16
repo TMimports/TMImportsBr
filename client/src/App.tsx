@@ -18,7 +18,6 @@ import { Financeiro } from './pages/Financeiro';
 import { Garantias } from './pages/Garantias';
 import { Comissoes } from './pages/Comissoes';
 import { Ranking } from './pages/Ranking';
-import { Franqueados } from './pages/Franqueados';
 
 function AppContent() {
   const { user, loading, mustChangePassword, refreshUser } = useAuth();
@@ -72,8 +71,6 @@ function AppContent() {
         return <Garantias />;
       case 'comissoes':
         return <Comissoes />;
-      case 'franqueados':
-        return <Franqueados />;
       default:
         return (
           <div className="card">

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../index.js';
 import { verifyToken, requireAdminRede, AuthRequest } from '../middleware/auth.js';
 
@@ -7,10 +8,22 @@ const router = Router();
 router.use(verifyToken);
 router.use(requireAdminRede);
 
+function generateTempPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < 8; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const grupos = await prisma.grupo.findMany({
-      include: { lojas: true, _count: { select: { usuarios: true } } },
+      include: { 
+        lojas: { select: { id: true, nomeFantasia: true } }, 
+        _count: { select: { usuarios: true, lojas: true } } 
+      },
       orderBy: { nome: 'asc' }
     });
     res.json(grupos);
@@ -40,17 +53,49 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { nome } = req.body;
+    const { nome, nomeProprietario, emailProprietario } = req.body;
 
     if (!nome) {
-      return res.status(400).json({ error: 'Nome é obrigatório' });
+      return res.status(400).json({ error: 'Nome do grupo é obrigatório' });
     }
+
+    if (!nomeProprietario || !emailProprietario) {
+      return res.status(400).json({ error: 'Dados do proprietário são obrigatórios' });
+    }
+
+    const emailExistente = await prisma.user.findUnique({
+      where: { email: emailProprietario }
+    });
+
+    if (emailExistente) {
+      return res.status(400).json({ error: 'Email já cadastrado no sistema' });
+    }
+
+    const senhaTemporaria = generateTempPassword();
+    const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
 
     const grupo = await prisma.grupo.create({
       data: { nome }
     });
 
-    res.status(201).json(grupo);
+    const usuario = await prisma.user.create({
+      data: {
+        nome: nomeProprietario,
+        email: emailProprietario,
+        senha: senhaHash,
+        role: 'DONO_LOJA',
+        mustChangePassword: true,
+        grupoId: grupo.id,
+        createdBy: req.user?.id
+      },
+      select: { id: true, nome: true, email: true }
+    });
+
+    res.status(201).json({ 
+      grupo,
+      senhaTemporaria,
+      usuario
+    });
   } catch (error) {
     console.error('Erro ao criar grupo:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });

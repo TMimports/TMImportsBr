@@ -78,21 +78,19 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
   try {
-    const { cnpj, razaoSocial, nomeFantasia, endereco, telefone, email, cep, bairro, cidade, uf } = req.body;
+    const { cnpj, razaoSocial, nomeFantasia, endereco, telefone, email, grupoId: grupoIdParam } = req.body;
 
     if (!cnpj || !razaoSocial) {
       return res.status(400).json({ error: 'CNPJ e razão social são obrigatórios' });
     }
 
-    let grupoId = 1;
-    const grupo = await prisma.grupo.findFirst();
-    if (grupo) {
-      grupoId = grupo.id;
-    } else {
-      const novoGrupo = await prisma.grupo.create({
-        data: { nome: 'Tecle Motos', cnpj: cnpj.replace(/\D/g, '') }
-      });
-      grupoId = novoGrupo.id;
+    if (!grupoIdParam) {
+      return res.status(400).json({ error: 'Grupo é obrigatório' });
+    }
+
+    const grupoExiste = await prisma.grupo.findUnique({ where: { id: Number(grupoIdParam) } });
+    if (!grupoExiste) {
+      return res.status(400).json({ error: 'Grupo não encontrado' });
     }
 
     const loja = await prisma.loja.create({
@@ -103,7 +101,7 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
         endereco,
         telefone,
         email,
-        grupoId
+        grupoId: Number(grupoIdParam)
       }
     });
 

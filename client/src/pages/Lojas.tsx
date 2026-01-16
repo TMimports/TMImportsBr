@@ -4,6 +4,11 @@ import { Modal } from '../components/Modal';
 import { ImportExport } from '../components/ImportExport';
 import { buscarCNPJ, formatCNPJ } from '../services/cnpj';
 
+interface Grupo {
+  id: number;
+  nome: string;
+}
+
 interface Loja {
   id: number;
   cnpj: string;
@@ -13,6 +18,8 @@ interface Loja {
   telefone: string;
   email: string;
   ativo: boolean;
+  grupoId: number;
+  grupo?: Grupo;
 }
 
 const initialForm = {
@@ -26,11 +33,13 @@ const initialForm = {
   cidade: '',
   uf: '',
   telefone: '',
-  email: ''
+  email: '',
+  grupoId: 0
 };
 
 export function Lojas() {
   const [lojas, setLojas] = useState<Loja[]>([]);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -38,6 +47,15 @@ export function Lojas() {
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [selecionados, setSelecionados] = useState<number[]>([]);
+
+  const loadGrupos = async () => {
+    try {
+      const data = await api.get<Grupo[]>('/grupos');
+      setGrupos(data);
+    } catch (err) {
+      console.error('Erro ao carregar grupos:', err);
+    }
+  };
 
   const loadLojas = () => {
     setLoading(true);
@@ -49,6 +67,7 @@ export function Lojas() {
 
   useEffect(() => {
     loadLojas();
+    loadGrupos();
   }, []);
 
   const handleBuscarCNPJ = async () => {
@@ -118,7 +137,8 @@ export function Lojas() {
       cidade: '',
       uf: '',
       telefone: loja.telefone || '',
-      email: loja.email || ''
+      email: loja.email || '',
+      grupoId: loja.grupoId
     });
     setEditando(true);
     setModalOpen(true);
@@ -199,8 +219,9 @@ export function Lojas() {
                 />
               </th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Nome Fantasia</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">CNPJ</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Telefone</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Grupo</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400 hidden md:table-cell">CNPJ</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400 hidden md:table-cell">Telefone</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
             </tr>
@@ -224,8 +245,9 @@ export function Lojas() {
                     />
                   </td>
                   <td className="p-3 border-b border-zinc-700">{loja.nomeFantasia || loja.razaoSocial}</td>
-                  <td className="p-3 border-b border-zinc-700 font-mono text-sm">{formatCNPJ(loja.cnpj)}</td>
-                  <td className="p-3 border-b border-zinc-700">{loja.telefone || '-'}</td>
+                  <td className="p-3 border-b border-zinc-700 text-sm text-gray-400">{loja.grupo?.nome || '-'}</td>
+                  <td className="p-3 border-b border-zinc-700 font-mono text-sm hidden md:table-cell">{formatCNPJ(loja.cnpj)}</td>
+                  <td className="p-3 border-b border-zinc-700 hidden md:table-cell">{loja.telefone || '-'}</td>
                   <td className="p-3 border-b border-zinc-700">
                     <span className={`badge ${loja.ativo ? 'badge-success' : 'badge-danger'}`}>
                       {loja.ativo ? 'Ativa' : 'Inativa'}
@@ -290,6 +312,21 @@ export function Lojas() {
               onChange={(e) => setForm({ ...form, nomeFantasia: e.target.value })}
               className="input"
             />
+          </div>
+          <div>
+            <label className="label">Grupo *</label>
+            <select
+              value={form.grupoId}
+              onChange={(e) => setForm({ ...form, grupoId: Number(e.target.value) })}
+              className="input"
+              required
+            >
+              <option value="">Selecione o grupo</option>
+              {grupos.map(g => (
+                <option key={g.id} value={g.id}>{g.nome}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">As lojas do mesmo grupo compartilham estoque</p>
           </div>
           <div>
             <label className="label">Endereco</label>
