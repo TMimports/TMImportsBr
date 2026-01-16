@@ -57,6 +57,7 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
     }
 
     try {
+      console.log('Enviando arquivo para /api/importacao/' + tipo);
       const response = await fetch(`/api/importacao/${tipo}`, {
         method: 'POST',
         headers: {
@@ -65,7 +66,9 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
         body: formData
       });
 
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', data);
       
       if (!response.ok) {
         setResultado({
@@ -79,6 +82,7 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
         }
       }
     } catch (err: any) {
+      console.error('Erro na importacao:', err);
       setResultado({
         sucesso: false,
         erro: err.message || 'Erro ao importar'
