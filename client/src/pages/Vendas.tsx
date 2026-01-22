@@ -58,6 +58,9 @@ interface ItemProduto {
   produtoId: string;
   quantidade: number;
   preco: number;
+  tipo?: string;
+  chassi?: string;
+  motor?: string;
 }
 
 export function Vendas() {
@@ -109,7 +112,7 @@ export function Vendas() {
   }, []);
 
   const adicionarItem = () => {
-    setItensSelecionados([...itensSelecionados, { produtoId: '', quantidade: 1, preco: 0 }]);
+    setItensSelecionados([...itensSelecionados, { produtoId: '', quantidade: 1, preco: 0, tipo: '', chassi: '', motor: '' }]);
   };
 
   const removerItem = (index: number) => {
@@ -120,11 +123,15 @@ export function Vendas() {
     const novos = [...itensSelecionados];
     if (field === 'produtoId') {
       const produto = produtos.find(p => p.id === parseInt(value));
-      novos[index] = { ...novos[index], produtoId: value, preco: produto?.preco || 0 };
+      novos[index] = { ...novos[index], produtoId: value, preco: produto?.preco || 0, tipo: produto?.tipo || '' };
     } else {
       novos[index] = { ...novos[index], [field]: value };
     }
     setItensSelecionados(novos);
+  };
+
+  const motosSemDadosCompletos = () => {
+    return itensSelecionados.filter(item => item.tipo === 'MOTO' && (!item.chassi || !item.motor));
   };
 
   const calcularTotal = () => {
@@ -146,6 +153,12 @@ export function Vendas() {
       return;
     }
 
+    const motosIncompletas = motosSemDadosCompletos();
+    if (motosIncompletas.length > 0) {
+      alert('Preencha o numero do chassi e motor para todas as motos');
+      return;
+    }
+
     setSaving(true);
     try {
       const itens = itensSelecionados
@@ -154,7 +167,9 @@ export function Vendas() {
           produtoId: parseInt(item.produtoId),
           quantidade: item.quantidade,
           precoUnitario: item.preco,
-          desconto: parseFloat(form.desconto)
+          desconto: parseFloat(form.desconto),
+          chassi: item.chassi || null,
+          motor: item.motor || null
         }));
 
       const novaVenda = await api.post<VendaFull>('/vendas', {
@@ -395,34 +410,62 @@ export function Vendas() {
             {itensSelecionados.length === 0 ? (
               <p className="text-gray-500 text-sm">Nenhum produto adicionado</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {itensSelecionados.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-center">
-                    <select
-                      value={item.produtoId}
-                      onChange={(e) => atualizarItem(index, 'produtoId', e.target.value)}
-                      className="input flex-1"
-                    >
-                      <option value="">Selecione...</option>
-                      {produtos.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.nome} - R$ {Number(p.preco).toFixed(2)}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantidade}
-                      onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value))}
-                      className="input w-20"
-                    />
-                    <span className="text-green-400 w-24 text-right">
-                      R$ {(item.preco * item.quantidade).toFixed(2)}
-                    </span>
-                    <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400">
-                      X
-                    </button>
+                  <div key={index} className="p-3 bg-zinc-800 rounded-lg">
+                    <div className="flex gap-2 items-center">
+                      <select
+                        value={item.produtoId}
+                        onChange={(e) => atualizarItem(index, 'produtoId', e.target.value)}
+                        className="input flex-1"
+                      >
+                        <option value="">Selecione...</option>
+                        {produtos.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.nome} - R$ {Number(p.preco).toFixed(2)} {p.tipo === 'MOTO' ? '(Moto)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantidade}
+                        onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value))}
+                        className="input w-20"
+                      />
+                      <span className="text-green-400 w-24 text-right">
+                        R$ {(item.preco * item.quantidade).toFixed(2)}
+                      </span>
+                      <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400">
+                        X
+                      </button>
+                    </div>
+                    {item.tipo === 'MOTO' && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-400">Numero do Chassi *</label>
+                          <input
+                            type="text"
+                            value={item.chassi || ''}
+                            onChange={(e) => atualizarItem(index, 'chassi', e.target.value)}
+                            className="input"
+                            placeholder="Ex: 9C6KE0810PR000000"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-400">Numero do Motor *</label>
+                          <input
+                            type="text"
+                            value={item.motor || ''}
+                            onChange={(e) => atualizarItem(index, 'motor', e.target.value)}
+                            className="input"
+                            placeholder="Ex: E3K6E0000000"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
