@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { ImportExport } from '../components/ImportExport';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Venda {
   id: number;
@@ -26,16 +27,24 @@ interface Produto {
   tipo: string;
 }
 
+interface Loja {
+  id: number;
+  nomeFantasia: string;
+}
+
 export function Vendas() {
+  const { user } = useAuth();
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     clienteId: '',
     produtoId: '',
+    lojaId: '',
     quantidade: '1',
     formaPagamento: 'PIX',
     desconto: '0'
@@ -45,12 +54,17 @@ export function Vendas() {
     Promise.all([
       api.get<Venda[]>('/vendas'),
       api.get<Cliente[]>('/clientes'),
-      api.get<Produto[]>('/produtos')
+      api.get<Produto[]>('/produtos'),
+      api.get<Loja[]>('/lojas')
     ])
-      .then(([vendasData, clientesData, produtosData]) => {
+      .then(([vendasData, clientesData, produtosData, lojasData]) => {
         setVendas(vendasData);
         setClientes(clientesData);
         setProdutos(produtosData);
+        setLojas(lojasData);
+        if (lojasData.length === 1) {
+          setForm(f => ({ ...f, lojaId: String(lojasData[0].id) }));
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -64,17 +78,20 @@ export function Vendas() {
     e.preventDefault();
     setSaving(true);
     try {
+      const produto = produtos.find(p => p.id === parseInt(form.produtoId));
       await api.post('/vendas', {
         clienteId: parseInt(form.clienteId),
+        lojaId: parseInt(form.lojaId),
         itens: [{
           produtoId: parseInt(form.produtoId),
-          quantidade: parseInt(form.quantidade)
+          quantidade: parseInt(form.quantidade),
+          precoUnitario: produto?.preco || 0,
+          desconto: parseFloat(form.desconto)
         }],
-        formaPagamento: form.formaPagamento,
-        desconto: parseFloat(form.desconto)
+        formaPagamento: form.formaPagamento
       });
       setModalOpen(false);
-      setForm({ clienteId: '', produtoId: '', quantidade: '1', formaPagamento: 'PIX', desconto: '0' });
+      setForm({ clienteId: '', produtoId: '', lojaId: lojas.length === 1 ? String(lojas[0].id) : '', quantidade: '1', formaPagamento: 'PIX', desconto: '0' });
       loadData();
     } catch (err: any) {
       alert(err.message);
@@ -144,6 +161,22 @@ export function Vendas() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nova Venda">
         <form onSubmit={handleSubmit} className="space-y-4">
+          {lojas.length > 1 && (
+            <div>
+              <label className="label">Loja *</label>
+              <select
+                value={form.lojaId}
+                onChange={(e) => setForm({ ...form, lojaId: e.target.value })}
+                className="input"
+                required
+              >
+                <option value="">Selecione...</option>
+                {lojas.map(l => (
+                  <option key={l.id} value={l.id}>{l.nomeFantasia}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="label">Cliente *</label>
             <select
