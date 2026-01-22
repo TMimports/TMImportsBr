@@ -36,7 +36,6 @@ const menuItems = {
   DONO_LOJA: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
-    { id: 'produtos', label: 'Produtos', icon: '📦' },
     { id: 'unidades', label: 'Unidades (Motos)', icon: '🏍️' },
     { id: 'estoque', label: 'Estoque', icon: '📋' },
     { id: 'clientes', label: 'Clientes', icon: '👤' },
