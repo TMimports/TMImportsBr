@@ -169,4 +169,44 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
   }
 });
 
+router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
+  try {
+    const vendaAtual = await prisma.venda.findUnique({
+      where: { id: Number(req.params.id) }
+    });
+
+    if (!vendaAtual) {
+      return res.status(404).json({ error: 'Venda não encontrada' });
+    }
+
+    if (vendaAtual.tipo !== 'ORCAMENTO') {
+      return res.status(400).json({ error: 'Apenas orçamentos podem ser convertidos em venda' });
+    }
+
+    const venda = await prisma.venda.update({
+      where: { id: Number(req.params.id) },
+      data: { 
+        tipo: 'VENDA',
+        confirmadaFinanceiro: true 
+      }
+    });
+
+    await prisma.caixa.create({
+      data: {
+        lojaId: venda.lojaId,
+        tipo: 'entrada',
+        descricao: `Venda #${venda.id} (convertido de orçamento)`,
+        valor: venda.valorTotal,
+        formaPagamento: venda.formaPagamento,
+        referencia: `venda_${venda.id}`
+      }
+    });
+
+    res.json(venda);
+  } catch (error) {
+    console.error('Erro ao converter orçamento:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;

@@ -213,6 +213,18 @@ export function Vendas() {
     }
   };
 
+  const converterParaVenda = async (id: number) => {
+    if (!window.confirm('Deseja concluir este orçamento como venda?')) return;
+    try {
+      await api.put(`/vendas/${id}/converter-venda`);
+      loadData();
+      alert('Orçamento convertido em venda com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao converter orçamento');
+    }
+  };
+
   const handlePrint = () => {
     if (!printRef.current) return;
     
@@ -323,13 +335,21 @@ export function Vendas() {
                   <td className="p-3 border-b border-zinc-700">
                     {new Date(venda.createdAt).toLocaleDateString('pt-BR')}
                   </td>
-                  <td className="p-3 border-b border-zinc-700">
+                  <td className="p-3 border-b border-zinc-700 flex gap-2">
                     <button
                       onClick={() => abrirVisualizacao(venda.id)}
                       className="btn btn-sm btn-secondary"
                     >
                       Ver
                     </button>
+                    {venda.tipo === 'ORCAMENTO' && !venda.confirmadaFinanceiro && (
+                      <button
+                        onClick={() => converterParaVenda(venda.id)}
+                        className="btn btn-sm btn-success"
+                      >
+                        Concluir Venda
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
