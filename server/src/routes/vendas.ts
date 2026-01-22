@@ -96,20 +96,37 @@ router.post('/', async (req: AuthRequest, res) => {
       });
     }
 
+    const tipoVenda = tipo || 'VENDA';
+    const confirmarAutomaticamente = tipoVenda === 'VENDA';
+
     const venda = await prisma.venda.create({
       data: {
-        tipo: tipo || 'VENDA',
+        tipo: tipoVenda,
         clienteId: Number(clienteId),
         vendedorId: Number(vendedorId || req.user!.id),
         lojaId: Number(lojaId),
         formaPagamento,
         parcelas: parcelas ? Number(parcelas) : null,
         valorTotal,
+        confirmadaFinanceiro: confirmarAutomaticamente,
         createdBy: req.user!.id,
         itens: { create: itensProcessados }
       },
       include: { itens: true }
     });
+
+    if (confirmarAutomaticamente) {
+      await prisma.caixa.create({
+        data: {
+          lojaId: Number(lojaId),
+          tipo: 'entrada',
+          descricao: `Venda #${venda.id}`,
+          valor: valorTotal,
+          formaPagamento,
+          referencia: `venda_${venda.id}`
+        }
+      });
+    }
 
     for (const item of itensProcessados) {
       if (item.unidadeFisicaId) {
