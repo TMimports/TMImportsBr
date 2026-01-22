@@ -280,6 +280,7 @@ model OrdemServico {
   unidadeFisicaId Int?
   motoDescricao   String?
   tecnico         String?
+  tipo            String     @default("OS")
   status          StatusOS   @default(ORCAMENTO)
   desconto        Decimal    @db.Decimal(5, 2) @default(0)
   valorTotal      Decimal    @db.Decimal(10, 2)

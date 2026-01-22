@@ -57,7 +57,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { clienteId, unidadeFisicaId, motoDescricao, tecnico, observacoes, lojaId, itens, desconto } = req.body;
+    const { clienteId, unidadeFisicaId, motoDescricao, tecnico, observacoes, lojaId, itens, desconto, tipo } = req.body;
 
     if (!clienteId || !lojaId) {
       return res.status(400).json({ error: 'Cliente e loja são obrigatórios' });
@@ -95,10 +95,12 @@ router.post('/', async (req: AuthRequest, res) => {
         lojaId: Number(lojaId),
         desconto: descontoAplicado,
         valorTotal,
+        tipo: tipo || 'OS',
+        status: (tipo === 'ORCAMENTO' ? 'ORCAMENTO' : 'EM_EXECUCAO') as any,
         createdBy: req.user!.id,
         itens: { create: itensProcessados }
       },
-      include: { itens: true }
+      include: { itens: true, cliente: true, loja: true }
     });
 
     res.status(201).json(os);

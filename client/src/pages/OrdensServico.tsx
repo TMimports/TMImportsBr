@@ -1,8 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { ImportExport } from '../components/ImportExport';
 import { useAuth } from '../contexts/AuthContext';
+
+interface OrdemServicoItem {
+  id: number;
+  quantidade: number;
+  precoUnitario: number;
+  produto?: { nome: string };
+  servico?: { nome: string };
+}
+
+interface OrdemServicoFull {
+  id: number;
+  numero: string;
+  tipo: string;
+  status: string;
+  valorTotal: number;
+  desconto: number;
+  motoDescricao?: string;
+  observacoes?: string;
+  tecnico?: string;
+  cliente: { id: number; nome: string; cpfCnpj?: string; telefone?: string; endereco?: string };
+  loja: { nomeFantasia: string; cnpj?: string; telefone?: string; endereco?: string };
+  itens: OrdemServicoItem[];
+  createdAt: string;
+}
 
 interface OrdemServico {
   id: number;
@@ -67,13 +91,17 @@ export function OrdensServico() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [osDetalhada, setOsDetalhada] = useState<OrdemServicoFull | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   
   const [form, setForm] = useState({
     clienteId: '',
     lojaId: '',
     tecnicoId: '',
     motoDescricao: '',
-    observacoes: ''
+    observacoes: '',
+    tipo: 'OS'
   });
 
   const [servicosSelecionados, setServicosSelecionados] = useState<ItemServico[]>([]);
@@ -190,25 +218,83 @@ export function OrdensServico() {
 
       const tecnicoSelecionado = tecnicos.find(t => t.id === parseInt(form.tecnicoId));
 
-      await api.post('/os', {
+      const novaOs = await api.post<OrdemServicoFull>('/os', {
         clienteId: parseInt(form.clienteId),
         lojaId: parseInt(form.lojaId),
         tecnico: tecnicoSelecionado?.nome || form.tecnicoId || null,
         motoDescricao: form.motoDescricao,
         observacoes: form.observacoes,
+        tipo: form.tipo,
         itens
       });
 
       setModalOpen(false);
-      setForm({ clienteId: '', lojaId: lojas.length === 1 ? String(lojas[0].id) : '', tecnicoId: '', motoDescricao: '', observacoes: '' });
+      setForm({ clienteId: '', lojaId: lojas.length === 1 ? String(lojas[0].id) : '', tecnicoId: '', motoDescricao: '', observacoes: '', tipo: 'OS' });
       setServicosSelecionados([]);
       setPecasSelecionadas([]);
       loadData();
+
+      const osCompleta = await api.get<OrdemServicoFull>(`/os/${novaOs.id}`);
+      setOsDetalhada(osCompleta);
+      setViewModalOpen(true);
     } catch (err: any) {
       alert(err.message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const abrirVisualizacao = async (id: number) => {
+    try {
+      const os = await api.get<OrdemServicoFull>(`/os/${id}`);
+      setOsDetalhada(os);
+      setViewModalOpen(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!printRef.current) return;
+    
+    const printContent = printRef.current.innerHTML;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${osDetalhada?.tipo === 'ORCAMENTO' ? 'Orcamento' : 'Ordem de Servico'} #${osDetalhada?.numero || osDetalhada?.id}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            .header h1 { font-size: 24px; margin-bottom: 5px; }
+            .header p { font-size: 12px; color: #666; }
+            .info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
+            .info-box { width: 48%; }
+            .info-box h3 { font-size: 14px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px; }
+            .info-box p { font-size: 12px; margin-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 12px; }
+            th { background: #f5f5f5; }
+            .total { text-align: right; font-size: 16px; font-weight: bold; }
+            .obs { margin-top: 20px; padding: 10px; background: #f9f9f9; border: 1px solid #ccc; font-size: 12px; }
+            .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #666; }
+            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+            .badge-orcamento { background: #fef3c7; color: #92400e; }
+            .badge-os { background: #dbeafe; color: #1e40af; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          ${printContent}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   const statusLabels: Record<string, string> = {
@@ -246,24 +332,31 @@ export function OrdensServico() {
           <thead>
             <tr>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">#</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Tipo</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Cliente</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Tecnico</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Valor</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Data</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
             </tr>
           </thead>
           <tbody>
             {ordens.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">
+                <td colSpan={8} className="p-4 text-center text-gray-500">
                   Nenhuma OS encontrada
                 </td>
               </tr>
             ) : (
               ordens.map(os => (
-                <tr key={os.id} className="hover:bg-zinc-700 cursor-pointer">
+                <tr key={os.id} className="hover:bg-zinc-700">
                   <td className="p-3 border-b border-zinc-700">{os.numero || os.id}</td>
+                  <td className="p-3 border-b border-zinc-700">
+                    <span className={`badge ${os.tipo === 'ORCAMENTO' ? 'badge-warning' : 'badge-primary'}`}>
+                      {os.tipo === 'ORCAMENTO' ? 'Orcamento' : 'OS'}
+                    </span>
+                  </td>
                   <td className="p-3 border-b border-zinc-700">{os.cliente?.nome}</td>
                   <td className="p-3 border-b border-zinc-700">{os.tecnico || '-'}</td>
                   <td className="p-3 border-b border-zinc-700 font-semibold text-green-400">
@@ -277,6 +370,14 @@ export function OrdensServico() {
                   <td className="p-3 border-b border-zinc-700">
                     {new Date(os.createdAt).toLocaleDateString('pt-BR')}
                   </td>
+                  <td className="p-3 border-b border-zinc-700">
+                    <button
+                      onClick={() => abrirVisualizacao(os.id)}
+                      className="btn btn-sm btn-secondary"
+                    >
+                      Ver
+                    </button>
+                  </td>
                 </tr>
               ))
             )}
@@ -286,6 +387,34 @@ export function OrdensServico() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nova Ordem de Servico">
         <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+          <div>
+            <label className="label">Tipo *</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="tipo"
+                  value="OS"
+                  checked={form.tipo === 'OS'}
+                  onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+                  className="accent-orange-500"
+                />
+                <span>Ordem de Servico</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="tipo"
+                  value="ORCAMENTO"
+                  checked={form.tipo === 'ORCAMENTO'}
+                  onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+                  className="accent-orange-500"
+                />
+                <span>Orcamento</span>
+              </label>
+            </div>
+          </div>
+
           {lojas.length > 1 && (
             <div>
               <label className="label">Loja *</label>
@@ -455,10 +584,81 @@ export function OrdensServico() {
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Salvando...' : 'Criar OS'}
+              {saving ? 'Salvando...' : form.tipo === 'ORCAMENTO' ? 'Gerar Orcamento' : 'Criar OS'}
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={viewModalOpen} onClose={() => setViewModalOpen(false)} title={osDetalhada?.tipo === 'ORCAMENTO' ? 'Orcamento' : 'Ordem de Servico'}>
+        <div className="space-y-4">
+          <div ref={printRef}>
+            <div className="header text-center mb-4 pb-4 border-b border-zinc-700">
+              <h1 className="text-xl font-bold">
+                {osDetalhada?.tipo === 'ORCAMENTO' ? 'ORCAMENTO' : 'ORDEM DE SERVICO'}
+              </h1>
+              <p className="text-gray-400">#{osDetalhada?.numero || osDetalhada?.id}</p>
+              <p className="text-sm text-gray-500">{osDetalhada?.loja?.nomeFantasia}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="info-box">
+                <h3 className="font-semibold text-sm mb-2 text-gray-400">Cliente</h3>
+                <p className="text-white">{osDetalhada?.cliente?.nome}</p>
+                {osDetalhada?.cliente?.cpfCnpj && <p className="text-sm text-gray-400">CPF/CNPJ: {osDetalhada.cliente.cpfCnpj}</p>}
+                {osDetalhada?.cliente?.telefone && <p className="text-sm text-gray-400">Tel: {osDetalhada.cliente.telefone}</p>}
+              </div>
+              <div className="info-box">
+                <h3 className="font-semibold text-sm mb-2 text-gray-400">Informacoes</h3>
+                <p className="text-sm text-gray-400">Data: {osDetalhada?.createdAt ? new Date(osDetalhada.createdAt).toLocaleDateString('pt-BR') : '-'}</p>
+                {osDetalhada?.tecnico && <p className="text-sm text-gray-400">Tecnico: {osDetalhada.tecnico}</p>}
+                {osDetalhada?.motoDescricao && <p className="text-sm text-gray-400">Veiculo: {osDetalhada.motoDescricao}</p>}
+              </div>
+            </div>
+
+            <table className="w-full mb-4">
+              <thead>
+                <tr className="border-b border-zinc-700">
+                  <th className="text-left p-2 text-gray-400 text-sm">Item</th>
+                  <th className="text-center p-2 text-gray-400 text-sm">Qtd</th>
+                  <th className="text-right p-2 text-gray-400 text-sm">Valor Unit.</th>
+                  <th className="text-right p-2 text-gray-400 text-sm">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {osDetalhada?.itens?.map((item, i) => (
+                  <tr key={i} className="border-b border-zinc-800">
+                    <td className="p-2">{item.servico?.nome || item.produto?.nome}</td>
+                    <td className="p-2 text-center">{item.quantidade}</td>
+                    <td className="p-2 text-right">R$ {Number(item.precoUnitario).toFixed(2)}</td>
+                    <td className="p-2 text-right">R$ {(Number(item.precoUnitario) * item.quantidade).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="text-right text-lg font-bold border-t border-zinc-700 pt-4">
+              <span className="text-gray-400">Total: </span>
+              <span className="text-green-400">R$ {Number(osDetalhada?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+            </div>
+
+            {osDetalhada?.observacoes && (
+              <div className="mt-4 p-3 bg-zinc-800 rounded text-sm">
+                <strong className="text-gray-400">Observacoes:</strong>
+                <p className="mt-1">{osDetalhada.observacoes}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 justify-end border-t border-zinc-700 pt-4">
+            <button onClick={() => setViewModalOpen(false)} className="btn btn-secondary">
+              Fechar
+            </button>
+            <button onClick={handlePrint} className="btn btn-primary">
+              Imprimir
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
