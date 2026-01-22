@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Usuario {
   id: number;
@@ -37,7 +38,8 @@ const roleLabels: Record<string, string> = {
   ADMIN_REDE: 'Administrador de Rede',
   DONO_LOJA: 'Dono da Loja',
   GERENTE_LOJA: 'Gerente da Loja',
-  VENDEDOR: 'Vendedor'
+  VENDEDOR: 'Vendedor',
+  TECNICO: 'Tecnico'
 };
 
 const roleDescriptions: Record<string, string> = {
@@ -45,10 +47,12 @@ const roleDescriptions: Record<string, string> = {
   ADMIN_REDE: 'Cria grupos, lojas, usuarios. Vincula lojas a donos. Nao mexe em preco.',
   DONO_LOJA: 'Ve sua loja: estoque, vendas, OS, financeiro, comissoes da equipe.',
   GERENTE_LOJA: 'Opera vendas, OS, clientes. Confirma pagamentos. Nao altera precos.',
-  VENDEDOR: 'Cria vendas, OS, orcamentos. Atende clientes. Ve apenas suas comissoes.'
+  VENDEDOR: 'Cria vendas, OS, orcamentos. Atende clientes. Ve apenas suas comissoes.',
+  TECNICO: 'Apenas cadastro para vincular em OS. Nao possui acesso ao sistema.'
 };
 
 export function Usuarios() {
+  const { user } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +61,10 @@ export function Usuarios() {
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [selecionados, setSelecionados] = useState<number[]>([]);
+
+  const rolesDisponiveis = user?.role === 'DONO_LOJA' 
+    ? ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO']
+    : ['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA', 'VENDEDOR', 'TECNICO'];
 
   const loadData = () => {
     setLoading(true);
@@ -297,11 +305,9 @@ export function Usuarios() {
               onChange={(e) => setForm({ ...form, role: e.target.value })}
               className="input"
             >
-              <option value="VENDEDOR">Vendedor</option>
-              <option value="GERENTE_LOJA">Gerente da Loja</option>
-              <option value="DONO_LOJA">Dono da Loja</option>
-              <option value="ADMIN_REDE">Administrador de Rede</option>
-              <option value="ADMIN_GERAL">Administrador Geral</option>
+              {rolesDisponiveis.map(role => (
+                <option key={role} value={role}>{roleLabels[role]}</option>
+              ))}
             </select>
             <p className="text-xs text-gray-500 mt-1">
               {roleDescriptions[form.role]}

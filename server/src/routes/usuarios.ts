@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../index.js';
-import { verifyToken, requireAdminRede, applyTenantFilter, AuthRequest } from '../middleware/auth.js';
+import { verifyToken, requireAdminRede, requireGestorUsuarios, applyTenantFilter, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -75,7 +75,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
   }
 });
 
-router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
+router.post('/', requireGestorUsuarios, async (req: AuthRequest, res) => {
   try {
     const { nome, email, senha, role, grupoId, lojaId, cpf, telefone, banco, agencia, conta, tipoConta, chavePix } = req.body;
 
@@ -83,7 +83,16 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Nome, email, senha e perfil são obrigatórios' });
     }
 
+    const rolesPermitidosDonoLoja = ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
+    if (req.user!.role === 'DONO_LOJA') {
+      if (!rolesPermitidosDonoLoja.includes(role)) {
+        return res.status(403).json({ error: 'Voce so pode cadastrar Vendedor, Gerente ou Tecnico' });
+      }
+    }
+
     const senhaHash = await bcrypt.hash(senha, 10);
+
+    const finalGrupoId = req.user!.role === 'DONO_LOJA' ? req.user!.grupoId : (grupoId ? Number(grupoId) : null);
 
     const usuario = await prisma.user.create({
       data: {
@@ -91,7 +100,7 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
         email,
         senha: senhaHash,
         role,
-        grupoId: grupoId ? Number(grupoId) : null,
+        grupoId: finalGrupoId,
         lojaId: lojaId ? Number(lojaId) : null,
         cpf: cpf || null,
         telefone: telefone || null,
@@ -122,9 +131,14 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
   }
 });
 
-router.put('/:id', requireAdminRede, async (req: AuthRequest, res) => {
+router.put('/:id', requireGestorUsuarios, async (req: AuthRequest, res) => {
   try {
     const { nome, email, senha, role, ativo, grupoId, lojaId, cpf, telefone, banco, agencia, conta, tipoConta, chavePix } = req.body;
+
+    const rolesPermitidosDonoLoja = ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
+    if (req.user!.role === 'DONO_LOJA' && role && !rolesPermitidosDonoLoja.includes(role)) {
+      return res.status(403).json({ error: 'Voce so pode editar Vendedor, Gerente ou Tecnico' });
+    }
 
     const data: any = { 
       nome, 
@@ -174,7 +188,7 @@ router.put('/:id', requireAdminRede, async (req: AuthRequest, res) => {
   }
 });
 
-router.delete('/:id', requireAdminRede, async (req, res) => {
+router.delete('/:id', requireGestorUsuarios, async (req: AuthRequest, res) => {
   try {
     const userId = Number(req.params.id);
 

@@ -77,6 +77,13 @@ export function requireAdminRede(req: AuthRequest, res: Response, next: NextFunc
   next();
 }
 
+export function requireGestorUsuarios(req: AuthRequest, res: Response, next: NextFunction) {
+  if (!req.user || !['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+  next();
+}
+
 export function applyTenantFilter(req: AuthRequest): { grupoId?: number; lojaId?: number } {
   const { role, grupoId, lojaId } = req.user!;
 

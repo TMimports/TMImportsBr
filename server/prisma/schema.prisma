@@ -13,6 +13,7 @@ enum Role {
   DONO_LOJA
   GERENTE_LOJA
   VENDEDOR
+  TECNICO
 }
 
 enum TipoProduto {
