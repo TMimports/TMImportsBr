@@ -327,7 +327,7 @@ export function Usuarios() {
             </select>
           </div>
 
-          {(form.role === 'VENDEDOR' || form.role === 'GERENTE_LOJA') && (
+          {(form.role === 'VENDEDOR' || form.role === 'GERENTE_LOJA' || form.role === 'TECNICO') && (
             <>
               <div className="border-t border-zinc-700 pt-4 mt-4">
                 <h3 className="text-lg font-semibold text-white mb-3">Dados Pessoais</h3>
