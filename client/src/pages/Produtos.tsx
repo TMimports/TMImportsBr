@@ -54,10 +54,14 @@ export function Produtos() {
     e.preventDefault();
     setSaving(true);
     try {
+      const custo = parseFloat(form.custo);
+      const preco = calcularPreco(custo, form.tipo);
+      
       const dados = {
         nome: form.nome,
         tipo: form.tipo,
-        custo: parseFloat(form.custo),
+        custo,
+        preco,
         descricao: form.descricao
       };
       

@@ -18,6 +18,7 @@ import { Financeiro } from './pages/Financeiro';
 import { Garantias } from './pages/Garantias';
 import { Comissoes } from './pages/Comissoes';
 import { Ranking } from './pages/Ranking';
+import { ContasReceber } from './pages/ContasReceber';
 
 function AppContent() {
   const { user, loading, mustChangePassword, refreshUser } = useAuth();
@@ -42,7 +43,7 @@ function AppContent() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onNavigate={setCurrentPage} />;
       case 'ranking':
         return <Ranking />;
       case 'vendas':
@@ -71,6 +72,8 @@ function AppContent() {
         return <Garantias />;
       case 'comissoes':
         return <Comissoes />;
+      case 'contas-receber':
+        return <ContasReceber />;
       default:
         return (
           <div className="card">

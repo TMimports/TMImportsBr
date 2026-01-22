@@ -1,0 +1,90 @@
+Corrigir os seguintes bugs do sistema. Não descreva planos: implemente no código e prove com critérios de aceite (logs + telas funcionando).
+
+BUGS/REQUISITOS:
+
+1) FINANCEIRO: RECORRÊNCIA
+- Em Contas a Pagar e Contas a Receber, adicionar opção “Recorrente”.
+- Frequência: semanal, quinzenal, mensal, semestral, anual.
+- Ao salvar recorrente, gerar automaticamente lançamentos futuros (padrão: 12 meses; para semanal/quinzenal gerar quantidade equivalente).
+- Deve ser possível editar/encerrar uma recorrência sem apagar histórico.
+
+ACEITE:
+- Criar conta a pagar mensal recorrente e verificar 12 lançamentos gerados.
+- Criar conta a receber quinzenal recorrente e verificar lançamentos gerados.
+
+2) FINANCEIRO: CONTAS A RECEBER (UI e rota)
+- Criar/ativar a tela e o botão no menu “Contas a Receber”.
+- Garantir endpoint CRUD funcionando e integrado ao frontend.
+- Se existir rota mas não aparece no menu, corrigir o menu.
+
+ACEITE:
+- Usuário com permissão de financeiro consegue ver o botão e cadastrar conta a receber.
+
+3) VENDEDOR: VISUALIZAR ESTOQUE
+- Vendedor deve conseguir ver o estoque (pelo menos leitura) da loja.
+- Ajustar permissões e menu para exibir “Estoque”.
+- Garantir que a tela de estoque não exija permissão de edição para apenas listar.
+
+ACEITE:
+- Logar como vendedor e acessar /app/estoque, ver itens.
+
+4) DESCONTO MOTO: BLOQUEAR > 3,5%
+- Aplicar desconto por item.
+- Se item tipo MOTO: máximo 3,5%.
+- Validar no frontend E no backend.
+- Mensagem clara ao usuário quando exceder.
+
+ACEITE:
+- Tentar salvar venda com moto a 4%: bloquear e retornar erro no backend.
+
+5) PAGAMENTO: ADICIONAR “FINANCIAMENTO”
+- Adicionar forma de pagamento “Financiamento” no fluxo de venda.
+- Salvar no banco (payment_method = FINANCIAMENTO) e status apropriado (ex.: PENDENTE_FINANCIAMENTO).
+- Não quebrar Pix/Dinheiro/Crédito/Débito.
+
+ACEITE:
+- Criar venda com Financiamento e ela aparecer na lista com esse método.
+
+6) PRODUTOS: EDIÇÃO DE PREÇO NÃO ATUALIZA
+- Corrigir update de produto para persistir no DB.
+- Após salvar, lista e detalhes devem refletir imediatamente.
+- Garantir que o backend realmente atualiza (PUT/PATCH correto) e o frontend faz refresh do estado.
+
+ACEITE:
+- Alterar preço, recarregar página, valor continua correto.
+
+7) OS: VENDEDOR NÃO CONSEGUE CRIAR
+- Corrigir permissões e fluxo para que vendedor possa criar OS.
+- Garantir rota/tela “Nova OS” disponível e funcional.
+- Se existir bloqueio por status, permitir salvar como “Orçamento” ou “Aberta”.
+
+ACEITE:
+- Logar como vendedor, criar OS e ver na lista.
+
+8) DASHBOARD: DRILL-DOWN (clicar no card e ver itens)
+- Cada card do dashboard deve ser clicável e abrir a lista filtrada correspondente.
+Exemplos:
+- “Contas a pagar” -> /app/pagar com filtros (abertas + ordenado por vencimento)
+- “Contas a vencer 7 dias” -> /app/pagar?due=7
+- “Contas a receber” -> /app/receber
+- “OS em aberto” -> /app/os?status=aberta
+- “Vendas pendentes” -> /app/vendas?status=pendente
+
+ACEITE:
+- Clicar no card e abrir a listagem com os itens exatos.
+
+9) DASHBOARD: COMISSÕES A PAGAR (VENDEDOR E TÉCNICO)
+- Implementar cálculo/registro de comissões:
+  - Venda confirmada: comissão do vendedor
+  - OS finalizada/confirmada: comissão do técnico
+- Criar card no dashboard: “Comissões a pagar”
+- Drill-down: lista por pessoa + total + status (pendente/pago).
+
+ACEITE:
+- Após 1 venda e 1 OS, dashboard mostra comissões pendentes e ao clicar abre a lista.
+
+ENTREGÁVEIS (OBRIGATÓRIOS):
+A) Lista de arquivos alterados.
+B) Prints/logs ou descrição precisa dos caminhos testados (URLs) comprovando cada ACEITE acima.
+C) Se necessário, criar 2 usuários de teste (vendedor e financeiro) e imprimir credenciais no console.
+D) Não quebrar funcionalidades existentes.

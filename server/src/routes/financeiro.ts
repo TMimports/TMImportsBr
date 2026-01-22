@@ -6,6 +6,39 @@ const router = Router();
 
 router.use(verifyToken);
 
+function calcularNumeroLancamentos(recorrencia: string): number {
+  switch (recorrencia) {
+    case 'SEMANAL': return 52;
+    case 'QUINZENAL': return 26;
+    case 'MENSAL': return 12;
+    case 'SEMESTRAL': return 4;
+    case 'ANUAL': return 2;
+    default: return 12;
+  }
+}
+
+function proximaData(data: Date, recorrencia: string): Date {
+  const proxima = new Date(data);
+  switch (recorrencia) {
+    case 'SEMANAL':
+      proxima.setDate(proxima.getDate() + 7);
+      break;
+    case 'QUINZENAL':
+      proxima.setDate(proxima.getDate() + 15);
+      break;
+    case 'MENSAL':
+      proxima.setMonth(proxima.getMonth() + 1);
+      break;
+    case 'SEMESTRAL':
+      proxima.setMonth(proxima.getMonth() + 6);
+      break;
+    case 'ANUAL':
+      proxima.setFullYear(proxima.getFullYear() + 1);
+      break;
+  }
+  return proxima;
+}
+
 router.get('/caixa', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
@@ -29,9 +62,107 @@ router.get('/caixa', async (req: AuthRequest, res) => {
 
 router.get('/contas-receber', async (req: AuthRequest, res) => {
   try {
-    res.json([]);
+    const filter = applyTenantFilter(req);
+
+    const where: any = { deletedAt: null };
+    if (filter.lojaId) where.lojaId = filter.lojaId;
+    if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+
+    const contas = await prisma.contaReceber.findMany({
+      where,
+      include: { loja: true },
+      orderBy: { vencimento: 'asc' }
+    });
+
+    res.json(contas);
   } catch (error) {
     console.error('Erro ao listar contas a receber:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.post('/contas-receber', async (req: AuthRequest, res) => {
+  try {
+    const { lojaId, clienteId, descricao, valor, vencimento, recorrente, recorrencia } = req.body;
+
+    if (!lojaId || !valor || !vencimento || !descricao) {
+      return res.status(400).json({ error: 'Dados incompletos' });
+    }
+
+    const conta = await prisma.contaReceber.create({
+      data: {
+        lojaId: Number(lojaId),
+        clienteId: clienteId ? Number(clienteId) : null,
+        descricao,
+        valor: Number(valor),
+        vencimento: new Date(vencimento),
+        recorrente: recorrente || false,
+        recorrencia: recorrente ? recorrencia : null,
+        createdBy: req.user!.id
+      }
+    });
+
+    if (recorrente && recorrencia) {
+      const numLancamentos = calcularNumeroLancamentos(recorrencia);
+      let dataAtual = new Date(vencimento);
+      
+      for (let i = 1; i < numLancamentos; i++) {
+        dataAtual = proximaData(dataAtual, recorrencia);
+        await prisma.contaReceber.create({
+          data: {
+            lojaId: Number(lojaId),
+            clienteId: clienteId ? Number(clienteId) : null,
+            descricao,
+            valor: Number(valor),
+            vencimento: dataAtual,
+            recorrente: true,
+            recorrencia,
+            createdBy: req.user!.id
+          }
+        });
+      }
+    }
+
+    res.status(201).json(conta);
+  } catch (error) {
+    console.error('Erro ao criar conta a receber:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.put('/contas-receber/:id/receber', async (req: AuthRequest, res) => {
+  try {
+    const conta = await prisma.contaReceber.update({
+      where: { id: Number(req.params.id) },
+      data: { pago: true, dataPago: new Date() }
+    });
+
+    await prisma.caixa.create({
+      data: {
+        lojaId: conta.lojaId,
+        tipo: 'entrada',
+        descricao: `Recebimento: ${conta.descricao}`,
+        valor: conta.valor,
+        referencia: `receber_${conta.id}`
+      }
+    });
+
+    res.json(conta);
+  } catch (error) {
+    console.error('Erro ao receber conta:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.delete('/contas-receber/:id', async (req: AuthRequest, res) => {
+  try {
+    await prisma.contaReceber.update({
+      where: { id: Number(req.params.id) },
+      data: { deletedAt: new Date(), deletedBy: req.user!.id }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao excluir conta:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
@@ -39,10 +170,21 @@ router.get('/contas-receber', async (req: AuthRequest, res) => {
 router.get('/contas-pagar', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
+    const { due } = req.query;
 
     const where: any = { deletedAt: null };
     if (filter.lojaId) where.lojaId = filter.lojaId;
     if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+
+    if (due) {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const limite = new Date();
+      limite.setDate(limite.getDate() + Number(due));
+      limite.setHours(23, 59, 59, 999);
+      where.vencimento = { gte: hoje, lte: limite };
+      where.pago = false;
+    }
 
     const contas = await prisma.contaPagar.findMany({
       where,
@@ -128,6 +270,27 @@ router.post('/contas-pagar', async (req: AuthRequest, res) => {
       }
     });
 
+    if (recorrente && recorrencia) {
+      const numLancamentos = calcularNumeroLancamentos(recorrencia);
+      let dataAtual = new Date(vencimento);
+      
+      for (let i = 1; i < numLancamentos; i++) {
+        dataAtual = proximaData(dataAtual, recorrencia);
+        await prisma.contaPagar.create({
+          data: {
+            lojaId: Number(lojaId),
+            categoria,
+            descricao,
+            valor: Number(valor),
+            vencimento: dataAtual,
+            recorrente: true,
+            recorrencia,
+            createdBy: req.user!.id
+          }
+        });
+      }
+    }
+
     res.status(201).json(conta);
   } catch (error) {
     console.error('Erro ao criar conta:', error);
@@ -160,44 +323,22 @@ router.put('/contas-pagar/:id/pagar', async (req: AuthRequest, res) => {
       }
     });
 
-    if (contaAtual.recorrente && contaAtual.recorrencia) {
-      let proximoVencimento = new Date(contaAtual.vencimento);
-      
-      switch (contaAtual.recorrencia) {
-        case 'SEMANAL':
-          proximoVencimento.setDate(proximoVencimento.getDate() + 7);
-          break;
-        case 'QUINZENAL':
-          proximoVencimento.setDate(proximoVencimento.getDate() + 15);
-          break;
-        case 'MENSAL':
-          proximoVencimento.setMonth(proximoVencimento.getMonth() + 1);
-          break;
-        case 'SEMESTRAL':
-          proximoVencimento.setMonth(proximoVencimento.getMonth() + 6);
-          break;
-        case 'ANUAL':
-          proximoVencimento.setFullYear(proximoVencimento.getFullYear() + 1);
-          break;
-      }
-
-      await prisma.contaPagar.create({
-        data: {
-          lojaId: contaAtual.lojaId,
-          categoria: contaAtual.categoria,
-          descricao: contaAtual.descricao,
-          valor: contaAtual.valor,
-          vencimento: proximoVencimento,
-          recorrente: true,
-          recorrencia: contaAtual.recorrencia,
-          createdBy: contaAtual.createdBy
-        }
-      });
-    }
-
     res.json(conta);
   } catch (error) {
     console.error('Erro ao pagar conta:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.delete('/contas-pagar/:id', async (req: AuthRequest, res) => {
+  try {
+    await prisma.contaPagar.update({
+      where: { id: Number(req.params.id) },
+      data: { deletedAt: new Date(), deletedBy: req.user!.id }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Erro ao excluir conta:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

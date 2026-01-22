@@ -8,6 +8,7 @@ interface DashboardData {
   alertasEstoque: number;
   contasVencer: { hoje: number; em3dias: number; em7dias: number };
   fluxoCaixa: { entradas: number; saidas: number; saldo: number };
+  comissoesPendentes?: number;
 }
 
 interface LojaComparativo {
@@ -25,7 +26,11 @@ interface Loja {
   nome: string;
 }
 
-export function Dashboard() {
+interface DashboardProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function Dashboard({ onNavigate }: DashboardProps) {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,11 +38,21 @@ export function Dashboard() {
   const [lojaFiltro, setLojaFiltro] = useState<string>('');
   const [comparativo, setComparativo] = useState<LojaComparativo[]>([]);
   const [showComparativo, setShowComparativo] = useState(false);
+  const [comissoesPendentes, setComissoesPendentes] = useState(0);
 
   const isAdminGlobal = user?.role === 'ADMIN_GERAL';
   const isAdminRede = user?.role === 'ADMIN_REDE';
   const isDonoLoja = user?.role === 'DONO_LOJA';
   const canCompare = isAdminGlobal || isAdminRede || isDonoLoja;
+
+  const navigateTo = (page: string) => {
+    if (onNavigate) {
+      onNavigate(page);
+    } else {
+      const event = new CustomEvent('navigate', { detail: page });
+      window.dispatchEvent(event);
+    }
+  };
 
   useEffect(() => {
     if (canCompare) {
@@ -48,10 +63,15 @@ export function Dashboard() {
   useEffect(() => {
     setLoading(true);
     const params = lojaFiltro ? `?lojaId=${lojaFiltro}` : '';
-    api.get<DashboardData>(`/dashboard${params}`)
-      .then(setData)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    
+    Promise.all([
+      api.get<DashboardData>(`/dashboard${params}`),
+      api.get<any[]>('/financeiro/comissoes')
+    ]).then(([dashData, comissoes]) => {
+      setData(dashData);
+      const pendentes = comissoes.filter(c => !c.pago).reduce((acc, c) => acc + Number(c.valor), 0);
+      setComissoesPendentes(pendentes);
+    }).catch(console.error).finally(() => setLoading(false));
   }, [lojaFiltro]);
 
   const loadComparativo = async () => {
@@ -80,11 +100,11 @@ export function Dashboard() {
             <select
               value={lojaFiltro}
               onChange={(e) => setLojaFiltro(e.target.value)}
-              className="input"
+              className="input w-48"
             >
-              <option value="">Todas as Lojas</option>
-              {lojas.map(loja => (
-                <option key={loja.id} value={loja.id}>{loja.nome}</option>
+              <option value="">Todas as lojas</option>
+              {lojas.map(l => (
+                <option key={l.id} value={l.id}>{l.nome}</option>
               ))}
             </select>
             <button onClick={loadComparativo} className="btn btn-secondary">
@@ -95,17 +115,23 @@ export function Dashboard() {
       </div>
 
       {(data?.contasVencer?.hoje || 0) > 0 && (
-        <div className="bg-red-900/30 border border-red-500 rounded-lg p-4 mb-6 flex items-center gap-3">
+        <div 
+          onClick={() => navigateTo('financeiro')}
+          className="bg-red-900/30 border border-red-500 rounded-lg p-4 mb-6 flex items-center gap-3 cursor-pointer hover:bg-red-900/50 transition"
+        >
           <span className="text-2xl">🚨</span>
           <div>
-            <p className="font-bold text-red-400">Atenção! {data?.contasVencer?.hoje} conta(s) vencendo HOJE!</p>
-            <p className="text-sm text-gray-400">Acesse o financeiro para verificar</p>
+            <p className="font-bold text-red-400">Atencao! {data?.contasVencer?.hoje} conta(s) vencendo HOJE!</p>
+            <p className="text-sm text-gray-400">Clique para acessar o financeiro</p>
           </div>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card">
+        <div 
+          onClick={() => navigateTo('vendas')}
+          className="card cursor-pointer hover:border-orange-500 transition"
+        >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-2xl">
               💰
@@ -118,7 +144,10 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="card">
+        <div 
+          onClick={() => navigateTo('os')}
+          className="card cursor-pointer hover:border-orange-500 transition"
+        >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-2xl">
               🔧
@@ -131,7 +160,10 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="card">
+        <div 
+          onClick={() => navigateTo('estoque')}
+          className="card cursor-pointer hover:border-orange-500 transition"
+        >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center text-2xl">
               ⚠️
@@ -144,7 +176,10 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="card">
+        <div 
+          onClick={() => navigateTo('financeiro')}
+          className="card cursor-pointer hover:border-orange-500 transition"
+        >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center text-2xl">
               📅
@@ -162,6 +197,41 @@ export function Dashboard() {
                   7d: {data?.contasVencer?.em7dias || 0}
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div 
+          onClick={() => navigateTo('comissoes')}
+          className="card cursor-pointer hover:border-orange-500 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center text-2xl">
+              💸
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Comissoes a Pagar</p>
+              <p className="text-2xl font-bold text-purple-400">
+                R$ {comissoesPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-sm text-gray-500">Clique para ver detalhes</p>
+            </div>
+          </div>
+        </div>
+
+        <div 
+          onClick={() => navigateTo('contas-receber')}
+          className="card cursor-pointer hover:border-orange-500 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-teal-500/20 rounded-xl flex items-center justify-center text-2xl">
+              💳
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Contas a Receber</p>
+              <p className="text-sm text-gray-500">Clique para acessar</p>
             </div>
           </div>
         </div>
@@ -199,8 +269,8 @@ export function Dashboard() {
 
         <div className="card">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${(data?.fluxoCaixa?.saldo || 0) >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-              💵
+            <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-2xl">
+              📊
             </div>
             <div>
               <p className="text-gray-400 text-sm">Saldo</p>
@@ -214,42 +284,43 @@ export function Dashboard() {
 
       {showComparativo && comparativo.length > 0 && (
         <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Comparativo de Lojas</h2>
-            <button onClick={() => setShowComparativo(false)} className="btn btn-sm btn-secondary">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Comparativo entre Lojas</h2>
+            <button onClick={() => setShowComparativo(false)} className="text-gray-400 hover:text-white">
               Fechar
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <div className="card overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-zinc-700">
-                  <th className="text-left p-3">Loja</th>
-                  <th className="text-right p-3">Vendas (R$)</th>
-                  <th className="text-right p-3">Qtd Vendas</th>
-                  <th className="text-right p-3">OS (R$)</th>
-                  <th className="text-right p-3">Qtd OS</th>
-                  <th className="text-right p-3">Faturamento</th>
-                  <th className="text-right p-3">Saldo Caixa</th>
+                  <th className="text-left p-3 text-gray-400">Loja</th>
+                  <th className="text-right p-3 text-gray-400">Vendas</th>
+                  <th className="text-right p-3 text-gray-400">OS</th>
+                  <th className="text-right p-3 text-gray-400">Faturamento</th>
+                  <th className="text-right p-3 text-gray-400">Saldo</th>
                 </tr>
               </thead>
               <tbody>
                 {comparativo.map(loja => (
-                  <tr key={loja.lojaId} className="border-b border-zinc-800 hover:bg-zinc-800">
-                    <td className="p-3 font-medium">{loja.lojaNome}</td>
-                    <td className="p-3 text-right text-green-400">
-                      R$ {loja.vendas.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  <tr key={loja.lojaId} className="border-b border-zinc-800">
+                    <td className="p-3">
+                      <p className="font-semibold">{loja.lojaNome}</p>
+                      <p className="text-xs text-gray-500">{loja.grupoNome}</p>
                     </td>
-                    <td className="p-3 text-right">{loja.vendas.quantidade}</td>
-                    <td className="p-3 text-right text-blue-400">
-                      R$ {loja.os.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    <td className="p-3 text-right">
+                      <p className="font-semibold">R$ {Number(loja.vendas.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                      <p className="text-xs text-gray-500">{loja.vendas.quantidade} vendas</p>
                     </td>
-                    <td className="p-3 text-right">{loja.os.quantidade}</td>
-                    <td className="p-3 text-right font-bold text-orange-400">
-                      R$ {loja.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    <td className="p-3 text-right">
+                      <p className="font-semibold">R$ {Number(loja.os.total).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                      <p className="text-xs text-gray-500">{loja.os.quantidade} OS</p>
+                    </td>
+                    <td className="p-3 text-right text-green-400 font-semibold">
+                      R$ {Number(loja.faturamento).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
                     <td className={`p-3 text-right font-semibold ${loja.fluxo.saldo >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      R$ {loja.fluxo.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {Number(loja.fluxo.saldo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 ))}

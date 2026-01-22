@@ -43,6 +43,9 @@ enum FormaPagamento {
   PIX
   DINHEIRO
   CARTAO
+  CARTAO_DEBITO
+  CARTAO_CREDITO
+  FINANCIAMENTO
 }
 
 enum StatusTransferencia {
@@ -110,6 +113,7 @@ model Loja {
   ordensServico OrdemServico[]
   caixa        Caixa[]
   contasPagar  ContaPagar[]
+  contasReceber ContaReceber[]
   transferenciasOrigem  Transferencia[] @relation("TransferenciaOrigem")
   transferenciasDestino Transferencia[] @relation("TransferenciaDestino")
 }
@@ -422,6 +426,27 @@ model Comissao {
   usuario         User          @relation(fields: [usuarioId], references: [id])
   venda           Venda?        @relation(fields: [vendaId], references: [id])
   ordemServico    OrdemServico? @relation(fields: [ordemServicoId], references: [id])
+}
+
+model ContaReceber {
+  id           Int               @id @default(autoincrement())
+  lojaId       Int
+  clienteId    Int?
+  vendaId      Int?
+  descricao    String
+  valor        Decimal           @db.Decimal(10, 2)
+  vencimento   DateTime
+  recorrente   Boolean           @default(false)
+  recorrencia  RecorrenciaConta?
+  pago         Boolean           @default(false)
+  dataPago     DateTime?
+  deletedAt    DateTime?
+  deletedBy    Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  createdBy    Int?
+  
+  loja         Loja              @relation(fields: [lojaId], references: [id])
 }
 
 model Configuracao {

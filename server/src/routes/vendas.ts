@@ -88,7 +88,11 @@ router.post('/', async (req: AuthRequest, res) => {
           }
 
           const maxDesconto = produto.tipo === 'MOTO' ? (config?.descontoMaxMoto || 3.5) : (config?.descontoMaxPeca || 10);
-          if (desconto > Number(maxDesconto)) desconto = Number(maxDesconto);
+          if (desconto > Number(maxDesconto)) {
+            return res.status(400).json({ 
+              error: `Desconto de ${desconto}% excede o maximo permitido para ${produto.tipo === 'MOTO' ? 'motos' : 'pecas'} (${maxDesconto}%)` 
+            });
+          }
         }
       }
 
