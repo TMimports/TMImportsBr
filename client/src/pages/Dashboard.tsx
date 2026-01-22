@@ -6,21 +6,63 @@ interface DashboardData {
   vendasMes: { total: number; quantidade: number };
   osMes: { total: number; quantidade: number };
   alertasEstoque: number;
-  contasVencer: number;
+  contasVencer: { hoje: number; em3dias: number; em7dias: number };
   fluxoCaixa: { entradas: number; saidas: number; saldo: number };
+}
+
+interface LojaComparativo {
+  lojaId: number;
+  lojaNome: string;
+  grupoNome: string;
+  vendas: { total: number; quantidade: number };
+  os: { total: number; quantidade: number };
+  faturamento: number;
+  fluxo: { entradas: number; saidas: number; saldo: number };
+}
+
+interface Loja {
+  id: number;
+  nome: string;
 }
 
 export function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lojas, setLojas] = useState<Loja[]>([]);
+  const [lojaFiltro, setLojaFiltro] = useState<string>('');
+  const [comparativo, setComparativo] = useState<LojaComparativo[]>([]);
+  const [showComparativo, setShowComparativo] = useState(false);
+
+  const isAdminGlobal = user?.role === 'ADMIN_GERAL';
+  const isAdminRede = user?.role === 'ADMIN_REDE';
+  const isDonoLoja = user?.role === 'DONO_LOJA';
+  const canCompare = isAdminGlobal || isAdminRede || isDonoLoja;
 
   useEffect(() => {
-    api.get<DashboardData>('/dashboard')
+    if (canCompare) {
+      api.get<Loja[]>('/lojas').then(setLojas).catch(console.error);
+    }
+  }, [canCompare]);
+
+  useEffect(() => {
+    setLoading(true);
+    const params = lojaFiltro ? `?lojaId=${lojaFiltro}` : '';
+    api.get<DashboardData>(`/dashboard${params}`)
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [lojaFiltro]);
+
+  const loadComparativo = async () => {
+    try {
+      const dados = await api.get<LojaComparativo[]>('/dashboard/comparativo-lojas');
+      setComparativo(dados);
+      setShowComparativo(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Carregando...</div>;
@@ -28,8 +70,39 @@ export function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Dashboard</h1>
-      <p className="text-gray-400 mb-8">Bem-vindo, {user?.nome}!</p>
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-gray-400">Bem-vindo, {user?.nome}!</p>
+        </div>
+        {canCompare && (
+          <div className="flex gap-3 items-center">
+            <select
+              value={lojaFiltro}
+              onChange={(e) => setLojaFiltro(e.target.value)}
+              className="input"
+            >
+              <option value="">Todas as Lojas</option>
+              {lojas.map(loja => (
+                <option key={loja.id} value={loja.id}>{loja.nome}</option>
+              ))}
+            </select>
+            <button onClick={loadComparativo} className="btn btn-secondary">
+              Comparar Lojas
+            </button>
+          </div>
+        )}
+      </div>
+
+      {(data?.contasVencer?.hoje || 0) > 0 && (
+        <div className="bg-red-900/30 border border-red-500 rounded-lg p-4 mb-6 flex items-center gap-3">
+          <span className="text-2xl">🚨</span>
+          <div>
+            <p className="font-bold text-red-400">Atenção! {data?.contasVencer?.hoje} conta(s) vencendo HOJE!</p>
+            <p className="text-sm text-gray-400">Acesse o financeiro para verificar</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="card">
@@ -38,7 +111,7 @@ export function Dashboard() {
               💰
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Vendas do Mês</p>
+              <p className="text-gray-400 text-sm">Vendas do Mes</p>
               <p className="text-2xl font-bold">R$ {Number(data?.vendasMes?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               <p className="text-sm text-gray-500">{data?.vendasMes?.quantidade || 0} vendas</p>
             </div>
@@ -51,7 +124,7 @@ export function Dashboard() {
               🔧
             </div>
             <div>
-              <p className="text-gray-400 text-sm">OS do Mês</p>
+              <p className="text-gray-400 text-sm">OS do Mes</p>
               <p className="text-2xl font-bold">R$ {Number(data?.osMes?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
               <p className="text-sm text-gray-500">{data?.osMes?.quantidade || 0} ordens</p>
             </div>
@@ -66,7 +139,7 @@ export function Dashboard() {
             <div>
               <p className="text-gray-400 text-sm">Alertas de Estoque</p>
               <p className="text-2xl font-bold">{data?.alertasEstoque || 0}</p>
-              <p className="text-sm text-gray-500">itens abaixo do mínimo</p>
+              <p className="text-sm text-gray-500">itens abaixo do minimo</p>
             </div>
           </div>
         </div>
@@ -78,14 +151,23 @@ export function Dashboard() {
             </div>
             <div>
               <p className="text-gray-400 text-sm">Contas a Vencer</p>
-              <p className="text-2xl font-bold">{data?.contasVencer || 0}</p>
-              <p className="text-sm text-gray-500">próximos 5 dias</p>
+              <div className="flex gap-3 mt-1">
+                <span className={`text-xs px-2 py-1 rounded ${(data?.contasVencer?.hoje || 0) > 0 ? 'bg-red-500' : 'bg-zinc-700'}`}>
+                  Hoje: {data?.contasVencer?.hoje || 0}
+                </span>
+                <span className={`text-xs px-2 py-1 rounded ${(data?.contasVencer?.em3dias || 0) > 0 ? 'bg-yellow-600' : 'bg-zinc-700'}`}>
+                  3d: {data?.contasVencer?.em3dias || 0}
+                </span>
+                <span className="text-xs px-2 py-1 rounded bg-zinc-700">
+                  7d: {data?.contasVencer?.em7dias || 0}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <h2 className="text-xl font-bold mt-8 mb-4">Fluxo de Caixa do Mês</h2>
+      <h2 className="text-xl font-bold mt-8 mb-4">Fluxo de Caixa do Mes</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card">
           <div className="flex items-center gap-4">
@@ -129,6 +211,53 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+
+      {showComparativo && comparativo.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Comparativo de Lojas</h2>
+            <button onClick={() => setShowComparativo(false)} className="btn btn-sm btn-secondary">
+              Fechar
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-zinc-700">
+                  <th className="text-left p-3">Loja</th>
+                  <th className="text-right p-3">Vendas (R$)</th>
+                  <th className="text-right p-3">Qtd Vendas</th>
+                  <th className="text-right p-3">OS (R$)</th>
+                  <th className="text-right p-3">Qtd OS</th>
+                  <th className="text-right p-3">Faturamento</th>
+                  <th className="text-right p-3">Saldo Caixa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparativo.map(loja => (
+                  <tr key={loja.lojaId} className="border-b border-zinc-800 hover:bg-zinc-800">
+                    <td className="p-3 font-medium">{loja.lojaNome}</td>
+                    <td className="p-3 text-right text-green-400">
+                      R$ {loja.vendas.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3 text-right">{loja.vendas.quantidade}</td>
+                    <td className="p-3 text-right text-blue-400">
+                      R$ {loja.os.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3 text-right">{loja.os.quantidade}</td>
+                    <td className="p-3 text-right font-bold text-orange-400">
+                      R$ {loja.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className={`p-3 text-right font-semibold ${loja.fluxo.saldo >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      R$ {loja.fluxo.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

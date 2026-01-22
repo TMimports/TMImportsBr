@@ -70,6 +70,14 @@ enum PeriodoComissao {
   MENSAL
 }
 
+enum RecorrenciaConta {
+  SEMANAL
+  QUINZENAL
+  MENSAL
+  SEMESTRAL
+  ANUAL
+}
+
 model Grupo {
   id        Int      @id @default(autoincrement())
   nome      String
@@ -127,10 +135,11 @@ model User {
   updatedAt          DateTime @updatedAt
   createdBy          Int?
   
-  grupo       Grupo?   @relation(fields: [grupoId], references: [id])
-  loja        Loja?    @relation(fields: [lojaId], references: [id])
-  vendas      Venda[]  @relation("VendaVendedor")
+  grupo       Grupo?         @relation(fields: [grupoId], references: [id])
+  loja        Loja?          @relation(fields: [lojaId], references: [id])
+  vendas      Venda[]        @relation("VendaVendedor")
   comissoes   Comissao[]
+  logs        LogAuditoria[]
 }
 
 model Produto {
@@ -226,7 +235,13 @@ model Cliente {
   cpfCnpj   String?
   telefone  String?
   email     String?
-  endereco  String?
+  cep       String?
+  logradouro String?
+  numero     String?
+  complemento String?
+  bairro    String?
+  cidade    String?
+  estado    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy Int?
@@ -244,8 +259,11 @@ model Venda {
   formaPagamento  FormaPagamento
   desconto        Decimal       @db.Decimal(10, 2) @default(0)
   valorTotal      Decimal       @db.Decimal(10, 2)
+  valorBruto      Decimal?      @db.Decimal(10, 2)
   parcelas        Int?
   confirmadaFinanceiro Boolean  @default(false)
+  deletedAt       DateTime?
+  deletedBy       Int?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   createdBy       Int?
@@ -284,10 +302,13 @@ model OrdemServico {
   status          StatusOS   @default(ORCAMENTO)
   desconto        Decimal    @db.Decimal(5, 2) @default(0)
   valorTotal      Decimal    @db.Decimal(10, 2)
+  valorBruto      Decimal?   @db.Decimal(10, 2)
   garantiaMeses   Int        @default(3)
   observacoes     String?
   lojaId          Int
   confirmadaFinanceiro Boolean @default(false)
+  deletedAt       DateTime?
+  deletedBy       Int?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   createdBy       Int?
@@ -355,20 +376,35 @@ model Caixa {
 }
 
 model ContaPagar {
-  id          Int           @id @default(autoincrement())
-  lojaId      Int
-  categoria   CategoriaConta
-  descricao   String
-  valor       Decimal       @db.Decimal(10, 2)
-  vencimento  DateTime
-  recorrente  Boolean       @default(false)
-  pago        Boolean       @default(false)
-  dataPago    DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  createdBy   Int?
+  id           Int               @id @default(autoincrement())
+  lojaId       Int
+  categoria    CategoriaConta
+  descricao    String
+  valor        Decimal           @db.Decimal(10, 2)
+  vencimento   DateTime
+  recorrente   Boolean           @default(false)
+  recorrencia  RecorrenciaConta?
+  pago         Boolean           @default(false)
+  dataPago     DateTime?
+  deletedAt    DateTime?
+  deletedBy    Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  createdBy    Int?
   
-  loja        Loja          @relation(fields: [lojaId], references: [id])
+  loja         Loja              @relation(fields: [lojaId], references: [id])
+}
+
+model LogAuditoria {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int
+  acao        String
+  entidade    String
+  entidadeId  Int
+  dados       String?
+  createdAt   DateTime @default(now())
+  
+  usuario     User     @relation(fields: [usuarioId], references: [id])
 }
 
 model Comissao {

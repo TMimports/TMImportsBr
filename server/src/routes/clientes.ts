@@ -19,6 +19,33 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
+router.get('/buscar-cep/:cep', async (req, res) => {
+  try {
+    const cep = req.params.cep.replace(/\D/g, '');
+    if (cep.length !== 8) {
+      return res.status(400).json({ error: 'CEP inválido' });
+    }
+
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+
+    if (data.erro) {
+      return res.status(404).json({ error: 'CEP não encontrado' });
+    }
+
+    res.json({
+      cep: data.cep,
+      logradouro: data.logradouro,
+      bairro: data.bairro,
+      cidade: data.localidade,
+      estado: data.uf
+    });
+  } catch (error) {
+    console.error('Erro ao buscar CEP:', error);
+    res.status(500).json({ error: 'Erro ao buscar CEP' });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const cliente = await prisma.cliente.findUnique({
@@ -39,10 +66,14 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { nome, cpfCnpj, telefone, email, endereco } = req.body;
+    const { nome, cpfCnpj, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, estado } = req.body;
 
     if (!nome) {
       return res.status(400).json({ error: 'Nome é obrigatório' });
+    }
+
+    if (!cep) {
+      return res.status(400).json({ error: 'CEP é obrigatório' });
     }
 
     const cliente = await prisma.cliente.create({
@@ -51,7 +82,13 @@ router.post('/', async (req: AuthRequest, res) => {
         cpfCnpj,
         telefone,
         email,
-        endereco,
+        cep,
+        logradouro,
+        numero,
+        complemento,
+        bairro,
+        cidade,
+        estado,
         createdBy: req.user!.id
       }
     });
@@ -65,11 +102,11 @@ router.post('/', async (req: AuthRequest, res) => {
 
 router.put('/:id', async (req: AuthRequest, res) => {
   try {
-    const { nome, cpfCnpj, telefone, email, endereco } = req.body;
+    const { nome, cpfCnpj, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, estado } = req.body;
 
     const cliente = await prisma.cliente.update({
       where: { id: Number(req.params.id) },
-      data: { nome, cpfCnpj, telefone, email, endereco }
+      data: { nome, cpfCnpj, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, estado }
     });
 
     res.json(cliente);
@@ -85,9 +122,9 @@ router.delete('/:id', async (req, res) => {
       where: { id: Number(req.params.id) }
     });
 
-    res.json({ message: 'Cliente removido com sucesso' });
+    res.json({ message: 'Cliente excluído' });
   } catch (error) {
-    console.error('Erro ao remover cliente:', error);
+    console.error('Erro ao excluir cliente:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

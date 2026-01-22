@@ -10,7 +10,7 @@ router.get('/', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
 
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (filter.lojaId) where.lojaId = filter.lojaId;
     if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
 
@@ -57,33 +57,58 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { clienteId, unidadeFisicaId, motoDescricao, tecnico, observacoes, lojaId, itens, desconto, tipo } = req.body;
+    const { clienteId, unidadeFisicaId, motoDescricao, tecnico, observacoes, lojaId, itens, tipo } = req.body;
 
     if (!clienteId || !lojaId) {
       return res.status(400).json({ error: 'Cliente e loja são obrigatórios' });
     }
 
     const config = await prisma.configuracao.findFirst();
-    const maxDesconto = Number(config?.descontoMaxOS || 10);
-    const descontoAplicado = Math.min(Number(desconto || 0), maxDesconto);
 
+    let valorBruto = 0;
     let valorTotal = 0;
     const itensProcessados = [];
 
     if (itens?.length) {
       for (const item of itens) {
-        const subtotal = Number(item.precoUnitario) * item.quantidade;
+        const subtotalBruto = Number(item.precoUnitario) * item.quantidade;
+        valorBruto += subtotalBruto;
+        
+        let desconto = Number(item.desconto || 0);
+        
+        if (item.servicoId) {
+          desconto = 0;
+        } else if (item.produtoId) {
+          const estoque = await prisma.estoque.findFirst({
+            where: { produtoId: item.produtoId, lojaId: Number(lojaId) }
+          });
+
+          if (!estoque || estoque.quantidade < item.quantidade) {
+            const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
+            return res.status(400).json({ 
+              error: `Estoque insuficiente para ${produto?.nome || 'peça'}. Disponivel: ${estoque?.quantidade || 0}` 
+            });
+          }
+
+          const maxDesconto = Number(config?.descontoMaxPeca || 10);
+          if (desconto > maxDesconto) desconto = maxDesconto;
+        }
+
+        const subtotal = subtotalBruto * (1 - desconto / 100);
         valorTotal += subtotal;
+
         itensProcessados.push({
           produtoId: item.produtoId || null,
           servicoId: item.servicoId || null,
           quantidade: item.quantidade,
-          precoUnitario: Number(item.precoUnitario)
+          precoUnitario: Number(item.precoUnitario),
+          desconto
         });
       }
     }
 
-    valorTotal = valorTotal * (1 - descontoAplicado / 100);
+    const tipoOS = tipo || 'OS';
+    const status = tipoOS === 'ORCAMENTO' ? 'ORCAMENTO' : 'EM_EXECUCAO';
 
     const os = await prisma.ordemServico.create({
       data: {
@@ -93,15 +118,26 @@ router.post('/', async (req: AuthRequest, res) => {
         tecnico,
         observacoes,
         lojaId: Number(lojaId),
-        desconto: descontoAplicado,
+        valorBruto,
         valorTotal,
-        tipo: tipo || 'OS',
-        status: (tipo === 'ORCAMENTO' ? 'ORCAMENTO' : 'EM_EXECUCAO') as any,
+        tipo: tipoOS,
+        status: status as any,
         createdBy: req.user!.id,
         itens: { create: itensProcessados }
       },
       include: { itens: true, cliente: true, loja: true }
     });
+
+    if (tipoOS !== 'ORCAMENTO') {
+      for (const item of itensProcessados) {
+        if (item.produtoId) {
+          await prisma.estoque.updateMany({
+            where: { produtoId: item.produtoId, lojaId: Number(lojaId) },
+            data: { quantidade: { decrement: item.quantidade } }
+          });
+        }
+      }
+    }
 
     res.status(201).json(os);
   } catch (error) {
@@ -128,6 +164,14 @@ router.put('/:id/status', async (req: AuthRequest, res) => {
 
 router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), async (req: AuthRequest, res) => {
   try {
+    const osAtual = await prisma.ordemServico.findUnique({
+      where: { id: Number(req.params.id) }
+    });
+
+    if (!osAtual) {
+      return res.status(404).json({ error: 'OS não encontrada' });
+    }
+
     const os = await prisma.ordemServico.update({
       where: { id: Number(req.params.id) },
       data: { confirmadaFinanceiro: true, status: 'EXECUTADA' }
@@ -143,9 +187,124 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
       }
     });
 
+    if (osAtual.tecnico) {
+      const tecnicoUser = await prisma.user.findFirst({
+        where: { nome: osAtual.tecnico, role: 'TECNICO' }
+      });
+
+      if (tecnicoUser) {
+        const config = await prisma.configuracao.findFirst();
+        const comissaoPercent = Number(config?.comissaoTecnico || 25);
+        const comissaoValor = Number(os.valorTotal) * (comissaoPercent / 100);
+
+        await prisma.comissao.create({
+          data: {
+            usuarioId: tecnicoUser.id,
+            ordemServicoId: os.id,
+            tipo: 'tecnico',
+            valor: comissaoValor,
+            periodo: config?.periodoComissao || 'MENSAL'
+          }
+        });
+      }
+    }
+
     res.json(os);
   } catch (error) {
     console.error('Erro ao confirmar OS:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.put('/:id/converter-os', async (req: AuthRequest, res) => {
+  try {
+    const osAtual = await prisma.ordemServico.findUnique({
+      where: { id: Number(req.params.id) },
+      include: { itens: true }
+    });
+
+    if (!osAtual) {
+      return res.status(404).json({ error: 'OS não encontrada' });
+    }
+
+    if (osAtual.tipo !== 'ORCAMENTO') {
+      return res.status(400).json({ error: 'Apenas orçamentos podem ser convertidos' });
+    }
+
+    for (const item of osAtual.itens) {
+      if (item.produtoId) {
+        const estoque = await prisma.estoque.findFirst({
+          where: { produtoId: item.produtoId, lojaId: osAtual.lojaId }
+        });
+
+        if (!estoque || estoque.quantidade < item.quantidade) {
+          const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
+          return res.status(400).json({ 
+            error: `Estoque insuficiente para ${produto?.nome || 'peça'}` 
+          });
+        }
+      }
+    }
+
+    const os = await prisma.ordemServico.update({
+      where: { id: Number(req.params.id) },
+      data: { 
+        tipo: 'OS',
+        status: 'EM_EXECUCAO'
+      }
+    });
+
+    for (const item of osAtual.itens) {
+      if (item.produtoId) {
+        await prisma.estoque.updateMany({
+          where: { produtoId: item.produtoId, lojaId: osAtual.lojaId },
+          data: { quantidade: { decrement: item.quantidade } }
+        });
+      }
+    }
+
+    res.json(os);
+  } catch (error) {
+    console.error('Erro ao converter orçamento:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.delete('/:id', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), async (req: AuthRequest, res) => {
+  try {
+    const os = await prisma.ordemServico.findUnique({
+      where: { id: Number(req.params.id) }
+    });
+
+    if (!os) {
+      return res.status(404).json({ error: 'OS não encontrada' });
+    }
+
+    if (os.confirmadaFinanceiro || os.status === 'EXECUTADA') {
+      return res.status(400).json({ error: 'Não é possível excluir OS confirmadas ou finalizadas' });
+    }
+
+    await prisma.ordemServico.update({
+      where: { id: Number(req.params.id) },
+      data: { 
+        deletedAt: new Date(),
+        deletedBy: req.user!.id
+      }
+    });
+
+    await prisma.logAuditoria.create({
+      data: {
+        usuarioId: req.user!.id,
+        acao: 'DELETE',
+        entidade: 'OrdemServico',
+        entidadeId: Number(req.params.id),
+        dados: JSON.stringify(os)
+      }
+    });
+
+    res.json({ message: 'OS excluída' });
+  } catch (error) {
+    console.error('Erro ao excluir OS:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

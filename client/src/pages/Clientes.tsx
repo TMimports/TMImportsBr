@@ -10,7 +10,13 @@ interface Cliente {
   cpfCnpj: string;
   telefone: string;
   email: string;
-  endereco: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
 }
 
 const initialForm = {
@@ -19,7 +25,13 @@ const initialForm = {
   cpfCnpj: '',
   telefone: '',
   email: '',
-  endereco: ''
+  cep: '',
+  logradouro: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  estado: ''
 };
 
 export function Clientes() {
@@ -30,6 +42,7 @@ export function Clientes() {
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [selecionados, setSelecionados] = useState<number[]>([]);
+  const [buscandoCep, setBuscandoCep] = useState(false);
 
   const loadClientes = () => {
     setLoading(true);
@@ -43,8 +56,36 @@ export function Clientes() {
     loadClientes();
   }, []);
 
+  const buscarCep = async (cep: string) => {
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+
+    setBuscandoCep(true);
+    try {
+      const data = await api.get<{cep: string; logradouro: string; bairro: string; cidade: string; estado: string}>(`/clientes/buscar-cep/${cepLimpo}`);
+      setForm(prev => ({
+        ...prev,
+        cep: data.cep,
+        logradouro: data.logradouro || '',
+        bairro: data.bairro || '',
+        cidade: data.cidade || '',
+        estado: data.estado || ''
+      }));
+    } catch (err) {
+      console.error('Erro ao buscar CEP:', err);
+    } finally {
+      setBuscandoCep(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!form.cep) {
+      alert('CEP é obrigatório');
+      return;
+    }
+
     setSaving(true);
     try {
       if (editando && form.id) {
@@ -70,14 +111,20 @@ export function Clientes() {
       cpfCnpj: cliente.cpfCnpj || '',
       telefone: cliente.telefone || '',
       email: cliente.email || '',
-      endereco: cliente.endereco || ''
+      cep: cliente.cep || '',
+      logradouro: cliente.logradouro || '',
+      numero: cliente.numero || '',
+      complemento: cliente.complemento || '',
+      bairro: cliente.bairro || '',
+      cidade: cliente.cidade || '',
+      estado: cliente.estado || ''
     });
     setEditando(true);
     setModalOpen(true);
   };
 
   const handleExcluir = async (id: number) => {
-    if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+    if (!window.confirm('Tem certeza que deseja excluir este cliente?')) return;
     try {
       await api.delete(`/clientes/${id}`);
       loadClientes();
@@ -88,7 +135,7 @@ export function Clientes() {
 
   const handleExcluirSelecionados = async () => {
     if (selecionados.length === 0) return;
-    if (!confirm(`Tem certeza que deseja excluir ${selecionados.length} cliente(s)?`)) return;
+    if (!window.confirm(`Tem certeza que deseja excluir ${selecionados.length} cliente(s)?`)) return;
     
     try {
       await Promise.all(selecionados.map(id => api.delete(`/clientes/${id}`)));
@@ -138,7 +185,7 @@ export function Clientes() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr>
@@ -153,7 +200,7 @@ export function Clientes() {
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Nome</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">CPF/CNPJ</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Telefone</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Email</th>
+              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Cidade/UF</th>
               <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
             </tr>
           </thead>
@@ -180,7 +227,9 @@ export function Clientes() {
                     {cliente.cpfCnpj ? formatCPF(cliente.cpfCnpj) : '-'}
                   </td>
                   <td className="p-3 border-b border-zinc-700">{cliente.telefone || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700">{cliente.email || '-'}</td>
+                  <td className="p-3 border-b border-zinc-700">
+                    {cliente.cidade && cliente.estado ? `${cliente.cidade}/${cliente.estado}` : '-'}
+                  </td>
                   <td className="p-3 border-b border-zinc-700">
                     <div className="table-actions">
                       <button onClick={() => handleEditar(cliente)} className="btn btn-sm btn-secondary">
@@ -199,7 +248,7 @@ export function Clientes() {
       </div>
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Cliente' : 'Novo Cliente'}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
           <div>
             <label className="label">Nome *</label>
             <input
@@ -240,16 +289,88 @@ export function Clientes() {
               />
             </div>
           </div>
-          <div>
-            <label className="label">Endereco</label>
-            <input
-              type="text"
-              value={form.endereco}
-              onChange={(e) => setForm({ ...form, endereco: e.target.value })}
-              className="input"
-            />
+
+          <div className="border-t border-zinc-700 pt-4 mt-4">
+            <h3 className="font-semibold mb-3">Endereco</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="label">CEP *</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={form.cep}
+                    onChange={(e) => setForm({ ...form, cep: e.target.value })}
+                    onBlur={(e) => buscarCep(e.target.value)}
+                    className="input"
+                    placeholder="00000-000"
+                    required
+                  />
+                  {buscandoCep && <span className="text-sm text-gray-400 self-center">...</span>}
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="label">Logradouro</label>
+                <input
+                  type="text"
+                  value={form.logradouro}
+                  onChange={(e) => setForm({ ...form, logradouro: e.target.value })}
+                  className="input"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-4 mt-3">
+              <div>
+                <label className="label">Numero</label>
+                <input
+                  type="text"
+                  value={form.numero}
+                  onChange={(e) => setForm({ ...form, numero: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label">Complemento</label>
+                <input
+                  type="text"
+                  value={form.complemento}
+                  onChange={(e) => setForm({ ...form, complemento: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Bairro</label>
+                <input
+                  type="text"
+                  value={form.bairro}
+                  onChange={(e) => setForm({ ...form, bairro: e.target.value })}
+                  className="input"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-3">
+              <div className="col-span-2">
+                <label className="label">Cidade</label>
+                <input
+                  type="text"
+                  value={form.cidade}
+                  onChange={(e) => setForm({ ...form, cidade: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="label">Estado</label>
+                <input
+                  type="text"
+                  value={form.estado}
+                  onChange={(e) => setForm({ ...form, estado: e.target.value })}
+                  className="input"
+                  maxLength={2}
+                />
+              </div>
+            </div>
           </div>
-          <div className="flex gap-2 justify-end">
+
+          <div className="flex gap-2 justify-end pt-4">
             <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
               Cancelar
             </button>

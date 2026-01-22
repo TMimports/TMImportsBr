@@ -1,0 +1,75 @@
+Corrigir inconsistências graves do sistema conforme abaixo. Todas as correções são obrigatórias.
+
+1) DASHBOARD ADMIN GLOBAL
+- Criar visão por loja/franquia.
+- Admin Global deve:
+  - ver dados consolidados
+  - filtrar por loja
+  - comparar lojas (vendas, OS, faturamento)
+- Não apenas visão geral.
+
+2) PERMISSÃO ADMIN GLOBAL
+- Admin Global pode excluir qualquer registro.
+- Exclusão deve ser soft delete + log de auditoria.
+
+3) FINANCEIRO – CONTAS A VENCER
+- Exibir no dashboard:
+  - contas vencendo hoje
+  - em 3 dias
+  - em 7 dias
+- Criar alertas visuais e notificações internas.
+
+4) FLUXO DE CONFIRMAÇÃO (VENDA E OS)
+- Implementar status:
+  Venda: Orçamento → Pendente → Confirmado → Concluído
+  OS: Orçamento → Em execução → Confirmado → Finalizado
+- Somente Gerente ou Dono da Loja pode confirmar.
+
+5) COMISSÕES
+- Calcular comissão automaticamente:
+  - Venda → comissão do vendedor
+  - OS → comissão do técnico
+- Exibir:
+  - no registro
+  - no dashboard do usuário
+  - no financeiro (conta a pagar comissão)
+
+6) FINANCEIRO – RECORRÊNCIA
+- Contas a pagar com recorrência:
+  - semanal
+  - quinzenal
+  - mensal
+  - semestral
+  - anual
+- Gerar lançamentos automáticos.
+
+7) ORÇAMENTOS
+- Gerente da Loja pode excluir:
+  - orçamento de venda
+  - orçamento de OS
+- Nunca permitir exclusão após confirmação.
+
+8) CADASTRO DE CLIENTE
+- Campo CEP obrigatório.
+- Ao informar CEP:
+  - buscar endereço automaticamente (ViaCEP)
+  - preencher rua, bairro, cidade, estado.
+
+9) BLOQUEIO POR ESTOQUE (CRÍTICO)
+- Proibir venda sem estoque.
+- Proibir OS consumir peça sem estoque.
+- Exibir mensagem clara ao usuário.
+
+10) VALORES VISÍVEIS
+- Em venda e OS mostrar sempre:
+  - valor bruto
+  - desconto
+  - valor final
+- Atualização em tempo real.
+
+11) DESCONTO NA OS
+- Permitir desconto somente em PEÇAS da OS.
+- Nunca permitir desconto em mão de obra.
+- Desconto sempre por item.
+
+Implementar todas as correções sem quebrar o restante do sistema.

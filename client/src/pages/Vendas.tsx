@@ -548,9 +548,21 @@ export function Vendas() {
             />
           </div>
 
-          <div className="border-t border-zinc-700 pt-4">
-            <div className="flex justify-between items-center text-lg font-bold">
-              <span>Total:</span>
+          <div className="border-t border-zinc-700 pt-4 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400">Valor Bruto:</span>
+              <span className="text-white">
+                R$ {itensSelecionados.reduce((acc, item) => acc + (item.preco * item.quantidade), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400">Desconto:</span>
+              <span className="text-red-400">
+                - R$ {(itensSelecionados.reduce((acc, item) => acc + (item.preco * item.quantidade), 0) - calcularTotal()).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-lg font-bold border-t border-zinc-700 pt-2">
+              <span>Total Final:</span>
               <span className="text-green-400">
                 R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>

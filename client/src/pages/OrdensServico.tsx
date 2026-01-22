@@ -101,7 +101,8 @@ export function OrdensServico() {
     tecnicoId: '',
     motoDescricao: '',
     observacoes: '',
-    tipo: 'OS'
+    tipo: 'OS',
+    desconto: '0'
   });
 
   const [servicosSelecionados, setServicosSelecionados] = useState<ItemServico[]>([]);
@@ -176,7 +177,8 @@ export function OrdensServico() {
   const calcularTotal = () => {
     const totalServicos = servicosSelecionados.reduce((acc, s) => acc + (s.preco * s.quantidade), 0);
     const totalPecas = pecasSelecionadas.reduce((acc, p) => acc + (p.preco * p.quantidade), 0);
-    return totalServicos + totalPecas;
+    const descontoPecas = totalPecas * Number(form.desconto) / 100;
+    return totalServicos + totalPecas - descontoPecas;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -229,7 +231,7 @@ export function OrdensServico() {
       });
 
       setModalOpen(false);
-      setForm({ clienteId: '', lojaId: lojas.length === 1 ? String(lojas[0].id) : '', tecnicoId: '', motoDescricao: '', observacoes: '', tipo: 'OS' });
+      setForm({ clienteId: '', lojaId: lojas.length === 1 ? String(lojas[0].id) : '', tecnicoId: '', motoDescricao: '', observacoes: '', tipo: 'OS', desconto: '0' });
       setServicosSelecionados([]);
       setPecasSelecionadas([]);
       loadData();
@@ -561,6 +563,22 @@ export function OrdensServico() {
           </div>
 
           <div>
+            <label className="label">Desconto em Pecas (%)</label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              step="0.5"
+              value={form.desconto}
+              onChange={(e) => setForm({ ...form, desconto: e.target.value })}
+              className="input"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Max 10% - Aplicado somente em pecas
+            </p>
+          </div>
+
+          <div>
             <label className="label">Observacoes</label>
             <textarea
               value={form.observacoes}
@@ -570,9 +588,29 @@ export function OrdensServico() {
             />
           </div>
 
-          <div className="border-t border-zinc-700 pt-4">
-            <div className="flex justify-between items-center text-lg font-bold">
-              <span>Total:</span>
+          <div className="border-t border-zinc-700 pt-4 space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400">Servicos (Mao de Obra):</span>
+              <span className="text-white">
+                R$ {servicosSelecionados.reduce((acc, item) => acc + (item.preco * item.quantidade), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400">Pecas (Valor Bruto):</span>
+              <span className="text-white">
+                R$ {pecasSelecionadas.reduce((acc, item) => acc + (item.preco * item.quantidade), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            {Number(form.desconto) > 0 && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Desconto ({form.desconto}% sobre pecas):</span>
+                <span className="text-red-400">
+                  - R$ {(pecasSelecionadas.reduce((acc, item) => acc + (item.preco * item.quantidade), 0) * Number(form.desconto) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
+            <div className="flex justify-between items-center text-lg font-bold border-t border-zinc-700 pt-2">
+              <span>Total Final:</span>
               <span className="text-green-400">
                 R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>

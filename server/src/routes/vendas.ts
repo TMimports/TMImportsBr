@@ -10,7 +10,7 @@ router.get('/', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
 
-    const where: any = {};
+    const where: any = { deletedAt: null };
     if (filter.lojaId) where.lojaId = filter.lojaId;
     if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
     if (req.user?.role === 'VENDEDOR') where.vendedorId = req.user.id;
@@ -66,6 +66,7 @@ router.post('/', async (req: AuthRequest, res) => {
 
     const config = await prisma.configuracao.findFirst();
 
+    let valorBruto = 0;
     let valorTotal = 0;
     const itensProcessados = [];
 
@@ -76,14 +77,28 @@ router.post('/', async (req: AuthRequest, res) => {
       if (item.produtoId) {
         const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
         if (produto) {
+          const estoque = await prisma.estoque.findFirst({
+            where: { produtoId: item.produtoId, lojaId: Number(lojaId) }
+          });
+
+          if (produto.tipo === 'PECA' && (!estoque || estoque.quantidade < item.quantidade)) {
+            return res.status(400).json({ 
+              error: `Estoque insuficiente para ${produto.nome}. Disponivel: ${estoque?.quantidade || 0}` 
+            });
+          }
+
           const maxDesconto = produto.tipo === 'MOTO' ? (config?.descontoMaxMoto || 3.5) : (config?.descontoMaxPeca || 10);
           if (desconto > Number(maxDesconto)) desconto = Number(maxDesconto);
         }
       }
 
-      if (formaPagamento === 'CARTAO') desconto = 0;
+      if (formaPagamento === 'CARTAO_DEBITO' || formaPagamento === 'CARTAO_CREDITO') {
+        desconto = 0;
+      }
 
-      const subtotal = precoUnitario * item.quantidade * (1 - desconto / 100);
+      const subtotalBruto = precoUnitario * item.quantidade;
+      const subtotal = subtotalBruto * (1 - desconto / 100);
+      valorBruto += subtotalBruto;
       valorTotal += subtotal;
 
       itensProcessados.push({
@@ -107,6 +122,7 @@ router.post('/', async (req: AuthRequest, res) => {
         lojaId: Number(lojaId),
         formaPagamento,
         parcelas: parcelas ? Number(parcelas) : null,
+        valorBruto,
         valorTotal,
         confirmadaFinanceiro: confirmarAutomaticamente,
         createdBy: req.user!.id,
@@ -126,6 +142,19 @@ router.post('/', async (req: AuthRequest, res) => {
           referencia: `venda_${venda.id}`
         }
       });
+
+      const comissaoPercent = Number(config?.comissaoVendedorMoto || 1);
+      const comissaoValor = valorTotal * (comissaoPercent / 100);
+
+      await prisma.comissao.create({
+        data: {
+          usuarioId: Number(vendedorId || req.user!.id),
+          vendaId: venda.id,
+          tipo: 'vendedor',
+          valor: comissaoValor,
+          periodo: config?.periodoComissao || 'MENSAL'
+        }
+      });
     }
 
     for (const item of itensProcessados) {
@@ -134,6 +163,16 @@ router.post('/', async (req: AuthRequest, res) => {
           where: { id: item.unidadeFisicaId },
           data: { status: 'VENDIDA' }
         });
+      }
+
+      if (item.produtoId) {
+        const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
+        if (produto?.tipo === 'PECA') {
+          await prisma.estoque.updateMany({
+            where: { produtoId: item.produtoId, lojaId: Number(lojaId) },
+            data: { quantidade: { decrement: item.quantidade } }
+          });
+        }
       }
     }
 
@@ -202,9 +241,62 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
       }
     });
 
+    const config = await prisma.configuracao.findFirst();
+    const comissaoPercent = Number(config?.comissaoVendedorMoto || 1);
+    const comissaoValor = Number(venda.valorTotal) * (comissaoPercent / 100);
+
+    await prisma.comissao.create({
+      data: {
+        usuarioId: venda.vendedorId,
+        vendaId: venda.id,
+        tipo: 'vendedor',
+        valor: comissaoValor,
+        periodo: config?.periodoComissao || 'MENSAL'
+      }
+    });
+
     res.json(venda);
   } catch (error) {
     console.error('Erro ao converter orçamento:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.delete('/:id', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), async (req: AuthRequest, res) => {
+  try {
+    const venda = await prisma.venda.findUnique({
+      where: { id: Number(req.params.id) }
+    });
+
+    if (!venda) {
+      return res.status(404).json({ error: 'Venda não encontrada' });
+    }
+
+    if (venda.confirmadaFinanceiro) {
+      return res.status(400).json({ error: 'Não é possível excluir vendas confirmadas' });
+    }
+
+    await prisma.venda.update({
+      where: { id: Number(req.params.id) },
+      data: { 
+        deletedAt: new Date(),
+        deletedBy: req.user!.id
+      }
+    });
+
+    await prisma.logAuditoria.create({
+      data: {
+        usuarioId: req.user!.id,
+        acao: 'DELETE',
+        entidade: 'Venda',
+        entidadeId: Number(req.params.id),
+        dados: JSON.stringify(venda)
+      }
+    });
+
+    res.json({ message: 'Orçamento excluído' });
+  } catch (error) {
+    console.error('Erro ao excluir venda:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
