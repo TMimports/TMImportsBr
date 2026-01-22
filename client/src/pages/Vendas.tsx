@@ -485,6 +485,14 @@ export function Vendas() {
               <option value="CARTAO_CREDITO">Cartao Credito</option>
               <option value="FINANCIAMENTO">Financiamento</option>
             </select>
+            {(form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO') && (
+              <div className="mt-2 p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg flex items-start gap-2">
+                <span className="text-blue-400 text-lg">i</span>
+                <p className="text-sm text-blue-300">
+                  Vendas no cartao nao possuem desconto. O valor sera cobrado integralmente.
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
@@ -497,10 +505,17 @@ export function Vendas() {
               value={form.desconto}
               onChange={(e) => setForm({ ...form, desconto: e.target.value })}
               className="input"
+              disabled={form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO'}
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Max: Moto 3.5%, Peca/Servico 10%
-            </p>
+            {(form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO') ? (
+              <p className="text-xs text-blue-400 mt-1">
+                Desconto desabilitado para pagamentos com cartao
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-1">
+                Max: Moto 3.5%, Peca/Servico 10%
+              </p>
+            )}
           </div>
 
           <div>
