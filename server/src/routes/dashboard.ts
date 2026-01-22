@@ -30,7 +30,11 @@ router.get('/', async (req: AuthRequest, res) => {
       whereVendas.vendedorId = req.user.id;
     }
 
-    const [vendasMes, osMes, alertasEstoque, contasVencer] = await Promise.all([
+    const whereCaixa: any = { createdAt: { gte: inicioMes } };
+    if (filter.lojaId) whereCaixa.lojaId = filter.lojaId;
+    if (filter.grupoId) whereCaixa.loja = { grupoId: filter.grupoId };
+
+    const [vendasMes, osMes, alertasEstoque, contasVencer, caixaEntradas, caixaSaidas] = await Promise.all([
       prisma.venda.aggregate({
         where: whereVendas,
         _sum: { valorTotal: true },
@@ -54,8 +58,21 @@ router.get('/', async (req: AuthRequest, res) => {
             lte: new Date(hoje.getTime() + 5 * 24 * 60 * 60 * 1000)
           }
         }
+      }),
+      prisma.caixa.aggregate({
+        where: { ...whereCaixa, tipo: 'entrada' },
+        _sum: { valor: true },
+        _count: true
+      }),
+      prisma.caixa.aggregate({
+        where: { ...whereCaixa, tipo: 'saida' },
+        _sum: { valor: true },
+        _count: true
       })
     ]);
+
+    const entradas = Number(caixaEntradas._sum.valor || 0);
+    const saidas = Number(caixaSaidas._sum.valor || 0);
 
     res.json({
       vendasMes: {
@@ -67,7 +84,12 @@ router.get('/', async (req: AuthRequest, res) => {
         quantidade: osMes._count
       },
       alertasEstoque,
-      contasVencer
+      contasVencer,
+      fluxoCaixa: {
+        entradas,
+        saidas,
+        saldo: entradas - saidas
+      }
     });
   } catch (error) {
     console.error('Erro ao carregar dashboard:', error);

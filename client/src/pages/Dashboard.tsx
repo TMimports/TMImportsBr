@@ -7,6 +7,7 @@ interface DashboardData {
   osMes: { total: number; quantidade: number };
   alertasEstoque: number;
   contasVencer: number;
+  fluxoCaixa: { entradas: number; saidas: number; saldo: number };
 }
 
 export function Dashboard() {
@@ -79,6 +80,51 @@ export function Dashboard() {
               <p className="text-gray-400 text-sm">Contas a Vencer</p>
               <p className="text-2xl font-bold">{data?.contasVencer || 0}</p>
               <p className="text-sm text-gray-500">próximos 5 dias</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-bold mt-8 mb-4">Fluxo de Caixa do Mês</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="card">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-2xl">
+              ↗️
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Entradas</p>
+              <p className="text-2xl font-bold text-green-400">
+                R$ {Number(data?.fluxoCaixa?.entradas || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center text-2xl">
+              ↘️
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Saidas</p>
+              <p className="text-2xl font-bold text-red-400">
+                R$ {Number(data?.fluxoCaixa?.saidas || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${(data?.fluxoCaixa?.saldo || 0) >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+              💵
+            </div>
+            <div>
+              <p className="text-gray-400 text-sm">Saldo</p>
+              <p className={`text-2xl font-bold ${(data?.fluxoCaixa?.saldo || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                R$ {Number(data?.fluxoCaixa?.saldo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
             </div>
           </div>
         </div>
