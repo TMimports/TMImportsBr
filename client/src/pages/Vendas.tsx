@@ -216,7 +216,7 @@ export function Vendas() {
   const converterParaVenda = async (id: number) => {
     if (!window.confirm('Deseja concluir este orçamento como venda?')) return;
     try {
-      await api.put(`/vendas/${id}/converter-venda`);
+      await api.put(`/vendas/${id}/converter-venda`, {});
       loadData();
       alert('Orçamento convertido em venda com sucesso!');
     } catch (err) {

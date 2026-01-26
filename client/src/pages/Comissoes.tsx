@@ -40,7 +40,7 @@ export function Comissoes() {
 
   const marcarPago = async (id: number) => {
     try {
-      await api.put(`/financeiro/comissoes/${id}/pagar`);
+      await api.put(`/financeiro/comissoes/${id}/pagar`, {});
       loadData();
     } catch (err) {
       console.error(err);

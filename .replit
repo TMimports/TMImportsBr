@@ -12,7 +12,7 @@ channel = "stable-24_11"
 run = ["npx", "tsx", "server/src/index.ts"]
 deploymentTarget = "autoscale"
 ignorePorts = false
-build = ["bash", "-c", "cd client && npm run build"]
+build = ["npm", "run", "build"]
 
 [agent]
 expertMode = true
