@@ -132,24 +132,34 @@ router.post('/trocar-senha', verifyToken, async (req: AuthRequest, res) => {
   }
 });
 
-router.post('/reset-admin', async (req, res) => {
+router.get('/setup-admin', async (req, res) => {
   try {
     const senhaHash = await bcrypt.hash('123456', 10);
     
-    const admins = await prisma.user.findMany({
+    let admin = await prisma.user.findFirst({
       where: { role: 'ADMIN_GERAL' }
     });
     
-    for (const admin of admins) {
+    if (!admin) {
+      admin = await prisma.user.create({
+        data: {
+          nome: 'Admin Geral',
+          email: 'admin@teclemotos.com',
+          senha: senhaHash,
+          role: 'ADMIN_GERAL',
+          ativo: true
+        }
+      });
+      res.json({ success: true, message: 'Admin criado com sucesso', email: admin.email });
+    } else {
       await prisma.user.update({
         where: { id: admin.id },
         data: { senha: senhaHash }
       });
+      res.json({ success: true, message: 'Senha do admin resetada para 123456', email: admin.email });
     }
-    
-    res.json({ success: true, message: 'Senha dos admins resetada para 123456', count: admins.length });
   } catch (error) {
-    console.error('Erro ao resetar senha:', error);
+    console.error('Erro ao setup admin:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
