@@ -92,20 +92,7 @@ async function main() {
 
   console.log('Serviços criados');
 
-  const produtosExistentes = await prisma.produto.count();
-  if (produtosExistentes === 0) {
-    await prisma.produto.createMany({
-      data: [
-        { nome: 'Moto Elétrica Sport', tipo: TipoProduto.MOTO, custo: 8000, percentualLucro: 26.32, preco: 10857.14 },
-        { nome: 'Moto Elétrica City', tipo: TipoProduto.MOTO, custo: 6000, percentualLucro: 26.32, preco: 8142.86 },
-        { nome: 'Bateria 60V', tipo: TipoProduto.PECA, custo: 800, percentualLucro: 60, preco: 2000 },
-        { nome: 'Módulo Controlador', tipo: TipoProduto.PECA, custo: 400, percentualLucro: 60, preco: 1000 },
-        { nome: 'Pneu Dianteiro', tipo: TipoProduto.PECA, custo: 60, percentualLucro: 60, preco: 150 },
-        { nome: 'Pneu Traseiro', tipo: TipoProduto.PECA, custo: 116, percentualLucro: 60, preco: 290 }
-      ]
-    });
-    console.log('Produtos criados');
-  }
+  // Produtos removidos - sistema zerado para primeiro uso
 
   const configExistente = await prisma.configuracao.count();
   if (configExistente === 0) {
