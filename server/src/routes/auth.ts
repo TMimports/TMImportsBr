@@ -8,21 +8,27 @@ const router = Router();
 router.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
+    console.log('Tentativa de login:', { email, senhaLength: senha?.length });
 
     if (!email || !senha) {
+      console.log('Login falhou: campos vazios');
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: email.toLowerCase().trim() },
       include: { loja: true, grupo: true }
     });
 
+    console.log('Usuário encontrado:', user ? { id: user.id, email: user.email, ativo: user.ativo } : 'Não');
+
     if (!user || !user.ativo) {
+      console.log('Login falhou: usuário não encontrado ou inativo');
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     const senhaValida = await bcrypt.compare(senha, user.senha);
+    console.log('Senha válida:', senhaValida);
     if (!senhaValida) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
