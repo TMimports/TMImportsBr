@@ -47,7 +47,12 @@ export function Financeiro() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editando, setEditando] = useState<number | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [mesSelecionado, setMesSelecionado] = useState(() => {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const loadData = () => {
     setLoading(true);
@@ -66,7 +71,7 @@ export function Financeiro() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/financeiro/contas-pagar', {
+      const dados = {
         lojaId: Number(form.lojaId),
         categoria: form.categoria,
         descricao: form.descricao,
@@ -74,8 +79,15 @@ export function Financeiro() {
         vencimento: form.vencimento,
         recorrente: form.recorrente,
         recorrencia: form.recorrente ? form.recorrencia : null
-      });
+      };
+      
+      if (editando) {
+        await api.put(`/financeiro/contas-pagar/${editando}`, dados);
+      } else {
+        await api.post('/financeiro/contas-pagar', dados);
+      }
       setModalOpen(false);
+      setEditando(null);
       setForm(initialForm);
       loadData();
     } catch (err: any) {
@@ -83,6 +95,20 @@ export function Financeiro() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEditar = (conta: ContaPagar) => {
+    setEditando(conta.id);
+    setForm({
+      lojaId: '',
+      categoria: conta.categoria,
+      descricao: conta.descricao,
+      valor: String(conta.valor),
+      vencimento: conta.vencimento.split('T')[0],
+      recorrente: false,
+      recorrencia: 'MENSAL'
+    });
+    setModalOpen(true);
   };
 
   const handleMarcarPago = async (id: number) => {
@@ -97,10 +123,20 @@ export function Financeiro() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold text-white">Financeiro</h1>
-        <Button variant="primary" onClick={() => setModalOpen(true)}>+ Nova Conta a Pagar</Button>
+        <h1 className="text-2xl font-bold text-white">Contas a Pagar</h1>
+        <Button variant="primary" onClick={() => { setEditando(null); setForm(initialForm); setModalOpen(true); }}>+ Nova Conta</Button>
       </div>
 
+      <div className="flex gap-4 items-center">
+        <div>
+          <label className="text-sm text-gray-400">Mes</label>
+          <Input
+            type="month"
+            value={mesSelecionado}
+            onChange={(e) => setMesSelecionado(e.target.value)}
+          />
+        </div>
+      </div>
 
       <div className="card">
         <div className="overflow-x-auto">
@@ -121,12 +157,18 @@ export function Financeiro() {
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-gray-500">Carregando...</td>
                 </tr>
-              ) : contasPagar.length === 0 ? (
+              ) : contasPagar.filter(c => {
+                const venc = new Date(c.vencimento);
+                return `${venc.getFullYear()}-${String(venc.getMonth() + 1).padStart(2, '0')}` === mesSelecionado;
+              }).length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-500">Nenhuma conta a pagar</td>
+                  <td colSpan={7} className="py-8 text-center text-gray-500">Nenhuma conta a pagar neste mes</td>
                 </tr>
               ) : (
-                contasPagar.map(conta => (
+                contasPagar.filter(c => {
+                  const venc = new Date(c.vencimento);
+                  return `${venc.getFullYear()}-${String(venc.getMonth() + 1).padStart(2, '0')}` === mesSelecionado;
+                }).map(conta => (
                   <tr key={conta.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                     <td className="py-3 text-white">{conta.descricao}</td>
                     <td className="py-3">
@@ -146,11 +188,16 @@ export function Financeiro() {
                         {conta.pago ? 'Pago' : 'Pendente'}
                       </span>
                     </td>
-                    <td className="py-3">
+                    <td className="py-3 flex gap-2">
                       {!conta.pago && (
-                        <Button variant="success" size="sm" onClick={() => handleMarcarPago(conta.id)}>
-                          Marcar Pago
-                        </Button>
+                        <>
+                          <Button variant="secondary" size="sm" onClick={() => handleEditar(conta)}>
+                            Editar
+                          </Button>
+                          <Button variant="success" size="sm" onClick={() => handleMarcarPago(conta.id)}>
+                            Marcar Pago
+                          </Button>
+                        </>
                       )}
                     </td>
                   </tr>
@@ -163,8 +210,8 @@ export function Financeiro() {
 
       <Modal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Nova Conta a Pagar"
+        onClose={() => { setModalOpen(false); setEditando(null); }}
+        title={editando ? 'Editar Conta a Pagar' : 'Nova Conta a Pagar'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <Select

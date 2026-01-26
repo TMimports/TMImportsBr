@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
-import { verifyToken, applyTenantFilter, AuthRequest } from '../middleware/auth.js';
+import { verifyToken, applyTenantFilter, AuthRequest, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -49,7 +49,7 @@ router.get('/alertas', async (req: AuthRequest, res) => {
   }
 });
 
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
   try {
     const { produtoId, lojaId, quantidade, estoqueMinimo, estoqueMaximo } = req.body;
 
@@ -86,7 +86,7 @@ router.post('/', async (req: AuthRequest, res) => {
   }
 });
 
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
   try {
     const { quantidade, estoqueMinimo, estoqueMaximo } = req.body;
 

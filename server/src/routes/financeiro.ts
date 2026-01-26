@@ -130,6 +130,38 @@ router.post('/contas-receber', async (req: AuthRequest, res) => {
   }
 });
 
+router.put('/contas-receber/:id', async (req: AuthRequest, res) => {
+  try {
+    const { descricao, valor, vencimento } = req.body;
+    const filter = applyTenantFilter(req);
+    
+    const contaExistente = await prisma.contaReceber.findFirst({
+      where: {
+        id: Number(req.params.id),
+        ...(filter.lojaId ? { lojaId: filter.lojaId } : {}),
+        ...(filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {})
+      }
+    });
+    
+    if (!contaExistente) {
+      return res.status(404).json({ error: 'Conta não encontrada' });
+    }
+    
+    const conta = await prisma.contaReceber.update({
+      where: { id: Number(req.params.id) },
+      data: {
+        descricao,
+        valor: Number(valor),
+        vencimento: new Date(vencimento)
+      }
+    });
+    res.json(conta);
+  } catch (error) {
+    console.error('Erro ao atualizar conta a receber:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.put('/contas-receber/:id/receber', async (req: AuthRequest, res) => {
   try {
     const conta = await prisma.contaReceber.update({
@@ -294,6 +326,39 @@ router.post('/contas-pagar', async (req: AuthRequest, res) => {
     res.status(201).json(conta);
   } catch (error) {
     console.error('Erro ao criar conta:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.put('/contas-pagar/:id', async (req: AuthRequest, res) => {
+  try {
+    const { descricao, categoria, valor, vencimento } = req.body;
+    const filter = applyTenantFilter(req);
+    
+    const contaExistente = await prisma.contaPagar.findFirst({
+      where: {
+        id: Number(req.params.id),
+        ...(filter.lojaId ? { lojaId: filter.lojaId } : {}),
+        ...(filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {})
+      }
+    });
+    
+    if (!contaExistente) {
+      return res.status(404).json({ error: 'Conta não encontrada' });
+    }
+    
+    const conta = await prisma.contaPagar.update({
+      where: { id: Number(req.params.id) },
+      data: {
+        descricao,
+        categoria,
+        valor: Number(valor),
+        vencimento: new Date(vencimento)
+      }
+    });
+    res.json(conta);
+  } catch (error) {
+    console.error('Erro ao atualizar conta a pagar:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
