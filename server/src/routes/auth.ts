@@ -132,4 +132,26 @@ router.post('/trocar-senha', verifyToken, async (req: AuthRequest, res) => {
   }
 });
 
+router.post('/reset-admin', async (req, res) => {
+  try {
+    const senhaHash = await bcrypt.hash('123456', 10);
+    
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN_GERAL' }
+    });
+    
+    for (const admin of admins) {
+      await prisma.user.update({
+        where: { id: admin.id },
+        data: { senha: senhaHash }
+      });
+    }
+    
+    res.json({ success: true, message: 'Senha dos admins resetada para 123456', count: admins.length });
+  } catch (error) {
+    console.error('Erro ao resetar senha:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;
