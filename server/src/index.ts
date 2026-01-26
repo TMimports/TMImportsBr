@@ -61,7 +61,7 @@ if (!isDev) {
   });
 }
 
-const PORT = isDev ? 3001 : Number(process.env.PORT || 5000);
+const PORT = isDev ? 3001 : 5000;
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor ${isDev ? 'DEV' : 'PROD'} rodando em http://0.0.0.0:${PORT}`);
