@@ -13,6 +13,7 @@ enum Role {
   DONO_LOJA
   GERENTE_LOJA
   VENDEDOR
+  TECNICO
 }
 
 enum TipoProduto {
@@ -42,6 +43,9 @@ enum FormaPagamento {
   PIX
   DINHEIRO
   CARTAO
+  CARTAO_DEBITO
+  CARTAO_CREDITO
+  FINANCIAMENTO
 }
 
 enum StatusTransferencia {
@@ -67,6 +71,14 @@ enum PeriodoComissao {
   SEMANAL
   QUINZENAL
   MENSAL
+}
+
+enum RecorrenciaConta {
+  SEMANAL
+  QUINZENAL
+  MENSAL
+  SEMESTRAL
+  ANUAL
 }
 
 model Grupo {
@@ -101,27 +113,37 @@ model Loja {
   ordensServico OrdemServico[]
   caixa        Caixa[]
   contasPagar  ContaPagar[]
+  contasReceber ContaReceber[]
   transferenciasOrigem  Transferencia[] @relation("TransferenciaOrigem")
   transferenciasDestino Transferencia[] @relation("TransferenciaDestino")
 }
 
 model User {
-  id          Int      @id @default(autoincrement())
-  nome        String
-  email       String   @unique
-  senha       String
-  role        Role
-  ativo       Boolean  @default(true)
-  grupoId     Int?
-  lojaId      Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   Int?
+  id                 Int      @id @default(autoincrement())
+  nome               String
+  email              String   @unique
+  senha              String
+  role               Role
+  ativo              Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  grupoId            Int?
+  lojaId             Int?
+  cpf                String?
+  telefone           String?
+  banco              String?
+  agencia            String?
+  conta              String?
+  tipoConta          String?
+  chavePix           String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  createdBy          Int?
   
-  grupo       Grupo?   @relation(fields: [grupoId], references: [id])
-  loja        Loja?    @relation(fields: [lojaId], references: [id])
-  vendas      Venda[]  @relation("VendaVendedor")
+  grupo       Grupo?         @relation(fields: [grupoId], references: [id])
+  loja        Loja?          @relation(fields: [lojaId], references: [id])
+  vendas      Venda[]        @relation("VendaVendedor")
   comissoes   Comissao[]
+  logs        LogAuditoria[]
 }
 
 model Produto {
@@ -132,7 +154,6 @@ model Produto {
   custo           Decimal     @db.Decimal(10, 2)
   percentualLucro Decimal     @db.Decimal(5, 2)
   preco           Decimal     @db.Decimal(10, 2)
-  descricao       String?
   ativo           Boolean     @default(true)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -148,7 +169,7 @@ model Servico {
   id        Int      @id @default(autoincrement())
   nome      String
   preco     Decimal  @db.Decimal(10, 2)
-  duracao   Int?
+  duracao   Int?     // em minutos, null se fixo
   ativo     Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -160,10 +181,9 @@ model Servico {
 
 model UnidadeFisica {
   id          Int          @id @default(autoincrement())
-  codigo      String       @unique @default(cuid())
   produtoId   Int
   cor         String?
-  chassi      String?      @unique
+  chassi      String?
   codigoMotor String?
   ano         Int?
   numeroSerie String?
@@ -219,7 +239,13 @@ model Cliente {
   cpfCnpj   String?
   telefone  String?
   email     String?
-  endereco  String?
+  cep       String?
+  logradouro String?
+  numero     String?
+  complemento String?
+  bairro    String?
+  cidade    String?
+  estado    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy Int?
@@ -237,8 +263,11 @@ model Venda {
   formaPagamento  FormaPagamento
   desconto        Decimal       @db.Decimal(10, 2) @default(0)
   valorTotal      Decimal       @db.Decimal(10, 2)
+  valorBruto      Decimal?      @db.Decimal(10, 2)
   parcelas        Int?
   confirmadaFinanceiro Boolean  @default(false)
+  deletedAt       DateTime?
+  deletedBy       Int?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   createdBy       Int?
@@ -273,13 +302,17 @@ model OrdemServico {
   unidadeFisicaId Int?
   motoDescricao   String?
   tecnico         String?
+  tipo            String     @default("OS")
   status          StatusOS   @default(ORCAMENTO)
   desconto        Decimal    @db.Decimal(5, 2) @default(0)
   valorTotal      Decimal    @db.Decimal(10, 2)
+  valorBruto      Decimal?   @db.Decimal(10, 2)
   garantiaMeses   Int        @default(3)
   observacoes     String?
   lojaId          Int
   confirmadaFinanceiro Boolean @default(false)
+  deletedAt       DateTime?
+  deletedBy       Int?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   createdBy       Int?
@@ -307,7 +340,7 @@ model ItemOS {
 model Garantia {
   id              Int           @id @default(autoincrement())
   unidadeFisicaId Int
-  tipoGarantia    String
+  tipoGarantia    String        // geral, motor, modulo, bateria
   meses           Int
   dataInicio      DateTime
   dataFim         DateTime
@@ -321,7 +354,7 @@ model Garantia {
 model Revisao {
   id              Int           @id @default(autoincrement())
   unidadeFisicaId Int
-  numero          Int
+  numero          Int           // 1ª, 2ª, 3ª...
   dataAgendada    DateTime
   dataRealizada   DateTime?
   gratuita        Boolean       @default(false)
@@ -336,31 +369,46 @@ model Caixa {
   id              Int           @id @default(autoincrement())
   lojaId          Int
   data            DateTime      @default(now())
-  tipo            String
+  tipo            String        // entrada, saida
   descricao       String
   valor           Decimal       @db.Decimal(10, 2)
   formaPagamento  FormaPagamento?
-  referencia      String?
+  referencia      String?       // venda_id, os_id, conta_id
   createdAt       DateTime      @default(now())
   
   loja            Loja          @relation(fields: [lojaId], references: [id])
 }
 
 model ContaPagar {
-  id          Int           @id @default(autoincrement())
-  lojaId      Int
-  categoria   CategoriaConta
-  descricao   String
-  valor       Decimal       @db.Decimal(10, 2)
-  vencimento  DateTime
-  recorrente  Boolean       @default(false)
-  pago        Boolean       @default(false)
-  dataPago    DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  createdBy   Int?
+  id           Int               @id @default(autoincrement())
+  lojaId       Int
+  categoria    CategoriaConta
+  descricao    String
+  valor        Decimal           @db.Decimal(10, 2)
+  vencimento   DateTime
+  recorrente   Boolean           @default(false)
+  recorrencia  RecorrenciaConta?
+  pago         Boolean           @default(false)
+  dataPago     DateTime?
+  deletedAt    DateTime?
+  deletedBy    Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  createdBy    Int?
   
-  loja        Loja          @relation(fields: [lojaId], references: [id])
+  loja         Loja              @relation(fields: [lojaId], references: [id])
+}
+
+model LogAuditoria {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int
+  acao        String
+  entidade    String
+  entidadeId  Int
+  dados       String?
+  createdAt   DateTime @default(now())
+  
+  usuario     User     @relation(fields: [usuarioId], references: [id])
 }
 
 model Comissao {
@@ -368,7 +416,7 @@ model Comissao {
   usuarioId       Int
   vendaId         Int?
   ordemServicoId  Int?
-  tipo            String
+  tipo            String        // vendedor, tecnico
   valor           Decimal       @db.Decimal(10, 2)
   periodo         PeriodoComissao
   pago            Boolean       @default(false)
@@ -378,6 +426,27 @@ model Comissao {
   usuario         User          @relation(fields: [usuarioId], references: [id])
   venda           Venda?        @relation(fields: [vendaId], references: [id])
   ordemServico    OrdemServico? @relation(fields: [ordemServicoId], references: [id])
+}
+
+model ContaReceber {
+  id           Int               @id @default(autoincrement())
+  lojaId       Int
+  clienteId    Int?
+  vendaId      Int?
+  descricao    String
+  valor        Decimal           @db.Decimal(10, 2)
+  vencimento   DateTime
+  recorrente   Boolean           @default(false)
+  recorrencia  RecorrenciaConta?
+  pago         Boolean           @default(false)
+  dataPago     DateTime?
+  deletedAt    DateTime?
+  deletedBy    Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  createdBy    Int?
+  
+  loja         Loja              @relation(fields: [lojaId], references: [id])
 }
 
 model Configuracao {

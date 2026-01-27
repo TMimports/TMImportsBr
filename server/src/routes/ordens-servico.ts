@@ -101,8 +101,7 @@ router.post('/', async (req: AuthRequest, res) => {
           produtoId: item.produtoId || null,
           servicoId: item.servicoId || null,
           quantidade: item.quantidade,
-          precoUnitario: Number(item.precoUnitario),
-          desconto
+          precoUnitario: Number(item.precoUnitario) * (1 - desconto / 100)
         });
       }
     }
