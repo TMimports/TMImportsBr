@@ -136,17 +136,44 @@ router.post('/', async (req: AuthRequest, res) => {
     });
 
     if (confirmarAutomaticamente) {
-      await prisma.caixa.create({
-        data: {
-          lojaId: Number(lojaId),
-          tipo: 'entrada',
-          descricao: `Venda #${venda.id}`,
-          valor: valorTotal,
-          formaPagamento,
-          referencia: `venda_${venda.id}`
-        }
-      });
+      // Registrar entrada no caixa (para pagamentos à vista)
+      if (formaPagamento !== 'FINANCIAMENTO') {
+        await prisma.caixa.create({
+          data: {
+            lojaId: Number(lojaId),
+            tipo: 'entrada',
+            descricao: `Venda #${venda.id}`,
+            valor: valorTotal,
+            formaPagamento,
+            referencia: `venda_${venda.id}`
+          }
+        });
+      }
 
+      // Criar Conta a Receber para financiamento ou parcelado
+      if (formaPagamento === 'FINANCIAMENTO' || (parcelas && parcelas > 1)) {
+        const numParcelas = parcelas || 1;
+        const valorParcela = valorTotal / numParcelas;
+        
+        for (let i = 0; i < numParcelas; i++) {
+          const vencimento = new Date();
+          vencimento.setMonth(vencimento.getMonth() + i + 1);
+          
+          await prisma.contaReceber.create({
+            data: {
+              lojaId: Number(lojaId),
+              clienteId: Number(clienteId),
+              vendaId: venda.id,
+              descricao: `Venda #${venda.id} - Parcela ${i + 1}/${numParcelas}`,
+              valor: valorParcela,
+              vencimento,
+              createdBy: req.user!.id
+            }
+          });
+        }
+      }
+
+      // Comissão do vendedor
       const comissaoPercent = Number(config?.comissaoVendedorMoto || 1);
       const comissaoValor = valorTotal * (comissaoPercent / 100);
 
@@ -159,6 +186,34 @@ router.post('/', async (req: AuthRequest, res) => {
           periodo: config?.periodoComissao || 'MENSAL'
         }
       });
+
+      // Criar garantias para unidades físicas vendidas (motos)
+      for (const item of itensProcessados) {
+        if (item.unidadeFisicaId) {
+          const garantiasConfig = [
+            { tipo: 'geral', meses: 3 },
+            { tipo: 'motor', meses: 12 },
+            { tipo: 'modulo', meses: 12 },
+            { tipo: 'bateria', meses: 12 }
+          ];
+          
+          for (const g of garantiasConfig) {
+            const dataInicio = new Date();
+            const dataFim = new Date();
+            dataFim.setMonth(dataFim.getMonth() + g.meses);
+            
+            await prisma.garantia.create({
+              data: {
+                unidadeFisicaId: item.unidadeFisicaId,
+                tipoGarantia: g.tipo,
+                meses: g.meses,
+                dataInicio,
+                dataFim
+              }
+            });
+          }
+        }
+      }
     }
 
     for (const item of itensProcessados) {
@@ -189,21 +244,89 @@ router.post('/', async (req: AuthRequest, res) => {
 
 router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), async (req: AuthRequest, res) => {
   try {
-    const venda = await prisma.venda.update({
+    const vendaAtual = await prisma.venda.findUnique({
       where: { id: Number(req.params.id) },
-      data: { confirmadaFinanceiro: true }
+      include: { itens: true }
     });
 
-    await prisma.caixa.create({
-      data: {
-        lojaId: venda.lojaId,
-        tipo: 'entrada',
-        descricao: `Venda #${venda.id}`,
-        valor: venda.valorTotal,
-        formaPagamento: venda.formaPagamento,
-        referencia: `venda_${venda.id}`
-      }
+    if (!vendaAtual) {
+      return res.status(404).json({ error: 'Venda não encontrada' });
+    }
+
+    if (vendaAtual.confirmadaFinanceiro) {
+      return res.status(400).json({ error: 'Venda já confirmada' });
+    }
+
+    const venda = await prisma.venda.update({
+      where: { id: Number(req.params.id) },
+      data: { confirmadaFinanceiro: true },
+      include: { itens: true }
     });
+
+    // Registrar entrada no caixa (exceto financiamento)
+    if (venda.formaPagamento !== 'FINANCIAMENTO') {
+      await prisma.caixa.create({
+        data: {
+          lojaId: venda.lojaId,
+          tipo: 'entrada',
+          descricao: `Venda #${venda.id}`,
+          valor: venda.valorTotal,
+          formaPagamento: venda.formaPagamento,
+          referencia: `venda_${venda.id}`
+        }
+      });
+    }
+
+    // Criar Conta a Receber para financiamento ou parcelado
+    if (venda.formaPagamento === 'FINANCIAMENTO' || (venda.parcelas && venda.parcelas > 1)) {
+      const numParcelas = venda.parcelas || 1;
+      const valorParcela = Number(venda.valorTotal) / numParcelas;
+      
+      for (let i = 0; i < numParcelas; i++) {
+        const vencimento = new Date();
+        vencimento.setMonth(vencimento.getMonth() + i + 1);
+        
+        await prisma.contaReceber.create({
+          data: {
+            lojaId: venda.lojaId,
+            clienteId: venda.clienteId,
+            vendaId: venda.id,
+            descricao: `Venda #${venda.id} - Parcela ${i + 1}/${numParcelas}`,
+            valor: valorParcela,
+            vencimento,
+            createdBy: req.user!.id
+          }
+        });
+      }
+    }
+
+    // Criar garantias para unidades físicas vendidas
+    for (const item of venda.itens) {
+      if (item.unidadeFisicaId) {
+        const garantiasConfig = [
+          { tipo: 'geral', meses: 3 },
+          { tipo: 'motor', meses: 12 },
+          { tipo: 'modulo', meses: 12 },
+          { tipo: 'bateria', meses: 12 }
+        ];
+        
+        for (const g of garantiasConfig) {
+          const dataInicio = new Date();
+          const dataFim = new Date();
+          dataFim.setMonth(dataFim.getMonth() + g.meses);
+          
+          await prisma.garantia.create({
+            data: {
+              unidadeFisicaId: item.unidadeFisicaId,
+              tipoGarantia: g.tipo,
+              meses: g.meses,
+              dataInicio,
+              dataFim
+            }
+          });
+        }
+      }
+    }
 
     res.json(venda);
   } catch (error) {
@@ -231,19 +354,46 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
       data: { 
         tipo: 'VENDA',
         confirmadaFinanceiro: true 
-      }
+      },
+      include: { itens: true }
     });
 
-    await prisma.caixa.create({
-      data: {
-        lojaId: venda.lojaId,
-        tipo: 'entrada',
-        descricao: `Venda #${venda.id} (convertido de orçamento)`,
-        valor: venda.valorTotal,
-        formaPagamento: venda.formaPagamento,
-        referencia: `venda_${venda.id}`
+    // Registrar entrada no caixa (exceto financiamento)
+    if (venda.formaPagamento !== 'FINANCIAMENTO') {
+      await prisma.caixa.create({
+        data: {
+          lojaId: venda.lojaId,
+          tipo: 'entrada',
+          descricao: `Venda #${venda.id} (convertido de orçamento)`,
+          valor: venda.valorTotal,
+          formaPagamento: venda.formaPagamento,
+          referencia: `venda_${venda.id}`
+        }
+      });
+    }
+
+    // Criar Conta a Receber para financiamento ou parcelado
+    if (venda.formaPagamento === 'FINANCIAMENTO' || (venda.parcelas && venda.parcelas > 1)) {
+      const numParcelas = venda.parcelas || 1;
+      const valorParcela = Number(venda.valorTotal) / numParcelas;
+      
+      for (let i = 0; i < numParcelas; i++) {
+        const vencimento = new Date();
+        vencimento.setMonth(vencimento.getMonth() + i + 1);
+        
+        await prisma.contaReceber.create({
+          data: {
+            lojaId: venda.lojaId,
+            clienteId: venda.clienteId,
+            vendaId: venda.id,
+            descricao: `Venda #${venda.id} - Parcela ${i + 1}/${numParcelas}`,
+            valor: valorParcela,
+            vencimento,
+            createdBy: req.user!.id
+          }
+        });
       }
-    });
+    }
 
     const config = await prisma.configuracao.findFirst();
     const comissaoPercent = Number(config?.comissaoVendedorMoto || 1);
@@ -258,6 +408,34 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
         periodo: config?.periodoComissao || 'MENSAL'
       }
     });
+
+    // Criar garantias para unidades físicas vendidas
+    for (const item of venda.itens) {
+      if (item.unidadeFisicaId) {
+        const garantiasConfig = [
+          { tipo: 'geral', meses: 3 },
+          { tipo: 'motor', meses: 12 },
+          { tipo: 'modulo', meses: 12 },
+          { tipo: 'bateria', meses: 12 }
+        ];
+        
+        for (const g of garantiasConfig) {
+          const dataInicio = new Date();
+          const dataFim = new Date();
+          dataFim.setMonth(dataFim.getMonth() + g.meses);
+          
+          await prisma.garantia.create({
+            data: {
+              unidadeFisicaId: item.unidadeFisicaId,
+              tipoGarantia: g.tipo,
+              meses: g.meses,
+              dataInicio,
+              dataFim
+            }
+          });
+        }
+      }
+    }
 
     res.json(venda);
   } catch (error) {

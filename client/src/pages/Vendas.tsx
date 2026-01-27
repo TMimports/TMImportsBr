@@ -632,6 +632,21 @@ export function Vendas() {
               <span className="text-green-400">R$ {Number(vendaDetalhada?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
 
+            {vendaDetalhada?.itens?.some((item: any) => item.unidadeFisicaId) && vendaDetalhada?.tipo === 'VENDA' && (
+              <div className="mt-4 p-3 bg-zinc-800 rounded text-sm">
+                <strong className="text-gray-400">Garantias:</strong>
+                <div className="mt-2 space-y-1">
+                  <p>- Garantia Geral: 3 meses</p>
+                  <p>- Garantia Motor: 12 meses</p>
+                  <p>- Garantia Modulo: 12 meses</p>
+                  <p>- Garantia Bateria: 12 meses</p>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">
+                  * A garantia requer revisoes a cada 3 meses. A primeira revisao e gratuita.
+                </p>
+              </div>
+            )}
+
             {vendaDetalhada?.observacoes && (
               <div className="mt-4 p-3 bg-zinc-800 rounded text-sm">
                 <strong className="text-gray-400">Observacoes:</strong>
