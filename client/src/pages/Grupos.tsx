@@ -26,6 +26,7 @@ export function Grupos() {
   const [erro, setErro] = useState('');
   const [sucessoModal, setSucessoModal] = useState<{ email: string; senha: string } | null>(null);
   const [detalhesGrupo, setDetalhesGrupo] = useState<Grupo | null>(null);
+  const [selecionados, setSelecionados] = useState<number[]>([]);
   
   const [form, setForm] = useState<NovoGrupo>({
     nome: '',
@@ -102,6 +103,43 @@ export function Grupos() {
     }
   };
 
+  const handleExcluir = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir este grupo? Todos os usuarios e lojas vinculados tambem serao afetados.')) return;
+    try {
+      await api.delete(`/grupos/${id}`);
+      loadGrupos();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir grupo');
+    }
+  };
+
+  const handleExcluirSelecionados = async () => {
+    if (selecionados.length === 0) return;
+    if (!confirm(`Tem certeza que deseja excluir ${selecionados.length} grupo(s)? Todos os usuarios e lojas vinculados tambem serao afetados.`)) return;
+    
+    try {
+      await Promise.all(selecionados.map(id => api.delete(`/grupos/${id}`)));
+      setSelecionados([]);
+      loadGrupos();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir grupos');
+    }
+  };
+
+  const toggleSelecao = (id: number) => {
+    setSelecionados(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleTodos = () => {
+    if (selecionados.length === grupos.length) {
+      setSelecionados([]);
+    } else {
+      setSelecionados(grupos.map(g => g.id));
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-gray-400">Carregando...</div>;
   }
@@ -112,9 +150,16 @@ export function Grupos() {
         title="Grupos"
         subtitle="Gerencie os grupos de lojas da rede"
         actions={
-          <Button variant="primary" onClick={() => setModalOpen(true)}>
-            Novo Grupo
-          </Button>
+          <div className="flex gap-2">
+            {selecionados.length > 0 && (
+              <Button variant="danger" onClick={handleExcluirSelecionados}>
+                Excluir ({selecionados.length})
+              </Button>
+            )}
+            <Button variant="primary" onClick={() => setModalOpen(true)}>
+              Novo Grupo
+            </Button>
+          </div>
         }
       />
 
@@ -130,6 +175,14 @@ export function Grupos() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-zinc-800">
+                  <th className="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.length === grupos.length && grupos.length > 0}
+                      onChange={toggleTodos}
+                      className="rounded"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nome do Grupo</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Lojas</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase hidden md:table-cell">Usuarios</th>
@@ -140,6 +193,14 @@ export function Grupos() {
               <tbody className="divide-y divide-zinc-800">
                 {grupos.map(grupo => (
                   <tr key={grupo.id} className="hover:bg-zinc-800/50">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selecionados.includes(grupo.id)}
+                        onChange={() => toggleSelecao(grupo.id)}
+                        className="rounded"
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm text-white font-medium">{grupo.nome}</td>
                     <td className="px-4 py-3 text-sm text-gray-300">{grupo._count?.lojas || 0}</td>
                     <td className="px-4 py-3 text-sm text-gray-300 hidden md:table-cell">{grupo._count?.usuarios || 0}</td>
@@ -147,9 +208,14 @@ export function Grupos() {
                       {new Date(grupo.createdAt).toLocaleDateString('pt-BR')}
                     </td>
                     <td className="px-4 py-3">
-                      <Button variant="ghost" size="sm" onClick={() => verDetalhes(grupo)}>
-                        Ver Detalhes
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => verDetalhes(grupo)}>
+                          Detalhes
+                        </Button>
+                        <Button variant="danger" size="sm" onClick={() => handleExcluir(grupo.id)}>
+                          Excluir
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
