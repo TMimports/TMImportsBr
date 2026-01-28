@@ -86,10 +86,7 @@ async function initializeDatabase() {
           nomeFantasia: 'Tecle Motos Centro',
           endereco: 'Rua Principal, 100 - Centro',
           telefone: '(11) 99999-9999',
-          grupoId: grupo.id,
-          comissaoMoto: 1,
-          comissaoPecas: 3,
-          comissaoServico: 10
+          grupoId: grupo.id
         }
       });
     }
