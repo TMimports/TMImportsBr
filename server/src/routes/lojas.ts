@@ -25,7 +25,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
 router.get('/consultar-cnpj/:cnpj', requireAdminRede, async (req, res) => {
   try {
-    const cnpj = req.params.cnpj.replace(/\D/g, '');
+    const cnpj = String(req.params.cnpj).replace(/\D/g, '');
 
     const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
 
@@ -117,16 +117,59 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
 
 router.put('/:id', requireAdminRede, async (req, res) => {
   try {
-    const { razaoSocial, nomeFantasia, endereco, telefone, email, ativo, grupoId } = req.body;
+    const { razaoSocial, nomeFantasia, endereco, telefone, email, ativo, grupoId, comissaoMoto, comissaoPecas, comissaoServico } = req.body;
 
     const loja = await prisma.loja.update({
       where: { id: Number(req.params.id) },
-      data: { razaoSocial, nomeFantasia, endereco, telefone, email, ativo, grupoId }
+      data: { 
+        razaoSocial, nomeFantasia, endereco, telefone, email, ativo, grupoId,
+        ...(comissaoMoto !== undefined && { comissaoMoto }),
+        ...(comissaoPecas !== undefined && { comissaoPecas }),
+        ...(comissaoServico !== undefined && { comissaoServico })
+      }
     });
 
     res.json(loja);
   } catch (error) {
     console.error('Erro ao atualizar loja:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.put('/:id/comissoes', async (req: AuthRequest, res) => {
+  try {
+    const { comissaoMoto, comissaoPecas, comissaoServico } = req.body;
+    const lojaId = Number(req.params.id);
+    
+    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user?.role || '')) {
+      return res.status(403).json({ error: 'Sem permissao para alterar comissoes' });
+    }
+    
+    const validateComissao = (val: any) => val === undefined || (typeof val === 'number' && val >= 0 && val <= 100);
+    if (!validateComissao(comissaoMoto) || !validateComissao(comissaoPecas) || !validateComissao(comissaoServico)) {
+      return res.status(400).json({ error: 'Valores de comissao devem estar entre 0 e 100' });
+    }
+    
+    if (req.user?.role === 'DONO_LOJA') {
+      const loja = await prisma.loja.findUnique({ where: { id: lojaId } });
+      if (!loja || loja.grupoId !== req.user.grupoId) {
+        return res.status(403).json({ error: 'Sem permissao para esta loja' });
+      }
+    }
+    
+    const updateData: any = {};
+    if (comissaoMoto !== undefined) updateData.comissaoMoto = comissaoMoto;
+    if (comissaoPecas !== undefined) updateData.comissaoPecas = comissaoPecas;
+    if (comissaoServico !== undefined) updateData.comissaoServico = comissaoServico;
+    
+    const lojaAtualizada = await prisma.loja.update({
+      where: { id: lojaId },
+      data: updateData
+    });
+
+    res.json(lojaAtualizada);
+  } catch (error) {
+    console.error('Erro ao atualizar comissoes:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

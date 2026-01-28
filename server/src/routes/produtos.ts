@@ -8,12 +8,12 @@ const router = Router();
 router.use(verifyToken);
 
 function calcularPreco(custo: number, tipo: TipoProduto): number {
-  const percentualCusto = tipo === 'MOTO' ? 0.7368 : 0.40;
+  const percentualCusto = tipo === 'MOTO' ? 0.73 : 0.40;
   return custo / percentualCusto;
 }
 
 function calcularLucro(tipo: TipoProduto): number {
-  return tipo === 'MOTO' ? 26.32 : 60;
+  return tipo === 'MOTO' ? 27 : 60;
 }
 
 router.get('/', async (req: AuthRequest, res) => {

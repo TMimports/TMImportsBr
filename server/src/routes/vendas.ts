@@ -65,6 +65,7 @@ router.post('/', async (req: AuthRequest, res) => {
     }
 
     const config = await prisma.configuracao.findFirst();
+    const userRole = req.user?.role;
 
     let valorBruto = 0;
     let valorTotal = 0;
@@ -87,10 +88,17 @@ router.post('/', async (req: AuthRequest, res) => {
             });
           }
 
-          const maxDesconto = produto.tipo === 'MOTO' ? (config?.descontoMaxMoto || 3.5) : (config?.descontoMaxPeca || 10);
-          if (desconto > Number(maxDesconto)) {
+          let maxDesconto = produto.tipo === 'MOTO' ? Number(config?.descontoMaxMoto || 3.5) : Number(config?.descontoMaxPeca || 10);
+          
+          if (userRole === 'GERENTE_LOJA') {
+            maxDesconto = Math.min(maxDesconto, produto.tipo === 'MOTO' ? 2 : 5);
+          } else if (userRole === 'VENDEDOR') {
+            maxDesconto = 0;
+          }
+          
+          if (desconto > maxDesconto) {
             return res.status(400).json({ 
-              error: `Desconto de ${desconto}% excede o maximo permitido para ${produto.tipo === 'MOTO' ? 'motos' : 'pecas'} (${maxDesconto}%)` 
+              error: `Desconto de ${desconto}% excede o maximo permitido para seu perfil (${maxDesconto}%)` 
             });
           }
         }

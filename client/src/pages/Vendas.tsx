@@ -16,6 +16,7 @@ interface VendaFull {
   id: number;
   tipo: string;
   valorTotal: number;
+  valorBruto: number;
   formaPagamento: string;
   confirmadaFinanceiro: boolean;
   observacoes?: string;
@@ -627,9 +628,23 @@ export function Vendas() {
               </tbody>
             </table>
 
-            <div className="text-right text-lg font-bold border-t border-zinc-700 pt-4">
-              <span className="text-gray-400">Total: </span>
-              <span className="text-green-400">R$ {Number(vendaDetalhada?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+            <div className="border-t border-zinc-700 pt-4 space-y-2">
+              {vendaDetalhada?.valorBruto && vendaDetalhada.valorBruto !== vendaDetalhada.valorTotal && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Subtotal:</span>
+                    <span>R$ {Number(vendaDetalhada.valorBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Desconto ({((1 - Number(vendaDetalhada.valorTotal) / Number(vendaDetalhada.valorBruto)) * 100).toFixed(1)}%):</span>
+                    <span className="text-red-400">- R$ {(Number(vendaDetalhada.valorBruto) - Number(vendaDetalhada.valorTotal)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between text-lg font-bold">
+                <span className="text-gray-400">Total:</span>
+                <span className="text-green-400">R$ {Number(vendaDetalhada?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
             </div>
 
             {vendaDetalhada?.itens?.some((item: any) => item.unidadeFisicaId) && vendaDetalhada?.tipo === 'VENDA' && (

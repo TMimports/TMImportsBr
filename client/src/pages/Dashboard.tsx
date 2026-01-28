@@ -43,6 +43,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const isAdminGlobal = user?.role === 'ADMIN_GERAL';
   const isAdminRede = user?.role === 'ADMIN_REDE';
   const isDonoLoja = user?.role === 'DONO_LOJA';
+  const isVendedor = user?.role === 'VENDEDOR';
   const canCompare = isAdminGlobal || isAdminRede || isDonoLoja;
 
   const navigateTo = (page: string) => {
@@ -114,7 +115,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         )}
       </div>
 
-      {(data?.contasVencer?.hoje || 0) > 0 && (
+      {!isVendedor && (data?.contasVencer?.hoje || 0) > 0 && (
         <div 
           onClick={() => navigateTo('financeiro')}
           className="bg-red-900/30 border border-red-500 rounded-lg p-4 mb-6 flex items-center gap-3 cursor-pointer hover:bg-red-900/50 transition"
@@ -127,118 +128,211 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div 
-          onClick={() => navigateTo('vendas')}
-          className="card cursor-pointer hover:border-orange-500 transition"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-2xl">
-              💰
+      {isVendedor ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div 
+              onClick={() => navigateTo('estoque')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  ⚠️
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Alertas de Estoque</p>
+                  <p className="text-2xl font-bold">{data?.alertasEstoque || 0}</p>
+                  <p className="text-sm text-gray-500">itens abaixo do minimo</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-400 text-sm">Vendas do Mes</p>
-              <p className="text-2xl font-bold">R$ {Number(data?.vendasMes?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-              <p className="text-sm text-gray-500">{data?.vendasMes?.quantidade || 0} vendas</p>
-            </div>
-          </div>
-        </div>
 
-        <div 
-          onClick={() => navigateTo('os')}
-          className="card cursor-pointer hover:border-orange-500 transition"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-2xl">
-              🔧
+            <div 
+              onClick={() => navigateTo('vendas')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  💰
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Minhas Vendas</p>
+                  <p className="text-2xl font-bold">R$ {Number(data?.vendasMes?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-sm text-gray-500">{data?.vendasMes?.quantidade || 0} vendas</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-400 text-sm">OS do Mes</p>
-              <p className="text-2xl font-bold">R$ {Number(data?.osMes?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-              <p className="text-sm text-gray-500">{data?.osMes?.quantidade || 0} ordens</p>
-            </div>
-          </div>
-        </div>
 
-        <div 
-          onClick={() => navigateTo('estoque')}
-          className="card cursor-pointer hover:border-orange-500 transition"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center text-2xl">
-              ⚠️
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm">Alertas de Estoque</p>
-              <p className="text-2xl font-bold">{data?.alertasEstoque || 0}</p>
-              <p className="text-sm text-gray-500">itens abaixo do minimo</p>
-            </div>
-          </div>
-        </div>
-
-        <div 
-          onClick={() => navigateTo('financeiro')}
-          className="card cursor-pointer hover:border-orange-500 transition"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center text-2xl">
-              📅
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm">Contas a Vencer</p>
-              <div className="flex gap-3 mt-1">
-                <span className={`text-xs px-2 py-1 rounded ${(data?.contasVencer?.hoje || 0) > 0 ? 'bg-red-500' : 'bg-zinc-700'}`}>
-                  Hoje: {data?.contasVencer?.hoje || 0}
-                </span>
-                <span className={`text-xs px-2 py-1 rounded ${(data?.contasVencer?.em3dias || 0) > 0 ? 'bg-yellow-600' : 'bg-zinc-700'}`}>
-                  3d: {data?.contasVencer?.em3dias || 0}
-                </span>
-                <span className="text-xs px-2 py-1 rounded bg-zinc-700">
-                  7d: {data?.contasVencer?.em7dias || 0}
-                </span>
+            <div 
+              onClick={() => navigateTo('os')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  🔧
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Minhas OS</p>
+                  <p className="text-2xl font-bold">R$ {Number(data?.osMes?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-sm text-gray-500">{data?.osMes?.quantidade || 0} ordens</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <div 
-          onClick={() => navigateTo('comissoes')}
-          className="card cursor-pointer hover:border-orange-500 transition"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center text-2xl">
-              💸
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div 
+              onClick={() => navigateTo('comissoes')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  💸
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Minhas Comissoes</p>
+                  <p className="text-2xl font-bold text-purple-400">
+                    R$ {comissoesPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-sm text-gray-500">Clique para ver detalhes</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-400 text-sm">Comissoes a Pagar</p>
-              <p className="text-2xl font-bold text-purple-400">
-                R$ {comissoesPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-              <p className="text-sm text-gray-500">Clique para ver detalhes</p>
+
+            <div 
+              onClick={() => navigateTo('garantias')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-teal-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  📜
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Garantias</p>
+                  <p className="text-sm text-gray-500">Clique para acessar</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div 
-          onClick={() => navigateTo('contas-receber')}
-          className="card cursor-pointer hover:border-orange-500 transition"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-teal-500/20 rounded-xl flex items-center justify-center text-2xl">
-              💳
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div 
+              onClick={() => navigateTo('vendas')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  💰
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Vendas do Mes</p>
+                  <p className="text-2xl font-bold">R$ {Number(data?.vendasMes?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-sm text-gray-500">{data?.vendasMes?.quantidade || 0} vendas</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-gray-400 text-sm">Contas a Receber</p>
-              <p className="text-sm text-gray-500">Clique para acessar</p>
+
+            <div 
+              onClick={() => navigateTo('os')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  🔧
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">OS do Mes</p>
+                  <p className="text-2xl font-bold">R$ {Number(data?.osMes?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-sm text-gray-500">{data?.osMes?.quantidade || 0} ordens</p>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              onClick={() => navigateTo('estoque')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  ⚠️
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Alertas de Estoque</p>
+                  <p className="text-2xl font-bold">{data?.alertasEstoque || 0}</p>
+                  <p className="text-sm text-gray-500">itens abaixo do minimo</p>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              onClick={() => navigateTo('financeiro')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  📅
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Contas a Vencer</p>
+                  <div className="flex gap-3 mt-1">
+                    <span className={`text-xs px-2 py-1 rounded ${(data?.contasVencer?.hoje || 0) > 0 ? 'bg-red-500' : 'bg-zinc-700'}`}>
+                      Hoje: {data?.contasVencer?.hoje || 0}
+                    </span>
+                    <span className={`text-xs px-2 py-1 rounded ${(data?.contasVencer?.em3dias || 0) > 0 ? 'bg-yellow-600' : 'bg-zinc-700'}`}>
+                      3d: {data?.contasVencer?.em3dias || 0}
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded bg-zinc-700">
+                      7d: {data?.contasVencer?.em7dias || 0}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <h2 className="text-xl font-bold mt-8 mb-4">Fluxo de Caixa do Mes</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div 
+              onClick={() => navigateTo('comissoes')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  💸
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Comissoes a Pagar</p>
+                  <p className="text-2xl font-bold text-purple-400">
+                    R$ {comissoesPendentes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-sm text-gray-500">Clique para ver detalhes</p>
+                </div>
+              </div>
+            </div>
+
+            <div 
+              onClick={() => navigateTo('contas-receber')}
+              className="card cursor-pointer hover:border-orange-500 transition"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-teal-500/20 rounded-xl flex items-center justify-center text-2xl">
+                  💳
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Contas a Receber</p>
+                  <p className="text-sm text-gray-500">Clique para acessar</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {!isVendedor && (
+        <>
+        <h2 className="text-xl font-bold mt-8 mb-4">Fluxo de Caixa do Mes</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="card">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-2xl">
@@ -328,6 +422,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </table>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );

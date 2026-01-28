@@ -55,14 +55,15 @@ const menuItems = {
     { id: 'os', label: 'Ordens de Servico', icon: '🔩' },
     { id: 'financeiro', label: 'Contas a Pagar', icon: '💵' },
     { id: 'contas-receber', label: 'Contas a Receber', icon: '💳' },
+    { id: 'garantias', label: 'Garantias', icon: '📜' },
     { id: 'comissoes', label: 'Comissoes', icon: '💸' },
   ],
   VENDEDOR: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'estoque', label: 'Estoque', icon: '📋' },
-    { id: 'clientes', label: 'Clientes', icon: '👤' },
+    { id: 'estoque', label: 'Alerta Estoque', icon: '📋' },
     { id: 'vendas', label: 'Minhas Vendas', icon: '💰' },
     { id: 'os', label: 'Minhas OS', icon: '🔩' },
+    { id: 'garantias', label: 'Garantias', icon: '📜' },
     { id: 'comissoes', label: 'Minhas Comissoes', icon: '💸' },
   ],
 };

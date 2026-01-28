@@ -55,6 +55,52 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+router.get('/:id/cliente', async (req, res) => {
+  try {
+    const os = await prisma.ordemServico.findUnique({
+      where: { id: Number(req.params.id) },
+      include: {
+        cliente: { select: { nome: true, telefone: true } },
+        loja: { select: { nomeFantasia: true, telefone: true, endereco: true } },
+        unidadeFisica: { include: { produto: { select: { nome: true } } } },
+        itens: { 
+          include: { 
+            produto: { select: { nome: true } }, 
+            servico: { select: { id: true, nome: true, preco: true } }
+          } 
+        }
+      }
+    });
+
+    if (!os) {
+      return res.status(404).json({ error: 'OS não encontrada' });
+    }
+
+    const osCliente = {
+      id: os.id,
+      numero: os.numero,
+      tipo: os.tipo,
+      status: os.status,
+      valorTotal: os.valorTotal,
+      motoDescricao: os.motoDescricao,
+      observacoes: os.observacoes,
+      cliente: os.cliente,
+      loja: os.loja,
+      unidadeFisica: os.unidadeFisica,
+      itens: os.itens.map(item => ({
+        ...item,
+        servico: item.servico ? { id: item.servico.id, nome: item.servico.nome, preco: item.servico.preco } : null
+      })),
+      createdAt: os.createdAt
+    };
+
+    res.json(osCliente);
+  } catch (error) {
+    console.error('Erro ao buscar OS para cliente:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const { clienteId, unidadeFisicaId, motoDescricao, tecnico, observacoes, lojaId, itens, tipo } = req.body;
@@ -64,6 +110,7 @@ router.post('/', async (req: AuthRequest, res) => {
     }
 
     const config = await prisma.configuracao.findFirst();
+    const userRole = req.user?.role;
 
     let valorBruto = 0;
     let valorTotal = 0;
@@ -90,8 +137,17 @@ router.post('/', async (req: AuthRequest, res) => {
             });
           }
 
-          const maxDesconto = Number(config?.descontoMaxPeca || 10);
-          if (desconto > maxDesconto) desconto = maxDesconto;
+          let maxDesconto = Number(config?.descontoMaxPeca || 10);
+          if (userRole === 'GERENTE_LOJA') {
+            maxDesconto = Math.min(maxDesconto, 5);
+          } else if (userRole === 'VENDEDOR') {
+            maxDesconto = 0;
+          }
+          if (desconto > maxDesconto) {
+            return res.status(400).json({ 
+              error: `Desconto de ${desconto}% excede o maximo permitido para seu perfil (${maxDesconto}%)` 
+            });
+          }
         }
 
         const subtotal = subtotalBruto * (1 - desconto / 100);
