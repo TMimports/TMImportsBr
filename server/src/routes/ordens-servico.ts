@@ -180,7 +180,11 @@ router.post('/', async (req: AuthRequest, res) => {
         createdBy: req.user!.id,
         itens: { create: itensProcessados }
       },
-      include: { itens: true, cliente: true, loja: true }
+      include: { 
+        itens: { include: { produto: true, servico: true } }, 
+        cliente: true, 
+        loja: true 
+      }
     });
 
     if (tipoOS !== 'ORCAMENTO') {
@@ -275,7 +279,7 @@ router.put('/:id/converter-os', async (req: AuthRequest, res) => {
   try {
     const osAtual = await prisma.ordemServico.findUnique({
       where: { id: Number(req.params.id) },
-      include: { itens: true }
+      include: { itens: { include: { produto: true, servico: true } } }
     });
 
     if (!osAtual) {

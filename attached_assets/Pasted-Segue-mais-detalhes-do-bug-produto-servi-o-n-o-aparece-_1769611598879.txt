@@ -1,0 +1,63 @@
+Segue mais detalhes do bug “produto/serviço não aparece na OS e na Venda”.
+
+SINTOMA
+- Após selecionar um produto ou serviço e clicar em adicionar/salvar, o item NÃO aparece na lista/resumo da OS ou da Venda.
+- Em alguns casos, “parece” que salvou (não dá erro), mas o resumo fica vazio ou incompleto, o que pode gerar conflito (cliente/loja acham que não foi incluído).
+
+ONDE ACONTECE (CENÁRIOS)
+1) OS (Ordem de Serviço)
+- Fluxo: OS > Adicionar item (produto) OU Adicionar serviço > Salvar OS
+- Resultado atual: a listagem de itens/serviços da OS não renderiza o item selecionado (fica em branco ou sem o novo item).
+- Esperado: item deve aparecer imediatamente no resumo e continuar após atualizar a página.
+
+2) Venda
+- Fluxo: Venda > Adicionar produto > Finalizar/Salvar
+- Resultado atual: em alguns casos, a lista de itens não aparece na tela de revisão/confirmação ou após salvar.
+- Esperado: itens devem aparecer no resumo e no comprovante, sempre.
+
+QUANDO É MAIS FREQUENTE
+- Após adicionar e voltar de tela (ex.: troca de aba, volta para lista e reabre).
+- Após editar a OS/Venda existente e salvar novamente.
+- Após recarregar (F5) a página: itens “somem” visualmente, mesmo que tenham sido salvos.
+
+PASSOS PARA REPRODUZIR (RECOMENDADO)
+A) OS:
+1. Criar OS nova.
+2. Adicionar 1 serviço e 1 produto.
+3. Salvar.
+4. Verificar se aparece no resumo.
+5. Recarregar a página.
+6. Reabrir a OS e verificar novamente.
+
+B) Venda:
+1. Criar venda nova.
+2. Adicionar 2 produtos (quantidades diferentes).
+3. Ir para revisão/fechamento.
+4. Finalizar.
+5. Verificar na tela de detalhes e no comprovante.
+
+DADOS QUE DEVEM APARECER NA LISTA/RESUMO
+- Produto: nome, SKU/código (se existir), quantidade, preço unitário, subtotal
+- Serviço: nome, mão de obra (descrição) e valor (não precisa mostrar tempo na visão do cliente, mas internamente pode)
+
+HIPÓTESE PROVÁVEL (DIREÇÃO DE INVESTIGAÇÃO)
+- Problema de binding/renderização no frontend (state não atualizado / key não única / lista não reidratando após salvar).
+- OU API retornando payload sem “items/services” (ou retornando com nomes diferentes).
+- OU persistência: salva somente IDs mas o GET de detalhes não faz populate/join e volta vazio para UI.
+
+O QUE PRECISO QUE VOCÊ VERIFIQUE NO CÓDIGO
+1) Frontend:
+- Após “add item/service”, o state da lista está sendo atualizado?
+- A lista usa key única (ex.: item.id)? Evitar index como key.
+- Ao salvar, a tela recarrega os detalhes via GET e substitui a lista corretamente?
+
+2) Backend:
+- Endpoint de CREATE/UPDATE de OS/Venda realmente persiste itens e serviços?
+- Endpoint GET de detalhes retorna itens/serviços completos (ou ao menos id + nome + valores necessários)?
+- Checar se há divergência de nomes: ex. items vs products, services vs laborItems, etc.
+
+CRITÉRIO DE ACEITE DO BUG
+- Selecionou e adicionou → aparece imediatamente no resumo.
+- Recarregou página → continua aparecendo.
+- Editou e salvou → mantém itens/serviços.
+- Comprovante de venda também reflete os itens corretamente.

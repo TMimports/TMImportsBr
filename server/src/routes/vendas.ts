@@ -140,7 +140,12 @@ router.post('/', async (req: AuthRequest, res) => {
         createdBy: req.user!.id,
         itens: { create: itensProcessados }
       },
-      include: { itens: true }
+      include: { 
+        itens: { include: { produto: true, servico: true, unidadeFisica: true } },
+        cliente: true,
+        vendedor: true,
+        loja: true
+      }
     });
 
     if (confirmarAutomaticamente) {
@@ -254,7 +259,7 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
   try {
     const vendaAtual = await prisma.venda.findUnique({
       where: { id: Number(req.params.id) },
-      include: { itens: true }
+      include: { itens: { include: { produto: true, servico: true } } }
     });
 
     if (!vendaAtual) {
@@ -268,7 +273,12 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
     const venda = await prisma.venda.update({
       where: { id: Number(req.params.id) },
       data: { confirmadaFinanceiro: true },
-      include: { itens: true }
+      include: { 
+        itens: { include: { produto: true, servico: true, unidadeFisica: true } },
+        cliente: true,
+        vendedor: true,
+        loja: true
+      }
     });
 
     // Registrar entrada no caixa (exceto financiamento)
@@ -363,7 +373,12 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
         tipo: 'VENDA',
         confirmadaFinanceiro: true 
       },
-      include: { itens: true }
+      include: { 
+        itens: { include: { produto: true, servico: true, unidadeFisica: true } },
+        cliente: true,
+        vendedor: true,
+        loja: true
+      }
     });
 
     // Registrar entrada no caixa (exceto financiamento)
