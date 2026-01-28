@@ -1,0 +1,122 @@
+Atue como um desenvolvedor full-stack sênior. Você está trabalhando no “Sistema do Lojista” (Tecle Motos / TMimports). Quero que você implemente e corrija os requisitos abaixo com foco em: (1) controle de permissões por perfil, (2) integridade de dados (venda/OS/estoque), (3) clareza de UI e comprovantes, e (4) prevenção de inconsistências (validações sempre no backend).
+
+PERFIS (RBAC)
+- DONO (Proprietário): configura regras comerciais e permissões da loja.
+- GERENTE: operação diária, com limites definidos pela loja.
+- VENDEDOR: acesso restrito à própria operação e ao seu dashboard (sem funções administrativas).
+
+REGRAS GERAIS (OBRIGATÓRIO)
+1) Toda permissão/limite deve ser validado no BACKEND (não confiar no frontend).
+2) Toda alteração sensível deve ter AUDITORIA (quem, quando, antes/depois) quando aplicável.
+3) Operações críticas (concluir venda, converter orçamento) devem ser transacionais (evitar estado parcial).
+4) UI deve refletir permissões: esconder menus/botões sem permissão + bloquear por API (403).
+5) Qualquer endpoint de “visualização para o cliente” não pode expor campos internos (ex.: tempo do serviço).
+
+REQUISITOS (IMPLEMENTAR / CORRIGIR)
+
+A) Garantia
+A1. Permitir acesso à aba/tela/rota “Garantia” para o perfil GERENTE no sistema do lojista.
+A2. No dashboard do VENDEDOR, também deve existir acesso/visão de “Garantia” (somente leitura/visão operacional, conforme regras existentes da loja).
+Critérios de aceite:
+- Gerente acessa Garantia sem erro.
+- Vendedor vê o bloco/atalho de Garantia no dashboard e não acessa funções administrativas.
+
+B) Comissão (OS e Vendas)
+B1. Dono da loja pode alterar o percentual de comissão de:
+  - OS (ordem de serviço)
+  - Vendas
+B2. Persistir por LOJA e aplicar automaticamente nos cálculos (vendas e OS).
+B3. Registrar auditoria: usuário, data/hora, valor anterior e novo.
+Critérios de aceite:
+- Somente Dono altera; Gerente/Vendedor não alteram (UI + API).
+- Alteração reflete imediatamente nos cálculos subsequentes.
+
+C) Desconto indevido no perfil Gerente (BUG + HARDENING)
+PROBLEMA: Logado como GERENTE, hoje consegue dar desconto ilimitado e em qualquer forma de pagamento.
+C1. Implementar limites de desconto por perfil e/ou por loja (configurável pelo Dono):
+  - limite máximo (%) e/ou (R$)
+  - restrição de formas de pagamento elegíveis para desconto (se a política exigir)
+C2. Aplicar validação no backend; tentativas acima do limite devem retornar erro claro.
+Critérios de aceite:
+- Gerente não aplica desconto acima do limite configurado.
+- Formas de pagamento bloqueadas não aceitam desconto quando restritas.
+
+D) Lucro em MOTOS: arredondar para 27%
+D1. Ajustar a regra de arredondamento/exibição do “Lucro nas MOTOS” para resultar em 27% conforme a regra de negócio vigente.
+D2. Garantir consistência em todos os locais onde esse indicador aparece (relatórios, dashboards, detalhamento).
+Critérios de aceite:
+- Cenários de teste demonstram 27% após arredondamento conforme regra aplicada.
+
+E) Comprovante de venda: exibir percentual e valor
+E1. No comprovante entregue ao cliente, exibir no descritivo:
+  - a porcentagem aplicável (ex.: desconto/comissão/taxa, conforme o campo usado no seu comprovante)
+  - e o valor correspondente em R$
+E2. Formatação pt-BR (R$ e casas decimais consistentes).
+Critérios de aceite:
+- Comprovante mostra “X%” e “R$ Y” no mesmo descritivo/campo apropriado.
+
+F) Estoque: baixa automática ao concluir a venda
+F1. Ao concluir/finalizar venda, dar baixa automática no estoque dos itens.
+F2. Usar transação: (registrar venda + baixar estoque) atômico.
+F3. Se estoque insuficiente, bloquear conclusão e informar quais itens/quantidades faltam.
+Critérios de aceite:
+- Venda concluída reduz estoque corretamente.
+- Sem estoque, não conclui e retorna mensagem clara.
+
+G) OS: serviços com tempo (interno) e oculto para cliente
+G1. Ao adicionar serviço na OS (tela interna), listar serviços cadastrados com “tempo” (duração estimada) disponível para seleção/consulta interna.
+G2. Na visualização para o cliente, NÃO exibir “tempo”; exibir somente a mão de obra (descrição/valor).
+Critérios de aceite:
+- Interno: tempo visível.
+- Cliente: tempo nunca aparece (nem UI nem payload público).
+
+H) OS e Venda: item selecionado não aparece (BUG crítico)
+H1. Corrigir para que na visualização/resumo da OS e da Venda apareça corretamente o produto/serviço selecionado.
+H2. Garantir persistência: após recarregar, os itens continuam aparecendo.
+H3. Evitar conflitos de renderização: chaves únicas, atualização reativa, e consistência entre front e banco.
+Critérios de aceite:
+- Selecionou → aparece imediatamente.
+- Refresh → continua aparecendo.
+- Editar/alternar telas não “perde” itens.
+
+I) OS: converter orçamento em OS (BUG / fluxo ausente)
+I1. Corrigir/implementar a funcionalidade de converter ORÇAMENTO em OS.
+I2. Definir fluxo mínimo:
+  - Orçamento aprovado → botão “Converter em OS”
+  - Gerar OS com itens/serviços do orçamento, mantendo vínculo (id do orçamento)
+  - Status do orçamento atualizado (ex.: “Convertido”)
+I3. Operação transacional e idempotente:
+  - Se já convertido, impedir duplicidade ou alertar claramente.
+Critérios de aceite:
+- Orçamento converte em OS com todos os itens/serviços.
+- Não cria OS duplicada para o mesmo orçamento.
+
+J) Dashboard do VENDEDOR: simplificar e restringir
+J1. No dashboard do VENDEDOR deve aparecer SOMENTE:
+  - Alerta de estoque
+  - Vendas
+  - OS
+  - Comissão do vendedor (dele)
+  - Garantia
+J2. Remover/ocultar quaisquer outros cards/indicadores/menus do vendedor.
+Critérios de aceite:
+- Logado como vendedor: dashboard exibe apenas os 5 blocos acima.
+- Tentativas de acessar rotas administrativas via URL retornam 403.
+
+ENTREGÁVEIS (OBRIGATÓRIO)
+1) Plano de implementação por etapas (ordem sugerida):
+   - Permissões (A, B, C, J) → Bugs críticos (H, I) → Estoque (F) → Comprovante (E) → Serviços/Cliente (G) → Lucro (D)
+2) Lista de arquivos alterados e descrição do que mudou.
+3) Migrações/alterações de banco (se houver) com rollback.
+4) Testes mínimos (unit/integration) cobrindo:
+   - RBAC (Dono/Gerente/Vendedor) para Garantia e Configurações
+   - Limite de desconto e restrição por forma de pagamento (backend)
+   - Concluir venda baixando estoque (sucesso e estoque insuficiente)
+   - Converter orçamento em OS (sucesso, já convertido)
+   - Exibição de itens na OS e Venda (persistência após reload)
+   - Visualização do cliente sem “tempo” do serviço
+
+SAÍDA ESPERADA
+- Implemente as mudanças no código.
+- Mostre os trechos principais (rotas/guards/services/models) e explique rapidamente as decisões.
+- Garanta que não exista regressão de permissão: vendedor nunca ganha acesso administrativo.
