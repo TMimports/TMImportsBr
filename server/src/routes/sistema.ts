@@ -13,15 +13,30 @@ router.post('/reset', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res: 
       return res.status(400).json({ error: 'Confirmação inválida' });
     }
 
-    await prisma.$executeRawUnsafe(`
-      TRUNCATE TABLE 
-        "Caixa", "ContaPagar", "ContaReceber", "Comissao", "Garantia",
-        "ItemVenda", "ItemOS", "Venda", "OrdemServico", "Estoque",
-        "Transferencia", "UnidadeFisica", "Produto", "Servico", "Cliente",
-        "User", "Loja", "Grupo", "Configuracao", "LogAuditoria", "Revisao"
-      CASCADE
-    `);
+    // Deletar na ordem correta (respeitando foreign keys)
+    await prisma.comissao.deleteMany({});
+    await prisma.logAuditoria.deleteMany({});
+    await prisma.caixa.deleteMany({});
+    await prisma.contaPagar.deleteMany({});
+    await prisma.contaReceber.deleteMany({});
+    await prisma.revisao.deleteMany({});
+    await prisma.garantia.deleteMany({});
+    await prisma.itemOS.deleteMany({});
+    await prisma.ordemServico.deleteMany({});
+    await prisma.itemVenda.deleteMany({});
+    await prisma.venda.deleteMany({});
+    await prisma.transferencia.deleteMany({});
+    await prisma.estoque.deleteMany({});
+    await prisma.unidadeFisica.deleteMany({});
+    await prisma.produto.deleteMany({});
+    await prisma.servico.deleteMany({});
+    await prisma.cliente.deleteMany({});
+    await prisma.user.deleteMany({});
+    await prisma.loja.deleteMany({});
+    await prisma.grupo.deleteMany({});
+    await prisma.configuracao.deleteMany({});
 
+    // Criar dados iniciais
     const grupo = await prisma.grupo.create({
       data: { nome: 'Tecle Motos' }
     });
@@ -37,24 +52,17 @@ router.post('/reset', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res: 
       }
     });
 
-    const senhas = {
-      admin: await bcrypt.hash('admin123', 10),
-      rede: await bcrypt.hash('rede123', 10),
-      dono: await bcrypt.hash('dono123', 10),
-      gerente: await bcrypt.hash('gerente123', 10),
-      vendedor: await bcrypt.hash('vendedor123', 10),
-      tecnico: await bcrypt.hash('tecnico123', 10)
-    };
+    const senhaAdmin = await bcrypt.hash('admin123', 10);
 
-    await prisma.user.createMany({
-      data: [
-        { nome: 'Administrador Geral', email: 'admin@teclemotos.com', senha: senhas.admin, role: 'ADMIN_GERAL', lojaId: loja.id },
-        { nome: 'Admin Rede', email: 'rede@teclemotos.com', senha: senhas.rede, role: 'ADMIN_REDE', lojaId: loja.id },
-        { nome: 'Dono da Loja', email: 'dono@teclemotos.com', senha: senhas.dono, role: 'DONO_LOJA', lojaId: loja.id },
-        { nome: 'Gerente Loja', email: 'gerente@teclemotos.com', senha: senhas.gerente, role: 'GERENTE_LOJA', lojaId: loja.id },
-        { nome: 'Vendedor', email: 'vendedor@teclemotos.com', senha: senhas.vendedor, role: 'VENDEDOR', lojaId: loja.id },
-        { nome: 'Técnico', email: 'tecnico@teclemotos.com', senha: senhas.tecnico, role: 'TECNICO', lojaId: loja.id }
-      ]
+    await prisma.user.create({
+      data: {
+        nome: 'Administrador Geral',
+        email: 'admin@teclemotos.com',
+        senha: senhaAdmin,
+        role: 'ADMIN_GERAL',
+        lojaId: loja.id,
+        ativo: true
+      }
     });
 
     await prisma.servico.createMany({
@@ -81,10 +89,17 @@ router.post('/reset', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res: 
       }
     });
 
-    res.json({ success: true, message: 'Sistema resetado com sucesso' });
-  } catch (error) {
+    res.json({ 
+      success: true, 
+      message: 'Sistema limpo com sucesso!',
+      credenciais: {
+        email: 'admin@teclemotos.com',
+        senha: 'admin123'
+      }
+    });
+  } catch (error: any) {
     console.error('Erro ao resetar sistema:', error);
-    res.status(500).json({ error: 'Erro ao resetar sistema' });
+    res.status(500).json({ error: 'Erro ao resetar sistema: ' + error.message });
   }
 });
 
