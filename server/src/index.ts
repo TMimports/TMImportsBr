@@ -65,6 +65,51 @@ if (!isDev) {
 
 const PORT = isDev ? 3001 : 5000;
 
-app.listen(PORT, '0.0.0.0', () => {
+async function initializeDatabase() {
+  const bcrypt = await import('bcryptjs');
+  
+  const userCount = await prisma.user.count();
+  if (userCount === 0) {
+    console.log('Banco vazio, inicializando dados...');
+    
+    let grupo = await prisma.grupo.findFirst();
+    if (!grupo) {
+      grupo = await prisma.grupo.create({ data: { nome: 'Tecle Motos' } });
+    }
+
+    let loja = await prisma.loja.findFirst();
+    if (!loja) {
+      loja = await prisma.loja.create({
+        data: {
+          cnpj: '00.000.000/0001-00',
+          razaoSocial: 'Tecle Motos Centro Ltda',
+          nomeFantasia: 'Tecle Motos Centro',
+          endereco: 'Rua Principal, 100 - Centro',
+          telefone: '(11) 99999-9999',
+          grupoId: grupo.id,
+          comissaoMoto: 1,
+          comissaoPecas: 3,
+          comissaoServico: 10
+        }
+      });
+    }
+
+    const senhaAdmin = await bcrypt.default.hash('admin123', 10);
+    await prisma.user.create({
+      data: {
+        nome: 'Administrador Geral',
+        email: 'admin@teclemotos.com',
+        senha: senhaAdmin,
+        role: 'ADMIN_GERAL',
+        lojaId: loja.id
+      }
+    });
+
+    console.log('Dados iniciais criados! Login: admin@teclemotos.com / admin123');
+  }
+}
+
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Servidor ${isDev ? 'DEV' : 'PROD'} rodando em http://0.0.0.0:${PORT}`);
+  await initializeDatabase();
 });
