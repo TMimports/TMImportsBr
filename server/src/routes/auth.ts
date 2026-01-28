@@ -164,4 +164,57 @@ router.get('/setup-admin', async (req, res) => {
   }
 });
 
+// Endpoint temporário para limpar banco (remover após uso)
+router.post('/reset-final', async (req, res) => {
+  try {
+    const { chave } = req.body;
+    if (chave !== 'LIMPAR_FINAL_2026') {
+      return res.status(403).json({ error: 'Chave incorreta' });
+    }
+
+    await prisma.garantia.deleteMany({});
+    await prisma.revisao.deleteMany({});
+    await prisma.comissao.deleteMany({});
+    await prisma.caixa.deleteMany({});
+    await prisma.contaReceber.deleteMany({});
+    await prisma.contaPagar.deleteMany({});
+    await prisma.itemVenda.deleteMany({});
+    await prisma.venda.deleteMany({});
+    await prisma.itemOS.deleteMany({});
+    await prisma.ordemServico.deleteMany({});
+    await prisma.unidadeFisica.deleteMany({});
+    await prisma.estoque.deleteMany({});
+    await prisma.transferencia.deleteMany({});
+    await prisma.produto.deleteMany({});
+    await prisma.cliente.deleteMany({});
+    await prisma.logAuditoria.deleteMany({});
+    await prisma.loja.deleteMany({});
+    await prisma.user.deleteMany({ where: { role: { not: 'ADMIN_GERAL' } } });
+    await prisma.grupo.deleteMany({});
+
+    await prisma.servico.deleteMany({});
+    await prisma.servico.createMany({
+      data: [
+        { nome: 'Revisao Geral', preco: 150, duracao: 60, ativo: true },
+        { nome: 'Troca de Oleo', preco: 80, duracao: 30, ativo: true },
+        { nome: 'Alinhamento', preco: 60, duracao: 30, ativo: true },
+        { nome: 'Balanceamento', preco: 50, duracao: 20, ativo: true },
+        { nome: 'Manutencao de Freios', preco: 120, duracao: 45, ativo: true },
+        { nome: 'Reparo de Suspensao', preco: 200, duracao: 90, ativo: true },
+        { nome: 'Servico Eletrico', preco: 180, duracao: 60, ativo: true },
+        { nome: 'Diagnostico Completo', preco: 100, duracao: 45, ativo: true },
+        { nome: 'Troca de Bateria', preco: 250, duracao: 30, ativo: true },
+        { nome: 'Reparo de Motor', preco: 500, duracao: 180, ativo: true },
+        { nome: 'Reparo de Modulo', preco: 400, duracao: 120, ativo: true },
+        { nome: 'Instalacao de Acessorios', preco: 80, duracao: 45, ativo: true }
+      ]
+    });
+
+    res.json({ success: true, message: 'Sistema 100% limpo!' });
+  } catch (error) {
+    console.error('Erro ao resetar:', error);
+    res.status(500).json({ error: 'Erro ao resetar sistema' });
+  }
+});
+
 export default router;
