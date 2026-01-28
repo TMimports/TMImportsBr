@@ -32,6 +32,50 @@ const isDev = process.env.NODE_ENV !== 'production';
 app.use(cors());
 app.use(express.json());
 
+app.get('/api/setup', async (req, res) => {
+  try {
+    const bcrypt = await import('bcryptjs');
+    let admin = await prisma.user.findFirst({ where: { email: 'admin@teclemotos.com' } });
+    
+    if (!admin) {
+      let grupo = await prisma.grupo.findFirst();
+      if (!grupo) {
+        grupo = await prisma.grupo.create({ data: { nome: 'Tecle Motos' } });
+      }
+      let loja = await prisma.loja.findFirst();
+      if (!loja) {
+        loja = await prisma.loja.create({
+          data: {
+            cnpj: '00.000.000/0001-00',
+            razaoSocial: 'Tecle Motos Centro Ltda',
+            nomeFantasia: 'Tecle Motos Centro',
+            endereco: 'Rua Principal, 100',
+            telefone: '(11) 99999-9999',
+            grupoId: grupo.id
+          }
+        });
+      }
+      const senha = await bcrypt.default.hash('admin123', 10);
+      admin = await prisma.user.create({
+        data: {
+          nome: 'Admin Geral',
+          email: 'admin@teclemotos.com',
+          senha,
+          role: 'ADMIN_GERAL',
+          ativo: true
+        }
+      });
+      res.json({ status: 'Admin criado!', email: 'admin@teclemotos.com', senha: 'admin123' });
+    } else {
+      const senha = await bcrypt.default.hash('admin123', 10);
+      await prisma.user.update({ where: { id: admin.id }, data: { senha, ativo: true } });
+      res.json({ status: 'Senha resetada!', email: 'admin@teclemotos.com', senha: 'admin123' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/grupos', gruposRoutes);
 app.use('/api/lojas', lojasRoutes);
