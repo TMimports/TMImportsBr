@@ -39,6 +39,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [comparativo, setComparativo] = useState<LojaComparativo[]>([]);
   const [showComparativo, setShowComparativo] = useState(false);
   const [comissoesPendentes, setComissoesPendentes] = useState(0);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const isAdminGlobal = user?.role === 'ADMIN_GERAL';
   const isAdminRede = user?.role === 'ADMIN_REDE';
@@ -85,6 +87,21 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   };
 
+  const handleResetSistema = async () => {
+    setResetting(true);
+    try {
+      await api.post('/sistema/reset', { confirmar: 'RESETAR_SISTEMA' });
+      alert('Sistema resetado com sucesso! Voce sera deslogado.');
+      localStorage.removeItem('token');
+      window.location.reload();
+    } catch (err) {
+      alert('Erro ao resetar sistema');
+    } finally {
+      setResetting(false);
+      setShowResetModal(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Carregando...</div>;
   }
@@ -96,23 +113,33 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-gray-400">Bem-vindo, {user?.nome}!</p>
         </div>
-        {canCompare && (
-          <div className="flex gap-3 items-center">
-            <select
-              value={lojaFiltro}
-              onChange={(e) => setLojaFiltro(e.target.value)}
-              className="input w-48"
+        <div className="flex gap-3 items-center flex-wrap">
+          {canCompare && (
+            <>
+              <select
+                value={lojaFiltro}
+                onChange={(e) => setLojaFiltro(e.target.value)}
+                className="input w-48"
+              >
+                <option value="">Todas as lojas</option>
+                {lojas.map(l => (
+                  <option key={l.id} value={l.id}>{l.nome}</option>
+                ))}
+              </select>
+              <button onClick={loadComparativo} className="btn btn-secondary">
+                Comparar Lojas
+              </button>
+            </>
+          )}
+          {isAdminGlobal && (
+            <button 
+              onClick={() => setShowResetModal(true)} 
+              className="btn bg-red-600 hover:bg-red-700 text-white"
             >
-              <option value="">Todas as lojas</option>
-              {lojas.map(l => (
-                <option key={l.id} value={l.id}>{l.nome}</option>
-              ))}
-            </select>
-            <button onClick={loadComparativo} className="btn btn-secondary">
-              Comparar Lojas
+              Resetar Sistema
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {!isVendedor && (data?.contasVencer?.hoje || 0) > 0 && (
@@ -424,6 +451,42 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       )}
       </>
+      )}
+
+      {showResetModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 rounded-lg p-6 max-w-md w-full mx-4 border border-red-500">
+            <h2 className="text-xl font-bold text-red-500 mb-4">Resetar Sistema</h2>
+            <p className="text-gray-300 mb-4">
+              Esta acao ira <strong>APAGAR TODOS OS DADOS</strong> do sistema:
+            </p>
+            <ul className="text-gray-400 text-sm mb-4 list-disc list-inside">
+              <li>Todas as vendas e orcamentos</li>
+              <li>Todas as OS</li>
+              <li>Todos os clientes</li>
+              <li>Todos os produtos e estoque</li>
+              <li>Todo o financeiro</li>
+              <li>Todos os usuarios (exceto admin)</li>
+            </ul>
+            <p className="text-red-400 font-bold mb-6">Esta acao NAO pode ser desfeita!</p>
+            <div className="flex gap-3 justify-end">
+              <button 
+                onClick={() => setShowResetModal(false)} 
+                className="btn btn-secondary"
+                disabled={resetting}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleResetSistema} 
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+                disabled={resetting}
+              >
+                {resetting ? 'Resetando...' : 'Confirmar Reset'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

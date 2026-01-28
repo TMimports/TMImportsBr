@@ -22,6 +22,7 @@ import transferenciasRoutes from './routes/transferencias.js';
 import importacaoRoutes from './routes/importacao.js';
 import rankingRoutes from './routes/ranking.js';
 import franqueadosRoutes from './routes/franqueados.js';
+import sistemaRoutes from './routes/sistema.js';
 
 export const prisma = new PrismaClient();
 
@@ -50,6 +51,7 @@ app.use('/api/transferencias', transferenciasRoutes);
 app.use('/api/importacao', importacaoRoutes);
 app.use('/api/ranking', rankingRoutes);
 app.use('/api/franqueados', franqueadosRoutes);
+app.use('/api/sistema', sistemaRoutes);
 
 if (!isDev) {
   app.use(express.static(path.join(process.cwd(), 'client/dist')));
