@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
-import { ImportExport } from '../components/ImportExport';
 import { useAuth } from '../contexts/AuthContext';
 
 interface VendaItem {
@@ -285,10 +284,7 @@ export function Vendas() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Vendas</h1>
-        <div className="flex gap-2">
-          <ImportExport entity="vendas" onImportSuccess={loadData} />
-          <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova Venda</button>
-        </div>
+        <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova Venda</button>
       </div>
 
       <div className="card">

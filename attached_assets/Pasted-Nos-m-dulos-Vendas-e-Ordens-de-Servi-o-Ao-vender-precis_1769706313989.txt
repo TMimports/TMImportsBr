@@ -1,0 +1,63 @@
+Nos módulos Vendas e Ordens de Serviço
+Ao vender, precisa dar baixa no estoque.
+Ao adicionar produto, precisa ter possível (em) o produto comprado.
+Ao dar desconto, precisa que esteja exibindo.
+O valor original e o valor do desconto.
+O valor final atualizado.
+Excluir importar CSV
+Excluir exportar CSV
+No módulo Unidades
+Permitir importar planilha.
+Remover nova unidade.
+A função do módulo utilidades é exibir o estoque de motos e peças.
+De toda a loja que fizerem parte do mesmo grupo, precisa ser exibido de forma online se a quantidade de estoque.
+Módulo ESTOQUE
+Precisa ser atualizada sempre que
+uma venda seja realizada, observando
+que existe venda de peça no módulo de ordem
+de serviço, tem que dar baixa no
+estoque, por lá também.
+Módulo CLIENTES
+Remover exportar CSV
+Remover importar CSV
+Módulo CONTA A PAGAR
+Descrição não deve ser um campo
+obrigatório | incluir painel superior
+dando a informação do valor
+total a ser pago | valor do
+pago | opção de filtrar contas pendentes
+pagas (ponto de inspirar no contas a receber)
+Módulos GARANTIA
+Preciso que a cada moto vendida anote
+e os dados do cliente que comprou
+apareçam em garantia e que exista
+um contador que fique decrescente
+de 90 a 00 e que ao chegar em 5
+O sistema alerta pois para manter
+a garantia o cliente precisa fazer
+a revisão em até 90 dias
+quero um botão de seleção para
+eu marcar se fez a revisão ou não
+pois se não fizer perde a garantia
+Preciso de cada O/S realizada
+pelo mesmo cliente apareça no histó-
+rico do cliente, ou seja quero
+um campo de pesquisa em O/S
+para eu pesquisar por cliente.
+Quero um módulo que me permita
+ajustar os percentuais que já
+foram inseridos e definidos no sistema
+o administrador ter acesso a ele.
+O perfil do gerente precisa conseguir
+dar desconto além dos definidos
+ao logar como gerente o desconto
+precisa ser o dobro do que foi
+definido como padrão executável para
+qualquer tipo de desconto.
+Modulo COMISSÕES
+Quero visualização geral
+Quero filtrar por mês
+Quero filtrar por técnico
+Quero filtrar por vendedor
+Quero poder usar todos os filtros
+juntos ou separados

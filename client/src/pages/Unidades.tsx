@@ -97,7 +97,6 @@ export function Unidades() {
               Excluir ({selecionados.length})
             </button>
           )}
-          <button className="btn btn-primary">+ Nova Unidade</button>
         </div>
       </div>
 
