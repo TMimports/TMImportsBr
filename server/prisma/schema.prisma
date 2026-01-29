@@ -255,6 +255,7 @@ model Cliente {
   
   vendas    Venda[]
   ordensServico OrdemServico[]
+  garantias Garantia[]
 }
 
 model Venda {
@@ -280,6 +281,7 @@ model Venda {
   loja            Loja          @relation(fields: [lojaId], references: [id])
   itens           ItemVenda[]
   comissoes       Comissao[]
+  garantias       Garantia[]
 }
 
 model ItemVenda {

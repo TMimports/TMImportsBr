@@ -9,13 +9,38 @@ router.use(verifyToken);
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const garantias = await prisma.garantia.findMany({
-      include: { unidadeFisica: { include: { produto: true, loja: true } } },
+      include: { 
+        unidadeFisica: { include: { produto: true, loja: true } },
+        cliente: true,
+        venda: true
+      },
       orderBy: { dataFim: 'asc' }
     });
 
-    res.json(garantias);
+    const resultado = garantias.map(g => ({
+      ...g,
+      tipo: g.tipoGarantia
+    }));
+
+    res.json(resultado);
   } catch (error) {
     console.error('Erro ao listar garantias:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.put('/:id/revisao', async (req: AuthRequest, res) => {
+  try {
+    const { revisaoFeita } = req.body;
+    
+    const garantia = await prisma.garantia.update({
+      where: { id: Number(req.params.id) },
+      data: { revisaoFeita: Boolean(revisaoFeita) }
+    });
+
+    res.json(garantia);
+  } catch (error) {
+    console.error('Erro ao atualizar revisao:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
