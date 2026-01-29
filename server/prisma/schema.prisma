@@ -343,15 +343,20 @@ model ItemOS {
 model Garantia {
   id              Int           @id @default(autoincrement())
   unidadeFisicaId Int
+  clienteId       Int?
+  vendaId         Int?
   tipoGarantia    String        // geral, motor, modulo, bateria
   meses           Int
   dataInicio      DateTime
   dataFim         DateTime
   ativa           Boolean       @default(true)
+  revisaoFeita    Boolean       @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   
   unidadeFisica   UnidadeFisica @relation(fields: [unidadeFisicaId], references: [id])
+  cliente         Cliente?      @relation(fields: [clienteId], references: [id])
+  venda           Venda?        @relation(fields: [vendaId], references: [id])
 }
 
 model Revisao {
