@@ -3,10 +3,12 @@
   "short_name": "Tecle Motos",
   "description": "Sistema de Gestao TM Imports / Tecle Motos",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#FF6B35",
+  "background_color": "#09090b",
+  "theme_color": "#f97316",
   "orientation": "any",
+  "categories": ["business", "productivity"],
   "icons": [
     {
       "src": "/logo.png",
@@ -20,5 +22,7 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
 }
