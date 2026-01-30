@@ -584,32 +584,86 @@ export function OrdensServico() {
             />
           </div>
 
-          <div className="border-t border-zinc-700 pt-4 space-y-2">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-400">Servicos (Mao de Obra):</span>
-              <span className="text-white">
-                R$ {servicosSelecionados.reduce((acc, item) => acc + (item.preco * item.quantidade), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-400">Pecas (Valor Bruto):</span>
-              <span className="text-white">
-                R$ {pecasSelecionadas.reduce((acc, item) => acc + (item.preco * item.quantidade), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            {Number(form.desconto) > 0 && (
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-400">Desconto ({form.desconto}% sobre pecas):</span>
-                <span className="text-red-400">
-                  - R$ {(pecasSelecionadas.reduce((acc, item) => acc + (item.preco * item.quantidade), 0) * Number(form.desconto) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </span>
+          <div className="border-t border-zinc-700 pt-4 space-y-3">
+            <h4 className="text-sm font-medium text-gray-400">Resumo de Precos</h4>
+
+            {servicosSelecionados.filter(s => s.servicoId).length > 0 && (
+              <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+                <p className="text-xs text-blue-400 font-medium">Servicos (Mao de Obra)</p>
+                {servicosSelecionados.filter(s => s.servicoId).map((item, idx) => {
+                  const serv = servicos.find(s => s.id === parseInt(item.servicoId));
+                  const subtotal = item.preco * item.quantidade;
+                  return (
+                    <div key={idx} className="text-xs flex justify-between border-b border-zinc-700/30 pb-1 last:border-0">
+                      <span className="text-gray-300">{serv?.nome || 'Servico'} (x{item.quantidade})</span>
+                      <span className="text-white">R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
-            <div className="flex justify-between items-center text-lg font-bold border-t border-zinc-700 pt-2">
-              <span>Total Final:</span>
-              <span className="text-green-400">
-                R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </span>
+
+            {pecasSelecionadas.filter(p => p.produtoId).length > 0 && (
+              <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
+                <p className="text-xs text-orange-400 font-medium">Pecas</p>
+                {pecasSelecionadas.filter(p => p.produtoId).map((item, idx) => {
+                  const peca = produtos.find(p => p.id === parseInt(item.produtoId));
+                  const subtotal = item.preco * item.quantidade;
+                  const descontoValor = subtotal * Number(form.desconto) / 100;
+                  return (
+                    <div key={idx} className="text-xs border-b border-zinc-700/30 pb-1 last:border-0">
+                      <div className="flex justify-between text-gray-300">
+                        <span>{peca?.nome || 'Peca'} (x{item.quantidade})</span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-gray-500">Original:</span>
+                        <span className="text-gray-400">R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      {Number(form.desconto) > 0 && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Desconto ({form.desconto}%):</span>
+                            <span className="text-red-400">- R$ {descontoValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between font-medium">
+                            <span className="text-gray-500">Final:</span>
+                            <span className="text-green-400">R$ {(subtotal - descontoValor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="space-y-2 pt-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Servicos:</span>
+                <span className="text-white">
+                  R$ {servicosSelecionados.reduce((acc, item) => acc + (item.preco * item.quantidade), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Pecas (Bruto):</span>
+                <span className="text-white">
+                  R$ {pecasSelecionadas.reduce((acc, item) => acc + (item.preco * item.quantidade), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              {Number(form.desconto) > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Desconto Pecas ({form.desconto}%):</span>
+                  <span className="text-red-400">
+                    - R$ {(pecasSelecionadas.reduce((acc, item) => acc + (item.preco * item.quantidade), 0) * Number(form.desconto) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center text-lg font-bold border-t border-zinc-700 pt-2">
+                <span>Total a Pagar:</span>
+                <span className="text-green-400">
+                  R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
           </div>
 
