@@ -430,7 +430,7 @@ export function Vendas() {
               <div className="space-y-3">
                 {itensSelecionados.map((item, index) => (
                   <div key={index} className="p-3 bg-zinc-800 rounded-lg">
-                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    <div className="flex gap-3 items-center">
                       <div className="flex-1 relative">
                         <div 
                           className="w-full px-4 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg cursor-pointer flex justify-between items-center hover:border-orange-500 transition-colors"
@@ -439,22 +439,12 @@ export function Vendas() {
                             if (el) el.classList.toggle('hidden');
                           }}
                         >
-                          <div className="flex flex-col">
-                            {item.produtoId ? (
-                              <>
-                                <span className="text-white font-medium">
-                                  {produtos.find(p => p.id === parseInt(item.produtoId))?.nome || 'Produto'}
-                                </span>
-                                <span className="text-xs text-orange-400">
-                                  R$ {Number(produtos.find(p => p.id === parseInt(item.produtoId))?.preco || 0).toFixed(2)}
-                                  {produtos.find(p => p.id === parseInt(item.produtoId))?.tipo === 'MOTO' && ' - Moto'}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="text-gray-500">Clique para selecionar um produto...</span>
-                            )}
-                          </div>
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <span className={item.produtoId ? 'text-white' : 'text-gray-500'}>
+                            {item.produtoId 
+                              ? produtos.find(p => p.id === parseInt(item.produtoId))?.nome || 'Produto'
+                              : 'Selecione um produto...'}
+                          </span>
+                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </div>
@@ -468,7 +458,7 @@ export function Vendas() {
                             produtos.map(p => (
                               <div 
                                 key={p.id}
-                                className={`px-4 py-3 cursor-pointer border-b border-zinc-800 last:border-b-0 transition-colors ${
+                                className={`px-4 py-2.5 cursor-pointer border-b border-zinc-800 last:border-b-0 transition-colors flex justify-between items-center ${
                                   item.produtoId === String(p.id) 
                                     ? 'bg-orange-500/20 text-orange-400' 
                                     : 'hover:bg-zinc-800 text-white'
@@ -479,10 +469,8 @@ export function Vendas() {
                                   if (el) el.classList.add('hidden');
                                 }}
                               >
-                                <div className="font-medium">{p.nome}</div>
-                                <div className="text-xs text-gray-400 mt-0.5">
-                                  R$ {Number(p.preco).toFixed(2)} {p.tipo === 'MOTO' && '• Moto'}
-                                </div>
+                                <span>{p.nome}</span>
+                                <span className="text-sm text-gray-400">R$ {Number(p.preco).toFixed(2)}</span>
                               </div>
                             ))
                           )}
