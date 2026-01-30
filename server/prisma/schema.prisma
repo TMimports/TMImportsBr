@@ -119,6 +119,7 @@ model Loja {
   contasReceber ContaReceber[]
   transferenciasOrigem  Transferencia[] @relation("TransferenciaOrigem")
   transferenciasDestino Transferencia[] @relation("TransferenciaDestino")
+  logsEstoque           LogEstoque[]
 }
 
 model User {
@@ -147,6 +148,8 @@ model User {
   vendas      Venda[]        @relation("VendaVendedor")
   comissoes   Comissao[]
   logs        LogAuditoria[]
+  logsEstoque LogEstoque[]
+  logsConfiguracao LogConfiguracao[]
 }
 
 model Produto {
@@ -166,6 +169,7 @@ model Produto {
   unidades        UnidadeFisica[]
   itensVenda      ItemVenda[]
   itensOS         ItemOS[]
+  logsEstoque     LogEstoque[]
 }
 
 model Servico {
@@ -469,4 +473,42 @@ model Configuracao {
   descontoMaxPeca       Decimal @db.Decimal(5, 2) @default(10)
   descontoMaxServico    Decimal @db.Decimal(5, 2) @default(10)
   descontoMaxOS         Decimal @db.Decimal(5, 2) @default(10)
+}
+
+enum TipoMovimentoEstoque {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  TRANSFERENCIA
+  VENDA
+  OS
+}
+
+model LogEstoque {
+  id          Int                  @id @default(autoincrement())
+  tipo        TipoMovimentoEstoque
+  origem      String               // VENDA, OS, AJUSTE, TRANSFERENCIA
+  origemId    Int?
+  produtoId   Int
+  lojaId      Int
+  quantidade  Int
+  quantidadeAnterior Int
+  quantidadeNova     Int
+  usuarioId   Int
+  createdAt   DateTime             @default(now())
+  
+  produto     Produto              @relation(fields: [produtoId], references: [id])
+  loja        Loja                 @relation(fields: [lojaId], references: [id])
+  usuario     User                 @relation(fields: [usuarioId], references: [id])
+}
+
+model LogConfiguracao {
+  id          Int      @id @default(autoincrement())
+  campo       String
+  valorAnterior String
+  valorNovo   String
+  usuarioId   Int
+  createdAt   DateTime @default(now())
+  
+  usuario     User     @relation(fields: [usuarioId], references: [id])
 }

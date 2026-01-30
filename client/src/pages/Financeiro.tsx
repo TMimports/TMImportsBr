@@ -13,6 +13,11 @@ interface ContaPagar {
   loja?: { nomeFantasia: string };
 }
 
+interface Resumo {
+  totalPagar: number;
+  totalPago: number;
+  saldoAberto: number;
+}
 
 interface Loja {
   id: number;
@@ -43,12 +48,14 @@ const recorrencias = [
 
 export function Financeiro() {
   const [contasPagar, setContasPagar] = useState<ContaPagar[]>([]);
+  const [resumo, setResumo] = useState<Resumo>({ totalPagar: 0, totalPago: 0, saldoAberto: 0 });
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editando, setEditando] = useState<number | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [filtroStatus, setFiltroStatus] = useState<'todas' | 'pendentes' | 'pagas'>('todas');
   const [mesSelecionado, setMesSelecionado] = useState(() => {
     const hoje = new Date();
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
@@ -56,8 +63,14 @@ export function Financeiro() {
 
   const loadData = () => {
     setLoading(true);
-    api.get<ContaPagar[]>('/financeiro/contas-pagar')
-      .then(setContasPagar)
+    Promise.all([
+      api.get<ContaPagar[]>(`/financeiro/contas-pagar${filtroStatus !== 'todas' ? `?status=${filtroStatus}` : ''}`),
+      api.get<Resumo>('/financeiro/contas-pagar/resumo')
+    ])
+      .then(([contas, res]) => {
+        setContasPagar(contas);
+        setResumo(res);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -65,7 +78,7 @@ export function Financeiro() {
   useEffect(() => {
     loadData();
     api.get<Loja[]>('/lojas').then(setLojas).catch(console.error);
-  }, []);
+  }, [filtroStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +87,7 @@ export function Financeiro() {
       const dados = {
         lojaId: Number(form.lojaId),
         categoria: form.categoria,
-        descricao: form.descricao,
+        descricao: form.descricao || undefined,
         valor: Number(form.valor),
         vencimento: form.vencimento,
         recorrente: form.recorrente,
@@ -102,7 +115,7 @@ export function Financeiro() {
     setForm({
       lojaId: '',
       categoria: conta.categoria,
-      descricao: conta.descricao,
+      descricao: conta.descricao || '',
       valor: String(conta.valor),
       vencimento: conta.vencimento.split('T')[0],
       recorrente: false,
@@ -120,6 +133,11 @@ export function Financeiro() {
     }
   };
 
+  const contasFiltradas = contasPagar.filter(c => {
+    const venc = new Date(c.vencimento);
+    return `${venc.getFullYear()}-${String(venc.getMonth() + 1).padStart(2, '0')}` === mesSelecionado;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -127,7 +145,28 @@ export function Financeiro() {
         <Button variant="primary" onClick={() => { setEditando(null); setForm(initialForm); setModalOpen(true); }}>+ Nova Conta</Button>
       </div>
 
-      <div className="flex gap-4 items-center">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card bg-red-500/10 border border-red-500/30">
+          <p className="text-gray-400 text-sm">Total a Pagar</p>
+          <p className="text-2xl font-bold text-red-400">
+            R$ {resumo.totalPagar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+        <div className="card bg-green-500/10 border border-green-500/30">
+          <p className="text-gray-400 text-sm">Total Pago</p>
+          <p className="text-2xl font-bold text-green-400">
+            R$ {resumo.totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+        <div className="card bg-yellow-500/10 border border-yellow-500/30">
+          <p className="text-gray-400 text-sm">Saldo em Aberto</p>
+          <p className="text-2xl font-bold text-yellow-400">
+            R$ {resumo.saldoAberto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-4 items-center">
         <div>
           <label className="text-sm text-gray-400">Mes</label>
           <Input
@@ -135,6 +174,29 @@ export function Financeiro() {
             value={mesSelecionado}
             onChange={(e) => setMesSelecionado(e.target.value)}
           />
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant={filtroStatus === 'todas' ? 'primary' : 'ghost'} 
+            size="sm"
+            onClick={() => setFiltroStatus('todas')}
+          >
+            Todas
+          </Button>
+          <Button 
+            variant={filtroStatus === 'pendentes' ? 'primary' : 'ghost'} 
+            size="sm"
+            onClick={() => setFiltroStatus('pendentes')}
+          >
+            Pendentes
+          </Button>
+          <Button 
+            variant={filtroStatus === 'pagas' ? 'primary' : 'ghost'} 
+            size="sm"
+            onClick={() => setFiltroStatus('pagas')}
+          >
+            Pagas
+          </Button>
         </div>
       </div>
 
@@ -157,20 +219,14 @@ export function Financeiro() {
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-gray-500">Carregando...</td>
                 </tr>
-              ) : contasPagar.filter(c => {
-                const venc = new Date(c.vencimento);
-                return `${venc.getFullYear()}-${String(venc.getMonth() + 1).padStart(2, '0')}` === mesSelecionado;
-              }).length === 0 ? (
+              ) : contasFiltradas.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-gray-500">Nenhuma conta a pagar neste mes</td>
                 </tr>
               ) : (
-                contasPagar.filter(c => {
-                  const venc = new Date(c.vencimento);
-                  return `${venc.getFullYear()}-${String(venc.getMonth() + 1).padStart(2, '0')}` === mesSelecionado;
-                }).map(conta => (
+                contasFiltradas.map(conta => (
                   <tr key={conta.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                    <td className="py-3 text-white">{conta.descricao}</td>
+                    <td className="py-3 text-white">{conta.descricao || '-'}</td>
                     <td className="py-3">
                       <span className="px-2 py-1 rounded text-xs font-medium bg-zinc-700 text-gray-300">
                         {conta.categoria}
@@ -232,10 +288,10 @@ export function Financeiro() {
           />
 
           <Input
-            label="Descricao *"
+            label="Descricao"
             value={form.descricao}
             onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-            required
+            placeholder="Opcional"
           />
 
           <Input
@@ -281,7 +337,7 @@ export function Financeiro() {
               Cancelar
             </Button>
             <Button variant="primary" type="submit" loading={saving}>
-              Cadastrar
+              {editando ? 'Salvar' : 'Cadastrar'}
             </Button>
           </div>
         </form>

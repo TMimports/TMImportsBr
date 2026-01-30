@@ -1,10 +1,58 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
 import { verifyToken, applyTenantFilter, AuthRequest, requireRole } from '../middleware/auth.js';
+import { InventoryService } from '../services/InventoryService.js';
 
 const router = Router();
 
 router.use(verifyToken);
+
+router.get('/grupo', async (req: AuthRequest, res) => {
+  try {
+    let grupoId = req.user?.grupoId;
+    
+    if (!grupoId && req.user?.lojaId) {
+      const loja = await prisma.loja.findUnique({ where: { id: req.user.lojaId } });
+      grupoId = loja?.grupoId;
+    }
+    
+    if (!grupoId) {
+      return res.status(400).json({ error: 'Usuário não pertence a um grupo' });
+    }
+
+    const estoqueGrupo = await InventoryService.getEstoqueGrupo(grupoId);
+    res.json(estoqueGrupo);
+  } catch (error) {
+    console.error('Erro ao buscar estoque do grupo:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/logs', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
+  try {
+    const filter = applyTenantFilter(req);
+
+    const where: any = {};
+    if (filter.lojaId) where.lojaId = filter.lojaId;
+    if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+
+    const logs = await prisma.logEstoque.findMany({
+      where,
+      include: { 
+        produto: { select: { nome: true } },
+        loja: { select: { nomeFantasia: true } },
+        usuario: { select: { nome: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200
+    });
+
+    res.json(logs);
+  } catch (error) {
+    console.error('Erro ao buscar logs de estoque:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
 
 router.get('/', async (req: AuthRequest, res) => {
   try {

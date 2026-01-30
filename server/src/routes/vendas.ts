@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
 import { verifyToken, applyTenantFilter, requireRole, AuthRequest } from '../middleware/auth.js';
+import { InventoryService } from '../services/InventoryService.js';
 
 const router = Router();
 
@@ -29,6 +30,17 @@ router.get('/', async (req: AuthRequest, res) => {
     res.json(vendas);
   } catch (error) {
     console.error('Erro ao listar vendas:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/produtos-disponiveis/:lojaId', async (req: AuthRequest, res) => {
+  try {
+    const lojaId = Number(req.params.lojaId);
+    const produtos = await InventoryService.getProdutosDisponiveis(lojaId);
+    res.json(produtos);
+  } catch (error) {
+    console.error('Erro ao buscar produtos disponíveis:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
@@ -67,6 +79,20 @@ router.post('/', async (req: AuthRequest, res) => {
     const config = await prisma.configuracao.findFirst();
     const userRole = req.user?.role;
 
+    const itensParaVerificar = itens
+      .filter((item: any) => item.produtoId)
+      .map((item: any) => ({ produtoId: item.produtoId, quantidade: item.quantidade }));
+
+    if (itensParaVerificar.length > 0) {
+      const verificacao = await InventoryService.verificarItensVenda(itensParaVerificar, Number(lojaId));
+      if (!verificacao.valido) {
+        return res.status(400).json({ 
+          error: 'Estoque insuficiente',
+          detalhes: verificacao.erros
+        });
+      }
+    }
+
     let valorBruto = 0;
     let valorTotal = 0;
     const itensProcessados = [];
@@ -78,20 +104,10 @@ router.post('/', async (req: AuthRequest, res) => {
       if (item.produtoId) {
         const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
         if (produto) {
-          const estoque = await prisma.estoque.findFirst({
-            where: { produtoId: item.produtoId, lojaId: Number(lojaId) }
-          });
-
-          if (produto.tipo === 'PECA' && (!estoque || estoque.quantidade < item.quantidade)) {
-            return res.status(400).json({ 
-              error: `Estoque insuficiente para ${produto.nome}. Disponivel: ${estoque?.quantidade || 0}` 
-            });
-          }
-
           let maxDesconto = produto.tipo === 'MOTO' ? Number(config?.descontoMaxMoto || 3.5) : Number(config?.descontoMaxPeca || 10);
           
           if (userRole === 'GERENTE_LOJA') {
-            maxDesconto = Math.min(maxDesconto, produto.tipo === 'MOTO' ? 2 : 5);
+            maxDesconto = maxDesconto * 2;
           } else if (userRole === 'VENDEDOR') {
             maxDesconto = 0;
           }
@@ -149,7 +165,22 @@ router.post('/', async (req: AuthRequest, res) => {
     });
 
     if (confirmarAutomaticamente) {
-      // Registrar entrada no caixa (para pagamentos à vista)
+      const resultadoBaixa = await InventoryService.processarBaixaVenda(
+        venda.id,
+        itensProcessados.filter(i => i.produtoId).map(i => ({
+          produtoId: i.produtoId!,
+          quantidade: i.quantidade,
+          unidadeFisicaId: i.unidadeFisicaId || undefined
+        })),
+        Number(lojaId),
+        req.user!.id
+      );
+
+      if (!resultadoBaixa.success) {
+        await prisma.venda.delete({ where: { id: venda.id } });
+        return res.status(400).json({ error: resultadoBaixa.error });
+      }
+
       if (formaPagamento !== 'FINANCIAMENTO') {
         await prisma.caixa.create({
           data: {
@@ -163,7 +194,6 @@ router.post('/', async (req: AuthRequest, res) => {
         });
       }
 
-      // Criar Conta a Receber para financiamento ou parcelado
       if (formaPagamento === 'FINANCIAMENTO' || (parcelas && parcelas > 1)) {
         const numParcelas = parcelas || 1;
         const valorParcela = valorTotal / numParcelas;
@@ -186,7 +216,6 @@ router.post('/', async (req: AuthRequest, res) => {
         }
       }
 
-      // Comissão do vendedor
       const comissaoPercent = Number(config?.comissaoVendedorMoto || 1);
       const comissaoValor = valorTotal * (comissaoPercent / 100);
 
@@ -200,7 +229,6 @@ router.post('/', async (req: AuthRequest, res) => {
         }
       });
 
-      // Criar garantias para unidades físicas vendidas (motos)
       for (const item of itensProcessados) {
         if (item.unidadeFisicaId) {
           const garantiasConfig = [
@@ -218,6 +246,8 @@ router.post('/', async (req: AuthRequest, res) => {
             await prisma.garantia.create({
               data: {
                 unidadeFisicaId: item.unidadeFisicaId,
+                clienteId: Number(clienteId),
+                vendaId: venda.id,
                 tipoGarantia: g.tipo,
                 meses: g.meses,
                 dataInicio,
@@ -225,25 +255,6 @@ router.post('/', async (req: AuthRequest, res) => {
               }
             });
           }
-        }
-      }
-    }
-
-    for (const item of itensProcessados) {
-      if (item.unidadeFisicaId) {
-        await prisma.unidadeFisica.update({
-          where: { id: item.unidadeFisicaId },
-          data: { status: 'VENDIDA' }
-        });
-      }
-
-      if (item.produtoId) {
-        const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
-        if (produto?.tipo === 'PECA') {
-          await prisma.estoque.updateMany({
-            where: { produtoId: item.produtoId, lojaId: Number(lojaId) },
-            data: { quantidade: { decrement: item.quantidade } }
-          });
         }
       }
     }
@@ -270,6 +281,20 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
       return res.status(400).json({ error: 'Venda já confirmada' });
     }
 
+    const itensParaVerificar = vendaAtual.itens
+      .filter(item => item.produtoId)
+      .map(item => ({ produtoId: item.produtoId!, quantidade: item.quantidade }));
+
+    if (itensParaVerificar.length > 0) {
+      const verificacao = await InventoryService.verificarItensVenda(itensParaVerificar, vendaAtual.lojaId);
+      if (!verificacao.valido) {
+        return res.status(400).json({ 
+          error: 'Estoque insuficiente',
+          detalhes: verificacao.erros
+        });
+      }
+    }
+
     const venda = await prisma.venda.update({
       where: { id: Number(req.params.id) },
       data: { confirmadaFinanceiro: true },
@@ -281,7 +306,25 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
       }
     });
 
-    // Registrar entrada no caixa (exceto financiamento)
+    const resultadoBaixa = await InventoryService.processarBaixaVenda(
+      venda.id,
+      venda.itens.filter(i => i.produtoId).map(i => ({
+        produtoId: i.produtoId!,
+        quantidade: i.quantidade,
+        unidadeFisicaId: i.unidadeFisicaId || undefined
+      })),
+      venda.lojaId,
+      req.user!.id
+    );
+
+    if (!resultadoBaixa.success) {
+      await prisma.venda.update({
+        where: { id: venda.id },
+        data: { confirmadaFinanceiro: false }
+      });
+      return res.status(400).json({ error: resultadoBaixa.error });
+    }
+
     if (venda.formaPagamento !== 'FINANCIAMENTO') {
       await prisma.caixa.create({
         data: {
@@ -295,7 +338,6 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
       });
     }
 
-    // Criar Conta a Receber para financiamento ou parcelado
     if (venda.formaPagamento === 'FINANCIAMENTO' || (venda.parcelas && venda.parcelas > 1)) {
       const numParcelas = venda.parcelas || 1;
       const valorParcela = Number(venda.valorTotal) / numParcelas;
@@ -318,7 +360,6 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
       }
     }
 
-    // Criar garantias para unidades físicas vendidas
     for (const item of venda.itens) {
       if (item.unidadeFisicaId) {
         const garantiasConfig = [
@@ -336,6 +377,8 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
           await prisma.garantia.create({
             data: {
               unidadeFisicaId: item.unidadeFisicaId,
+              clienteId: venda.clienteId,
+              vendaId: venda.id,
               tipoGarantia: g.tipo,
               meses: g.meses,
               dataInicio,
@@ -356,7 +399,8 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
 router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
   try {
     const vendaAtual = await prisma.venda.findUnique({
-      where: { id: Number(req.params.id) }
+      where: { id: Number(req.params.id) },
+      include: { itens: true }
     });
 
     if (!vendaAtual) {
@@ -365,6 +409,20 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
 
     if (vendaAtual.tipo !== 'ORCAMENTO') {
       return res.status(400).json({ error: 'Apenas orçamentos podem ser convertidos em venda' });
+    }
+
+    const itensParaVerificar = vendaAtual.itens
+      .filter(item => item.produtoId)
+      .map(item => ({ produtoId: item.produtoId!, quantidade: item.quantidade }));
+
+    if (itensParaVerificar.length > 0) {
+      const verificacao = await InventoryService.verificarItensVenda(itensParaVerificar, vendaAtual.lojaId);
+      if (!verificacao.valido) {
+        return res.status(400).json({ 
+          error: 'Estoque insuficiente',
+          detalhes: verificacao.erros
+        });
+      }
     }
 
     const venda = await prisma.venda.update({
@@ -381,7 +439,25 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
       }
     });
 
-    // Registrar entrada no caixa (exceto financiamento)
+    const resultadoBaixa = await InventoryService.processarBaixaVenda(
+      venda.id,
+      venda.itens.filter(i => i.produtoId).map(i => ({
+        produtoId: i.produtoId!,
+        quantidade: i.quantidade,
+        unidadeFisicaId: i.unidadeFisicaId || undefined
+      })),
+      venda.lojaId,
+      req.user!.id
+    );
+
+    if (!resultadoBaixa.success) {
+      await prisma.venda.update({
+        where: { id: venda.id },
+        data: { tipo: 'ORCAMENTO', confirmadaFinanceiro: false }
+      });
+      return res.status(400).json({ error: resultadoBaixa.error });
+    }
+
     if (venda.formaPagamento !== 'FINANCIAMENTO') {
       await prisma.caixa.create({
         data: {
@@ -395,7 +471,6 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
       });
     }
 
-    // Criar Conta a Receber para financiamento ou parcelado
     if (venda.formaPagamento === 'FINANCIAMENTO' || (venda.parcelas && venda.parcelas > 1)) {
       const numParcelas = venda.parcelas || 1;
       const valorParcela = Number(venda.valorTotal) / numParcelas;
@@ -432,7 +507,6 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
       }
     });
 
-    // Criar garantias para unidades físicas vendidas
     for (const item of venda.itens) {
       if (item.unidadeFisicaId) {
         const garantiasConfig = [
@@ -450,6 +524,8 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
           await prisma.garantia.create({
             data: {
               unidadeFisicaId: item.unidadeFisicaId,
+              clienteId: venda.clienteId,
+              vendaId: venda.id,
               tipoGarantia: g.tipo,
               meses: g.meses,
               dataInicio,

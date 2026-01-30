@@ -1,0 +1,251 @@
+Você é um engenheiro de software sênior. Quero que você altere meu sistema (web app) com foco em regras de negócio, permissões, UI e consistência de estoque.
+Implemente exatamente os requisitos abaixo, mantendo compatibilidade com os dados existentes, evitando quebrar telas atuais e criando migrações quando necessário.
+
+0) Regras gerais e consistência
+
+Toda atualização de estoque deve ser transacional (se falhar, desfazer tudo).
+
+Criar um “serviço” central de estoque (ex.: InventoryService) para ser chamado por:
+
+Vendas
+
+Ordens de Serviço (quando vender peça/produto)
+
+Ajustes manuais (se existirem)
+
+Registrar log/auditoria mínima: tipo, origem, id_origem, produto_id, quantidade, data, usuario.
+
+1) Módulos VENDAS e ORDEM DE SERVIÇO (O/S)
+1.1 Baixa automática no estoque
+
+Ao finalizar uma venda, dar baixa no estoque de todos os itens.
+
+Em Ordem de Serviço, quando houver venda de peça/produto (itens lançados na O/S), também deve dar baixa no estoque ao concluir/fechar a O/S.
+
+Critérios de aceite
+
+Se o estoque for insuficiente, bloquear conclusão e mostrar mensagem clara com produto e quantidade faltante.
+
+Não permitir estoque negativo (a menos que já exista uma configuração explícita no sistema; se existir, respeitar).
+
+1.2 Adicionar produto: só permitir “produto comprado”
+
+Ao adicionar produto em Vendas ou O/S:
+
+Exibir/permitir seleção apenas de produtos “comprados”/ativos no estoque (ou marcados como disponíveis).
+
+Se existir status/campo que represente isso, usar; se não existir, criar (ex.: produto.disponivel_para_venda OU derivar de “tem entrada/compra registrada”).
+
+1.3 Desconto com valores sempre exibidos
+
+Ao aplicar desconto, a UI precisa exibir:
+
+Valor original
+
+Valor do desconto (em R$ e/ou % conforme regra)
+
+Valor final atualizado em tempo real
+
+Garantir que o backend valide o desconto recebido (não confiar só no frontend).
+
+1.4 Remover CSV em Vendas/O.S.
+
+Remover completamente:
+
+“Importar CSV”
+
+“Exportar CSV”
+
+Retirar botões, rotas/endpoints e permissões relacionadas.
+
+2) Módulo UNIDADES
+
+Permitir importar planilha (XLSX/CSV) para cadastrar/atualizar unidades.
+
+Criar template de colunas aceitas e validação.
+
+Importação deve suportar “criar ou atualizar” por chave (ex.: CNPJ, código da unidade ou nome+grupo).
+
+Remover opção/botão “Nova unidade” (cadastro manual).
+
+Critérios de aceite
+
+Importação mostra relatório final: criadas, atualizadas, erros (com linha/coluna).
+
+3) Módulo UTILIDADES
+
+A função do módulo Utilidades é exibir o estoque de motos e peças.
+
+Deve mostrar em tempo real/online a quantidade de estoque de todas as lojas que pertencem ao mesmo grupo da loja atual.
+
+Ex.: se usuário está na Loja A do Grupo X, ver Estoque da Loja A, B, C… do Grupo X.
+
+Implementar atualização “online” via:
+
+WebSocket/SSE, ou polling curto (ex.: 10–30s) se não houver infra para WS.
+
+Exibir claramente: Loja | Motos (qtd) | Peças (qtd) | Última atualização.
+
+4) Módulo ESTOQUE
+
+Estoque deve ser atualizado automaticamente sempre que:
+
+Uma venda for realizada
+
+Uma O/S for concluída contendo venda de peça/produto
+
+Centralizar no serviço de estoque para evitar divergência.
+
+Critérios de aceite
+
+Criar testes (unitários ou integração) cobrindo:
+
+venda comum
+
+O/S com peça
+
+tentativa de vender sem estoque
+
+5) Módulo CLIENTES
+
+Remover completamente:
+
+Exportar CSV
+
+Importar CSV
+
+Retirar botões e endpoints.
+
+6) Módulo CONTA A PAGAR
+6.1 Descrição não obrigatória
+
+O campo “Descrição” não deve ser obrigatório.
+
+6.2 Painel superior com resumo
+
+Incluir painel superior com:
+
+Valor total a pagar
+
+Valor total pago
+
+(opcional) saldo em aberto = total - pago
+
+6.3 Filtros
+
+Opção de filtrar por:
+
+Pendentes
+
+Pagas
+
+Inspirar no comportamento do “Contas a receber” existente (mesma UX).
+
+7) Módulo GARANTIA
+7.1 Garantia vinculada à venda de moto
+
+A cada moto vendida, criar automaticamente um registro de garantia contendo:
+
+Dados da moto (identificador, modelo etc.)
+
+Dados do cliente comprador (id e campos principais)
+
+Data de venda/início da garantia
+
+7.2 Contador 90 → 00 e alerta em 5
+
+Exibir contador decrescente de 90 dias até 0 (baseado na data de venda).
+
+Quando faltarem 5 dias (ou “chegar em 5”), o sistema deve alertar (badge, banner e/ou notificação interna) que:
+
+Para manter a garantia, o cliente precisa fazer revisão em até 90 dias.
+
+7.3 Botão de revisão
+
+Ter um controle (toggle/botão) para marcar:
+
+“Fez revisão: SIM/NÃO”
+
+Se chegar a 0 dias e estiver “NÃO”, marcar garantia como perdida/expirada (conforme regra).
+
+Registrar data e usuário que marcou a revisão.
+
+8) HISTÓRICO DO CLIENTE + Pesquisa por cliente em O/S
+
+Toda O/S realizada deve aparecer no histórico do cliente.
+
+Em O/S, criar um campo de pesquisa por cliente:
+
+pesquisar por nome, telefone, CPF/CNPJ (se existir)
+
+ao selecionar, listar O/S anteriores e permitir abrir detalhes.
+
+9) Módulo para ajustar percentuais do sistema (Admin)
+
+Criar um módulo/tela “Configuração de Percentuais” (nome pode variar) para:
+
+ajustar percentuais já existentes e definidos no sistema (ex.: comissão, desconto padrão, etc.)
+
+Apenas Administrador tem acesso.
+
+Critérios de aceite
+
+Alterações devem ter:
+
+validação (0 a 100% quando aplicável)
+
+log de alteração (antes/depois, usuário, data)
+
+10) Regras de DESCONTO por perfil (Gerente)
+
+O perfil Gerente precisa:
+
+Conseguir dar desconto além dos definidos como padrão
+
+Ao logar como gerente, o limite executável de desconto deve ser o dobro do padrão definido (para qualquer tipo de desconto).
+
+Exemplo
+
+Se desconto padrão máximo é 10%, gerente pode até 20%.
+
+Critérios de aceite
+
+UI deve refletir o limite do gerente (mostrar limite e validações coerentes).
+
+Backend deve impor o limite por perfil (não apenas frontend).
+
+11) Módulo COMISSÕES
+
+Criar visão geral (dashboard/lista).
+
+Implementar filtros:
+
+por mês
+
+por técnico
+
+por vendedor
+
+Permitir usar filtros:
+
+juntos
+
+separados
+
+Critérios de aceite
+
+Combinação de filtros funciona corretamente e a UI deixa claro o que está aplicado.
+
+Totais e subtotais atualizam conforme filtros.
+
+12) Entregáveis técnicos
+
+Implementar alterações de UI + backend + banco (se precisar).
+
+Atualizar rotas/endpoints removidos (CSV).
+
+Criar migrações para novos campos/tabelas (garantia, revisão, logs, percentuais).
+
+Criar testes mínimos para estoque e desconto por perfil.
+
+Garantir que nada quebre: rodar app e corrigir erros.

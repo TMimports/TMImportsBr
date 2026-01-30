@@ -199,14 +199,47 @@ router.delete('/contas-receber/:id', async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/contas-pagar', async (req: AuthRequest, res) => {
+router.get('/contas-pagar/resumo', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
-    const { due } = req.query;
 
     const where: any = { deletedAt: null };
     if (filter.lojaId) where.lojaId = filter.lojaId;
     if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+
+    const [totalPagar, totalPago] = await Promise.all([
+      prisma.contaPagar.aggregate({
+        where: { ...where, pago: false },
+        _sum: { valor: true }
+      }),
+      prisma.contaPagar.aggregate({
+        where: { ...where, pago: true },
+        _sum: { valor: true }
+      })
+    ]);
+
+    res.json({
+      totalPagar: Number(totalPagar._sum.valor || 0),
+      totalPago: Number(totalPago._sum.valor || 0),
+      saldoAberto: Number(totalPagar._sum.valor || 0)
+    });
+  } catch (error) {
+    console.error('Erro ao buscar resumo:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/contas-pagar', async (req: AuthRequest, res) => {
+  try {
+    const filter = applyTenantFilter(req);
+    const { due, status } = req.query;
+
+    const where: any = { deletedAt: null };
+    if (filter.lojaId) where.lojaId = filter.lojaId;
+    if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+    
+    if (status === 'pendentes') where.pago = false;
+    if (status === 'pagas') where.pago = true;
 
     if (due) {
       const hoje = new Date();

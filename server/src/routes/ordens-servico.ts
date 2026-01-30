@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
 import { verifyToken, applyTenantFilter, requireRole, AuthRequest } from '../middleware/auth.js';
+import { InventoryService } from '../services/InventoryService.js';
 
 const router = Router();
 
@@ -28,6 +29,64 @@ router.get('/', async (req: AuthRequest, res) => {
     res.json(ordens);
   } catch (error) {
     console.error('Erro ao listar OS:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/por-cliente/:clienteId', async (req: AuthRequest, res) => {
+  try {
+    const clienteId = Number(req.params.clienteId);
+    const ordens = await prisma.ordemServico.findMany({
+      where: { clienteId, deletedAt: null },
+      include: {
+        cliente: true,
+        loja: true,
+        unidadeFisica: { include: { produto: true } },
+        itens: { include: { produto: true, servico: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(ordens);
+  } catch (error) {
+    console.error('Erro ao buscar OS por cliente:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/buscar-cliente', async (req: AuthRequest, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || String(q).length < 2) {
+      return res.json([]);
+    }
+
+    const termo = String(q).toLowerCase();
+    const clientes = await prisma.cliente.findMany({
+      where: {
+        OR: [
+          { nome: { contains: termo, mode: 'insensitive' } },
+          { telefone: { contains: termo } },
+          { cpfCnpj: { contains: termo } }
+        ]
+      },
+      include: {
+        ordensServico: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          include: {
+            loja: true,
+            itens: { include: { servico: true } }
+          }
+        }
+      },
+      take: 10
+    });
+
+    res.json(clientes);
+  } catch (error) {
+    console.error('Erro ao buscar clientes:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
@@ -112,6 +171,20 @@ router.post('/', async (req: AuthRequest, res) => {
     const config = await prisma.configuracao.findFirst();
     const userRole = req.user?.role;
 
+    const itensParaVerificar = (itens || [])
+      .filter((item: any) => item.produtoId)
+      .map((item: any) => ({ produtoId: item.produtoId, quantidade: item.quantidade }));
+
+    if (tipo !== 'ORCAMENTO' && itensParaVerificar.length > 0) {
+      const verificacao = await InventoryService.verificarItensVenda(itensParaVerificar, Number(lojaId));
+      if (!verificacao.valido) {
+        return res.status(400).json({ 
+          error: 'Estoque insuficiente',
+          detalhes: verificacao.erros
+        });
+      }
+    }
+
     let valorBruto = 0;
     let valorTotal = 0;
     const itensProcessados = [];
@@ -126,20 +199,9 @@ router.post('/', async (req: AuthRequest, res) => {
         if (item.servicoId) {
           desconto = 0;
         } else if (item.produtoId) {
-          const estoque = await prisma.estoque.findFirst({
-            where: { produtoId: item.produtoId, lojaId: Number(lojaId) }
-          });
-
-          if (!estoque || estoque.quantidade < item.quantidade) {
-            const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
-            return res.status(400).json({ 
-              error: `Estoque insuficiente para ${produto?.nome || 'peça'}. Disponivel: ${estoque?.quantidade || 0}` 
-            });
-          }
-
           let maxDesconto = Number(config?.descontoMaxPeca || 10);
           if (userRole === 'GERENTE_LOJA') {
-            maxDesconto = Math.min(maxDesconto, 5);
+            maxDesconto = maxDesconto * 2;
           } else if (userRole === 'VENDEDOR') {
             maxDesconto = 0;
           }
@@ -187,14 +249,20 @@ router.post('/', async (req: AuthRequest, res) => {
       }
     });
 
-    if (tipoOS !== 'ORCAMENTO') {
-      for (const item of itensProcessados) {
-        if (item.produtoId) {
-          await prisma.estoque.updateMany({
-            where: { produtoId: item.produtoId, lojaId: Number(lojaId) },
-            data: { quantidade: { decrement: item.quantidade } }
-          });
-        }
+    if (tipoOS !== 'ORCAMENTO' && itensProcessados.some(i => i.produtoId)) {
+      const resultadoBaixa = await InventoryService.processarBaixaOS(
+        os.id,
+        itensProcessados.filter(i => i.produtoId).map(i => ({
+          produtoId: i.produtoId!,
+          quantidade: i.quantidade
+        })),
+        Number(lojaId),
+        req.user!.id
+      );
+
+      if (!resultadoBaixa.success) {
+        await prisma.ordemServico.delete({ where: { id: os.id } });
+        return res.status(400).json({ error: resultadoBaixa.error });
       }
     }
 
@@ -224,7 +292,8 @@ router.put('/:id/status', async (req: AuthRequest, res) => {
 router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), async (req: AuthRequest, res) => {
   try {
     const osAtual = await prisma.ordemServico.findUnique({
-      where: { id: Number(req.params.id) }
+      where: { id: Number(req.params.id) },
+      include: { itens: true }
     });
 
     if (!osAtual) {
@@ -290,18 +359,17 @@ router.put('/:id/converter-os', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Apenas orçamentos podem ser convertidos' });
     }
 
-    for (const item of osAtual.itens) {
-      if (item.produtoId) {
-        const estoque = await prisma.estoque.findFirst({
-          where: { produtoId: item.produtoId, lojaId: osAtual.lojaId }
-        });
+    const itensParaVerificar = osAtual.itens
+      .filter(item => item.produtoId)
+      .map(item => ({ produtoId: item.produtoId!, quantidade: item.quantidade }));
 
-        if (!estoque || estoque.quantidade < item.quantidade) {
-          const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
-          return res.status(400).json({ 
-            error: `Estoque insuficiente para ${produto?.nome || 'peça'}` 
-          });
-        }
+    if (itensParaVerificar.length > 0) {
+      const verificacao = await InventoryService.verificarItensVenda(itensParaVerificar, osAtual.lojaId);
+      if (!verificacao.valido) {
+        return res.status(400).json({ 
+          error: 'Estoque insuficiente',
+          detalhes: verificacao.erros
+        });
       }
     }
 
@@ -313,12 +381,20 @@ router.put('/:id/converter-os', async (req: AuthRequest, res) => {
       }
     });
 
-    for (const item of osAtual.itens) {
-      if (item.produtoId) {
-        await prisma.estoque.updateMany({
-          where: { produtoId: item.produtoId, lojaId: osAtual.lojaId },
-          data: { quantidade: { decrement: item.quantidade } }
+    if (itensParaVerificar.length > 0) {
+      const resultadoBaixa = await InventoryService.processarBaixaOS(
+        os.id,
+        itensParaVerificar,
+        osAtual.lojaId,
+        req.user!.id
+      );
+
+      if (!resultadoBaixa.success) {
+        await prisma.ordemServico.update({
+          where: { id: os.id },
+          data: { tipo: 'ORCAMENTO', status: 'ORCAMENTO' }
         });
+        return res.status(400).json({ error: resultadoBaixa.error });
       }
     }
 

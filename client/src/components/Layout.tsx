@@ -27,6 +27,8 @@ const menuItems = {
     { id: 'contas-receber', label: 'Contas a Receber', icon: '💳' },
     { id: 'garantias', label: 'Garantias', icon: '📜' },
     { id: 'comissoes', label: 'Comissoes', icon: '💸' },
+    { id: 'utilidades', label: 'Utilidades', icon: '🔄' },
+    { id: 'configuracoes', label: 'Configuracoes', icon: '⚙️' },
   ],
   ADMIN_REDE: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -46,6 +48,7 @@ const menuItems = {
     { id: 'contas-receber', label: 'Contas a Receber', icon: '💳' },
     { id: 'garantias', label: 'Garantias', icon: '📜' },
     { id: 'comissoes', label: 'Comissoes', icon: '💸' },
+    { id: 'utilidades', label: 'Utilidades', icon: '🔄' },
   ],
   GERENTE_LOJA: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -57,6 +60,7 @@ const menuItems = {
     { id: 'contas-receber', label: 'Contas a Receber', icon: '💳' },
     { id: 'garantias', label: 'Garantias', icon: '📜' },
     { id: 'comissoes', label: 'Comissoes', icon: '💸' },
+    { id: 'utilidades', label: 'Utilidades', icon: '🔄' },
   ],
   VENDEDOR: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },

@@ -19,6 +19,8 @@ import { Garantias } from './pages/Garantias';
 import { Comissoes } from './pages/Comissoes';
 import { Ranking } from './pages/Ranking';
 import { ContasReceber } from './pages/ContasReceber';
+import { Configuracoes } from './pages/Configuracoes';
+import { Utilidades } from './pages/Utilidades';
 
 function AppContent() {
   const { user, loading, mustChangePassword, refreshUser } = useAuth();
@@ -74,6 +76,10 @@ function AppContent() {
         return <Comissoes />;
       case 'contas-receber':
         return <ContasReceber />;
+      case 'configuracoes':
+        return <Configuracoes />;
+      case 'utilidades':
+        return <Utilidades />;
       default:
         return (
           <div className="card">
