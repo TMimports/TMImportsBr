@@ -110,84 +110,86 @@ export function Garantias() {
         </div>
       )}
 
-      <div className="card overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Unidade</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Cliente</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Telefone</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Tipo</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Inicio</th>
-              <th className="text-center p-3 border-b border-zinc-700 text-gray-400">Dias Restantes</th>
-              <th className="text-center p-3 border-b border-zinc-700 text-gray-400">Revisao Feita</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {garantiasFiltradas.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="p-4 text-center text-gray-500">
-                  Nenhuma garantia encontrada
-                </td>
-              </tr>
-            ) : (
-              garantiasFiltradas.map(garantia => {
-                const diasRestantes = calcularDiasRestantes(garantia.dataFim);
-                const vencendo = diasRestantes > 0 && diasRestantes <= 5;
-                const expirada = diasRestantes <= 0;
-                
-                return (
-                  <tr key={garantia.id} className={`hover:bg-zinc-700 ${vencendo ? 'bg-yellow-500/10' : ''}`}>
-                    <td className="p-3 border-b border-zinc-700">
-                      {garantia.unidade?.produto?.nome} - {garantia.unidade?.chassi?.slice(-6)}
-                    </td>
-                    <td className="p-3 border-b border-zinc-700">{garantia.cliente?.nome}</td>
-                    <td className="p-3 border-b border-zinc-700">{garantia.cliente?.telefone || '-'}</td>
-                    <td className="p-3 border-b border-zinc-700">
-                      <span className="badge badge-primary">{garantia.tipo}</span>
-                    </td>
-                    <td className="p-3 border-b border-zinc-700">
-                      {new Date(garantia.dataInicio).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="p-3 border-b border-zinc-700 text-center">
-                      <span className={`text-xl font-bold ${
-                        expirada ? 'text-red-400' : 
-                        vencendo ? 'text-yellow-400' : 
-                        'text-green-400'
-                      }`}>
-                        {expirada ? '0' : diasRestantes}
-                      </span>
-                      <span className="text-gray-400 text-sm ml-1">dias</span>
-                    </td>
-                    <td className="p-3 border-b border-zinc-700 text-center">
-                      <button
-                        onClick={() => marcarRevisao(garantia.id, !garantia.revisaoFeita)}
-                        className={`px-3 py-1 rounded-lg text-sm font-semibold ${
-                          garantia.revisaoFeita 
-                            ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                            : 'bg-zinc-700 text-gray-400 hover:bg-zinc-600'
-                        }`}
-                      >
-                        {garantia.revisaoFeita ? 'Sim' : 'Nao'}
-                      </button>
-                    </td>
-                    <td className="p-3 border-b border-zinc-700">
-                      {expirada ? (
-                        <span className="badge badge-danger">Expirada</span>
-                      ) : !garantia.revisaoFeita && vencendo ? (
-                        <span className="badge badge-warning">Vencendo!</span>
-                      ) : (
-                        <span className="badge badge-success">Ativa</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      {garantiasFiltradas.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">
+          Nenhuma garantia encontrada
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {garantiasFiltradas.map(garantia => {
+            const diasRestantes = calcularDiasRestantes(garantia.dataFim);
+            const vencendo = diasRestantes > 0 && diasRestantes <= 5;
+            const expirada = diasRestantes <= 0;
+            
+            return (
+              <div 
+                key={garantia.id} 
+                className={`card ${vencendo ? 'border-yellow-500/50' : ''} ${expirada ? 'border-red-500/50' : ''}`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                  <div>
+                    <h3 className="font-semibold text-white">
+                      {garantia.unidade?.produto?.nome}
+                    </h3>
+                    <p className="text-sm text-gray-400">
+                      Chassi: ...{garantia.unidade?.chassi?.slice(-6)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {expirada ? (
+                      <span className="badge badge-danger">Expirada</span>
+                    ) : vencendo ? (
+                      <span className="badge badge-warning">Vencendo!</span>
+                    ) : (
+                      <span className="badge badge-success">Ativa</span>
+                    )}
+                    <span className="badge badge-primary">{garantia.tipo}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <p className="text-gray-500 text-xs">Cliente</p>
+                    <p className="text-white">{garantia.cliente?.nome || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">Telefone</p>
+                    <p className="text-white">{garantia.cliente?.telefone || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">Inicio</p>
+                    <p className="text-white">{new Date(garantia.dataInicio).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">Dias Restantes</p>
+                    <p className={`text-xl font-bold ${
+                      expirada ? 'text-red-400' : 
+                      vencendo ? 'text-yellow-400' : 
+                      'text-green-400'
+                    }`}>
+                      {expirada ? '0' : diasRestantes}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-zinc-700 flex items-center justify-between">
+                  <span className="text-sm text-gray-400">Revisao feita?</span>
+                  <button
+                    onClick={() => marcarRevisao(garantia.id, !garantia.revisaoFeita)}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                      garantia.revisaoFeita 
+                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
+                        : 'bg-zinc-700 text-gray-400 hover:bg-zinc-600'
+                    }`}
+                  >
+                    {garantia.revisaoFeita ? 'Sim' : 'Nao'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
