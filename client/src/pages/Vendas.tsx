@@ -431,24 +431,39 @@ export function Vendas() {
                 {itensSelecionados.map((item, index) => (
                   <div key={index} className="p-3 bg-zinc-800 rounded-lg">
                     <div className="flex gap-2 items-center">
-                      <div className="flex-1">
-                        <select
-                          value={item.produtoId}
-                          onChange={(e) => atualizarItem(index, 'produtoId', e.target.value)}
-                          className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                      <div className="flex-1 relative">
+                        <div 
+                          className="w-full px-4 py-2.5 bg-zinc-700 border border-zinc-600 rounded-lg text-white cursor-pointer flex justify-between items-center"
+                          onClick={() => {
+                            const el = document.getElementById(`dropdown-${index}`);
+                            if (el) el.classList.toggle('hidden');
+                          }}
                         >
-                          <option value="">Selecione um produto...</option>
+                          <span className={item.produtoId ? 'text-white' : 'text-gray-400'}>
+                            {item.produtoId 
+                              ? produtos.find(p => p.id === parseInt(item.produtoId))?.nome || 'Produto'
+                              : 'Selecione um produto...'}
+                          </span>
+                          <span className="text-gray-400">▼</span>
+                        </div>
+                        <div 
+                          id={`dropdown-${index}`}
+                          className="hidden absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-600 rounded-lg max-h-60 overflow-y-auto shadow-xl"
+                        >
                           {produtos.map(p => (
-                            <option key={p.id} value={String(p.id)}>
+                            <div 
+                              key={p.id}
+                              className="px-4 py-2 hover:bg-zinc-700 cursor-pointer text-white"
+                              onClick={() => {
+                                atualizarItem(index, 'produtoId', String(p.id));
+                                const el = document.getElementById(`dropdown-${index}`);
+                                if (el) el.classList.add('hidden');
+                              }}
+                            >
                               {p.nome} - R$ {Number(p.preco).toFixed(2)} {p.tipo === 'MOTO' ? '(Moto)' : ''}
-                            </option>
+                            </div>
                           ))}
-                        </select>
-                        {item.produtoId && (
-                          <p className="text-xs text-orange-400 mt-1">
-                            {produtos.find(p => p.id === parseInt(item.produtoId))?.nome || 'Produto não encontrado'}
-                          </p>
-                        )}
+                        </div>
                       </div>
                       <input
                         type="number"
