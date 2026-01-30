@@ -151,14 +151,6 @@ export function Clientes() {
     );
   };
 
-  const toggleTodos = () => {
-    if (selecionados.length === clientes.length) {
-      setSelecionados([]);
-    } else {
-      setSelecionados(clientes.map(c => c.id));
-    }
-  };
-
   const abrirNovo = () => {
     setForm(initialForm);
     setEditando(false);
@@ -171,9 +163,17 @@ export function Clientes() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Clientes</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {clientes.length > 0 && (
+            <button 
+              onClick={() => selecionados.length === clientes.length ? setSelecionados([]) : setSelecionados(clientes.map(c => c.id))}
+              className="btn btn-secondary text-sm"
+            >
+              {selecionados.length === clientes.length ? 'Desmarcar todos' : 'Selecionar todos'}
+            </button>
+          )}
           {selecionados.length > 0 && (
             <button onClick={handleExcluirSelecionados} className="btn btn-danger">
               Excluir ({selecionados.length})
@@ -183,53 +183,25 @@ export function Clientes() {
         </div>
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left p-3 border-b border-zinc-700">
+      {clientes.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">
+          Nenhum cliente encontrado
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {clientes.map(cliente => (
+            <div key={cliente.id} className="card">
+              <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
-                  checked={selecionados.length === clientes.length && clientes.length > 0}
-                  onChange={toggleTodos}
-                  className="rounded"
+                  checked={selecionados.includes(cliente.id)}
+                  onChange={() => toggleSelecao(cliente.id)}
+                  className="rounded mt-1"
                 />
-              </th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Nome</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">CPF/CNPJ</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Telefone</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Cidade/UF</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clientes.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">
-                  Nenhum cliente encontrado
-                </td>
-              </tr>
-            ) : (
-              clientes.map(cliente => (
-                <tr key={cliente.id} className="hover:bg-zinc-700">
-                  <td className="p-3 border-b border-zinc-700">
-                    <input
-                      type="checkbox"
-                      checked={selecionados.includes(cliente.id)}
-                      onChange={() => toggleSelecao(cliente.id)}
-                      className="rounded"
-                    />
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">{cliente.nome}</td>
-                  <td className="p-3 border-b border-zinc-700 font-mono text-sm">
-                    {cliente.cpfCnpj ? formatCPF(cliente.cpfCnpj) : '-'}
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">{cliente.telefone || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700">
-                    {cliente.cidade && cliente.estado ? `${cliente.cidade}/${cliente.estado}` : '-'}
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <div className="table-actions">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-white truncate">{cliente.nome}</h3>
+                    <div className="flex gap-2">
                       <button onClick={() => handleEditar(cliente)} className="btn btn-sm btn-secondary">
                         Editar
                       </button>
@@ -237,13 +209,27 @@ export function Clientes() {
                         Excluir
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">CPF/CNPJ: </span>
+                      <span className="text-gray-300 font-mono">{cliente.cpfCnpj ? formatCPF(cliente.cpfCnpj) : '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Telefone: </span>
+                      <span className="text-gray-300">{cliente.telefone || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Cidade: </span>
+                      <span className="text-gray-300">{cliente.cidade && cliente.estado ? `${cliente.cidade}/${cliente.estado}` : '-'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Cliente' : 'Novo Cliente'}>
         <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">

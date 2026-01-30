@@ -171,72 +171,58 @@ export function ContasReceber() {
         </div>
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-zinc-700">
-              <th className="text-left p-3 text-gray-400">Loja</th>
-              <th className="text-left p-3 text-gray-400">Descricao</th>
-              <th className="text-right p-3 text-gray-400">Valor</th>
-              <th className="text-left p-3 text-gray-400">Vencimento</th>
-              <th className="text-left p-3 text-gray-400">Status</th>
-              <th className="text-left p-3 text-gray-400">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contasFiltradas.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">
-                  Nenhuma conta encontrada
-                </td>
-              </tr>
-            ) : (
-              contasFiltradas.map(conta => (
-                <tr key={conta.id} className="border-b border-zinc-800 hover:bg-zinc-800">
-                  <td className="p-3">{conta.loja?.nomeFantasia}</td>
-                  <td className="p-3">
+      {contasFiltradas.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">
+          Nenhuma conta encontrada
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {contasFiltradas.map(conta => (
+            <div key={conta.id} className="card">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="font-semibold text-white">
                     {conta.descricao}
                     {conta.recorrente && (
                       <span className="ml-2 text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded">
                         {conta.recorrencia}
                       </span>
                     )}
-                  </td>
-                  <td className="p-3 text-right font-semibold text-green-400">
+                  </h3>
+                  <p className="text-sm text-gray-400">{conta.loja?.nomeFantasia}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`badge ${conta.pago ? 'badge-success' : 'badge-warning'}`}>
+                    {conta.pago ? 'Recebido' : 'Pendente'}
+                  </span>
+                  {!conta.pago && (
+                    <>
+                      <button onClick={() => handleEditar(conta)} className="btn btn-sm btn-secondary">
+                        Editar
+                      </button>
+                      <button onClick={() => marcarRecebido(conta.id)} className="btn btn-sm btn-success">
+                        Receber
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Vencimento</p>
+                  <p className="text-gray-300">{new Date(conta.vencimento).toLocaleDateString('pt-BR')}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Valor</p>
+                  <p className="text-xl font-bold text-green-400">
                     R$ {Number(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-3">
-                    {new Date(conta.vencimento).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="p-3">
-                    <span className={`badge ${conta.pago ? 'badge-success' : 'badge-warning'}`}>
-                      {conta.pago ? 'Recebido' : 'Pendente'}
-                    </span>
-                  </td>
-                  <td className="p-3 flex gap-2">
-                    {!conta.pago && (
-                      <>
-                        <button 
-                          onClick={() => handleEditar(conta)}
-                          className="btn btn-sm btn-secondary"
-                        >
-                          Editar
-                        </button>
-                        <button 
-                          onClick={() => marcarRecebido(conta.id)}
-                          className="btn btn-sm btn-success"
-                        >
-                          Receber
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

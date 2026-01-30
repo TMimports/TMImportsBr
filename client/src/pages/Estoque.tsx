@@ -110,56 +110,47 @@ export function Estoque() {
         <Button variant="primary" onClick={handleNovo}>+ Adicionar ao Estoque</Button>
       </div>
 
-      <div className="card">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-gray-400 text-sm border-b border-zinc-800">
-                <th className="pb-3 font-medium">Produto</th>
-                <th className="pb-3 font-medium">Tipo</th>
-                <th className="pb-3 font-medium">Loja</th>
-                <th className="pb-3 font-medium">Quantidade</th>
-                <th className="pb-3 font-medium">Minimo</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium">Acoes</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-500">Carregando...</td>
-                </tr>
-              ) : estoque.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-500">Nenhum item no estoque</td>
-                </tr>
-              ) : (
-                estoque.map(item => (
-                  <tr key={item.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                    <td className="py-3 text-white font-medium">{item.produto?.nome}</td>
-                    <td className="py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${item.produto?.tipo === 'MOTO' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
-                        {item.produto?.tipo}
-                      </span>
-                    </td>
-                    <td className="py-3 text-gray-300">{item.loja?.nomeFantasia}</td>
-                    <td className="py-3 text-white font-semibold">{item.quantidade}</td>
-                    <td className="py-3 text-gray-400">{item.estoqueMinimo}</td>
-                    <td className="py-3">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${item.quantidade <= item.estoqueMinimo ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                        {item.quantidade <= item.estoqueMinimo ? 'Baixo' : 'OK'}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditar(item)}>Editar</Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="card p-8 text-center text-gray-500">Carregando...</div>
+      ) : estoque.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">Nenhum item no estoque</div>
+      ) : (
+        <div className="space-y-3">
+          {estoque.map(item => (
+            <div key={item.id} className={`card ${item.quantidade <= item.estoqueMinimo ? 'border-red-500/50' : ''}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="font-semibold text-white">{item.produto?.nome}</h3>
+                  <p className="text-sm text-gray-400">{item.loja?.nomeFantasia}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${item.produto?.tipo === 'MOTO' ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'}`}>
+                    {item.produto?.tipo}
+                  </span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${item.quantidade <= item.estoqueMinimo ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+                    {item.quantidade <= item.estoqueMinimo ? 'Baixo' : 'OK'}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => handleEditar(item)}>Editar</Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Quantidade</p>
+                  <p className="text-white text-xl font-bold">{item.quantidade}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Minimo</p>
+                  <p className="text-gray-300">{item.estoqueMinimo}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Maximo</p>
+                  <p className="text-gray-300">{item.estoqueMaximo || '-'}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
 
       <Modal
         isOpen={modalOpen}

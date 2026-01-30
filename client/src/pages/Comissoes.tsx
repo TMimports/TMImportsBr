@@ -200,67 +200,52 @@ export function Comissoes() {
         </div>
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-zinc-700">
-              <th className="text-left p-3 text-gray-400">Colaborador</th>
-              <th className="text-left p-3 text-gray-400">Tipo</th>
-              <th className="text-left p-3 text-gray-400">Referencia</th>
-              <th className="text-right p-3 text-gray-400">Valor</th>
-              <th className="text-left p-3 text-gray-400">Status</th>
-              <th className="text-left p-3 text-gray-400">Data</th>
-              {isAdmin && <th className="text-left p-3 text-gray-400">Acoes</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {comissoesFiltradas.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500">
-                  Nenhuma comissao encontrada
-                </td>
-              </tr>
-            ) : (
-              comissoesFiltradas.map(com => (
-                <tr key={com.id} className="border-b border-zinc-800 hover:bg-zinc-800">
-                  <td className="p-3">{com.usuario?.nome}</td>
-                  <td className="p-3">
-                    <span className={`badge ${com.tipo === 'vendedor' ? 'badge-success' : 'badge-info'}`}>
-                      {com.tipo === 'vendedor' ? 'Vendedor' : 'Tecnico'}
-                    </span>
-                  </td>
-                  <td className="p-3">
+      {comissoesFiltradas.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">
+          Nenhuma comissao encontrada
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {comissoesFiltradas.map(com => (
+            <div key={com.id} className="card">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-white">{com.usuario?.nome}</span>
+                  <span className={`badge ${com.tipo === 'vendedor' ? 'badge-success' : 'badge-info'}`}>
+                    {com.tipo === 'vendedor' ? 'Vendedor' : 'Tecnico'}
+                  </span>
+                  <span className={`badge ${com.pago ? 'badge-success' : 'badge-warning'}`}>
+                    {com.pago ? 'Pago' : 'Pendente'}
+                  </span>
+                </div>
+                {isAdmin && !com.pago && (
+                  <button onClick={() => marcarPago(com.id)} className="btn btn-sm btn-success">
+                    Pagar
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Referencia</p>
+                  <p className="text-gray-300">
                     {com.vendaId ? `Venda #${com.vendaId}` : com.ordemServicoId ? `OS #${com.ordemServico?.numero || com.ordemServicoId}` : '-'}
-                  </td>
-                  <td className="p-3 text-right font-semibold text-green-400">
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Data</p>
+                  <p className="text-gray-300">{new Date(com.createdAt).toLocaleDateString('pt-BR')}</p>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <p className="text-gray-500 text-xs">Valor</p>
+                  <p className="text-xl font-bold text-green-400">
                     R$ {Number(com.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-3">
-                    <span className={`badge ${com.pago ? 'badge-success' : 'badge-warning'}`}>
-                      {com.pago ? 'Pago' : 'Pendente'}
-                    </span>
-                  </td>
-                  <td className="p-3 text-sm text-gray-400">
-                    {new Date(com.createdAt).toLocaleDateString('pt-BR')}
-                  </td>
-                  {isAdmin && (
-                    <td className="p-3">
-                      {!com.pago && (
-                        <button 
-                          onClick={() => marcarPago(com.id)}
-                          className="btn btn-sm btn-success"
-                        >
-                          Pagar
-                        </button>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

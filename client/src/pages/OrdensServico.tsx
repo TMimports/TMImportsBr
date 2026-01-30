@@ -325,63 +325,52 @@ export function OrdensServico() {
         <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova OS</button>
       </div>
 
-      <div className="card">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">#</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Tipo</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Cliente</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Tecnico</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Valor</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Data</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ordens.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="p-4 text-center text-gray-500">
-                  Nenhuma OS encontrada
-                </td>
-              </tr>
-            ) : (
-              ordens.map(os => (
-                <tr key={os.id} className="hover:bg-zinc-700">
-                  <td className="p-3 border-b border-zinc-700">{os.numero || os.id}</td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <span className={`badge ${os.tipo === 'ORCAMENTO' ? 'badge-warning' : 'badge-primary'}`}>
-                      {os.tipo === 'ORCAMENTO' ? 'Orcamento' : 'OS'}
-                    </span>
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">{os.cliente?.nome}</td>
-                  <td className="p-3 border-b border-zinc-700">{os.tecnico || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700 font-semibold text-green-400">
-                    R$ {Number(os.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <span className={`badge ${statusColors[os.status] || 'badge-primary'}`}>
-                      {statusLabels[os.status] || os.status}
-                    </span>
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">
-                    {new Date(os.createdAt).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <button
-                      onClick={() => abrirVisualizacao(os.id)}
-                      className="btn btn-sm btn-secondary"
-                    >
-                      Ver
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {ordens.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">
+          Nenhuma OS encontrada
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {ordens.map(os => (
+            <div key={os.id} className="card">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-500">#{os.numero || os.id}</span>
+                  <span className={`badge ${os.tipo === 'ORCAMENTO' ? 'badge-warning' : 'badge-primary'}`}>
+                    {os.tipo === 'ORCAMENTO' ? 'Orcamento' : 'OS'}
+                  </span>
+                  <span className={`badge ${statusColors[os.status] || 'badge-primary'}`}>
+                    {statusLabels[os.status] || os.status}
+                  </span>
+                </div>
+                <button onClick={() => abrirVisualizacao(os.id)} className="btn btn-sm btn-secondary">
+                  Ver
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Cliente</p>
+                  <p className="text-white">{os.cliente?.nome}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Tecnico</p>
+                  <p className="text-gray-300">{os.tecnico || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Data</p>
+                  <p className="text-gray-300">{new Date(os.createdAt).toLocaleDateString('pt-BR')}</p>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-zinc-700 flex justify-between items-center">
+                <span className="text-gray-500 text-sm">Valor Total</span>
+                <span className="text-xl font-bold text-green-400">
+                  R$ {Number(os.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nova Ordem de Servico">
         <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">

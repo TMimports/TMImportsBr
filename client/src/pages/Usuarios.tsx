@@ -168,14 +168,6 @@ export function Usuarios() {
     );
   };
 
-  const toggleTodos = () => {
-    if (selecionados.length === usuarios.length) {
-      setSelecionados([]);
-    } else {
-      setSelecionados(usuarios.map(u => u.id));
-    }
-  };
-
   const abrirNovo = () => {
     setForm(initialForm);
     setEditando(false);
@@ -188,9 +180,17 @@ export function Usuarios() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Usuarios</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {usuarios.length > 0 && (
+            <button 
+              onClick={() => selecionados.length === usuarios.length ? setSelecionados([]) : setSelecionados(usuarios.map(u => u.id))}
+              className="btn btn-secondary text-sm"
+            >
+              {selecionados.length === usuarios.length ? 'Desmarcar' : 'Selecionar todos'}
+            </button>
+          )}
           {selecionados.length > 0 && (
             <button onClick={handleExcluirSelecionados} className="btn btn-danger">
               Excluir ({selecionados.length})
@@ -200,57 +200,31 @@ export function Usuarios() {
         </div>
       </div>
 
-      <div className="card">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left p-3 border-b border-zinc-700">
+      {usuarios.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">
+          Nenhum usuario encontrado
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {usuarios.map(usuario => (
+            <div key={usuario.id} className="card">
+              <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
-                  checked={selecionados.length === usuarios.length && usuarios.length > 0}
-                  onChange={toggleTodos}
-                  className="rounded"
+                  checked={selecionados.includes(usuario.id)}
+                  onChange={() => toggleSelecao(usuario.id)}
+                  className="rounded mt-1"
                 />
-              </th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Nome</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Email</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Perfil</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Loja</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {usuarios.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500">
-                  Nenhum usuario encontrado
-                </td>
-              </tr>
-            ) : (
-              usuarios.map(usuario => (
-                <tr key={usuario.id} className="hover:bg-zinc-700">
-                  <td className="p-3 border-b border-zinc-700">
-                    <input
-                      type="checkbox"
-                      checked={selecionados.includes(usuario.id)}
-                      onChange={() => toggleSelecao(usuario.id)}
-                      className="rounded"
-                    />
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">{usuario.nome}</td>
-                  <td className="p-3 border-b border-zinc-700">{usuario.email}</td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <span className="badge badge-primary">{roleLabels[usuario.role] || usuario.role}</span>
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">{usuario.loja?.nomeFantasia || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <span className={`badge ${usuario.ativo ? 'badge-success' : 'badge-danger'}`}>
-                      {usuario.ativo ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <div className="table-actions">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <div>
+                      <h3 className="font-semibold text-white">{usuario.nome}</h3>
+                      <p className="text-sm text-gray-400">{usuario.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`badge ${usuario.ativo ? 'badge-success' : 'badge-danger'}`}>
+                        {usuario.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
                       <button onClick={() => handleEditar(usuario)} className="btn btn-sm btn-secondary">
                         Editar
                       </button>
@@ -258,13 +232,23 @@ export function Usuarios() {
                         Excluir
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">Perfil: </span>
+                      <span className="badge badge-primary">{roleLabels[usuario.role] || usuario.role}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Loja: </span>
+                      <span className="text-gray-300">{usuario.loja?.nomeFantasia || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Usuario' : 'Novo Usuario'}>
         <form onSubmit={handleSubmit} className="space-y-4">

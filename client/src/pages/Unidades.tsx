@@ -60,14 +60,6 @@ export function Unidades() {
     );
   };
 
-  const toggleTodos = () => {
-    if (selecionados.length === unidades.length) {
-      setSelecionados([]);
-    } else {
-      setSelecionados(unidades.map(u => u.id));
-    }
-  };
-
   const statusLabels: Record<string, string> = {
     ESTOQUE: 'Em Estoque',
     RESERVADA: 'Reservada',
@@ -90,8 +82,16 @@ export function Unidades() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Unidades Fisicas (Motos)</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ImportPlanilha tipo="unidades" onSuccess={loadUnidades} />
+          {unidades.length > 0 && (
+            <button 
+              onClick={() => selecionados.length === unidades.length ? setSelecionados([]) : setSelecionados(unidades.map(u => u.id))}
+              className="btn btn-secondary text-sm"
+            >
+              {selecionados.length === unidades.length ? 'Desmarcar' : 'Selecionar todos'}
+            </button>
+          )}
           {selecionados.length > 0 && (
             <button onClick={handleExcluirSelecionados} className="btn btn-danger">
               Excluir ({selecionados.length})
@@ -100,70 +100,63 @@ export function Unidades() {
         </div>
       </div>
 
-      <div className="card">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left p-3 border-b border-zinc-700">
+      {unidades.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">
+          Nenhuma unidade encontrada
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {unidades.map(unidade => (
+            <div key={unidade.id} className="card">
+              <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
-                  checked={selecionados.length === unidades.length && unidades.length > 0}
-                  onChange={toggleTodos}
-                  className="rounded"
+                  checked={selecionados.includes(unidade.id)}
+                  onChange={() => toggleSelecao(unidade.id)}
+                  className="rounded mt-1"
                 />
-              </th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Codigo</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Chassi</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Motor</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Modelo</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Cor</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Ano</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Loja</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {unidades.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="p-4 text-center text-gray-500">
-                  Nenhuma unidade encontrada
-                </td>
-              </tr>
-            ) : (
-              unidades.map(unidade => (
-                <tr key={unidade.id} className="hover:bg-zinc-700">
-                  <td className="p-3 border-b border-zinc-700">
-                    <input
-                      type="checkbox"
-                      checked={selecionados.includes(unidade.id)}
-                      onChange={() => toggleSelecao(unidade.id)}
-                      className="rounded"
-                    />
-                  </td>
-                  <td className="p-3 border-b border-zinc-700 font-mono text-sm text-orange-400">{unidade.codigo}</td>
-                  <td className="p-3 border-b border-zinc-700 font-mono text-sm">{unidade.chassi || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700 font-mono text-sm">{unidade.codigoMotor || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700">{unidade.produto?.nome}</td>
-                  <td className="p-3 border-b border-zinc-700">{unidade.cor || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700">{unidade.ano || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700">{unidade.loja?.nomeFantasia || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <span className={`badge ${statusColors[unidade.status] || 'badge-primary'}`}>
-                      {statusLabels[unidade.status] || unidade.status}
-                    </span>
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <button onClick={() => handleExcluir(unidade.id)} className="btn btn-sm btn-danger">
-                      Excluir
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <div>
+                      <h3 className="font-semibold text-white">{unidade.produto?.nome}</h3>
+                      <p className="text-sm text-orange-400 font-mono">{unidade.codigo}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`badge ${statusColors[unidade.status] || 'badge-primary'}`}>
+                        {statusLabels[unidade.status] || unidade.status}
+                      </span>
+                      <button onClick={() => handleExcluir(unidade.id)} className="btn btn-sm btn-danger">
+                        Excluir
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                    <div>
+                      <span className="text-gray-500">Chassi: </span>
+                      <span className="text-gray-300 font-mono text-xs">{unidade.chassi || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Motor: </span>
+                      <span className="text-gray-300 font-mono text-xs">{unidade.codigoMotor || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Cor: </span>
+                      <span className="text-gray-300">{unidade.cor || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Ano: </span>
+                      <span className="text-gray-300">{unidade.ano || '-'}</span>
+                    </div>
+                  </div>
+                  {unidade.loja?.nomeFantasia && (
+                    <p className="text-xs text-gray-500 mt-2">Loja: {unidade.loja.nomeFantasia}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

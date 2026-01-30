@@ -287,73 +287,63 @@ export function Vendas() {
         <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova Venda</button>
       </div>
 
-      <div className="card">
-        <table className="w-full">
-          <thead>
-            <tr>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">#</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Tipo</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Cliente</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Vendedor</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Valor</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Pagamento</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Data</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vendas.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="p-4 text-center text-gray-500">
-                  Nenhuma venda encontrada
-                </td>
-              </tr>
-            ) : (
-              vendas.map(venda => (
-                <tr key={venda.id} className="hover:bg-zinc-700">
-                  <td className="p-3 border-b border-zinc-700">{venda.id}</td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <span className={`badge ${venda.tipo === 'ORCAMENTO' ? 'badge-warning' : 'badge-success'}`}>
-                      {venda.tipo === 'ORCAMENTO' ? 'Orcamento' : 'Venda'}
-                    </span>
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">{venda.cliente?.nome}</td>
-                  <td className="p-3 border-b border-zinc-700">{venda.vendedor?.nome}</td>
-                  <td className="p-3 border-b border-zinc-700 font-semibold text-green-400">
-                    R$ {Number(venda.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">{pagamentoLabels[venda.formaPagamento] || venda.formaPagamento}</td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <span className={`badge ${venda.confirmadaFinanceiro ? 'badge-success' : 'badge-warning'}`}>
-                      {venda.confirmadaFinanceiro ? 'Confirmada' : 'Pendente'}
-                    </span>
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">
-                    {new Date(venda.createdAt).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="p-3 border-b border-zinc-700 flex gap-2">
-                    <button
-                      onClick={() => abrirVisualizacao(venda.id)}
-                      className="btn btn-sm btn-secondary"
-                    >
-                      Ver
+      {vendas.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">
+          Nenhuma venda encontrada
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {vendas.map(venda => (
+            <div key={venda.id} className="card">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-500">#{venda.id}</span>
+                  <span className={`badge ${venda.tipo === 'ORCAMENTO' ? 'badge-warning' : 'badge-success'}`}>
+                    {venda.tipo === 'ORCAMENTO' ? 'Orcamento' : 'Venda'}
+                  </span>
+                  <span className={`badge ${venda.confirmadaFinanceiro ? 'badge-success' : 'badge-warning'}`}>
+                    {venda.confirmadaFinanceiro ? 'Confirmada' : 'Pendente'}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => abrirVisualizacao(venda.id)} className="btn btn-sm btn-secondary">
+                    Ver
+                  </button>
+                  {venda.tipo === 'ORCAMENTO' && !venda.confirmadaFinanceiro && (
+                    <button onClick={() => converterParaVenda(venda.id)} className="btn btn-sm btn-success">
+                      Concluir
                     </button>
-                    {venda.tipo === 'ORCAMENTO' && !venda.confirmadaFinanceiro && (
-                      <button
-                        onClick={() => converterParaVenda(venda.id)}
-                        className="btn btn-sm btn-success"
-                      >
-                        Concluir Venda
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <p className="text-gray-500 text-xs">Cliente</p>
+                  <p className="text-white">{venda.cliente?.nome}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Vendedor</p>
+                  <p className="text-gray-300">{venda.vendedor?.nome}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Pagamento</p>
+                  <p className="text-gray-300">{pagamentoLabels[venda.formaPagamento] || venda.formaPagamento}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs">Data</p>
+                  <p className="text-gray-300">{new Date(venda.createdAt).toLocaleDateString('pt-BR')}</p>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-zinc-700 flex justify-between items-center">
+                <span className="text-gray-500 text-sm">Valor Total</span>
+                <span className="text-xl font-bold text-green-400">
+                  R$ {Number(venda.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nova Venda">
         <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
