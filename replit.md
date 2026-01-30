@@ -9,11 +9,14 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Product and service catalog with automated pricing
 - Centralized and per-store inventory management with transfers between stores of the same group
 - End-to-end sales workflow with approvals and accounts receivable generation
-- Complete service order management
+- Complete service order management with real-time price breakdown
 - Comprehensive financial management (AR/AP, cash flow, bank reconciliation)
 - PWA Support for mobile installation and offline capabilities
 - Granular RBAC permission system with 5 roles
 - Group owner registration with temporary password and mandatory password change on first login
+- Admin-configurable percentage settings (commissions, discounts) with change history
+- Real-time group-wide stock monitoring (Utilidades page)
+- XLSX/CSV import for Units (Motos) with automatic product linking
 
 **Business Model:**
 - **Grupo** = A franchisee/owner entity that can contain multiple stores
