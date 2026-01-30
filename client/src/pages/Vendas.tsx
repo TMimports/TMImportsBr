@@ -438,7 +438,7 @@ export function Vendas() {
                       >
                         <option value="">Selecione...</option>
                         {produtos.map(p => (
-                          <option key={p.id} value={p.id}>
+                          <option key={p.id} value={String(p.id)}>
                             {p.nome} - R$ {Number(p.preco).toFixed(2)} {p.tipo === 'MOTO' ? '(Moto)' : ''}
                           </option>
                         ))}
