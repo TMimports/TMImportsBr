@@ -431,18 +431,25 @@ export function Vendas() {
                 {itensSelecionados.map((item, index) => (
                   <div key={index} className="p-3 bg-zinc-800 rounded-lg">
                     <div className="flex gap-2 items-center">
-                      <select
-                        value={item.produtoId}
-                        onChange={(e) => atualizarItem(index, 'produtoId', e.target.value)}
-                        className="input flex-1"
-                      >
-                        <option value="">Selecione...</option>
-                        {produtos.map(p => (
-                          <option key={p.id} value={String(p.id)}>
-                            {p.nome} - R$ {Number(p.preco).toFixed(2)} {p.tipo === 'MOTO' ? '(Moto)' : ''}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex-1">
+                        <select
+                          value={item.produtoId}
+                          onChange={(e) => atualizarItem(index, 'produtoId', e.target.value)}
+                          className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
+                        >
+                          <option value="">Selecione um produto...</option>
+                          {produtos.map(p => (
+                            <option key={p.id} value={String(p.id)}>
+                              {p.nome} - R$ {Number(p.preco).toFixed(2)} {p.tipo === 'MOTO' ? '(Moto)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {item.produtoId && (
+                          <p className="text-xs text-orange-400 mt-1">
+                            {produtos.find(p => p.id === parseInt(item.produtoId))?.nome || 'Produto não encontrado'}
+                          </p>
+                        )}
+                      </div>
                       <input
                         type="number"
                         min="1"
