@@ -1,11 +1,11 @@
 import { Router, Response } from 'express';
 import { prisma } from '../index.js';
-import { AuthRequest, requireRole } from '../middleware/auth.js';
+import { AuthRequest, verifyToken, requireRole } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
 
 const router = Router();
 
-router.post('/reset', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res: Response) => {
+router.post('/reset', verifyToken, requireRole('ADMIN_GERAL'), async (req: AuthRequest, res: Response) => {
   try {
     const { confirmar } = req.body;
     
