@@ -16,6 +16,8 @@ router.post('/reset', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res: 
     // Deletar na ordem correta (respeitando foreign keys)
     await prisma.comissao.deleteMany({});
     await prisma.logAuditoria.deleteMany({});
+    await prisma.logEstoque.deleteMany({});
+    await prisma.logConfiguracao.deleteMany({});
     await prisma.caixa.deleteMany({});
     await prisma.contaPagar.deleteMany({});
     await prisma.contaReceber.deleteMany({});
