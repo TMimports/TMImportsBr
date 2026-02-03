@@ -178,14 +178,32 @@ router.delete('/:id', requireAdminRede, async (req, res) => {
   try {
     const lojaId = Number(req.params.id);
 
-    const usuariosCount = await prisma.user.count({ where: { lojaId } });
+    const [usuariosCount, unidadesCount, estoqueCount, vendasCount, osCount, caixaCount] = await Promise.all([
+      prisma.user.count({ where: { lojaId } }),
+      prisma.unidadeFisica.count({ where: { lojaId } }),
+      prisma.estoque.count({ where: { lojaId } }),
+      prisma.venda.count({ where: { lojaId } }),
+      prisma.ordemServico.count({ where: { lojaId } }),
+      prisma.caixa.count({ where: { lojaId } })
+    ]);
+
     if (usuariosCount > 0) {
       return res.status(400).json({ error: `Nao e possivel excluir. Existem ${usuariosCount} usuario(s) vinculado(s) a esta loja.` });
     }
-
-    const unidadesCount = await prisma.unidadeFisica.count({ where: { lojaId } });
     if (unidadesCount > 0) {
       return res.status(400).json({ error: `Nao e possivel excluir. Existem ${unidadesCount} unidade(s) vinculada(s) a esta loja.` });
+    }
+    if (estoqueCount > 0) {
+      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${estoqueCount} registro(s) de estoque vinculado(s) a esta loja.` });
+    }
+    if (vendasCount > 0) {
+      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${vendasCount} venda(s) vinculada(s) a esta loja.` });
+    }
+    if (osCount > 0) {
+      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${osCount} ordem(ns) de servico vinculada(s) a esta loja.` });
+    }
+    if (caixaCount > 0) {
+      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${caixaCount} registro(s) de caixa vinculado(s) a esta loja.` });
     }
 
     await prisma.loja.delete({ where: { id: lojaId } });
