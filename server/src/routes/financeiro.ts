@@ -74,7 +74,15 @@ router.get('/contas-receber', async (req: AuthRequest, res) => {
       orderBy: { vencimento: 'asc' }
     });
 
-    res.json(contas);
+    const contasComCliente = await Promise.all(contas.map(async (conta) => {
+      let cliente = null;
+      if (conta.clienteId) {
+        cliente = await prisma.cliente.findUnique({ where: { id: conta.clienteId } });
+      }
+      return { ...conta, cliente };
+    }));
+
+    res.json(contasComCliente);
   } catch (error) {
     console.error('Erro ao listar contas a receber:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });

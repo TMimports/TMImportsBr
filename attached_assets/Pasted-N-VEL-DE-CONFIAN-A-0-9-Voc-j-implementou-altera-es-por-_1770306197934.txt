@@ -1,0 +1,103 @@
+NÍVEL_DE_CONFIANÇA: 0.9
+
+Você já implementou alterações, porém o sistema NÃO atualizou os dados que já existiam no banco.
+
+PROBLEMA REAL
+Já existem vendas registradas no banco.
+Mesmo assim:
+- Não aparece nada na área de GARANTIA
+- Não aparece nada na área de CONTAS A RECEBER
+
+Isso ocorre porque:
+- As rotinas automáticas só foram aplicadas para vendas novas
+- As vendas antigas ficaram sem registros vinculados
+
+OBJETIVO
+Você deve corrigir o sistema para:
+1) funcionar corretamente para novas vendas
+2) E TAMBÉM corrigir as vendas antigas já registradas (backfill/migração)
+
+REQUISITOS OBRIGATÓRIOS
+
+(1) GARANTIA — CORRIGIR PARA VENDAS JÁ EXISTENTES
+1.1 Para TODAS as vendas já existentes no banco:
+- Se a venda estiver CONFIRMADA e tiver item do tipo MOTO/unidade física
+- E NÃO existir registro de garantia vinculado a essa venda
+=> Criar automaticamente a garantia com:
+  - dataInicio = data da confirmação (ou createdAt se não existir)
+  - dataFim = dataInicio + 3 meses
+  - termos padrão preenchidos
+  - vendaId vinculado corretamente
+
+1.2 A tela de Garantia deve listar:
+- Garantias existentes
+- E as garantias recém-criadas pelo backfill
+
+(2) CONTAS A RECEBER — CORRIGIR PARA VENDAS JÁ EXISTENTES
+2.1 Para TODAS as vendas já existentes no banco:
+- Se a venda estiver CONFIRMADA
+- E NÃO existir contas a receber vinculada a essa venda
+=> Criar automaticamente ContaReceber com:
+  - vendaId
+  - valorTotal
+  - status = PENDENTE (ou equivalente)
+  - vencimento = dataConfirmacao + 30 dias (se não existir regra)
+  - clienteId se existir
+
+2.2 A tela de Contas a Receber deve mostrar:
+- títulos existentes
+- títulos gerados automaticamente para vendas antigas
+
+(3) IDMPOTÊNCIA (NÃO DUPLICAR)
+O backfill NÃO pode duplicar:
+- garantias
+- contas a receber
+
+Se rodar 2x, tem que ficar igual.
+
+(4) COMO IMPLEMENTAR (OBRIGATÓRIO)
+Você deve implementar UMA das duas opções abaixo:
+
+OPÇÃO A (RECOMENDADA):
+- Criar um endpoint administrativo:
+  POST /admin/backfill/vendas
+Que:
+- percorre vendas confirmadas
+- cria garantias faltantes
+- cria contas a receber faltantes
+- retorna relatório:
+  - vendas analisadas
+  - garantias criadas
+  - contas a receber criadas
+  - erros
+
+OPÇÃO B:
+- Criar um script:
+  node scripts/backfillVendas.ts
+Que faz o mesmo.
+
+(5) UI — GARANTIR QUE APAREÇA
+Depois do backfill:
+- A área de Garantia deve renderizar usando JOIN correto (include no Prisma)
+- A área de Contas a Receber deve renderizar usando JOIN correto
+
+Corrigir as queries para trazer:
+- cliente.nome
+- venda.codigo ou id
+- itens e valores
+- garantia e termos
+
+CRITÉRIOS DE ACEITE (OBRIGATÓRIO)
+- Eu rodo o backfill 1 vez:
+  - aparecem garantias para vendas antigas
+  - aparecem contas a receber para vendas antigas
+- Eu rodo o backfill 2 vezes:
+  - NÃO duplica nada
+- Após isso:
+  - telas de Garantia e Contas a Receber deixam de ficar vazias
+
+COMECE AGORA
+1) Ache as tabelas Venda, Garantia, ContaReceber e seus relacionamentos no Prisma.
+2) Implemente o backfill (endpoint ou script).
+3) Corrija a query das telas para exibir corretamente.
+4) Me entregue a lista de arquivos alterados e um exemplo real de retorno do backfill.
