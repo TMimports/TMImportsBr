@@ -339,52 +339,62 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
     }
 
     if (venda.formaPagamento === 'FINANCIAMENTO' || (venda.parcelas && venda.parcelas > 1)) {
-      const numParcelas = venda.parcelas || 1;
-      const valorParcela = Number(venda.valorTotal) / numParcelas;
+      const contasExistentes = await prisma.contaReceber.count({ where: { vendaId: venda.id } });
       
-      for (let i = 0; i < numParcelas; i++) {
-        const vencimento = new Date();
-        vencimento.setMonth(vencimento.getMonth() + i + 1);
+      if (contasExistentes === 0) {
+        const numParcelas = venda.parcelas || 1;
+        const valorParcela = Number(venda.valorTotal) / numParcelas;
         
-        await prisma.contaReceber.create({
-          data: {
-            lojaId: venda.lojaId,
-            clienteId: venda.clienteId,
-            vendaId: venda.id,
-            descricao: `Venda #${venda.id} - Parcela ${i + 1}/${numParcelas}`,
-            valor: valorParcela,
-            vencimento,
-            createdBy: req.user!.id
-          }
-        });
+        for (let i = 0; i < numParcelas; i++) {
+          const vencimento = new Date();
+          vencimento.setMonth(vencimento.getMonth() + i + 1);
+          
+          await prisma.contaReceber.create({
+            data: {
+              lojaId: venda.lojaId,
+              clienteId: venda.clienteId,
+              vendaId: venda.id,
+              descricao: `Venda #${venda.id} - Parcela ${i + 1}/${numParcelas}`,
+              valor: valorParcela,
+              vencimento,
+              createdBy: req.user!.id
+            }
+          });
+        }
       }
     }
 
     for (const item of venda.itens) {
       if (item.unidadeFisicaId) {
-        const garantiasConfig = [
-          { tipo: 'geral', meses: 3 },
-          { tipo: 'motor', meses: 12 },
-          { tipo: 'modulo', meses: 12 },
-          { tipo: 'bateria', meses: 12 }
-        ];
+        const garantiasExistentes = await prisma.garantia.count({ 
+          where: { vendaId: venda.id, unidadeFisicaId: item.unidadeFisicaId } 
+        });
         
-        for (const g of garantiasConfig) {
-          const dataInicio = new Date();
-          const dataFim = new Date();
-          dataFim.setMonth(dataFim.getMonth() + g.meses);
+        if (garantiasExistentes === 0) {
+          const garantiasConfig = [
+            { tipo: 'geral', meses: 3 },
+            { tipo: 'motor', meses: 12 },
+            { tipo: 'modulo', meses: 12 },
+            { tipo: 'bateria', meses: 12 }
+          ];
           
-          await prisma.garantia.create({
-            data: {
-              unidadeFisicaId: item.unidadeFisicaId,
-              clienteId: venda.clienteId,
-              vendaId: venda.id,
-              tipoGarantia: g.tipo,
-              meses: g.meses,
-              dataInicio,
-              dataFim
-            }
-          });
+          for (const g of garantiasConfig) {
+            const dataInicio = new Date();
+            const dataFim = new Date();
+            dataFim.setMonth(dataFim.getMonth() + g.meses);
+            
+            await prisma.garantia.create({
+              data: {
+                unidadeFisicaId: item.unidadeFisicaId,
+                clienteId: venda.clienteId,
+                vendaId: venda.id,
+                tipoGarantia: g.tipo,
+                meses: g.meses,
+                dataInicio,
+                dataFim
+              }
+            });
+          }
         }
       }
     }

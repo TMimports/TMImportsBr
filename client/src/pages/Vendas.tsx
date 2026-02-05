@@ -61,6 +61,20 @@ interface ItemProduto {
   tipo?: string;
   chassi?: string;
   motor?: string;
+  unidadeFisicaId?: number;
+  displayName?: string;
+}
+
+interface UnidadeDisponivel {
+  id: number;
+  produtoId: number;
+  produtoNome: string;
+  preco: number;
+  chassi: string;
+  codigoMotor: string;
+  cor: string;
+  ano: number;
+  displayName: string;
 }
 
 export function Vendas() {
@@ -86,6 +100,20 @@ export function Vendas() {
   });
 
   const [itensSelecionados, setItensSelecionados] = useState<ItemProduto[]>([]);
+  const [unidadesDisponiveis, setUnidadesDisponiveis] = useState<UnidadeDisponivel[]>([]);
+
+  const loadUnidades = async (lojaId: string) => {
+    if (!lojaId) {
+      setUnidadesDisponiveis([]);
+      return;
+    }
+    try {
+      const unidades = await api.get<UnidadeDisponivel[]>(`/unidades/disponiveis/${lojaId}`);
+      setUnidadesDisponiveis(unidades);
+    } catch (err) {
+      console.error('Erro ao buscar unidades:', err);
+    }
+  };
 
   const loadData = () => {
     Promise.all([
@@ -110,6 +138,12 @@ export function Vendas() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (form.lojaId) {
+      loadUnidades(form.lojaId);
+    }
+  }, [form.lojaId]);
 
   const adicionarItem = () => {
     setItensSelecionados([...itensSelecionados, { produtoId: '', quantidade: 1, preco: 0, tipo: '', chassi: '', motor: '' }]);
@@ -169,7 +203,8 @@ export function Vendas() {
           precoUnitario: item.preco,
           desconto: parseFloat(form.desconto),
           chassi: item.chassi || null,
-          motor: item.motor || null
+          motor: item.motor || null,
+          unidadeFisicaId: item.unidadeFisicaId || null
         }));
 
       const novaVenda = await api.post<VendaFull>('/vendas', {
@@ -380,7 +415,10 @@ export function Vendas() {
               <label className="label">Loja *</label>
               <select
                 value={form.lojaId}
-                onChange={(e) => setForm({ ...form, lojaId: e.target.value })}
+                onChange={(e) => {
+                  setForm({ ...form, lojaId: e.target.value });
+                  loadUnidades(e.target.value);
+                }}
                 className="input"
                 required
               >
@@ -389,6 +427,56 @@ export function Vendas() {
                   <option key={l.id} value={l.id}>{l.nomeFantasia}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {unidadesDisponiveis.length > 0 && (
+            <div className="border-t border-zinc-700 pt-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="label mb-0">Motos Disponiveis</label>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {unidadesDisponiveis.map(u => {
+                  const jaAdicionada = itensSelecionados.some(i => i.unidadeFisicaId === u.id);
+                  return (
+                    <div 
+                      key={u.id} 
+                      className={`p-3 rounded-lg flex justify-between items-center cursor-pointer transition-colors ${
+                        jaAdicionada 
+                          ? 'bg-green-500/20 border border-green-500' 
+                          : 'bg-zinc-800 hover:bg-zinc-700'
+                      }`}
+                      onClick={() => {
+                        if (jaAdicionada) {
+                          setItensSelecionados(itensSelecionados.filter(i => i.unidadeFisicaId !== u.id));
+                        } else {
+                          setItensSelecionados([...itensSelecionados, {
+                            produtoId: String(u.produtoId),
+                            quantidade: 1,
+                            preco: Number(u.preco),
+                            tipo: 'MOTO',
+                            chassi: u.chassi,
+                            motor: u.codigoMotor,
+                            unidadeFisicaId: u.id,
+                            displayName: u.displayName
+                          }]);
+                        }
+                      }}
+                    >
+                      <div>
+                        <p className="font-medium">{u.produtoNome}</p>
+                        <p className="text-sm text-gray-400">
+                          Chassi: {u.chassi || 'N/A'} | Motor: {u.codigoMotor || 'N/A'} | Cor: {u.cor || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-green-400 font-medium">R$ {Number(u.preco).toFixed(2)}</p>
+                        {jaAdicionada && <span className="text-xs text-green-400">Adicionada</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

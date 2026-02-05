@@ -94,4 +94,36 @@ router.put('/:id', async (req: AuthRequest, res) => {
   }
 });
 
+router.get('/disponiveis/:lojaId', async (req: AuthRequest, res) => {
+  try {
+    const lojaId = Number(req.params.lojaId);
+
+    const unidades = await prisma.unidadeFisica.findMany({
+      where: {
+        lojaId,
+        status: 'ESTOQUE'
+      },
+      include: { 
+        produto: { select: { id: true, nome: true, preco: true } }
+      },
+      orderBy: { produto: { nome: 'asc' } }
+    });
+
+    res.json(unidades.map(u => ({
+      id: u.id,
+      produtoId: u.produtoId,
+      produtoNome: u.produto.nome,
+      preco: u.produto.preco,
+      chassi: u.chassi,
+      codigoMotor: u.codigoMotor,
+      cor: u.cor,
+      ano: u.ano,
+      displayName: `${u.produto.nome} - Chassi: ${u.chassi || 'N/A'} | Motor: ${u.codigoMotor || 'N/A'} | Cor: ${u.cor || 'N/A'}`
+    })));
+  } catch (error) {
+    console.error('Erro ao buscar unidades disponíveis:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;

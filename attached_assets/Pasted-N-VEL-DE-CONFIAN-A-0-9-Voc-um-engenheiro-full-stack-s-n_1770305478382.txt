@@ -1,0 +1,142 @@
+NÍVEL_DE_CONFIANÇA: 0.9
+
+Você é um engenheiro full-stack sênior (Node/Express + Prisma/Postgres no backend; React/Vite + TS no frontend) trabalhando no projeto “tecle-motos-erp”.
+
+OBJETIVO
+Corrigir e melhorar o Dash do Lojista (Dono/Gerente/Vendedor) para:
+- Permissões corretas (RBAC) e acesso a estoque para Vendedor.
+- Seleção de motos/unidade física funcionando (especialmente “motos que subiram no sistema principal”).
+- OS e Vendas com itens selecionados persistindo na tela (não “somem” após seleção).
+- Vendas/OS exibindo NOME do produto/serviço/peça/moto, não apenas valores.
+- Automação de Contas a Receber e baixa automática de estoque na confirmação.
+- Garantia aparecendo na conclusão da venda e termos de garantia inseridos automaticamente.
+- Menu lateral do Vendedor contendo “Clientes” e acesso à consulta de estoque.
+- SINCRONIA CRÍTICA: quando o sistema central atualizar o estoque principal, atualizar automaticamente a visão/estoque do Dono da loja; e após pedido concluído, dar baixa automática no estoque central.
+
+STACK E ARQUIVOS-ALVO (USE COMO GUIDA)
+Backend:
+- RBAC/tenant: server/src/middleware/auth.ts (requireRole, applyTenantFilter)
+- Rotas: server/src/routes/estoque.ts, vendas.ts, ordens-servico.ts, financeiro.ts, garantias.ts, clientes.ts, unidades.ts, sistema.ts
+- Serviços: server/src/services/InventoryService.ts
+- Prisma: prisma/schema.prisma
+
+Frontend:
+- Menu/Layout/roles: client/src/components/Layout.tsx, client/src/contexts/AuthContext.tsx
+- Páginas: client/src/pages/Estoque.tsx, Vendas.tsx, OrdensServico.tsx, Clientes.tsx, ContasReceber.tsx, Garantias.tsx
+- API client: client/src/services/api.ts
+
+REQUISITOS FUNCIONAIS (PRIORIDADE ALTA)
+
+(1) ESTOQUE — ACESSO PARA VENDEDOR E CONSULTA
+1.1 Vendedor precisa conseguir consultar estoque na área do lojista.
+- Garanta que:
+  - Backend: rotas GET /estoque e /estoque/alertas (e qualquer endpoint de listagem) NÃO bloqueiem o role VENDEDOR.
+  - Frontend: o menu e as rotas liberem a tela de Estoque para VENDEDOR (pelo menos em modo leitura).
+- Se o sistema tiver RBAC no frontend (Layout), ajuste para exibir “Estoque” ao VENDEDOR.
+- Critério de aceite: logado como VENDEDOR, consigo abrir a tela Estoque e ver lista (produto, quantidade, mín/máx).
+
+(2) DONO NÃO CONSEGUE SELECIONAR MOTOS (UNIDADE FÍSICA) “QUE SUBIRAM NO SISTEMA PRINCIPAL”
+2.1 Corrigir o fluxo de seleção de motos/unidade física no contexto de Vendas e OS.
+- A base já tem UnidadeFisica vinculada a Loja e Produto (tipo MOTO) no Prisma.
+- Garanta que os endpoints e telas tragam:
+  - Lista de unidades físicas em ESTOQUE (StatusUnidade.ESTOQUE) para a loja/tenant correto.
+  - Identificação clara (nome do produto + chassi/ano/cor/código motor etc).
+- Critério de aceite: Dono/Gerente consegue abrir Vendas/OS, selecionar uma moto/unidade física e a seleção persiste e salva.
+
+(3) OS — ITENS SELECIONADOS SOMEM DA TELA
+3.1 Na OS do dash: ao selecionar serviço/peça (e moto etc), depois “some” da UI.
+- Corrigir o state/UI para manter um “carrinho”/lista de itens selecionados.
+- Isso deve valer para: serviços, peças(produtos), e moto/unidade física (e futuros tipos).
+- Implementar:
+  - Estado local com array de itens selecionados (id, tipo, nome, quantidade, preço, etc).
+  - Renderização contínua após seleção, com opção de remover/editar quantidade.
+  - Não depender apenas do select “controlado” que zera após onChange.
+- Critério de aceite: seleciono serviço/peça/moto e ele continua listado abaixo, até eu remover.
+
+(4) VENDAS — EXIBIR NOME DO ITEM (NÃO SÓ VALOR)
+4.1 Em Vendas na área do lojista está vindo só valor. Precisa aparecer nome de produto/serviço/peça (e moto quando aplicável).
+- Backend:
+  - Ajustar o include/DTO na listagem/detalhe de vendas para trazer:
+    - itens.produto.nome quando produtoId
+    - itens.servico.nome quando servicoId
+    - itens.unidadeFisica -> produto.nome + identificadores quando unidadeFisicaId
+- Frontend:
+  - Renderizar corretamente na tabela/lista.
+- Critério de aceite: em qualquer listagem/detalhe de venda, cada item mostra “nome + tipo” e valor.
+
+(5) FINANCEIRO — CONTAS A RECEBER AUTOMÁTICO + BAIXA AUTOMÁTICA DE ESTOQUE
+5.1 Ao confirmar venda/serviço/peça: criar/atualizar automaticamente Contas a Receber.
+- Implementar evento lógico no backend:
+  - Quando Venda.confirmadaFinanceiro muda para true (ou endpoint de confirmar), gerar ContaReceber.
+  - Se já existir ContaReceber vinculada à vendaId, não duplicar (idempotência).
+- 5.2 Baixa automática de estoque na confirmação de venda:
+  - Para itens de produto/peça: decrementar Estoque.quantidade da loja.
+  - Para moto/unidade física: mudar UnidadeFisica.status para VENDIDA (e se houver estoque agregado, ajustar).
+- Tudo isso deve ser transacional (Prisma transaction) para não ficar “financeiro ok e estoque não”.
+
+Critérios de aceite:
+- Confirmo venda: ContaReceber aparece automaticamente; estoque/UnidadeFisica é baixado automaticamente; repetir confirmação não duplica títulos nem baixa duas vezes.
+
+(6) GARANTIA — NÃO APARECEU AO CONCLUIR VENDA + TERMOS AUTOMÁTICOS
+6.1 Quando concluiu a venda não apareceu garantia: corrigir fluxo de exibição e persistência.
+- Regras mínimas:
+  - Garantia geral = 3 meses (MAPA_REQUISITOS).
+  - Ao confirmar venda de moto/unidade física: criar registro Garantia (dataInicio=hoje, dataFim=+meses, tipoGarantia “geral”, meses 3) se não existir.
+  - Exibir garantias relacionadas na tela de conclusão/detalhe (Vendas e/ou Garantias).
+6.2 Termos de garantia automáticos:
+- Ao confirmar venda, anexar “termos padrão” (string) ao registro da venda (se não existir campo, criar: Venda.warrantyTerms TEXT e migrar).
+- Exibir estes termos no final da venda/conclusão (UI) e/ou impressão.
+
+Critério de aceite:
+- Confirmo venda de moto: aparece garantia/termos na tela imediatamente; existe registro em Garantia; não duplica ao reconfirmar.
+
+(7) MENU DO VENDEDOR — ADICIONAR “CLIENTES” + GARANTIR ACESSO
+7.1 No menu lateral do vendedor, adicionar “Clientes”.
+- Já existe client/src/pages/Clientes.tsx: garantir que Layout.tsx mostre a rota/aba para VENDEDOR.
+- Backend já tem /clientes: garantir permissões para VENDEDOR (ao menos list/create básico).
+Critério de aceite:
+- Logado como VENDEDOR, vejo menu “Clientes” e consigo listar/cadastrar cliente.
+
+(8) SINCRONIA COM SISTEMA CENTRAL — REGRA CRÍTICA (ALTÍSSIMA PRIORIDADE)
+“MAIS UMA VEZ”:
+- TODAS as vezes que o sistema central atualizar o estoque principal, precisa automaticamente atualizar para o dono de loja também, para ele poder fazer o pedido.
+- Depois do pedido concluído, dar baixa automática no estoque central.
+
+Implementação (faça do jeito mais seguro dentro do projeto):
+8.1 Criar um módulo de integração no backend (ex: server/src/routes/sistema.ts + service):
+- Entrada “Central -> Loja”: endpoint webhook (ex: POST /sistema/central/estoque-sync) recebendo lista de produtos/quantidades/unidades e um “syncId” idempotente.
+- Persistir “lastSyncId/lastSyncAt” por loja (criar tabela de controle, ex: IntegracaoSyncStatus) e aplicar UPSERT em Estoque/UnidadeFisica.
+- Logar auditoria (LogAuditoria) e/ou LogEstoque.
+8.2 “Loja -> Central”: ao concluir pedido (defina “pedido concluído” como endpoint específico, ex: POST /sistema/pedidos/:id/concluir), disparar baixa no central:
+- Se não existir sistema central real no repo, implementar camada stub configurável por ENV (CENTRAL_API_URL, CENTRAL_API_TOKEN) e simular com chamadas HTTP + tratamento de erro.
+- Garantir idempotência: enviar idempotency key do pedido e não repetir baixa.
+8.3 UX para Dono:
+- Após sync do central, Dono vê estoque atualizado sem precisar relogar (refetch/polling curto ou invalidar cache no frontend).
+- Se necessário, implementar “Re-sincronizar” manual no UI do Dono, mas o automático é obrigatório.
+
+Critérios de aceite:
+- Quando webhook de estoque do central é chamado, o Dono passa a ver novos itens/quantidades imediatamente.
+- Ao concluir pedido, o backend chama a baixa central (ou stub) e registra sucesso/erro; em sucesso, não permite “baixar de novo”.
+
+MELHORIAS VIÁVEIS (FAÇA JUNTO SE DER, SEM QUEBRAR O SISTEMA)
+- Padronizar nomenclatura e mensagens (corrigir “cluiu”, etc).
+- Ajustar DTOs para sempre retornarem “displayName” do item (produto/serviço/unidade).
+- Criar util no frontend para render de item: “Serviço: X”, “Peça: Y”, “Moto: Z (chassi…)”.
+- Validar permissões no frontend e backend (defesa em profundidade).
+- Testes mínimos no backend (mesmo que seja com scripts):
+  - Confirmar venda gera ContaReceber + baixa estoque (idempotente).
+  - Confirmar venda de moto cria Garantia (idempotente).
+  - Webhook sync do central faz upsert (idempotente).
+
+FORMA DE ENTREGA (OBRIGATÓRIO)
+1) Diagnóstico rápido por problema (onde está quebrando e por quê).
+2) Lista de arquivos que serão alterados (frontend e backend).
+3) Implementação com commits lógicos (ou ao menos blocos de mudanças).
+4) Evidência: prints de console/logs ou exemplos de requests/responses que comprovem os critérios de aceite.
+
+COMECE AGORA
+- Primeiro, localize no código:
+  - Onde o Layout decide o menu por role.
+  - Onde Vendas/OS montam o state de itens.
+  - Onde “confirmar venda/confirmar OS” é feito no backend.
+- Em seguida, aplique as correções seguindo exatamente os requisitos e critérios de aceite acima.

@@ -64,7 +64,8 @@ const menuItems = {
   ],
   VENDEDOR: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'estoque', label: 'Alerta Estoque', icon: '📋' },
+    { id: 'clientes', label: 'Clientes', icon: '👤' },
+    { id: 'estoque', label: 'Estoque', icon: '📋' },
     { id: 'vendas', label: 'Minhas Vendas', icon: '💰' },
     { id: 'os', label: 'Minhas OS', icon: '🔩' },
     { id: 'garantias', label: 'Garantias', icon: '📜' },
