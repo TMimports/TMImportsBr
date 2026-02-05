@@ -663,13 +663,14 @@ export function Vendas() {
               <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
                 {itensSelecionados.filter(i => i.produtoId).map((item, idx) => {
                   const produto = produtos.find(p => p.id === parseInt(item.produtoId));
+                  const nomeExibicao = item.displayName || produto?.nome || 'Produto';
                   const subtotal = item.preco * item.quantidade;
                   const descontoValor = subtotal * (parseFloat(form.desconto) || 0) / 100;
                   const finalItem = subtotal - descontoValor;
                   return (
                     <div key={idx} className="text-xs border-b border-zinc-700/50 pb-2 last:border-0">
                       <div className="flex justify-between text-gray-300">
-                        <span>{produto?.nome || 'Produto'} (x{item.quantidade})</span>
+                        <span>{nomeExibicao} (x{item.quantidade})</span>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-gray-500">Original:</span>
