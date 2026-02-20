@@ -23,7 +23,7 @@ const requireAdmin = (req: AuthRequest, res: any, next: any) => {
 
 router.post('/', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const { nome, email, cnpj, razaoSocial, nomeFantasia, endereco, telefone, emailLoja } = req.body;
+    const { nome, email, cnpj, razaoSocial, nomeFantasia, endereco, telefone, emailLoja, nomeGrupo } = req.body;
 
     if (!nome || !email || !cnpj || !razaoSocial) {
       return res.status(400).json({ error: 'Nome, email, CNPJ e razao social sao obrigatorios' });
@@ -40,12 +40,9 @@ router.post('/', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'CNPJ ja cadastrado no sistema' });
     }
 
-    let grupo = await prisma.grupo.findFirst({ orderBy: { id: 'asc' } });
-    if (!grupo) {
-      grupo = await prisma.grupo.create({
-        data: { nome: 'Tecle Motos' }
-      });
-    }
+    const grupo = await prisma.grupo.create({
+      data: { nome: nomeGrupo || nomeFantasia || razaoSocial }
+    });
 
     const loja = await prisma.loja.create({
       data: {

@@ -43,7 +43,7 @@ router.get('/produtos-disponiveis/:lojaId', async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const venda = await prisma.venda.findUnique({
       where: { id: Number(req.params.id) },
@@ -57,6 +57,14 @@ router.get('/:id', async (req, res) => {
 
     if (!venda) {
       return res.status(404).json({ error: 'Venda não encontrada' });
+    }
+
+    const userRole = req.user?.role;
+    if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
+      const userGrupoId = req.user?.grupoId;
+      if (venda.loja && venda.loja.grupoId !== userGrupoId) {
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
     }
 
     res.json(venda);

@@ -33,7 +33,7 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const grupo = await prisma.grupo.findUnique({
       where: { id: Number(req.params.id) },
@@ -42,6 +42,13 @@ router.get('/:id', async (req, res) => {
 
     if (!grupo) {
       return res.status(404).json({ error: 'Grupo não encontrado' });
+    }
+
+    const userRole = req.user?.role;
+    if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
+      if (grupo.id !== req.user?.grupoId) {
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
     }
 
     res.json(grupo);

@@ -36,8 +36,13 @@ router.get('/', async (req: AuthRequest, res) => {
 router.get('/por-cliente/:clienteId', async (req: AuthRequest, res) => {
   try {
     const clienteId = Number(req.params.clienteId);
+    const filter = applyTenantFilter(req);
+    const where: any = { clienteId, deletedAt: null };
+    if (filter.lojaId) where.lojaId = filter.lojaId;
+    if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+
     const ordens = await prisma.ordemServico.findMany({
-      where: { clienteId, deletedAt: null },
+      where,
       include: {
         cliente: true,
         loja: true,
@@ -61,15 +66,20 @@ router.get('/buscar-cliente', async (req: AuthRequest, res) => {
       return res.json([]);
     }
 
+    const filter = applyTenantFilter(req);
     const termo = String(q).toLowerCase();
+    const clienteWhere: any = {
+      OR: [
+        { nome: { contains: termo, mode: 'insensitive' } },
+        { telefone: { contains: termo } },
+        { cpfCnpj: { contains: termo } }
+      ]
+    };
+    if (filter.lojaId) clienteWhere.lojaId = filter.lojaId;
+    if (filter.grupoId) clienteWhere.loja = { grupoId: filter.grupoId };
+
     const clientes = await prisma.cliente.findMany({
-      where: {
-        OR: [
-          { nome: { contains: termo, mode: 'insensitive' } },
-          { telefone: { contains: termo } },
-          { cpfCnpj: { contains: termo } }
-        ]
-      },
+      where: clienteWhere,
       include: {
         ordensServico: {
           where: { deletedAt: null },
@@ -91,7 +101,7 @@ router.get('/buscar-cliente', async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const os = await prisma.ordemServico.findUnique({
       where: { id: Number(req.params.id) },
@@ -105,6 +115,14 @@ router.get('/:id', async (req, res) => {
 
     if (!os) {
       return res.status(404).json({ error: 'OS não encontrada' });
+    }
+
+    const userRole = req.user?.role;
+    if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
+      const userGrupoId = req.user?.grupoId;
+      if (os.loja && os.loja.grupoId !== userGrupoId) {
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
     }
 
     res.json(os);

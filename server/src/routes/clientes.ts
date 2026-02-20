@@ -67,15 +67,23 @@ router.get('/buscar-cep/:cep', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const cliente = await prisma.cliente.findUnique({
       where: { id: Number(req.params.id) },
-      include: { vendas: true, ordensServico: true }
+      include: { vendas: true, ordensServico: true, loja: true }
     });
 
     if (!cliente) {
       return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
+
+    const userRole = req.user?.role;
+    if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
+      const userGrupoId = req.user?.grupoId;
+      if (cliente.loja && cliente.loja.grupoId !== userGrupoId) {
+        return res.status(403).json({ error: 'Acesso negado' });
+      }
     }
 
     res.json(cliente);
