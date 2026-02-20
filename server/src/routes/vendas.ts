@@ -14,8 +14,6 @@ router.get('/', async (req: AuthRequest, res) => {
     const where: any = { deletedAt: null };
     if (filter.lojaId) where.lojaId = filter.lojaId;
     if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
-    if (req.user?.role === 'VENDEDOR') where.vendedorId = req.user.id;
-
     const vendas = await prisma.venda.findMany({
       where,
       include: {
@@ -79,11 +77,13 @@ router.post('/', async (req: AuthRequest, res) => {
     const config = await prisma.configuracao.findFirst();
     const userRole = req.user?.role;
 
+    const tipoVendaCheck = tipo || 'VENDA';
+
     const itensParaVerificar = itens
       .filter((item: any) => item.produtoId)
       .map((item: any) => ({ produtoId: item.produtoId, quantidade: item.quantidade }));
 
-    if (itensParaVerificar.length > 0) {
+    if (tipoVendaCheck !== 'ORCAMENTO' && itensParaVerificar.length > 0) {
       const verificacao = await InventoryService.verificarItensVenda(itensParaVerificar, Number(lojaId));
       if (!verificacao.valido) {
         return res.status(400).json({ 
@@ -108,8 +108,6 @@ router.post('/', async (req: AuthRequest, res) => {
           
           if (userRole === 'GERENTE_LOJA') {
             maxDesconto = maxDesconto * 2;
-          } else if (userRole === 'VENDEDOR') {
-            maxDesconto = 0;
           }
           
           if (desconto > maxDesconto) {

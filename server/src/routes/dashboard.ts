@@ -13,7 +13,7 @@ router.get('/', async (req: AuthRequest, res) => {
     const hoje = new Date();
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
-    const whereVendas: any = { createdAt: { gte: inicioMes } };
+    const whereVendas: any = { createdAt: { gte: inicioMes }, tipo: 'VENDA', deletedAt: null };
     const whereOS: any = { createdAt: { gte: inicioMes } };
     const whereEstoque: any = {};
     const whereContas: any = { pago: false };

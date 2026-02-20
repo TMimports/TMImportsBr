@@ -13,14 +13,24 @@ router.get('/', async (req: AuthRequest, res) => {
     const where: any = {};
     if (req.user?.role === 'VENDEDOR') {
       where.usuarioId = req.user.id;
+    } else if (filter.lojaId) {
+      where.OR = [
+        { venda: { lojaId: filter.lojaId } },
+        { ordemServico: { lojaId: filter.lojaId } }
+      ];
+    } else if (filter.grupoId) {
+      where.OR = [
+        { venda: { loja: { grupoId: filter.grupoId } } },
+        { ordemServico: { loja: { grupoId: filter.grupoId } } }
+      ];
     }
 
     const comissoes = await prisma.comissao.findMany({
       where,
       include: {
         usuario: { select: { id: true, nome: true } },
-        venda: true,
-        ordemServico: true
+        venda: { include: { loja: { select: { nomeFantasia: true } } } },
+        ordemServico: { include: { loja: { select: { nomeFantasia: true } } } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -34,9 +44,20 @@ router.get('/', async (req: AuthRequest, res) => {
 
 router.get('/resumo', async (req: AuthRequest, res) => {
   try {
+    const filter = applyTenantFilter(req);
     const where: any = {};
     if (req.user?.role === 'VENDEDOR') {
       where.usuarioId = req.user.id;
+    } else if (filter.lojaId) {
+      where.OR = [
+        { venda: { lojaId: filter.lojaId } },
+        { ordemServico: { lojaId: filter.lojaId } }
+      ];
+    } else if (filter.grupoId) {
+      where.OR = [
+        { venda: { loja: { grupoId: filter.grupoId } } },
+        { ordemServico: { loja: { grupoId: filter.grupoId } } }
+      ];
     }
 
     const comissoes = await prisma.comissao.groupBy({

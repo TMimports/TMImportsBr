@@ -12,6 +12,8 @@ interface Configuracao {
   descontoMaxPeca: number;
   descontoMaxServico: number;
   descontoMaxOS: number;
+  lucroMoto: number;
+  lucroPeca: number;
 }
 
 interface LogConfig {
@@ -61,7 +63,9 @@ export function Configuracoes() {
         descontoMaxMoto: Number(config.descontoMaxMoto),
         descontoMaxPeca: Number(config.descontoMaxPeca),
         descontoMaxServico: Number(config.descontoMaxServico),
-        descontoMaxOS: Number(config.descontoMaxOS)
+        descontoMaxOS: Number(config.descontoMaxOS),
+        lucroMoto: Number(config.lucroMoto),
+        lucroPeca: Number(config.lucroPeca)
       });
       setConfig(updated);
       const newLogs = await api.get<LogConfig[]>('/configuracoes/logs');
@@ -91,7 +95,7 @@ export function Configuracoes() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card space-y-6">
           <h2 className="text-lg font-semibold text-orange-400">Comissoes</h2>
           
@@ -177,6 +181,31 @@ export function Configuracoes() {
             max="100"
             value={config.descontoMaxOS}
             onChange={(e) => setConfig({ ...config, descontoMaxOS: Number(e.target.value) })}
+          />
+        </div>
+
+        <div className="card space-y-6">
+          <h2 className="text-lg font-semibold text-orange-400">Margens de Lucro</h2>
+          <p className="text-sm text-gray-400">Margem aplicada sobre o custo para calcular preco de venda.</p>
+          
+          <Input
+            label="Margem Lucro Moto (%)"
+            type="number"
+            step="0.1"
+            min="0"
+            max="500"
+            value={config.lucroMoto}
+            onChange={(e) => setConfig({ ...config, lucroMoto: Number(e.target.value) })}
+          />
+
+          <Input
+            label="Margem Lucro Peca (%)"
+            type="number"
+            step="0.1"
+            min="0"
+            max="500"
+            value={config.lucroPeca}
+            onChange={(e) => setConfig({ ...config, lucroPeca: Number(e.target.value) })}
           />
         </div>
       </div>

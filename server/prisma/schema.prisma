@@ -120,6 +120,7 @@ model Loja {
   transferenciasOrigem  Transferencia[] @relation("TransferenciaOrigem")
   transferenciasDestino Transferencia[] @relation("TransferenciaDestino")
   logsEstoque           LogEstoque[]
+  clientes              Cliente[]
 }
 
 model User {
@@ -256,7 +257,9 @@ model Cliente {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy Int?
+  lojaId    Int?
   
+  loja      Loja?    @relation(fields: [lojaId], references: [id])
   vendas    Venda[]
   ordensServico OrdemServico[]
   garantias Garantia[]
@@ -397,7 +400,7 @@ model ContaPagar {
   id           Int               @id @default(autoincrement())
   lojaId       Int
   categoria    CategoriaConta
-  descricao    String
+  descricao    String?
   valor        Decimal           @db.Decimal(10, 2)
   vencimento   DateTime
   recorrente   Boolean           @default(false)
@@ -448,6 +451,7 @@ model ContaReceber {
   clienteId    Int?
   vendaId      Int?
   descricao    String
+  observacoes  String?
   valor        Decimal           @db.Decimal(10, 2)
   vencimento   DateTime
   recorrente   Boolean           @default(false)
@@ -473,6 +477,8 @@ model Configuracao {
   descontoMaxPeca       Decimal @db.Decimal(5, 2) @default(10)
   descontoMaxServico    Decimal @db.Decimal(5, 2) @default(10)
   descontoMaxOS         Decimal @db.Decimal(5, 2) @default(10)
+  lucroMoto             Decimal @db.Decimal(5, 2) @default(30)
+  lucroPeca             Decimal @db.Decimal(5, 2) @default(30)
 }
 
 enum TipoMovimentoEstoque {

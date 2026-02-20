@@ -8,7 +8,28 @@ router.use(verifyToken);
 
 router.get('/', async (req: AuthRequest, res) => {
   try {
+    const where: any = {};
+    
+    if (req.user?.role === 'ADMIN_GERAL' || req.user?.role === 'ADMIN_REDE') {
+    } else if (req.user?.lojaId) {
+      where.OR = [
+        { lojaId: req.user.lojaId },
+        { lojaId: null, createdBy: null }
+      ];
+    } else if (req.user?.grupoId) {
+      const lojasDoGrupo = await prisma.loja.findMany({
+        where: { grupoId: req.user.grupoId },
+        select: { id: true }
+      });
+      const lojaIds = lojasDoGrupo.map(l => l.id);
+      where.OR = [
+        { lojaId: { in: lojaIds } },
+        { lojaId: null, createdBy: null }
+      ];
+    }
+
     const clientes = await prisma.cliente.findMany({
+      where,
       orderBy: { nome: 'asc' }
     });
 
@@ -89,6 +110,7 @@ router.post('/', async (req: AuthRequest, res) => {
         bairro,
         cidade,
         estado,
+        lojaId: req.user!.lojaId,
         createdBy: req.user!.id
       }
     });

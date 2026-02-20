@@ -5,9 +5,25 @@ import { verifyToken, requireRole, AuthRequest } from '../middleware/auth.js';
 const router = Router();
 
 router.use(verifyToken);
-router.use(requireRole('ADMIN_GERAL'));
 
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/public', async (req: AuthRequest, res) => {
+  try {
+    let config = await prisma.configuracao.findFirst();
+    if (!config) {
+      config = await prisma.configuracao.create({ data: {} });
+    }
+    res.json({
+      descontoMaxMoto: config.descontoMaxMoto,
+      descontoMaxPeca: config.descontoMaxPeca,
+      descontoMaxServico: config.descontoMaxServico,
+      descontoMaxOS: config.descontoMaxOS
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+router.get('/', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
   try {
     let config = await prisma.configuracao.findFirst();
     
@@ -24,7 +40,7 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
-router.put('/', async (req: AuthRequest, res) => {
+router.put('/', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
   try {
     const { 
       comissaoVendedorMoto, 
@@ -34,7 +50,9 @@ router.put('/', async (req: AuthRequest, res) => {
       descontoMaxMoto,
       descontoMaxPeca,
       descontoMaxServico,
-      descontoMaxOS
+      descontoMaxOS,
+      lucroMoto,
+      lucroPeca
     } = req.body;
 
     let config = await prisma.configuracao.findFirst();
@@ -138,6 +156,30 @@ router.put('/', async (req: AuthRequest, res) => {
           depois: String(valor)
         });
         novosDados.descontoMaxOS = valor;
+      }
+    }
+
+    if (lucroMoto !== undefined) {
+      const valor = Math.max(0, Math.min(500, Number(lucroMoto)));
+      if (Number(config.lucroMoto) !== valor) {
+        camposAlterados.push({
+          campo: 'lucroMoto',
+          antes: String(config.lucroMoto),
+          depois: String(valor)
+        });
+        novosDados.lucroMoto = valor;
+      }
+    }
+
+    if (lucroPeca !== undefined) {
+      const valor = Math.max(0, Math.min(500, Number(lucroPeca)));
+      if (Number(config.lucroPeca) !== valor) {
+        camposAlterados.push({
+          campo: 'lucroPeca',
+          antes: String(config.lucroPeca),
+          depois: String(valor)
+        });
+        novosDados.lucroPeca = valor;
       }
     }
 

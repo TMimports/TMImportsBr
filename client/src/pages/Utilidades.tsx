@@ -1,11 +1,18 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../services/api';
 
+interface DetalheEstoque {
+  produtoNome: string;
+  quantidade: number;
+}
+
 interface EstoqueLoja {
   lojaId: number;
   lojaNome: string;
   motos: number;
   pecas: number;
+  detalhesMotos: DetalheEstoque[];
+  detalhesPecas: DetalheEstoque[];
   ultimaAtualizacao: string;
 }
 
@@ -13,6 +20,7 @@ export function Utilidades() {
   const [estoques, setEstoques] = useState<EstoqueLoja[]>([]);
   const [loading, setLoading] = useState(true);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date>(new Date());
+  const [expandedLoja, setExpandedLoja] = useState<number | null>(null);
 
   const loadData = useCallback(() => {
     api.get<EstoqueLoja[]>('/estoque/grupo')
@@ -32,6 +40,10 @@ export function Utilidades() {
 
   const totalMotos = estoques.reduce((acc, e) => acc + e.motos, 0);
   const totalPecas = estoques.reduce((acc, e) => acc + e.pecas, 0);
+
+  const toggleExpand = (lojaId: number) => {
+    setExpandedLoja(expandedLoja === lojaId ? null : lojaId);
+  };
 
   return (
     <div className="space-y-6">
@@ -56,49 +68,81 @@ export function Utilidades() {
 
       <div className="card">
         <h2 className="text-lg font-semibold text-white mb-4">Estoque por Loja</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-gray-400 text-sm border-b border-zinc-800">
-                <th className="pb-3 font-medium">Loja</th>
-                <th className="pb-3 font-medium text-center">Motos</th>
-                <th className="pb-3 font-medium text-center">Pecas</th>
-                <th className="pb-3 font-medium text-right">Ultima Atualizacao</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {loading ? (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-gray-500">Carregando...</td>
-                </tr>
-              ) : estoques.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="py-8 text-center text-gray-500">
-                    Nenhuma loja encontrada no grupo
-                  </td>
-                </tr>
-              ) : (
-                estoques.map(estoque => (
-                  <tr key={estoque.lojaId} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
-                    <td className="py-4 text-white font-medium">{estoque.lojaNome}</td>
-                    <td className="py-4 text-center">
-                      <span className={`text-lg font-bold ${estoque.motos > 0 ? 'text-orange-400' : 'text-gray-500'}`}>
+        <div className="space-y-2">
+          {loading ? (
+            <div className="py-8 text-center text-gray-500">Carregando...</div>
+          ) : estoques.length === 0 ? (
+            <div className="py-8 text-center text-gray-500">
+              Nenhuma loja encontrada no grupo
+            </div>
+          ) : (
+            estoques.map(estoque => (
+              <div key={estoque.lojaId} className="border border-zinc-800 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => toggleExpand(estoque.lojaId)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-zinc-800/30 transition-colors"
+                >
+                  <span className="text-white font-medium">{estoque.lojaNome}</span>
+                  <div className="flex items-center gap-6">
+                    <div className="text-sm">
+                      <span className="text-gray-400 mr-1">Motos:</span>
+                      <span className={`font-bold ${estoque.motos > 0 ? 'text-orange-400' : 'text-gray-500'}`}>
                         {estoque.motos}
                       </span>
-                    </td>
-                    <td className="py-4 text-center">
-                      <span className={`text-lg font-bold ${estoque.pecas > 0 ? 'text-blue-400' : 'text-gray-500'}`}>
+                    </div>
+                    <div className="text-sm">
+                      <span className="text-gray-400 mr-1">Pecas:</span>
+                      <span className={`font-bold ${estoque.pecas > 0 ? 'text-blue-400' : 'text-gray-500'}`}>
                         {estoque.pecas}
                       </span>
-                    </td>
-                    <td className="py-4 text-right text-gray-400">
-                      {new Date(estoque.ultimaAtualizacao).toLocaleTimeString('pt-BR')}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    </div>
+                    <svg
+                      className={`w-4 h-4 text-gray-400 transition-transform ${expandedLoja === estoque.lojaId ? 'rotate-180' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </button>
+
+                {expandedLoja === estoque.lojaId && (
+                  <div className="px-4 pb-4 border-t border-zinc-800">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                      {estoque.detalhesMotos && estoque.detalhesMotos.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-orange-400 mb-2">Motos em Estoque</h4>
+                          <div className="space-y-1">
+                            {estoque.detalhesMotos.map((item, idx) => (
+                              <div key={idx} className="flex justify-between text-sm py-1 px-2 rounded bg-zinc-800/50">
+                                <span className="text-gray-300">{item.produtoNome}</span>
+                                <span className="text-white font-medium">{item.quantidade}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {estoque.detalhesPecas && estoque.detalhesPecas.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium text-blue-400 mb-2">Pecas em Estoque</h4>
+                          <div className="space-y-1">
+                            {estoque.detalhesPecas.map((item, idx) => (
+                              <div key={idx} className="flex justify-between text-sm py-1 px-2 rounded bg-zinc-800/50">
+                                <span className="text-gray-300">{item.produtoNome}</span>
+                                <span className="text-white font-medium">{item.quantidade}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {(!estoque.detalhesMotos || estoque.detalhesMotos.length === 0) && (!estoque.detalhesPecas || estoque.detalhesPecas.length === 0) && (
+                        <div className="text-sm text-gray-500 col-span-2">Nenhum item em estoque nesta loja</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
 

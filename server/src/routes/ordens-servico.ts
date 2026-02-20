@@ -202,8 +202,6 @@ router.post('/', async (req: AuthRequest, res) => {
           let maxDesconto = Number(config?.descontoMaxPeca || 10);
           if (userRole === 'GERENTE_LOJA') {
             maxDesconto = maxDesconto * 2;
-          } else if (userRole === 'VENDEDOR') {
-            maxDesconto = 0;
           }
           if (desconto > maxDesconto) {
             return res.status(400).json({ 

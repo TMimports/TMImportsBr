@@ -91,7 +91,7 @@ router.get('/contas-receber', async (req: AuthRequest, res) => {
 
 router.post('/contas-receber', async (req: AuthRequest, res) => {
   try {
-    const { lojaId, clienteId, descricao, valor, vencimento, recorrente, recorrencia } = req.body;
+    const { lojaId, clienteId, descricao, valor, vencimento, recorrente, recorrencia, observacoes } = req.body;
 
     if (!lojaId || !valor || !vencimento || !descricao) {
       return res.status(400).json({ error: 'Dados incompletos' });
@@ -106,6 +106,7 @@ router.post('/contas-receber', async (req: AuthRequest, res) => {
         vencimento: new Date(vencimento),
         recorrente: recorrente || false,
         recorrencia: recorrente ? recorrencia : null,
+        observacoes: observacoes || null,
         createdBy: req.user!.id
       }
     });
@@ -125,6 +126,7 @@ router.post('/contas-receber', async (req: AuthRequest, res) => {
             vencimento: dataAtual,
             recorrente: true,
             recorrencia,
+            observacoes: observacoes || null,
             createdBy: req.user!.id
           }
         });
@@ -140,7 +142,7 @@ router.post('/contas-receber', async (req: AuthRequest, res) => {
 
 router.put('/contas-receber/:id', async (req: AuthRequest, res) => {
   try {
-    const { descricao, valor, vencimento } = req.body;
+    const { descricao, valor, vencimento, observacoes } = req.body;
     const filter = applyTenantFilter(req);
     
     const contaExistente = await prisma.contaReceber.findFirst({
@@ -155,13 +157,15 @@ router.put('/contas-receber/:id', async (req: AuthRequest, res) => {
       return res.status(404).json({ error: 'Conta não encontrada' });
     }
     
+    const updateData: any = {};
+    if (descricao !== undefined) updateData.descricao = descricao;
+    if (valor !== undefined) updateData.valor = Number(valor);
+    if (vencimento !== undefined) updateData.vencimento = new Date(vencimento);
+    if (observacoes !== undefined) updateData.observacoes = observacoes || null;
+    
     const conta = await prisma.contaReceber.update({
       where: { id: Number(req.params.id) },
-      data: {
-        descricao,
-        valor: Number(valor),
-        vencimento: new Date(vencimento)
-      }
+      data: updateData
     });
     res.json(conta);
   } catch (error) {
@@ -334,7 +338,7 @@ router.post('/contas-pagar', async (req: AuthRequest, res) => {
       data: {
         lojaId: Number(lojaId),
         categoria,
-        descricao,
+        descricao: descricao || null,
         valor: Number(valor),
         vencimento: new Date(vencimento),
         recorrente: recorrente || false,

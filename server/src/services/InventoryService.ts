@@ -271,20 +271,31 @@ export class InventoryService {
       where: { grupoId, ativo: true },
       include: {
         estoques: {
+          where: { quantidade: { gt: 0 } },
           include: { produto: true }
         }
       }
     });
 
     return lojas.map(loja => {
-      const motos = loja.estoques.filter(e => e.produto.tipo === 'MOTO').reduce((acc, e) => acc + e.quantidade, 0);
-      const pecas = loja.estoques.filter(e => e.produto.tipo === 'PECA').reduce((acc, e) => acc + e.quantidade, 0);
+      const motosEstoque = loja.estoques.filter(e => e.produto.tipo === 'MOTO');
+      const pecasEstoque = loja.estoques.filter(e => e.produto.tipo === 'PECA');
+      const motos = motosEstoque.reduce((acc, e) => acc + e.quantidade, 0);
+      const pecas = pecasEstoque.reduce((acc, e) => acc + e.quantidade, 0);
       
       return {
         lojaId: loja.id,
         lojaNome: loja.nomeFantasia || loja.razaoSocial,
         motos,
         pecas,
+        detalhesMotos: motosEstoque.map(e => ({
+          produtoNome: e.produto.nome,
+          quantidade: e.quantidade
+        })),
+        detalhesPecas: pecasEstoque.map(e => ({
+          produtoNome: e.produto.nome,
+          quantidade: e.quantidade
+        })),
         ultimaAtualizacao: new Date()
       };
     });
