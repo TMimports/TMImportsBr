@@ -8,7 +8,19 @@ router.use(verifyToken);
 
 router.get('/', async (req: AuthRequest, res) => {
   try {
+    const userRole = req.user?.role;
+    const where: any = {};
+
+    if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
+      if (userRole === 'DONO_LOJA' && req.user?.grupoId) {
+        where.unidadeFisica = { loja: { grupoId: req.user.grupoId } };
+      } else if (req.user?.lojaId) {
+        where.unidadeFisica = { lojaId: req.user.lojaId };
+      }
+    }
+
     const garantias = await prisma.garantia.findMany({
+      where,
       include: { 
         unidadeFisica: { include: { produto: true, loja: true } },
         cliente: true,
@@ -19,7 +31,8 @@ router.get('/', async (req: AuthRequest, res) => {
 
     const resultado = garantias.map(g => ({
       ...g,
-      tipo: g.tipoGarantia
+      tipo: g.tipoGarantia,
+      unidade: g.unidadeFisica
     }));
 
     res.json(resultado);
