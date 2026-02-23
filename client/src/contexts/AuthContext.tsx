@@ -21,10 +21,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
     
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
+    if (token) {
       auth.me()
         .then(userData => {
           setUser(userData);
@@ -37,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
         .finally(() => setLoading(false));
     } else {
+      localStorage.removeItem('user');
+      setUser(null);
       setLoading(false);
     }
   }, []);
