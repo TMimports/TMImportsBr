@@ -13,6 +13,15 @@ interface Garantia {
   venda?: { id: number; createdAt: string; itens?: { produto?: { nome: string; tipo: string } }[]; loja?: { nomeFantasia: string } };
 }
 
+interface ClienteGrupo {
+  clienteNome: string;
+  telefone: string;
+  produto: string;
+  vendaId: number;
+  dataInicio: string;
+  garantias: Garantia[];
+}
+
 export function Garantias() {
   const [garantias, setGarantias] = useState<Garantia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +72,24 @@ export function Garantias() {
     if (filtro === 'expiradas') return dias <= 0;
     return true;
   });
+
+  const grupos: ClienteGrupo[] = [];
+  for (const g of garantiasFiltradas) {
+    const key = `${g.cliente?.nome || '-'}_${g.venda?.id || 0}`;
+    let grupo = grupos.find(gr => `${gr.clienteNome}_${gr.vendaId}` === key);
+    if (!grupo) {
+      grupo = {
+        clienteNome: g.cliente?.nome || '-',
+        telefone: g.cliente?.telefone || '-',
+        produto: g.unidade?.produto?.nome || g.venda?.itens?.find(i => i.produto?.tipo === 'MOTO')?.produto?.nome || 'Produto',
+        vendaId: g.venda?.id || 0,
+        dataInicio: g.dataInicio,
+        garantias: []
+      };
+      grupos.push(grupo);
+    }
+    grupo.garantias.push(g);
+  }
 
   const ativas = garantias.filter(g => calcularDiasRestantes(g.dataFim) > 5).length;
   const vencendo = garantias.filter(g => {
@@ -120,96 +147,113 @@ export function Garantias() {
         </div>
       )}
 
-      {garantiasFiltradas.length === 0 ? (
+      {grupos.length === 0 ? (
         <div className="card p-8 text-center text-gray-500">
           Nenhuma garantia encontrada
         </div>
       ) : (
-        <div className="space-y-3">
-          {garantiasFiltradas.map(garantia => {
-            const diasRestantes = calcularDiasRestantes(garantia.dataFim);
-            const vencendo = diasRestantes > 0 && diasRestantes <= 5;
-            const expirada = diasRestantes <= 0;
-            
-            return (
-              <div 
-                key={garantia.id} 
-                className={`card ${vencendo ? 'border-yellow-500/50' : ''} ${expirada ? 'border-red-500/50' : ''}`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                  <div>
-                    <h3 className="font-semibold text-white">
-                      {garantia.unidade?.produto?.nome || 
-                       garantia.venda?.itens?.find(i => i.produto?.tipo === 'MOTO')?.produto?.nome || 
-                       'Produto'}
-                    </h3>
-                    <p className="text-sm text-gray-400">
-                      {garantia.unidade?.chassi 
-                        ? `Chassi: ...${garantia.unidade.chassi.slice(-6)}`
-                        : `Venda #${garantia.venda?.id || '-'}`}
-                    </p>
+        <div className="space-y-4">
+          {grupos.map(grupo => (
+            <div key={`${grupo.clienteNome}_${grupo.vendaId}`} className="card">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-zinc-700">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-orange-500/20 flex items-center justify-center">
+                    <span className="text-orange-400 font-bold text-lg">
+                      {grupo.clienteNome.charAt(0).toUpperCase()}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {expirada ? (
-                      <span className="badge badge-danger">Expirada</span>
-                    ) : vencendo ? (
-                      <span className="badge badge-warning">Vencendo!</span>
-                    ) : (
-                      <span className="badge badge-success">Ativa</span>
-                    )}
-                    <span className="badge badge-primary">{garantia.tipo}</span>
+                  <div>
+                    <h3 className="font-semibold text-white text-lg">{grupo.clienteNome}</h3>
+                    <p className="text-sm text-gray-400">{grupo.telefone}</p>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                  <div>
-                    <p className="text-gray-500 text-xs">Cliente</p>
-                    <p className="text-white">{garantia.cliente?.nome || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs">Telefone</p>
-                    <p className="text-white">{garantia.cliente?.telefone || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs">Inicio</p>
-                    <p className="text-white">{new Date(garantia.dataInicio).toLocaleDateString('pt-BR')}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 text-xs">Dias Restantes</p>
-                    <p className={`text-xl font-bold ${
-                      expirada ? 'text-red-400' : 
-                      vencendo ? 'text-yellow-400' : 
-                      'text-green-400'
-                    }`}>
-                      {expirada ? '0' : diasRestantes}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-zinc-700 flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Revisao feita?</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => marcarRevisao(garantia.id, !garantia.revisaoFeita)}
-                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                        garantia.revisaoFeita 
-                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                          : 'bg-zinc-700 text-gray-400 hover:bg-zinc-600'
-                      }`}
-                    >
-                      {garantia.revisaoFeita ? 'Sim' : 'Nao'}
-                    </button>
-                    <button
-                      onClick={() => excluirGarantia(garantia.id)}
-                      className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                    >
-                      Excluir
-                    </button>
-                  </div>
+                <div className="text-right">
+                  <p className="text-white font-medium">{grupo.produto}</p>
+                  <p className="text-sm text-gray-400">Venda #{grupo.vendaId} - {new Date(grupo.dataInicio).toLocaleDateString('pt-BR')}</p>
                 </div>
               </div>
-            );
-          })}
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-gray-400 text-xs border-b border-zinc-800">
+                      <th className="text-left py-2 px-2">Tipo</th>
+                      <th className="text-left py-2 px-2">Status</th>
+                      <th className="text-left py-2 px-2">Inicio</th>
+                      <th className="text-left py-2 px-2">Vencimento</th>
+                      <th className="text-center py-2 px-2">Dias Restantes</th>
+                      <th className="text-center py-2 px-2">Revisao</th>
+                      <th className="text-right py-2 px-2">Acoes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grupo.garantias.map(garantia => {
+                      const diasRestantes = calcularDiasRestantes(garantia.dataFim);
+                      const isVencendo = diasRestantes > 0 && diasRestantes <= 5;
+                      const isExpirada = diasRestantes <= 0;
+
+                      return (
+                        <tr key={garantia.id} className="border-b border-zinc-800/50 last:border-0">
+                          <td className="py-2.5 px-2">
+                            <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                              garantia.tipo === 'geral' ? 'bg-blue-500/20 text-blue-400' :
+                              garantia.tipo === 'motor' ? 'bg-purple-500/20 text-purple-400' :
+                              garantia.tipo === 'modulo' ? 'bg-cyan-500/20 text-cyan-400' :
+                              'bg-yellow-500/20 text-yellow-400'
+                            }`}>
+                              {garantia.tipo}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-2">
+                            {isExpirada ? (
+                              <span className="text-red-400 text-xs font-semibold">Expirada</span>
+                            ) : isVencendo ? (
+                              <span className="text-yellow-400 text-xs font-semibold">Vencendo</span>
+                            ) : (
+                              <span className="text-green-400 text-xs font-semibold">Ativa</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-2 text-white">
+                            {new Date(garantia.dataInicio).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="py-2.5 px-2 text-white">
+                            {new Date(garantia.dataFim).toLocaleDateString('pt-BR')}
+                          </td>
+                          <td className="py-2.5 px-2 text-center">
+                            <span className={`font-bold text-lg ${
+                              isExpirada ? 'text-red-400' : isVencendo ? 'text-yellow-400' : 'text-green-400'
+                            }`}>
+                              {isExpirada ? '0' : diasRestantes}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-2 text-center">
+                            <button
+                              onClick={() => marcarRevisao(garantia.id, !garantia.revisaoFeita)}
+                              className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                                garantia.revisaoFeita 
+                                  ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
+                                  : 'bg-zinc-700 text-gray-400 hover:bg-zinc-600'
+                              }`}
+                            >
+                              {garantia.revisaoFeita ? 'Sim' : 'Nao'}
+                            </button>
+                          </td>
+                          <td className="py-2.5 px-2 text-right">
+                            <button
+                              onClick={() => excluirGarantia(garantia.id)}
+                              className="px-3 py-1 rounded text-xs font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                            >
+                              Excluir
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
