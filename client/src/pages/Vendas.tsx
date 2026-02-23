@@ -446,7 +446,7 @@ export function Vendas() {
                   return (
                     <div 
                       key={u.id} 
-                      className={`p-3 rounded-lg flex justify-between items-center cursor-pointer transition-colors ${
+                      className={`p-3 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-2 cursor-pointer transition-colors ${
                         jaAdicionada 
                           ? 'bg-green-500/20 border border-green-500' 
                           : 'bg-zinc-800 hover:bg-zinc-700'
@@ -747,7 +747,7 @@ export function Vendas() {
               <p className="text-sm text-gray-500">{vendaDetalhada?.loja?.nomeFantasia}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div className="info-box">
                 <h3 className="font-semibold text-sm mb-2 text-gray-400">Cliente</h3>
                 <p className="text-white">{vendaDetalhada?.cliente?.nome}</p>

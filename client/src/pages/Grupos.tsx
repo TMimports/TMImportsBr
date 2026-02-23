@@ -172,7 +172,7 @@ export function Grupos() {
       ) : (
         <Card padding="none">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[500px]">
               <thead>
                 <tr className="border-b border-zinc-800">
                   <th className="px-4 py-3 text-left">

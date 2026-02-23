@@ -119,7 +119,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <select
                 value={lojaFiltro}
                 onChange={(e) => setLojaFiltro(e.target.value)}
-                className="input w-48"
+                className="input w-full sm:w-48"
               >
                 <option value="">Todas as lojas</option>
                 {lojas.map(l => (
@@ -405,14 +405,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
       {showComparativo && comparativo.length > 0 && (
         <div className="mt-8">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
             <h2 className="text-xl font-bold">Comparativo entre Lojas</h2>
             <button onClick={() => setShowComparativo(false)} className="text-gray-400 hover:text-white">
               Fechar
             </button>
           </div>
           <div className="card overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="border-b border-zinc-700">
                   <th className="text-left p-3 text-gray-400">Loja</th>

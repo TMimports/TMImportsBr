@@ -682,7 +682,7 @@ export function OrdensServico() {
               <p className="text-sm text-gray-500">{osDetalhada?.loja?.nomeFantasia}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div className="info-box">
                 <h3 className="font-semibold text-sm mb-2 text-gray-400">Cliente</h3>
                 <p className="text-white">{osDetalhada?.cliente?.nome}</p>
