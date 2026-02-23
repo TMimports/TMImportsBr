@@ -80,6 +80,81 @@ router.get('/alertas', async (req: AuthRequest, res) => {
   }
 });
 
+router.post('/retroativas', async (req: AuthRequest, res) => {
+  try {
+    const userRole = req.user?.role;
+    if (!['ADMIN_GERAL', 'ADMIN_REDE'].includes(userRole || '')) {
+      return res.status(403).json({ error: 'Apenas administradores podem executar esta ação' });
+    }
+
+    const vendas = await prisma.venda.findMany({
+      where: {
+        tipo: 'VENDA',
+        deletedAt: null,
+        itens: {
+          some: { unidadeFisicaId: { not: null } }
+        }
+      },
+      include: {
+        itens: {
+          where: { unidadeFisicaId: { not: null } }
+        },
+        _count: { select: { garantias: true } }
+      }
+    });
+
+    let garantiasCriadas = 0;
+
+    for (const venda of vendas) {
+      for (const item of venda.itens) {
+        if (!item.unidadeFisicaId) continue;
+
+        const garantiasExistentes = await prisma.garantia.count({
+          where: { vendaId: venda.id, unidadeFisicaId: item.unidadeFisicaId }
+        });
+
+        if (garantiasExistentes > 0) continue;
+
+        const garantiasConfig = [
+          { tipo: 'geral', meses: 3 },
+          { tipo: 'motor', meses: 12 },
+          { tipo: 'modulo', meses: 12 },
+          { tipo: 'bateria', meses: 12 }
+        ];
+
+        for (const g of garantiasConfig) {
+          const dataInicio = new Date(venda.createdAt);
+          const dataFim = new Date(venda.createdAt);
+          dataFim.setMonth(dataFim.getMonth() + g.meses);
+
+          await prisma.garantia.create({
+            data: {
+              unidadeFisicaId: item.unidadeFisicaId,
+              clienteId: venda.clienteId,
+              vendaId: venda.id,
+              tipoGarantia: g.tipo,
+              meses: g.meses,
+              dataInicio,
+              dataFim
+            }
+          });
+          garantiasCriadas++;
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      garantiasCriadas,
+      vendasProcessadas: vendas.length,
+      mensagem: `${garantiasCriadas} garantias criadas retroativamente para ${vendas.length} vendas`
+    });
+  } catch (error) {
+    console.error('Erro ao criar garantias retroativas:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const { unidadeFisicaId, tipoGarantia, meses } = req.body;

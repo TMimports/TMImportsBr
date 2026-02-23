@@ -5,18 +5,22 @@
 This project is a comprehensive multi-company ERP system designed for TM Imports (headquarters) and its Tecle Motos franchises. It specializes in the management of electric motorcycles and scooters, encompassing products, inventory, sales, and financial operations.
 
 **Key Capabilities:**
-- Multi-company and franchise management via Groups
+- Multi-company and franchise management via Groups (each franchise gets its own group)
 - Product and service catalog with automated pricing
 - Centralized and per-store inventory management with transfers between stores of the same group
 - End-to-end sales workflow with approvals and accounts receivable generation
+- Automatic warranty creation (4 types: geral, motor, modulo, bateria) on motorcycle sales
+- Retroactive warranty generation endpoint (POST /api/garantias/retroativas) for existing sales
 - Complete service order management with real-time price breakdown
 - Comprehensive financial management (AR/AP, cash flow, bank reconciliation)
 - PWA Support for mobile installation and offline capabilities
 - Granular RBAC permission system with 5 roles
+- Strict multi-tenant isolation on all GET-by-ID routes (vendas, clientes, OS, grupos)
 - Group owner registration with temporary password and mandatory password change on first login
 - Admin-configurable percentage settings (commissions, discounts) with change history
 - Real-time group-wide stock monitoring (Utilidades page)
 - XLSX/CSV import for Units (Motos) with automatic product linking
+- Sales product selection filtered by store inventory (only shows products with stock in selected store)
 
 **Business Model:**
 - **Grupo** = A franchisee/owner entity that can contain multiple stores

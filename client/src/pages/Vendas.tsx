@@ -102,16 +102,21 @@ export function Vendas() {
   const [itensSelecionados, setItensSelecionados] = useState<ItemProduto[]>([]);
   const [unidadesDisponiveis, setUnidadesDisponiveis] = useState<UnidadeDisponivel[]>([]);
 
-  const loadUnidades = async (lojaId: string) => {
+  const loadProdutosLoja = async (lojaId: string) => {
     if (!lojaId) {
+      setProdutos([]);
       setUnidadesDisponiveis([]);
       return;
     }
     try {
-      const unidades = await api.get<UnidadeDisponivel[]>(`/unidades/disponiveis/${lojaId}`);
+      const [produtosData, unidades] = await Promise.all([
+        api.get<Produto[]>(`/vendas/produtos-disponiveis/${lojaId}`),
+        api.get<UnidadeDisponivel[]>(`/unidades/disponiveis/${lojaId}`)
+      ]);
+      setProdutos(produtosData.map((p: any) => ({ id: p.id, nome: p.nome, preco: Number(p.preco), tipo: p.tipo })));
       setUnidadesDisponiveis(unidades);
     } catch (err) {
-      console.error('Erro ao buscar unidades:', err);
+      console.error('Erro ao buscar produtos da loja:', err);
     }
   };
 
@@ -119,16 +124,16 @@ export function Vendas() {
     Promise.all([
       api.get<Venda[]>('/vendas'),
       api.get<Cliente[]>('/clientes'),
-      api.get<Produto[]>('/produtos'),
       api.get<Loja[]>('/lojas')
     ])
-      .then(([vendasData, clientesData, produtosData, lojasData]) => {
+      .then(([vendasData, clientesData, lojasData]) => {
         setVendas(vendasData);
         setClientes(clientesData);
-        setProdutos(produtosData);
         setLojas(lojasData);
         if (lojasData.length === 1) {
-          setForm(f => ({ ...f, lojaId: String(lojasData[0].id) }));
+          const lojaIdStr = String(lojasData[0].id);
+          setForm(f => ({ ...f, lojaId: lojaIdStr }));
+          loadProdutosLoja(lojaIdStr);
         }
       })
       .catch(console.error)
@@ -141,7 +146,7 @@ export function Vendas() {
 
   useEffect(() => {
     if (form.lojaId) {
-      loadUnidades(form.lojaId);
+      loadProdutosLoja(form.lojaId);
     }
   }, [form.lojaId]);
 
@@ -417,7 +422,7 @@ export function Vendas() {
                 value={form.lojaId}
                 onChange={(e) => {
                   setForm({ ...form, lojaId: e.target.value });
-                  loadUnidades(e.target.value);
+                  setItensSelecionados([]);
                 }}
                 className="input"
                 required
