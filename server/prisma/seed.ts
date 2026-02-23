@@ -1,4 +1,4 @@
-import { PrismaClient, Role, TipoProduto } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -75,24 +75,13 @@ async function main() {
     { nome: 'Solda', preco: 250, duracao: null }
   ];
 
-  for (const s of [...servicosPorTempo, ...servicosFixos]) {
-    await prisma.servico.upsert({
-      where: { id: 0 },
-      update: {},
-      create: s
-    });
-  }
-
   const servicosExistentes = await prisma.servico.count();
   if (servicosExistentes === 0) {
     for (const s of [...servicosPorTempo, ...servicosFixos]) {
       await prisma.servico.create({ data: s });
     }
+    console.log('Serviços criados:', servicosPorTempo.length + servicosFixos.length);
   }
-
-  console.log('Serviços criados');
-
-  // Produtos removidos - sistema zerado para primeiro uso
 
   const configExistente = await prisma.configuracao.count();
   if (configExistente === 0) {
