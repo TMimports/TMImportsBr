@@ -14,8 +14,6 @@ router.get('/', async (req: AuthRequest, res) => {
     const userLojaId = req.user?.lojaId;
     const where: any = {};
 
-    console.log('GET /garantias - user:', { userId, userRole, userGrupoId, userLojaId });
-
     if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
       if ((userRole === 'DONO_LOJA' || userRole === 'GERENTE_LOJA') && userGrupoId) {
         where.OR = [
@@ -30,8 +28,6 @@ router.get('/', async (req: AuthRequest, res) => {
       }
     }
 
-    console.log('Garantias where:', JSON.stringify(where));
-
     const garantias = await prisma.garantia.findMany({
       where,
       include: { 
@@ -41,8 +37,6 @@ router.get('/', async (req: AuthRequest, res) => {
       },
       orderBy: { dataFim: 'asc' }
     });
-
-    console.log('Garantias encontradas:', garantias.length);
 
     const resultado = garantias.map(g => ({
       ...g,
@@ -130,10 +124,13 @@ router.post('/retroativas', async (req: AuthRequest, res) => {
         const isMoto = item.produto?.tipo === 'MOTO';
         if (!isMoto) continue;
 
-        const garantiasExistentes = await prisma.garantia.count({
-          where: { vendaId: venda.id }
-        });
-
+        const whereGarantia: any = { vendaId: venda.id };
+        if (item.unidadeFisicaId) {
+          whereGarantia.unidadeFisicaId = item.unidadeFisicaId;
+        } else {
+          whereGarantia.unidadeFisicaId = null;
+        }
+        const garantiasExistentes = await prisma.garantia.count({ where: whereGarantia });
         if (garantiasExistentes > 0) continue;
 
         const garantiasConfig = [
@@ -148,17 +145,16 @@ router.post('/retroativas', async (req: AuthRequest, res) => {
           const dataFim = new Date(venda.createdAt);
           dataFim.setMonth(dataFim.getMonth() + g.meses);
 
-          await prisma.garantia.create({
-            data: {
-              unidadeFisicaId: item.unidadeFisicaId,
-              clienteId: venda.clienteId,
-              vendaId: venda.id,
-              tipoGarantia: g.tipo,
-              meses: g.meses,
-              dataInicio,
-              dataFim
-            }
-          });
+          const garantiaData: any = {
+            clienteId: venda.clienteId,
+            vendaId: venda.id,
+            tipoGarantia: g.tipo,
+            meses: g.meses,
+            dataInicio,
+            dataFim
+          };
+          if (item.unidadeFisicaId) garantiaData.unidadeFisicaId = item.unidadeFisicaId;
+          await prisma.garantia.create({ data: garantiaData });
           garantiasCriadas++;
         }
       }

@@ -148,8 +148,24 @@ router.put('/:id', async (req: AuthRequest, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const clienteId = Number(req.params.id);
+
+    const [vendasCount, osCount] = await Promise.all([
+      prisma.venda.count({ where: { clienteId } }),
+      prisma.ordemServico.count({ where: { clienteId } }),
+    ]);
+
+    if (vendasCount > 0 || osCount > 0) {
+      const refs: string[] = [];
+      if (vendasCount > 0) refs.push(`${vendasCount} venda(s)`);
+      if (osCount > 0) refs.push(`${osCount} ordem(ns) de serviço`);
+      return res.status(400).json({
+        error: `Não é possível excluir este cliente pois ele possui ${refs.join(' e ')} vinculada(s).`
+      });
+    }
+
     await prisma.cliente.delete({
-      where: { id: Number(req.params.id) }
+      where: { id: clienteId }
     });
 
     res.json({ message: 'Cliente excluído' });

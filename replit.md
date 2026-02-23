@@ -8,11 +8,13 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Multi-company and franchise management via Groups (each franchise gets its own group)
 - Product and service catalog with automated pricing
 - Centralized and per-store inventory management with transfers between stores of the same group
-- End-to-end sales workflow with approvals and accounts receivable generation
-- Automatic warranty creation (4 types: geral, motor, modulo, bateria) on motorcycle sales
+- End-to-end sales workflow with approvals and automatic accounts receivable generation for ALL payment types
+- Automatic warranty creation (4 types: geral, motor, modulo, bateria) on motorcycle sales (checks produto.tipo === 'MOTO')
 - Retroactive warranty generation endpoint (POST /api/garantias/retroativas) for existing sales
-- Complete service order management with real-time price breakdown
+- Retroactive ContaReceber generation endpoint (POST /api/financeiro/contas-receber/retroativas) for existing sales
+- Complete service order management with real-time price breakdown and ContaReceber on confirmation
 - Comprehensive financial management (AR/AP, cash flow, bank reconciliation)
+- Safe client deletion (prevents deletion if client has linked sales/OS)
 - PWA Support for mobile installation and offline capabilities
 - Granular RBAC permission system with 5 roles
 - Strict multi-tenant isolation on all GET-by-ID routes (vendas, clientes, OS, grupos)

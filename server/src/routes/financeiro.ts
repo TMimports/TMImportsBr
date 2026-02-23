@@ -89,6 +89,61 @@ router.get('/contas-receber', async (req: AuthRequest, res) => {
   }
 });
 
+router.post('/contas-receber/retroativas', requireRole('ADMIN_GERAL', 'ADMIN_REDE'), async (req: AuthRequest, res) => {
+  try {
+    const vendas = await prisma.venda.findMany({
+      where: { tipo: 'VENDA', confirmadaFinanceiro: true, deletedAt: null }
+    });
+
+    let contasCriadas = 0;
+    for (const venda of vendas) {
+      const contasExistentes = await prisma.contaReceber.count({ where: { vendaId: venda.id } });
+      if (contasExistentes > 0) continue;
+
+      const fp = venda.formaPagamento;
+      if (fp === 'FINANCIAMENTO' || (venda.parcelas && venda.parcelas > 1)) {
+        const numParcelas = venda.parcelas || 1;
+        const valorParcela = Number(venda.valorTotal) / numParcelas;
+        for (let i = 0; i < numParcelas; i++) {
+          const vencimento = new Date(venda.createdAt);
+          vencimento.setMonth(vencimento.getMonth() + i + 1);
+          await prisma.contaReceber.create({
+            data: {
+              lojaId: venda.lojaId, clienteId: venda.clienteId, vendaId: venda.id,
+              descricao: `Venda #${venda.id} - Parcela ${i + 1}/${numParcelas}`,
+              valor: valorParcela, vencimento, createdBy: req.user!.id
+            }
+          });
+          contasCriadas++;
+        }
+      } else {
+        const vencimento = new Date(venda.createdAt);
+        if (fp === 'CARTAO_CREDITO') vencimento.setDate(vencimento.getDate() + 30);
+        const isPago = fp === 'PIX' || fp === 'DINHEIRO' || fp === 'CARTAO_DEBITO';
+        await prisma.contaReceber.create({
+          data: {
+            lojaId: venda.lojaId, clienteId: venda.clienteId, vendaId: venda.id,
+            descricao: `Venda #${venda.id} - ${fp}`,
+            valor: Number(venda.valorTotal), vencimento, createdBy: req.user!.id,
+            pago: isPago, dataPago: isPago ? venda.createdAt : null
+          }
+        });
+        contasCriadas++;
+      }
+    }
+
+    res.json({
+      success: true,
+      contasCriadas,
+      vendasProcessadas: vendas.length,
+      mensagem: `${contasCriadas} contas a receber criadas retroativamente`
+    });
+  } catch (error) {
+    console.error('Erro ao criar contas retroativas:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.post('/contas-receber', async (req: AuthRequest, res) => {
   try {
     const { lojaId, clienteId, descricao, valor, vencimento, recorrente, recorrencia, observacoes } = req.body;

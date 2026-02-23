@@ -331,6 +331,17 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
       }
     });
 
+    await prisma.contaReceber.create({
+      data: {
+        lojaId: os.lojaId,
+        clienteId: osAtual.clienteId,
+        descricao: `OS #${os.numero}`,
+        valor: os.valorTotal,
+        vencimento: new Date(),
+        createdBy: req.user!.id
+      }
+    });
+
     if (osAtual.tecnico) {
       const tecnicoUser = await prisma.user.findFirst({
         where: { nome: osAtual.tecnico, role: 'TECNICO' }
