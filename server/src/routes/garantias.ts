@@ -13,9 +13,15 @@ router.get('/', async (req: AuthRequest, res) => {
 
     if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
       if (userRole === 'DONO_LOJA' && req.user?.grupoId) {
-        where.unidadeFisica = { loja: { grupoId: req.user.grupoId } };
+        where.OR = [
+          { unidadeFisica: { loja: { grupoId: req.user.grupoId } } },
+          { unidadeFisica: null, venda: { loja: { grupoId: req.user.grupoId } } }
+        ];
       } else if (req.user?.lojaId) {
-        where.unidadeFisica = { lojaId: req.user.lojaId };
+        where.OR = [
+          { unidadeFisica: { lojaId: req.user.lojaId } },
+          { unidadeFisica: null, venda: { lojaId: req.user.lojaId } }
+        ];
       }
     }
 
@@ -24,7 +30,7 @@ router.get('/', async (req: AuthRequest, res) => {
       include: { 
         unidadeFisica: { include: { produto: true, loja: true } },
         cliente: true,
-        venda: true
+        venda: { include: { itens: { include: { produto: true } }, loja: true } }
       },
       orderBy: { dataFim: 'asc' }
     });
@@ -93,7 +99,9 @@ router.post('/retroativas', async (req: AuthRequest, res) => {
         deletedAt: null
       },
       include: {
-        itens: true
+        itens: {
+          include: { produto: true }
+        }
       }
     });
 
@@ -110,10 +118,11 @@ router.post('/retroativas', async (req: AuthRequest, res) => {
       }
 
       for (const item of venda.itens) {
-        if (!item.unidadeFisicaId) continue;
+        const isMoto = item.produto?.tipo === 'MOTO';
+        if (!isMoto) continue;
 
         const garantiasExistentes = await prisma.garantia.count({
-          where: { vendaId: venda.id, unidadeFisicaId: item.unidadeFisicaId }
+          where: { vendaId: venda.id }
         });
 
         if (garantiasExistentes > 0) continue;

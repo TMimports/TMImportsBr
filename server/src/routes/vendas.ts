@@ -235,32 +235,34 @@ router.post('/', async (req: AuthRequest, res) => {
         }
       });
 
-      for (const item of itensProcessados) {
-        if (item.unidadeFisicaId) {
-          const garantiasConfig = [
-            { tipo: 'geral', meses: 3 },
-            { tipo: 'motor', meses: 12 },
-            { tipo: 'modulo', meses: 12 },
-            { tipo: 'bateria', meses: 12 }
-          ];
+      for (const item of venda.itens) {
+        if (!item.produtoId) continue;
+        const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
+        if (!produto || produto.tipo !== 'MOTO') continue;
+
+        const garantiasConfig = [
+          { tipo: 'geral', meses: 3 },
+          { tipo: 'motor', meses: 12 },
+          { tipo: 'modulo', meses: 12 },
+          { tipo: 'bateria', meses: 12 }
+        ];
           
-          for (const g of garantiasConfig) {
-            const dataInicio = new Date();
-            const dataFim = new Date();
-            dataFim.setMonth(dataFim.getMonth() + g.meses);
+        for (const g of garantiasConfig) {
+          const dataInicio = new Date();
+          const dataFim = new Date();
+          dataFim.setMonth(dataFim.getMonth() + g.meses);
             
-            await prisma.garantia.create({
-              data: {
-                unidadeFisicaId: item.unidadeFisicaId,
-                clienteId: Number(clienteId),
-                vendaId: venda.id,
-                tipoGarantia: g.tipo,
-                meses: g.meses,
-                dataInicio,
-                dataFim
-              }
-            });
-          }
+          await prisma.garantia.create({
+            data: {
+              unidadeFisicaId: item.unidadeFisicaId,
+              clienteId: Number(clienteId),
+              vendaId: venda.id,
+              tipoGarantia: g.tipo,
+              meses: g.meses,
+              dataInicio,
+              dataFim
+            }
+          });
         }
       }
     }
@@ -524,31 +526,33 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
     });
 
     for (const item of venda.itens) {
-      if (item.unidadeFisicaId) {
-        const garantiasConfig = [
-          { tipo: 'geral', meses: 3 },
-          { tipo: 'motor', meses: 12 },
-          { tipo: 'modulo', meses: 12 },
-          { tipo: 'bateria', meses: 12 }
-        ];
+      if (!item.produtoId) continue;
+      const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
+      if (!produto || produto.tipo !== 'MOTO') continue;
+
+      const garantiasConfig = [
+        { tipo: 'geral', meses: 3 },
+        { tipo: 'motor', meses: 12 },
+        { tipo: 'modulo', meses: 12 },
+        { tipo: 'bateria', meses: 12 }
+      ];
         
-        for (const g of garantiasConfig) {
-          const dataInicio = new Date();
-          const dataFim = new Date();
-          dataFim.setMonth(dataFim.getMonth() + g.meses);
+      for (const g of garantiasConfig) {
+        const dataInicio = new Date();
+        const dataFim = new Date();
+        dataFim.setMonth(dataFim.getMonth() + g.meses);
           
-          await prisma.garantia.create({
-            data: {
-              unidadeFisicaId: item.unidadeFisicaId,
-              clienteId: venda.clienteId,
-              vendaId: venda.id,
-              tipoGarantia: g.tipo,
-              meses: g.meses,
-              dataInicio,
-              dataFim
-            }
-          });
-        }
+        await prisma.garantia.create({
+          data: {
+            unidadeFisicaId: item.unidadeFisicaId,
+            clienteId: venda.clienteId,
+            vendaId: venda.id,
+            tipoGarantia: g.tipo,
+            meses: g.meses,
+            dataInicio,
+            dataFim
+          }
+        });
       }
     }
 

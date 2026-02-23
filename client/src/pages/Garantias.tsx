@@ -8,9 +8,9 @@ interface Garantia {
   dataFim: string;
   ativa: boolean;
   revisaoFeita: boolean;
-  unidade?: { chassi: string; produto: { nome: string } };
+  unidade?: { chassi: string; produto: { nome: string }; loja?: { nomeFantasia: string } } | null;
   cliente?: { nome: string; telefone?: string };
-  venda?: { id: number; createdAt: string };
+  venda?: { id: number; createdAt: string; itens?: { produto?: { nome: string; tipo: string } }[]; loja?: { nomeFantasia: string } };
 }
 
 export function Garantias() {
@@ -129,10 +129,14 @@ export function Garantias() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                   <div>
                     <h3 className="font-semibold text-white">
-                      {garantia.unidade?.produto?.nome}
+                      {garantia.unidade?.produto?.nome || 
+                       garantia.venda?.itens?.find(i => i.produto?.tipo === 'MOTO')?.produto?.nome || 
+                       'Produto'}
                     </h3>
                     <p className="text-sm text-gray-400">
-                      Chassi: ...{garantia.unidade?.chassi?.slice(-6)}
+                      {garantia.unidade?.chassi 
+                        ? `Chassi: ...${garantia.unidade.chassi.slice(-6)}`
+                        : `Venda #${garantia.venda?.id || '-'}`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
