@@ -178,41 +178,36 @@ router.delete('/:id', requireAdminRede, async (req, res) => {
   try {
     const lojaId = Number(req.params.id);
 
-    const [usuariosCount, unidadesCount, estoqueCount, vendasCount, osCount, caixaCount] = await Promise.all([
-      prisma.user.count({ where: { lojaId } }),
-      prisma.unidadeFisica.count({ where: { lojaId } }),
-      prisma.estoque.count({ where: { lojaId } }),
-      prisma.venda.count({ where: { lojaId } }),
-      prisma.ordemServico.count({ where: { lojaId } }),
-      prisma.caixa.count({ where: { lojaId } })
-    ]);
+    const vendaIds = (await prisma.venda.findMany({ where: { lojaId }, select: { id: true } })).map(v => v.id);
+    const osIds = (await prisma.ordemServico.findMany({ where: { lojaId }, select: { id: true } })).map(o => o.id);
 
-    if (usuariosCount > 0) {
-      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${usuariosCount} usuario(s) vinculado(s) a esta loja.` });
+    if (vendaIds.length > 0) {
+      await prisma.comissao.deleteMany({ where: { vendaId: { in: vendaIds } } });
+      await prisma.contaReceber.deleteMany({ where: { vendaId: { in: vendaIds } } });
+      await prisma.garantia.deleteMany({ where: { vendaId: { in: vendaIds } } });
+      await prisma.itemVenda.deleteMany({ where: { vendaId: { in: vendaIds } } });
+      await prisma.venda.deleteMany({ where: { lojaId } });
     }
-    if (unidadesCount > 0) {
-      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${unidadesCount} unidade(s) vinculada(s) a esta loja.` });
+
+    if (osIds.length > 0) {
+      await prisma.comissao.deleteMany({ where: { ordemServicoId: { in: osIds } } });
+      await prisma.itemOS.deleteMany({ where: { ordemServicoId: { in: osIds } } });
+      await prisma.ordemServico.deleteMany({ where: { lojaId } });
     }
-    if (estoqueCount > 0) {
-      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${estoqueCount} registro(s) de estoque vinculado(s) a esta loja.` });
-    }
-    if (vendasCount > 0) {
-      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${vendasCount} venda(s) vinculada(s) a esta loja.` });
-    }
-    if (osCount > 0) {
-      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${osCount} ordem(ns) de servico vinculada(s) a esta loja.` });
-    }
-    if (caixaCount > 0) {
-      return res.status(400).json({ error: `Nao e possivel excluir. Existem ${caixaCount} registro(s) de caixa vinculado(s) a esta loja.` });
-    }
+
+    await prisma.logEstoque.deleteMany({ where: { lojaId } });
+    await prisma.estoque.deleteMany({ where: { lojaId } });
+    await prisma.unidadeFisica.deleteMany({ where: { lojaId } });
+    await prisma.caixa.deleteMany({ where: { lojaId } });
+    await prisma.contaReceber.deleteMany({ where: { lojaId } });
+    await prisma.contaPagar.deleteMany({ where: { lojaId } });
+    await prisma.cliente.deleteMany({ where: { lojaId } });
+    await prisma.user.deleteMany({ where: { lojaId } });
 
     await prisma.loja.delete({ where: { id: lojaId } });
-    res.json({ success: true });
+    res.json({ success: true, message: 'Loja e todos os dados vinculados removidos com sucesso' });
   } catch (error: any) {
     console.error('Erro ao excluir loja:', error);
-    if (error.code === 'P2003') {
-      return res.status(400).json({ error: 'Nao e possivel excluir. Existem registros vinculados a esta loja.' });
-    }
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

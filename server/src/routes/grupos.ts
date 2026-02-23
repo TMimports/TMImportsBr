@@ -133,27 +133,31 @@ router.delete('/:id', async (req, res) => {
     const lojaIds = lojas.map(l => l.id);
 
     if (lojaIds.length > 0) {
-      const [vendasCount, osCount, clientesCount] = await Promise.all([
-        prisma.venda.count({ where: { lojaId: { in: lojaIds }, deletedAt: null } }),
-        prisma.ordemServico.count({ where: { lojaId: { in: lojaIds }, deletedAt: null } }),
-        prisma.cliente.count({ where: { lojaId: { in: lojaIds } } })
-      ]);
+      const vendaIds = (await prisma.venda.findMany({ where: { lojaId: { in: lojaIds } }, select: { id: true } })).map(v => v.id);
+      const osIds = (await prisma.ordemServico.findMany({ where: { lojaId: { in: lojaIds } }, select: { id: true } })).map(o => o.id);
 
-      if (vendasCount > 0 || osCount > 0 || clientesCount > 0) {
-        const refs: string[] = [];
-        if (vendasCount > 0) refs.push(`${vendasCount} venda(s)`);
-        if (osCount > 0) refs.push(`${osCount} OS`);
-        if (clientesCount > 0) refs.push(`${clientesCount} cliente(s)`);
-        return res.status(400).json({
-          error: `Não é possível excluir este grupo pois possui ${refs.join(', ')} vinculado(s). Exclua os dados primeiro.`
-        });
+      if (vendaIds.length > 0) {
+        await prisma.comissao.deleteMany({ where: { vendaId: { in: vendaIds } } });
+        await prisma.contaReceber.deleteMany({ where: { vendaId: { in: vendaIds } } });
+        await prisma.garantia.deleteMany({ where: { vendaId: { in: vendaIds } } });
+        await prisma.itemVenda.deleteMany({ where: { vendaId: { in: vendaIds } } });
+        await prisma.venda.deleteMany({ where: { lojaId: { in: lojaIds } } });
+      }
+
+      if (osIds.length > 0) {
+        await prisma.comissao.deleteMany({ where: { ordemServicoId: { in: osIds } } });
+        await prisma.itemOS.deleteMany({ where: { ordemServicoId: { in: osIds } } });
+        await prisma.ordemServico.deleteMany({ where: { lojaId: { in: lojaIds } } });
       }
 
       for (const lojaId of lojaIds) {
+        await prisma.logEstoque.deleteMany({ where: { lojaId } });
         await prisma.estoque.deleteMany({ where: { lojaId } });
+        await prisma.unidadeFisica.deleteMany({ where: { lojaId } });
         await prisma.caixa.deleteMany({ where: { lojaId } });
         await prisma.contaReceber.deleteMany({ where: { lojaId } });
         await prisma.contaPagar.deleteMany({ where: { lojaId } });
+        await prisma.cliente.deleteMany({ where: { lojaId } });
       }
     }
 
