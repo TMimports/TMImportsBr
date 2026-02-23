@@ -34,6 +34,14 @@ const isDev = process.env.NODE_ENV !== 'production';
 app.use(cors());
 app.use(express.json());
 
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.set('Surrogate-Control', 'no-store');
+  next();
+});
+
 app.get('/api/setup', async (req, res) => {
   try {
     const bcrypt = await import('bcryptjs');
@@ -102,10 +110,19 @@ app.use('/api/configuracoes', configuracoesRoutes);
 app.use('/api/admin', adminRoutes);
 
 if (!isDev) {
-  app.use(express.static(path.join(process.cwd(), 'client/dist')));
+  app.use(express.static(path.join(process.cwd(), 'client/dist'), {
+    maxAge: '1y',
+    immutable: true,
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
 
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(path.join(process.cwd(), 'client/dist/index.html'));
     }
   });
