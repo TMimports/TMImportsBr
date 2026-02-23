@@ -46,6 +46,16 @@ export function Garantias() {
     }
   };
 
+  const excluirGarantia = async (id: number) => {
+    if (!confirm('Tem certeza que deseja excluir esta garantia?')) return;
+    try {
+      await api.delete(`/garantias/${id}`);
+      loadData();
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir');
+    }
+  };
+
   const garantiasFiltradas = garantias.filter(g => {
     const dias = calcularDiasRestantes(g.dataFim);
     if (filtro === 'ativas') return dias > 5;
@@ -178,16 +188,24 @@ export function Garantias() {
 
                 <div className="mt-3 pt-3 border-t border-zinc-700 flex items-center justify-between">
                   <span className="text-sm text-gray-400">Revisao feita?</span>
-                  <button
-                    onClick={() => marcarRevisao(garantia.id, !garantia.revisaoFeita)}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                      garantia.revisaoFeita 
-                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
-                        : 'bg-zinc-700 text-gray-400 hover:bg-zinc-600'
-                    }`}
-                  >
-                    {garantia.revisaoFeita ? 'Sim' : 'Nao'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => marcarRevisao(garantia.id, !garantia.revisaoFeita)}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                        garantia.revisaoFeita 
+                          ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' 
+                          : 'bg-zinc-700 text-gray-400 hover:bg-zinc-600'
+                      }`}
+                    >
+                      {garantia.revisaoFeita ? 'Sim' : 'Nao'}
+                    </button>
+                    <button
+                      onClick={() => excluirGarantia(garantia.id)}
+                      className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                    >
+                      Excluir
+                    </button>
+                  </div>
                 </div>
               </div>
             );

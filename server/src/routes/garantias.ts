@@ -173,6 +173,26 @@ router.post('/retroativas', async (req: AuthRequest, res) => {
   }
 });
 
+router.delete('/:id', async (req: AuthRequest, res) => {
+  try {
+    const userRole = req.user?.role;
+    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userRole || '')) {
+      return res.status(403).json({ error: 'Sem permissão para excluir garantias' });
+    }
+
+    const garantia = await prisma.garantia.findUnique({ where: { id: Number(req.params.id) } });
+    if (!garantia) {
+      return res.status(404).json({ error: 'Garantia não encontrada' });
+    }
+
+    await prisma.garantia.delete({ where: { id: Number(req.params.id) } });
+    res.json({ message: 'Garantia excluída com sucesso' });
+  } catch (error) {
+    console.error('Erro ao excluir garantia:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const { unidadeFisicaId, tipoGarantia, meses } = req.body;
