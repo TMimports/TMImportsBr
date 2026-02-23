@@ -127,9 +127,39 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    await prisma.grupo.delete({
-      where: { id: Number(req.params.id) }
-    });
+    const grupoId = Number(req.params.id);
+
+    const lojas = await prisma.loja.findMany({ where: { grupoId }, select: { id: true } });
+    const lojaIds = lojas.map(l => l.id);
+
+    if (lojaIds.length > 0) {
+      const [vendasCount, osCount, clientesCount] = await Promise.all([
+        prisma.venda.count({ where: { lojaId: { in: lojaIds }, deletedAt: null } }),
+        prisma.ordemServico.count({ where: { lojaId: { in: lojaIds }, deletedAt: null } }),
+        prisma.cliente.count({ where: { lojaId: { in: lojaIds } } })
+      ]);
+
+      if (vendasCount > 0 || osCount > 0 || clientesCount > 0) {
+        const refs: string[] = [];
+        if (vendasCount > 0) refs.push(`${vendasCount} venda(s)`);
+        if (osCount > 0) refs.push(`${osCount} OS`);
+        if (clientesCount > 0) refs.push(`${clientesCount} cliente(s)`);
+        return res.status(400).json({
+          error: `Não é possível excluir este grupo pois possui ${refs.join(', ')} vinculado(s). Exclua os dados primeiro.`
+        });
+      }
+
+      for (const lojaId of lojaIds) {
+        await prisma.estoque.deleteMany({ where: { lojaId } });
+        await prisma.caixa.deleteMany({ where: { lojaId } });
+        await prisma.contaReceber.deleteMany({ where: { lojaId } });
+        await prisma.contaPagar.deleteMany({ where: { lojaId } });
+      }
+    }
+
+    await prisma.user.deleteMany({ where: { OR: [{ grupoId }, { lojaId: { in: lojaIds } }] } });
+    await prisma.loja.deleteMany({ where: { grupoId } });
+    await prisma.grupo.delete({ where: { id: grupoId } });
 
     res.json({ message: 'Grupo removido com sucesso' });
   } catch (error) {
