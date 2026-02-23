@@ -128,14 +128,14 @@ export function ContasReceber() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Contas a Receber</h1>
         <button onClick={() => setModalOpen(true)} className="btn btn-primary">
           + Nova Conta
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="card">
           <p className="text-gray-400 text-sm">Total Pendente</p>
           <p className="text-2xl font-bold text-yellow-400">
@@ -226,7 +226,7 @@ export function ContasReceber() {
 
       {modalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 rounded-lg p-6 w-full max-w-md">
+          <div className="bg-zinc-900 rounded-lg p-6 w-full max-w-md mx-4">
             <h2 className="text-xl font-bold mb-4">{editando ? 'Editar Conta a Receber' : 'Nova Conta a Receber'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               {lojas.length > 1 && (

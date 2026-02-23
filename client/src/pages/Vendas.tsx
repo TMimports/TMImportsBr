@@ -322,7 +322,7 @@ export function Vendas() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Vendas</h1>
         <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova Venda</button>
       </div>
@@ -513,7 +513,7 @@ export function Vendas() {
               <div className="space-y-3">
                 {itensSelecionados.map((item, index) => (
                   <div key={index} className="p-3 bg-zinc-800 rounded-lg">
-                    <div className="flex gap-3 items-center">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                       <div className="flex-1 relative">
                         <div 
                           className="w-full px-4 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg cursor-pointer flex justify-between items-center hover:border-orange-500 transition-colors"
@@ -559,22 +559,24 @@ export function Vendas() {
                           )}
                         </div>
                       </div>
-                      <input
-                        type="number"
-                        min="1"
-                        value={item.quantidade}
-                        onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value))}
-                        className="input w-20"
-                      />
-                      <span className="text-green-400 w-24 text-right">
-                        R$ {(item.preco * item.quantidade).toFixed(2)}
-                      </span>
-                      <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400">
-                        X
-                      </button>
+                      <div className="flex gap-3 items-center">
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantidade}
+                          onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value))}
+                          className="input w-20"
+                        />
+                        <span className="text-green-400 w-24 text-right">
+                          R$ {(item.preco * item.quantidade).toFixed(2)}
+                        </span>
+                        <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400">
+                          X
+                        </button>
+                      </div>
                     </div>
                     {item.tipo === 'MOTO' && (
-                      <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                           <label className="text-xs text-gray-400">Numero do Chassi *</label>
                           <input

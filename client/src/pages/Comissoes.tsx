@@ -113,7 +113,7 @@ export function Comissoes() {
     <div>
       <h1 className="text-2xl font-bold mb-6">Comissoes</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="card">
           <p className="text-gray-400 text-sm">Total Geral</p>
           <p className="text-2xl font-bold text-orange-400">

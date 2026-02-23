@@ -276,7 +276,7 @@ export function Clientes() {
 
           <div className="border-t border-zinc-700 pt-4 mt-4">
             <h3 className="font-semibold mb-3">Endereco</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="label">CEP *</label>
                 <div className="flex gap-2">
@@ -292,7 +292,7 @@ export function Clientes() {
                   {buscandoCep && <span className="text-sm text-gray-400 self-center">...</span>}
                 </div>
               </div>
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <label className="label">Logradouro</label>
                 <input
                   type="text"
@@ -302,7 +302,7 @@ export function Clientes() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-4 gap-4 mt-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3">
               <div>
                 <label className="label">Numero</label>
                 <input
@@ -321,7 +321,7 @@ export function Clientes() {
                   className="input"
                 />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-2 sm:col-span-2">
                 <label className="label">Bairro</label>
                 <input
                   type="text"
@@ -331,8 +331,8 @@ export function Clientes() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 mt-3">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
+              <div className="sm:col-span-2">
                 <label className="label">Cidade</label>
                 <input
                   type="text"

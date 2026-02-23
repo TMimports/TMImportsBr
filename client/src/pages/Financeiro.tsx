@@ -202,7 +202,7 @@ export function Financeiro() {
 
       <div className="card">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[700px]">
             <thead>
               <tr className="text-left text-gray-400 text-sm border-b border-zinc-800">
                 <th className="pb-3 font-medium">Descricao</th>

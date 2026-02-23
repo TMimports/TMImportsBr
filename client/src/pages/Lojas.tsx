@@ -193,9 +193,9 @@ export function Lojas() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Lojas</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ImportExport entity="lojas" onImportSuccess={loadLojas} />
           {selecionados.length > 0 && (
             <button onClick={handleExcluirSelecionados} className="btn btn-danger">
@@ -206,8 +206,8 @@ export function Lojas() {
         </div>
       </div>
 
-      <div className="card">
-        <table className="w-full">
+      <div className="card overflow-x-auto">
+        <table className="w-full min-w-[600px]">
           <thead>
             <tr>
               <th className="text-left p-3 border-b border-zinc-700">
@@ -338,7 +338,7 @@ export function Lojas() {
               placeholder="Rua, numero, complemento"
             />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="label">CEP</label>
               <input

@@ -320,7 +320,7 @@ export function OrdensServico() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Ordens de Servico</h1>
         <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova OS</button>
       </div>
@@ -471,7 +471,7 @@ export function OrdensServico() {
             ) : (
               <div className="space-y-2">
                 {servicosSelecionados.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-center">
+                  <div key={index} className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <select
                       value={item.servicoId}
                       onChange={(e) => atualizarServico(index, 'servicoId', e.target.value)}
@@ -484,19 +484,21 @@ export function OrdensServico() {
                         </option>
                       ))}
                     </select>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantidade}
-                      onChange={(e) => atualizarServico(index, 'quantidade', parseInt(e.target.value))}
-                      className="input w-20"
-                    />
-                    <span className="text-green-400 w-24 text-right">
-                      R$ {(item.preco * item.quantidade).toFixed(2)}
-                    </span>
-                    <button type="button" onClick={() => removerServico(index)} className="text-red-500 hover:text-red-400">
-                      X
-                    </button>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantidade}
+                        onChange={(e) => atualizarServico(index, 'quantidade', parseInt(e.target.value))}
+                        className="input w-20"
+                      />
+                      <span className="text-green-400 w-24 text-right">
+                        R$ {(item.preco * item.quantidade).toFixed(2)}
+                      </span>
+                      <button type="button" onClick={() => removerServico(index)} className="text-red-500 hover:text-red-400">
+                        X
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -515,7 +517,7 @@ export function OrdensServico() {
             ) : (
               <div className="space-y-2">
                 {pecasSelecionadas.map((item, index) => (
-                  <div key={index} className="flex gap-2 items-center">
+                  <div key={index} className="flex flex-col sm:flex-row gap-2 sm:items-center">
                     <select
                       value={item.produtoId}
                       onChange={(e) => atualizarPeca(index, 'produtoId', e.target.value)}
@@ -528,19 +530,21 @@ export function OrdensServico() {
                         </option>
                       ))}
                     </select>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantidade}
-                      onChange={(e) => atualizarPeca(index, 'quantidade', parseInt(e.target.value))}
-                      className="input w-20"
-                    />
-                    <span className="text-green-400 w-24 text-right">
-                      R$ {(item.preco * item.quantidade).toFixed(2)}
-                    </span>
-                    <button type="button" onClick={() => removerPeca(index)} className="text-red-500 hover:text-red-400">
-                      X
-                    </button>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantidade}
+                        onChange={(e) => atualizarPeca(index, 'quantidade', parseInt(e.target.value))}
+                        className="input w-20"
+                      />
+                      <span className="text-green-400 w-24 text-right">
+                        R$ {(item.preco * item.quantidade).toFixed(2)}
+                      </span>
+                      <button type="button" onClick={() => removerPeca(index)} className="text-red-500 hover:text-red-400">
+                        X
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

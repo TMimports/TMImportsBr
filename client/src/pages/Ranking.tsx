@@ -73,13 +73,13 @@ export function Ranking() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Ranking de Vendas</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <select
             value={periodo}
             onChange={(e) => setPeriodo(e.target.value)}
-            className="input w-40"
+            className="input w-full sm:w-40"
           >
             <option value="7">Ultimos 7 dias</option>
             <option value="30">Ultimos 30 dias</option>
@@ -89,7 +89,7 @@ export function Ranking() {
           <select
             value={ordem}
             onChange={(e) => setOrdem(e.target.value as 'desc' | 'asc')}
-            className="input w-40"
+            className="input w-full sm:w-40"
           >
             <option value="desc">Mais vendidos</option>
             <option value="asc">Menos vendidos</option>
@@ -162,11 +162,11 @@ export function Ranking() {
       </div>
 
       {tabAtiva === 'produtos' && (
-        <div className="card">
+        <div className="card overflow-x-auto">
           <h3 className="text-lg font-medium mb-4">
             {ordem === 'desc' ? 'Top 20 Produtos Mais Vendidos' : 'Top 20 Produtos Menos Vendidos'}
           </h3>
-          <table className="w-full">
+          <table className="w-full min-w-[600px]">
             <thead>
               <tr>
                 <th className="text-left p-3 border-b border-zinc-700 text-gray-400">#</th>
@@ -220,11 +220,11 @@ export function Ranking() {
       )}
 
       {tabAtiva === 'servicos' && (
-        <div className="card">
+        <div className="card overflow-x-auto">
           <h3 className="text-lg font-medium mb-4">
             {ordem === 'desc' ? 'Top 20 Servicos Mais Executados' : 'Top 20 Servicos Menos Executados'}
           </h3>
-          <table className="w-full">
+          <table className="w-full min-w-[500px]">
             <thead>
               <tr>
                 <th className="text-left p-3 border-b border-zinc-700 text-gray-400">#</th>
