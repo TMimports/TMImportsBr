@@ -42,20 +42,6 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-app.get('/api/diagnostico', async (_req, res) => {
-  try {
-    const vendas = await prisma.venda.count();
-    const lojas = await prisma.loja.count();
-    const grupos = await prisma.grupo.count();
-    const users = await prisma.user.count();
-    const clientes = await prisma.cliente.count();
-    const dbUrl = process.env.DATABASE_URL || 'NOT SET';
-    res.json({ vendas, lojas, grupos, users, clientes, dbUrl, env: process.env.NODE_ENV, timestamp: new Date().toISOString() });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.get('/api/setup', async (req, res) => {
   try {
     const bcrypt = await import('bcryptjs');
