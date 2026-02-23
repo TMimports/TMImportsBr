@@ -90,22 +90,25 @@ router.post('/retroativas', async (req: AuthRequest, res) => {
     const vendas = await prisma.venda.findMany({
       where: {
         tipo: 'VENDA',
-        deletedAt: null,
-        itens: {
-          some: { unidadeFisicaId: { not: null } }
-        }
+        deletedAt: null
       },
       include: {
-        itens: {
-          where: { unidadeFisicaId: { not: null } }
-        },
-        _count: { select: { garantias: true } }
+        itens: true
       }
     });
 
     let garantiasCriadas = 0;
+    let vendasCorrigidas = 0;
 
     for (const venda of vendas) {
+      if (!venda.confirmadaFinanceiro) {
+        await prisma.venda.update({
+          where: { id: venda.id },
+          data: { confirmadaFinanceiro: true }
+        });
+        vendasCorrigidas++;
+      }
+
       for (const item of venda.itens) {
         if (!item.unidadeFisicaId) continue;
 
@@ -146,8 +149,9 @@ router.post('/retroativas', async (req: AuthRequest, res) => {
     res.json({
       success: true,
       garantiasCriadas,
+      vendasCorrigidas,
       vendasProcessadas: vendas.length,
-      mensagem: `${garantiasCriadas} garantias criadas retroativamente para ${vendas.length} vendas`
+      mensagem: `${garantiasCriadas} garantias criadas e ${vendasCorrigidas} vendas corrigidas para confirmada`
     });
   } catch (error) {
     console.error('Erro ao criar garantias retroativas:', error);
