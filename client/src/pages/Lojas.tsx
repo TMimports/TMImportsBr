@@ -173,14 +173,6 @@ export function Lojas() {
     );
   };
 
-  const toggleTodos = () => {
-    if (selecionados.length === lojas.length) {
-      setSelecionados([]);
-    } else {
-      setSelecionados(lojas.map(l => l.id));
-    }
-  };
-
   const abrirNovo = () => {
     setForm(initialForm);
     setEditando(false);
@@ -206,55 +198,29 @@ export function Lojas() {
         </div>
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full min-w-[600px]">
-          <thead>
-            <tr>
-              <th className="text-left p-3 border-b border-zinc-700">
+      {lojas.length === 0 ? (
+        <div className="card p-8 text-center text-gray-500">Nenhuma loja encontrada</div>
+      ) : (
+        <div className="space-y-3">
+          {lojas.map(loja => (
+            <div key={loja.id} className="card">
+              <div className="flex items-start gap-3">
                 <input
                   type="checkbox"
-                  checked={selecionados.length === lojas.length && lojas.length > 0}
-                  onChange={toggleTodos}
-                  className="rounded"
+                  checked={selecionados.includes(loja.id)}
+                  onChange={() => toggleSelecao(loja.id)}
+                  className="rounded mt-1"
                 />
-              </th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Nome Fantasia</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Grupo</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400 hidden md:table-cell">CNPJ</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400 hidden md:table-cell">Telefone</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Status</th>
-              <th className="text-left p-3 border-b border-zinc-700 text-gray-400">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lojas.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="p-4 text-center text-gray-500">
-                  Nenhuma loja encontrada
-                </td>
-              </tr>
-            ) : (
-              lojas.map(loja => (
-                <tr key={loja.id} className="hover:bg-zinc-700">
-                  <td className="p-3 border-b border-zinc-700">
-                    <input
-                      type="checkbox"
-                      checked={selecionados.includes(loja.id)}
-                      onChange={() => toggleSelecao(loja.id)}
-                      className="rounded"
-                    />
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">{loja.nomeFantasia || loja.razaoSocial}</td>
-                  <td className="p-3 border-b border-zinc-700 text-sm text-gray-400">{loja.grupo?.nome || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700 font-mono text-sm hidden md:table-cell">{formatCNPJ(loja.cnpj)}</td>
-                  <td className="p-3 border-b border-zinc-700 hidden md:table-cell">{loja.telefone || '-'}</td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <span className={`badge ${loja.ativo ? 'badge-success' : 'badge-danger'}`}>
-                      {loja.ativo ? 'Ativa' : 'Inativa'}
-                    </span>
-                  </td>
-                  <td className="p-3 border-b border-zinc-700">
-                    <div className="table-actions">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-white truncate">{loja.nomeFantasia || loja.razaoSocial}</h3>
+                      <p className="text-xs text-orange-400">{loja.grupo?.nome || '-'}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`badge ${loja.ativo ? 'badge-success' : 'badge-danger'}`}>
+                        {loja.ativo ? 'Ativa' : 'Inativa'}
+                      </span>
                       <button onClick={() => handleEditar(loja)} className="btn btn-sm btn-secondary">
                         Editar
                       </button>
@@ -262,13 +228,23 @@ export function Lojas() {
                         Excluir
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-sm">
+                    <div>
+                      <span className="text-gray-500">CNPJ: </span>
+                      <span className="text-gray-300 font-mono text-xs">{formatCNPJ(loja.cnpj)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Tel: </span>
+                      <span className="text-gray-300">{loja.telefone || '-'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Loja' : 'Nova Loja'}>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -380,7 +356,7 @@ export function Lojas() {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Telefone</label>
               <input

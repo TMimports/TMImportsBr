@@ -132,14 +132,6 @@ export function Grupos() {
     );
   };
 
-  const toggleTodos = () => {
-    if (selecionados.length === grupos.length) {
-      setSelecionados([]);
-    } else {
-      setSelecionados(grupos.map(g => g.id));
-    }
-  };
-
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-gray-400">Carregando...</div>;
   }
@@ -170,59 +162,48 @@ export function Grupos() {
           </div>
         </Card>
       ) : (
-        <Card padding="none">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[500px]">
-              <thead>
-                <tr className="border-b border-zinc-800">
-                  <th className="px-4 py-3 text-left">
-                    <input
-                      type="checkbox"
-                      checked={selecionados.length === grupos.length && grupos.length > 0}
-                      onChange={toggleTodos}
-                      className="rounded"
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Nome do Grupo</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Lojas</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase hidden md:table-cell">Usuarios</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase hidden md:table-cell">Criado em</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">Acoes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {grupos.map(grupo => (
-                  <tr key={grupo.id} className="hover:bg-zinc-800/50">
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selecionados.includes(grupo.id)}
-                        onChange={() => toggleSelecao(grupo.id)}
-                        className="rounded"
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-white font-medium">{grupo.nome}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300">{grupo._count?.lojas || 0}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300 hidden md:table-cell">{grupo._count?.usuarios || 0}</td>
-                    <td className="px-4 py-3 text-sm text-gray-300 hidden md:table-cell">
-                      {new Date(grupo.createdAt).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => verDetalhes(grupo)}>
-                          Detalhes
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => handleExcluir(grupo.id)}>
-                          Excluir
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <div className="space-y-3">
+          {grupos.map(grupo => (
+            <div key={grupo.id} className="card">
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selecionados.includes(grupo.id)}
+                  onChange={() => toggleSelecao(grupo.id)}
+                  className="rounded mt-1"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                    <div>
+                      <h3 className="font-semibold text-white">{grupo.nome}</h3>
+                      <p className="text-xs text-gray-500">
+                        Criado em {new Date(grupo.createdAt).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button variant="ghost" size="sm" onClick={() => verDetalhes(grupo)}>
+                        Detalhes
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => handleExcluir(grupo.id)}>
+                        Excluir
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-500">Lojas: </span>
+                      <span className="text-white font-medium">{grupo._count?.lojas || 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Usuarios: </span>
+                      <span className="text-white font-medium">{grupo._count?.usuarios || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Novo Grupo">
@@ -240,7 +221,7 @@ export function Grupos() {
               Dados do proprietario (usuario DONO_LOJA)
             </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <Input
                 label="Nome do Proprietario"
                 value={form.nomeProprietario}
@@ -287,7 +268,7 @@ export function Grupos() {
               Credenciais de acesso do proprietario:
             </p>
             <div className="space-y-1 text-sm">
-              <p><span className="text-gray-400">Email:</span> <span className="text-white">{sucessoModal?.email}</span></p>
+              <p><span className="text-gray-400">Email:</span> <span className="text-white break-all">{sucessoModal?.email}</span></p>
               <p><span className="text-gray-400">Senha temporaria:</span> <span className="text-white font-mono">{sucessoModal?.senha}</span></p>
             </div>
           </div>
@@ -298,7 +279,7 @@ export function Grupos() {
 
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={copiarCredenciais}>
-              Copiar Credenciais
+              Copiar
             </Button>
             <Button variant="primary" onClick={() => setSucessoModal(null)}>
               Fechar
@@ -320,7 +301,7 @@ export function Grupos() {
                 <ul className="space-y-2">
                   {detalhesGrupo.lojas.map(loja => (
                     <li key={loja.id} className="flex items-center gap-2 p-2 bg-zinc-800 rounded">
-                      <span className="text-orange-500">🏪</span>
+                      <span className="text-orange-500">&#x1F3EA;</span>
                       <span>{loja.nomeFantasia}</span>
                     </li>
                   ))}

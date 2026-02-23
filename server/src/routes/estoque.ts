@@ -64,7 +64,7 @@ router.get('/', async (req: AuthRequest, res) => {
 
     const estoques = await prisma.estoque.findMany({
       where,
-      include: { produto: true, loja: true },
+      include: { produto: true, loja: { include: { grupo: true } } },
       orderBy: { produto: { nome: 'asc' } }
     });
 
