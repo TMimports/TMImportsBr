@@ -9,21 +9,28 @@ router.use(verifyToken);
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const userRole = req.user?.role;
+    const userId = req.user?.id;
+    const userGrupoId = req.user?.grupoId;
+    const userLojaId = req.user?.lojaId;
     const where: any = {};
 
+    console.log('GET /garantias - user:', { userId, userRole, userGrupoId, userLojaId });
+
     if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
-      if (userRole === 'DONO_LOJA' && req.user?.grupoId) {
+      if ((userRole === 'DONO_LOJA' || userRole === 'GERENTE_LOJA') && userGrupoId) {
         where.OR = [
-          { unidadeFisica: { loja: { grupoId: req.user.grupoId } } },
-          { unidadeFisica: null, venda: { loja: { grupoId: req.user.grupoId } } }
+          { unidadeFisica: { loja: { grupoId: userGrupoId } } },
+          { unidadeFisicaId: null, venda: { loja: { grupoId: userGrupoId } } }
         ];
-      } else if (req.user?.lojaId) {
+      } else if (userLojaId) {
         where.OR = [
-          { unidadeFisica: { lojaId: req.user.lojaId } },
-          { unidadeFisica: null, venda: { lojaId: req.user.lojaId } }
+          { unidadeFisica: { lojaId: userLojaId } },
+          { unidadeFisicaId: null, venda: { lojaId: userLojaId } }
         ];
       }
     }
+
+    console.log('Garantias where:', JSON.stringify(where));
 
     const garantias = await prisma.garantia.findMany({
       where,
@@ -34,6 +41,8 @@ router.get('/', async (req: AuthRequest, res) => {
       },
       orderBy: { dataFim: 'asc' }
     });
+
+    console.log('Garantias encontradas:', garantias.length);
 
     const resultado = garantias.map(g => ({
       ...g,
