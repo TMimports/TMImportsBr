@@ -180,7 +180,7 @@ router.get('/:id/cliente', async (req, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { clienteId, unidadeFisicaId, motoDescricao, tecnico, observacoes, lojaId, itens, tipo } = req.body;
+    const { clienteId, unidadeFisicaId, motoDescricao, tecnico, observacoes, lojaId, itens, tipo, desconto: descontoForm } = req.body;
 
     if (!clienteId || !lojaId) {
       return res.status(400).json({ error: 'Cliente e loja são obrigatórios' });
@@ -235,7 +235,7 @@ router.post('/', async (req: AuthRequest, res) => {
           produtoId: item.produtoId || null,
           servicoId: item.servicoId || null,
           quantidade: item.quantidade,
-          precoUnitario: Number(item.precoUnitario) * (1 - desconto / 100)
+          precoUnitario: Number(item.precoUnitario)
         });
       }
     }
@@ -253,6 +253,7 @@ router.post('/', async (req: AuthRequest, res) => {
         lojaId: Number(lojaId),
         valorBruto,
         valorTotal,
+        desconto: Number(descontoForm) || 0,
         tipo: tipoOS,
         status: status as any,
         createdBy: req.user!.id,

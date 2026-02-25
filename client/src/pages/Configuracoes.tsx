@@ -37,6 +37,7 @@ export function Configuracoes() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
+  const [recalculando, setRecalculando] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -207,6 +208,25 @@ export function Configuracoes() {
             value={config.lucroPeca}
             onChange={(e) => setConfig({ ...config, lucroPeca: Number(e.target.value) })}
           />
+
+          <button
+            onClick={async () => {
+              if (!confirm('Recalcular os precos de TODOS os produtos com as margens atuais? (Salve as configuracoes antes)')) return;
+              setRecalculando(true);
+              try {
+                const result = await api.post<{ atualizados: number; totalProdutos: number }>('/configuracoes/recalcular-precos', {});
+                alert(`${result.atualizados} de ${result.totalProdutos} produtos atualizados com as novas margens.`);
+              } catch (err: any) {
+                alert(err.message || 'Erro ao recalcular');
+              } finally {
+                setRecalculando(false);
+              }
+            }}
+            disabled={recalculando}
+            className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {recalculando ? 'Recalculando...' : 'Recalcular Precos dos Produtos'}
+          </button>
         </div>
       </div>
 

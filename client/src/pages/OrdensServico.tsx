@@ -79,6 +79,11 @@ interface ItemPeca {
   preco: number;
 }
 
+interface ConfigDescontos {
+  descontoMaxPeca: number;
+  descontoMaxOS: number;
+}
+
 export function OrdensServico() {
   useAuth();
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
@@ -93,6 +98,7 @@ export function OrdensServico() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [osDetalhada, setOsDetalhada] = useState<OrdemServicoFull | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const [configDescontos, setConfigDescontos] = useState<ConfigDescontos>({ descontoMaxPeca: 10, descontoMaxOS: 10 });
   
   const [form, setForm] = useState({
     clienteId: '',
@@ -114,15 +120,17 @@ export function OrdensServico() {
       api.get<Servico[]>('/servicos'),
       api.get<Produto[]>('/produtos'),
       api.get<Loja[]>('/lojas'),
-      api.get<Usuario[]>('/usuarios')
+      api.get<Usuario[]>('/usuarios'),
+      api.get<ConfigDescontos>('/configuracoes/public')
     ])
-      .then(([ordensData, clientesData, servicosData, produtosData, lojasData, usuariosData]) => {
+      .then(([ordensData, clientesData, servicosData, produtosData, lojasData, usuariosData, configData]) => {
         setOrdens(ordensData);
         setClientes(clientesData);
         setServicos(servicosData);
         setProdutos(produtosData.filter(p => p.tipo === 'PECA'));
         setLojas(lojasData);
         setTecnicos(usuariosData.filter(u => u.role === 'TECNICO'));
+        if (configData) setConfigDescontos(configData);
         if (lojasData.length === 1) {
           setForm(f => ({ ...f, lojaId: String(lojasData[0].id) }));
         }
@@ -212,7 +220,8 @@ export function OrdensServico() {
           itens.push({
             produtoId: parseInt(p.produtoId),
             quantidade: p.quantidade,
-            precoUnitario: p.preco
+            precoUnitario: p.preco,
+            desconto: Number(form.desconto) || 0
           });
         }
       });
@@ -226,6 +235,7 @@ export function OrdensServico() {
         motoDescricao: form.motoDescricao,
         observacoes: form.observacoes,
         tipo: form.tipo,
+        desconto: Number(form.desconto) || 0,
         itens
       });
 
@@ -343,9 +353,27 @@ export function OrdensServico() {
                     {statusLabels[os.status] || os.status}
                   </span>
                 </div>
-                <button onClick={() => abrirVisualizacao(os.id)} className="btn btn-sm btn-secondary">
-                  Ver
-                </button>
+                <div className="flex gap-2">
+                  {os.tipo === 'ORCAMENTO' && os.status === 'ORCAMENTO' && (
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Converter este orcamento em OS? O estoque sera baixado.')) return;
+                        try {
+                          await api.put(`/os/${os.id}/converter-os`, {});
+                          loadData();
+                        } catch (err: any) {
+                          alert(err.message);
+                        }
+                      }}
+                      className="btn btn-sm btn-success"
+                    >
+                      Converter em OS
+                    </button>
+                  )}
+                  <button onClick={() => abrirVisualizacao(os.id)} className="btn btn-sm btn-secondary">
+                    Ver
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                 <div>
@@ -556,14 +584,15 @@ export function OrdensServico() {
             <input
               type="number"
               min="0"
-              max="10"
+              max="100"
               step="0.5"
               value={form.desconto}
               onChange={(e) => setForm({ ...form, desconto: e.target.value })}
               className="input"
+              placeholder={`Max: ${configDescontos.descontoMaxPeca}%`}
             />
             <p className="text-xs text-gray-500 mt-1">
-              Max 10% - Aplicado somente em pecas
+              Max {configDescontos.descontoMaxPeca}% - Aplicado somente em pecas (Gerentes: dobro)
             </p>
           </div>
 

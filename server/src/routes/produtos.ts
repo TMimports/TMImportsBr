@@ -7,13 +7,16 @@ const router = Router();
 
 router.use(verifyToken);
 
-function calcularPreco(custo: number, tipo: TipoProduto): number {
-  const percentualCusto = tipo === 'MOTO' ? 0.73 : 0.40;
-  return custo / percentualCusto;
+async function getMargens() {
+  const config = await prisma.configuracao.findFirst();
+  return {
+    lucroMoto: Number(config?.lucroMoto ?? 30),
+    lucroPeca: Number(config?.lucroPeca ?? 60)
+  };
 }
 
-function calcularLucro(tipo: TipoProduto): number {
-  return tipo === 'MOTO' ? 27 : 60;
+function calcularPrecoComMargem(custo: number, margemPercent: number): number {
+  return custo / (1 - margemPercent / 100);
 }
 
 router.get('/', async (req: AuthRequest, res) => {
@@ -56,8 +59,10 @@ router.post('/', requireAdminGeral, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Nome, tipo e custo são obrigatórios' });
     }
 
-    const lucro = percentualLucro ?? calcularLucro(tipo);
-    const precoCalculado = preco ?? calcularPreco(Number(custo), tipo);
+    const margens = await getMargens();
+    const margemTipo = tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca;
+    const lucro = percentualLucro ?? margemTipo;
+    const precoCalculado = preco ?? calcularPrecoComMargem(Number(custo), margemTipo);
 
     const produto = await prisma.produto.create({
       data: {

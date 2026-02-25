@@ -1,0 +1,91 @@
+1. Isolamento de Dados Multiloja
+
+Problema: Dados de garantias, comissões e dashboards estão misturados entre lojas.
+Correção:
+
+Banco de Dados: Adicionar empresa_id e grupo_id às tabelas críticas (vendas, ordens_serviço, garantias, comissoes, clientes, estoque, contas_receber, contas_pagar).
+
+Backend: Toda consulta deve respeitar WHERE empresa_id = session.empresa_id ou, em visões de rede, WHERE grupo_id = session.grupo_id.
+
+Dashboard: Aplicar filtro por empresa logada.
+
+2. Conversão de Orçamento para OS
+
+Problema: Não há conversão entre orçamento e OS.
+Correção:
+
+Banco de Dados: Criar campo status: ORCAMENTO | OS e orcamento_id.
+
+Backend: Criar função converterOrcamentoEmOS(orcamento_id) que duplica o registro, altera status para OS e gera número da OS.
+
+Frontend: Adicionar botão "Converter em OS" visível quando status for ORÇAMENTO.
+
+3. Desconto em Serviço Não Aplicado no Total
+
+Problema: Desconto é calculado, mas não reflete no total da OS.
+Correção: Garantir que o total da OS seja total = (peças + serviços) - desconto. O desconto deve ser parte da variável do total, não apenas visual.
+
+4. Desconto de Vendas Mostrando 3,5% ao Invés de 5%
+
+Problema: O sistema exibe o valor errado para o limite de desconto.
+Correção:
+
+Backend: Buscar sempre o valor de configuracoes.desconto_maximo e não usar valor fixo.
+
+Frontend: Remover valor fixo e buscar a configuração corretamente.
+
+5. Configuração de Margem Não Atualiza Produtos
+
+Problema: Mudança na margem de lucro não reflete no preço do produto.
+Correção: Sempre que alterar margem_pecas ou margem_motos, chamar recalcularPrecosProdutos().
+
+6. Módulo Utilidades Não Disponível Para Vendedor
+
+Problema: O módulo não aparece para o perfil vendedor.
+Correção: Na tabela de permissões, garantir que perfil: VENDEDOR tenha modulo_utilidades: true.
+
+7. Remover Módulo Unidades
+
+Problema: O módulo "Unidades" está obsoleto.
+Correção:
+
+Frontend: Remover item do menu.
+
+Backend: Desativar a rota, sem necessidade de apagar a tabela.
+
+8. Segurança - Senha Padrão
+
+Problema: Senha temporária não exige troca imediata.
+Correção: Implementar validação para obrigar troca de senha após login com senha temporária. Validar senha com no mínimo 8 caracteres.
+
+9. Middleware Global
+
+Correção: Criar middleware obrigatório validarEmpresa() que injeta automaticamente empresa_id = session.empresa_id em todas as consultas.
+
+Testes Obrigatórios
+
+Multiloja: Validar isolamento de dados entre lojas.
+
+OS: Testar conversão de orçamento para OS e aplicação de descontos.
+
+Configurações: Verificar recalculo de preços de produtos com novas margens.
+
+Desconto: Testar a atualização do limite de desconto exibido.
+
+Ordem de Implementação (Sprint)
+
+Isolamento multiloja
+
+Conversão de orçamento para OS
+
+Desconto em OS
+
+Limite de desconto dinâmico
+
+Recalcular margem de produtos
+
+Permissões para utilidades
+
+Remover módulo unidades
+
+Política de senha

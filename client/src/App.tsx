@@ -11,7 +11,7 @@ import { Lojas } from './pages/Lojas';
 import { Grupos } from './pages/Grupos';
 import { Usuarios } from './pages/Usuarios';
 import { Servicos } from './pages/Servicos';
-import { Unidades } from './pages/Unidades';
+
 import { Estoque } from './pages/Estoque';
 import { OrdensServico } from './pages/OrdensServico';
 import { Financeiro } from './pages/Financeiro';
@@ -63,7 +63,7 @@ function AppContent() {
       case 'servicos':
         return <Servicos />;
       case 'unidades':
-        return <Unidades />;
+        return <div className="card p-8 text-center text-gray-500">Modulo descontinuado. Utilize o Estoque.</div>;
       case 'estoque':
         return <Estoque />;
       case 'os':

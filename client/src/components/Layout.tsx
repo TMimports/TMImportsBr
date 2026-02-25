@@ -18,7 +18,6 @@ const menuItems = {
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
     { id: 'produtos', label: 'Produtos', icon: '📦' },
     { id: 'servicos', label: 'Servicos', icon: '🔧' },
-    { id: 'unidades', label: 'Unidades (Motos)', icon: '🏍️' },
     { id: 'estoque', label: 'Estoque', icon: '📋' },
     { id: 'clientes', label: 'Clientes', icon: '👤' },
     { id: 'vendas', label: 'Vendas', icon: '💰' },
@@ -39,7 +38,6 @@ const menuItems = {
   DONO_LOJA: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
-    { id: 'unidades', label: 'Unidades (Motos)', icon: '🏍️' },
     { id: 'estoque', label: 'Estoque', icon: '📋' },
     { id: 'clientes', label: 'Clientes', icon: '👤' },
     { id: 'vendas', label: 'Vendas', icon: '💰' },
@@ -70,6 +68,7 @@ const menuItems = {
     { id: 'os', label: 'Minhas OS', icon: '🔩' },
     { id: 'garantias', label: 'Garantias', icon: '📜' },
     { id: 'comissoes', label: 'Minhas Comissoes', icon: '💸' },
+    { id: 'utilidades', label: 'Utilidades', icon: '🔄' },
   ],
 };
 

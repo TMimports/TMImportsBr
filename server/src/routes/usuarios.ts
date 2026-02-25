@@ -83,6 +83,10 @@ router.post('/', requireGestorUsuarios, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Nome, email, senha e perfil são obrigatórios' });
     }
 
+    if (senha.length < 8) {
+      return res.status(400).json({ error: 'A senha deve ter no mínimo 8 caracteres' });
+    }
+
     const rolesPermitidosDonoLoja = ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
     if (req.user!.role === 'DONO_LOJA') {
       if (!rolesPermitidosDonoLoja.includes(role)) {
@@ -157,6 +161,9 @@ router.put('/:id', requireGestorUsuarios, async (req: AuthRequest, res) => {
     };
 
     if (senha) {
+      if (senha.length < 8) {
+        return res.status(400).json({ error: 'A senha deve ter no mínimo 8 caracteres' });
+      }
       data.senha = await bcrypt.hash(senha, 10);
     }
 

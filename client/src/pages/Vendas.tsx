@@ -77,6 +77,11 @@ interface UnidadeDisponivel {
   displayName: string;
 }
 
+interface ConfigDescontos {
+  descontoMaxMoto: number;
+  descontoMaxPeca: number;
+}
+
 export function Vendas() {
   useAuth();
   const [vendas, setVendas] = useState<Venda[]>([]);
@@ -89,6 +94,7 @@ export function Vendas() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [vendaDetalhada, setVendaDetalhada] = useState<VendaFull | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const [configDescontos, setConfigDescontos] = useState<ConfigDescontos>({ descontoMaxMoto: 3.5, descontoMaxPeca: 10 });
 
   const [form, setForm] = useState({
     clienteId: '',
@@ -124,12 +130,14 @@ export function Vendas() {
     Promise.all([
       api.get<Venda[]>('/vendas'),
       api.get<Cliente[]>('/clientes'),
-      api.get<Loja[]>('/lojas')
+      api.get<Loja[]>('/lojas'),
+      api.get<ConfigDescontos>('/configuracoes/public')
     ])
-      .then(([vendasData, clientesData, lojasData]) => {
+      .then(([vendasData, clientesData, lojasData, configData]) => {
         setVendas(vendasData);
         setClientes(clientesData);
         setLojas(lojasData);
+        if (configData) setConfigDescontos(configData);
         if (lojasData.length === 1) {
           const lojaIdStr = String(lojasData[0].id);
           setForm(f => ({ ...f, lojaId: lojaIdStr }));
@@ -636,11 +644,12 @@ export function Vendas() {
               type="number"
               step="0.1"
               min="0"
-              max="10"
+              max="100"
               value={form.desconto}
               onChange={(e) => setForm({ ...form, desconto: e.target.value })}
               className="input"
               disabled={form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO'}
+              placeholder={`Max: ${configDescontos.descontoMaxMoto}% motos, ${configDescontos.descontoMaxPeca}% pecas`}
             />
             {(form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO') ? (
               <p className="text-xs text-blue-400 mt-1">
@@ -648,7 +657,7 @@ export function Vendas() {
               </p>
             ) : (
               <p className="text-xs text-gray-500 mt-1">
-                Max: Moto 3.5%, Peca/Servico 10%
+                Max: Moto {configDescontos.descontoMaxMoto}%, Peca {configDescontos.descontoMaxPeca}% (Gerentes: dobro)
               </p>
             )}
           </div>

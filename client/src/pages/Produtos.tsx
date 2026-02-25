@@ -22,6 +22,11 @@ const initialForm = {
   descricao: ''
 };
 
+interface Margens {
+  lucroMoto: number;
+  lucroPeca: number;
+}
+
 export function Produtos() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,11 +37,23 @@ export function Produtos() {
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [busca, setBusca] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('TODOS');
+  const [margens, setMargens] = useState<Margens>({ lucroMoto: 30, lucroPeca: 60 });
 
   const loadProdutos = () => {
     setLoading(true);
-    api.get<Produto[]>('/produtos')
-      .then(setProdutos)
+    Promise.all([
+      api.get<Produto[]>('/produtos'),
+      api.get<any>('/configuracoes')
+    ])
+      .then(([produtosData, config]) => {
+        setProdutos(produtosData);
+        if (config) {
+          setMargens({
+            lucroMoto: Number(config.lucroMoto ?? 30),
+            lucroPeca: Number(config.lucroPeca ?? 60)
+          });
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   };
@@ -46,8 +63,8 @@ export function Produtos() {
   }, []);
 
   const calcularPreco = (custo: number, tipo: string) => {
-    const percentualCusto = tipo === 'MOTO' ? 0.7368 : 0.40;
-    return custo / percentualCusto;
+    const margem = tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca;
+    return custo / (1 - margem / 100);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -280,8 +297,8 @@ export function Produtos() {
               onChange={(e) => setForm({ ...form, tipo: e.target.value })}
               className="input"
             >
-              <option value="MOTO">Moto (Lucro 26,32% | Custo 73,68%)</option>
-              <option value="PECA">Peca (Lucro 60% | Custo 40%)</option>
+              <option value="MOTO">Moto (Margem {margens.lucroMoto}%)</option>
+              <option value="PECA">Peca (Margem {margens.lucroPeca}%)</option>
             </select>
           </div>
           <div>
@@ -302,7 +319,7 @@ export function Produtos() {
                 R$ {precoCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
               <p className="text-xs text-gray-500">
-                Formula: Custo / {form.tipo === 'MOTO' ? '73,68%' : '40%'} = Preco
+                Margem: {form.tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca}% (Custo / {(100 - (form.tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca)).toFixed(0)}%)
               </p>
             </div>
           )}

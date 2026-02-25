@@ -516,12 +516,16 @@ router.get('/comissoes', async (req: AuthRequest, res) => {
     
     if (req.user?.role === 'VENDEDOR' || req.user?.role === 'TECNICO') {
       where.usuarioId = req.user.id;
+    } else if (filter.grupoId) {
+      where.usuario = { grupoId: filter.grupoId };
+    } else if (filter.lojaId) {
+      where.usuario = { lojaId: filter.lojaId };
     }
 
     const comissoes = await prisma.comissao.findMany({
       where,
       include: {
-        usuario: { select: { id: true, nome: true } },
+        usuario: { select: { id: true, nome: true, role: true } },
         venda: { select: { id: true } },
         ordemServico: { select: { id: true, numero: true } }
       },

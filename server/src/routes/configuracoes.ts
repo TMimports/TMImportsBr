@@ -208,6 +208,44 @@ router.put('/', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
   }
 });
 
+router.post('/recalcular-precos', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
+  try {
+    const config = await prisma.configuracao.findFirst();
+    if (!config) {
+      return res.status(400).json({ error: 'Configurações não encontradas' });
+    }
+
+    const lucroMoto = Number(config.lucroMoto);
+    const lucroPeca = Number(config.lucroPeca);
+
+    const produtos = await prisma.produto.findMany({ where: { ativo: true } });
+    let atualizados = 0;
+
+    for (const produto of produtos) {
+      const margem = produto.tipo === 'MOTO' ? lucroMoto : lucroPeca;
+      const novoPreco = Number(produto.custo) / (1 - margem / 100);
+
+      if (Math.abs(Number(produto.preco) - novoPreco) > 0.01) {
+        await prisma.produto.update({
+          where: { id: produto.id },
+          data: { preco: novoPreco, percentualLucro: margem }
+        });
+        atualizados++;
+      }
+    }
+
+    res.json({
+      success: true,
+      atualizados,
+      totalProdutos: produtos.length,
+      margens: { lucroMoto, lucroPeca }
+    });
+  } catch (error) {
+    console.error('Erro ao recalcular preços:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.get('/logs', async (req: AuthRequest, res) => {
   try {
     const logs = await prisma.logConfiguracao.findMany({
