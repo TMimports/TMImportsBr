@@ -111,11 +111,13 @@ app.use('/api/admin', adminRoutes);
 
 if (!isDev) {
   app.use(express.static(path.join(process.cwd(), 'client/dist'), {
-    maxAge: '1y',
-    immutable: true,
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html')) {
+      if (filePath.endsWith('.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
         res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else if (filePath.includes('/assets/')) {
+        res.set('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        res.set('Cache-Control', 'no-cache');
       }
     }
   }));
