@@ -47,6 +47,7 @@ interface Servico {
   id: number;
   nome: string;
   preco: number;
+  duracao: number | null;
 }
 
 interface Produto {
@@ -81,6 +82,7 @@ interface ItemPeca {
 
 interface ConfigDescontos {
   descontoMaxPeca: number;
+  descontoMaxServico: number;
   descontoMaxOS: number;
 }
 
@@ -98,7 +100,7 @@ export function OrdensServico() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [osDetalhada, setOsDetalhada] = useState<OrdemServicoFull | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
-  const [configDescontos, setConfigDescontos] = useState<ConfigDescontos>({ descontoMaxPeca: 10, descontoMaxOS: 10 });
+  const [configDescontos, setConfigDescontos] = useState<ConfigDescontos>({ descontoMaxPeca: 10, descontoMaxServico: 10, descontoMaxOS: 10 });
   
   const [form, setForm] = useState({
     clienteId: '',
@@ -107,7 +109,8 @@ export function OrdensServico() {
     motoDescricao: '',
     observacoes: '',
     tipo: 'OS',
-    desconto: '0'
+    desconto: '0',
+    descontoServico: '0'
   });
 
   const [servicosSelecionados, setServicosSelecionados] = useState<ItemServico[]>([]);
@@ -184,8 +187,9 @@ export function OrdensServico() {
   const calcularTotal = () => {
     const totalServicos = servicosSelecionados.reduce((acc, s) => acc + (s.preco * s.quantidade), 0);
     const totalPecas = pecasSelecionadas.reduce((acc, p) => acc + (p.preco * p.quantidade), 0);
+    const descontoServicos = totalServicos * Number(form.descontoServico) / 100;
     const descontoPecas = totalPecas * Number(form.desconto) / 100;
-    return totalServicos + totalPecas - descontoPecas;
+    return totalServicos - descontoServicos + totalPecas - descontoPecas;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,7 +214,8 @@ export function OrdensServico() {
           itens.push({
             servicoId: parseInt(s.servicoId),
             quantidade: s.quantidade,
-            precoUnitario: s.preco
+            precoUnitario: s.preco,
+            desconto: Number(form.descontoServico) || 0
           });
         }
       });
@@ -236,11 +241,12 @@ export function OrdensServico() {
         observacoes: form.observacoes,
         tipo: form.tipo,
         desconto: Number(form.desconto) || 0,
+        descontoServico: Number(form.descontoServico) || 0,
         itens
       });
 
       setModalOpen(false);
-      setForm({ clienteId: '', lojaId: lojas.length === 1 ? String(lojas[0].id) : '', tecnicoId: '', motoDescricao: '', observacoes: '', tipo: 'OS', desconto: '0' });
+      setForm({ clienteId: '', lojaId: lojas.length === 1 ? String(lojas[0].id) : '', tecnicoId: '', motoDescricao: '', observacoes: '', tipo: 'OS', desconto: '0', descontoServico: '0' });
       setServicosSelecionados([]);
       setPecasSelecionadas([]);
       loadData();
@@ -508,7 +514,7 @@ export function OrdensServico() {
                       <option value="">Selecione...</option>
                       {servicos.map(s => (
                         <option key={s.id} value={s.id}>
-                          {s.nome} - R$ {Number(s.preco).toFixed(2)}
+                          {s.nome}{s.duracao ? ` (${s.duracao}min)` : ''} - R$ {Number(s.preco).toFixed(2)}
                         </option>
                       ))}
                     </select>
@@ -579,21 +585,39 @@ export function OrdensServico() {
             )}
           </div>
 
-          <div>
-            <label className="label">Desconto em Pecas (%)</label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.5"
-              value={form.desconto}
-              onChange={(e) => setForm({ ...form, desconto: e.target.value })}
-              className="input"
-              placeholder={`Max: ${configDescontos.descontoMaxPeca}%`}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Max {configDescontos.descontoMaxPeca}% - Aplicado somente em pecas (Gerentes: dobro)
-            </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Desconto em Servicos (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={form.descontoServico}
+                onChange={(e) => setForm({ ...form, descontoServico: e.target.value })}
+                className="input"
+                placeholder={`Max: ${configDescontos.descontoMaxServico}%`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Max {configDescontos.descontoMaxServico}% (Gerentes: dobro)
+              </p>
+            </div>
+            <div>
+              <label className="label">Desconto em Pecas (%)</label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={form.desconto}
+                onChange={(e) => setForm({ ...form, desconto: e.target.value })}
+                className="input"
+                placeholder={`Max: ${configDescontos.descontoMaxPeca}%`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Max {configDescontos.descontoMaxPeca}% (Gerentes: dobro)
+              </p>
+            </div>
           </div>
 
           <div>
@@ -615,10 +639,28 @@ export function OrdensServico() {
                 {servicosSelecionados.filter(s => s.servicoId).map((item, idx) => {
                   const serv = servicos.find(s => s.id === parseInt(item.servicoId));
                   const subtotal = item.preco * item.quantidade;
+                  const descontoValor = subtotal * Number(form.descontoServico) / 100;
                   return (
-                    <div key={idx} className="text-xs flex justify-between border-b border-zinc-700/30 pb-1 last:border-0">
-                      <span className="text-gray-300">{serv?.nome || 'Servico'} (x{item.quantidade})</span>
-                      <span className="text-white">R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    <div key={idx} className="text-xs border-b border-zinc-700/30 pb-1 last:border-0">
+                      <div className="flex justify-between text-gray-300">
+                        <span>{serv?.nome || 'Servico'}{serv?.duracao ? ` (${serv.duracao}min)` : ''} (x{item.quantidade})</span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-gray-500">Original:</span>
+                        <span className="text-gray-400">R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      {Number(form.descontoServico) > 0 && (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Desconto ({form.descontoServico}%):</span>
+                            <span className="text-red-400">- R$ {descontoValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between font-medium">
+                            <span className="text-gray-500">Final:</span>
+                            <span className="text-green-400">R$ {(subtotal - descontoValor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -661,11 +703,19 @@ export function OrdensServico() {
 
             <div className="space-y-2 pt-2">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-400">Servicos:</span>
+                <span className="text-gray-400">Servicos (Bruto):</span>
                 <span className="text-white">
                   R$ {servicosSelecionados.reduce((acc, item) => acc + (item.preco * item.quantidade), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
+              {Number(form.descontoServico) > 0 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400">Desconto Servicos ({form.descontoServico}%):</span>
+                  <span className="text-red-400">
+                    - R$ {(servicosSelecionados.reduce((acc, item) => acc + (item.preco * item.quantidade), 0) * Number(form.descontoServico) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-400">Pecas (Bruto):</span>
                 <span className="text-white">

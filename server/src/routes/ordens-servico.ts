@@ -215,7 +215,15 @@ router.post('/', async (req: AuthRequest, res) => {
         let desconto = Number(item.desconto || 0);
         
         if (item.servicoId) {
-          desconto = 0;
+          let maxDesconto = Number(config?.descontoMaxServico || 10);
+          if (userRole === 'GERENTE_LOJA') {
+            maxDesconto = maxDesconto * 2;
+          }
+          if (desconto > maxDesconto) {
+            return res.status(400).json({ 
+              error: `Desconto de ${desconto}% em servicos excede o maximo permitido para seu perfil (${maxDesconto}%)` 
+            });
+          }
         } else if (item.produtoId) {
           let maxDesconto = Number(config?.descontoMaxPeca || 10);
           if (userRole === 'GERENTE_LOJA') {
@@ -223,7 +231,7 @@ router.post('/', async (req: AuthRequest, res) => {
           }
           if (desconto > maxDesconto) {
             return res.status(400).json({ 
-              error: `Desconto de ${desconto}% excede o maximo permitido para seu perfil (${maxDesconto}%)` 
+              error: `Desconto de ${desconto}% em pecas excede o maximo permitido para seu perfil (${maxDesconto}%)` 
             });
           }
         }

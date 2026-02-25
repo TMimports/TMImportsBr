@@ -13,10 +13,10 @@ router.get('/public', async (req: AuthRequest, res) => {
       config = await prisma.configuracao.create({ data: {} });
     }
     res.json({
-      descontoMaxMoto: config.descontoMaxMoto,
-      descontoMaxPeca: config.descontoMaxPeca,
-      descontoMaxServico: config.descontoMaxServico,
-      descontoMaxOS: config.descontoMaxOS
+      descontoMaxMoto: Number(config.descontoMaxMoto),
+      descontoMaxPeca: Number(config.descontoMaxPeca),
+      descontoMaxServico: Number(config.descontoMaxServico),
+      descontoMaxOS: Number(config.descontoMaxOS)
     });
   } catch (error) {
     res.status(500).json({ error: 'Erro interno do servidor' });
