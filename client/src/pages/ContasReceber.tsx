@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface ContaReceber {
   id: number;
@@ -158,16 +159,16 @@ export function ContasReceber() {
           />
         </div>
         <div className="card">
-          <p className="text-gray-400 text-sm">Filtrar</p>
-          <select 
-            value={filtro} 
-            onChange={(e) => setFiltro(e.target.value as any)}
-            className="input mt-1"
-          >
-            <option value="todas">Todas</option>
-            <option value="pendentes">Pendentes</option>
-            <option value="pagas">Recebidas</option>
-          </select>
+          <CustomSelect
+            label="Filtrar"
+            value={filtro}
+            onChange={(val) => setFiltro(val as any)}
+            options={[
+              { value: 'todas', label: 'Todas' },
+              { value: 'pendentes', label: 'Pendentes' },
+              { value: 'pagas', label: 'Recebidas' }
+            ]}
+          />
         </div>
       </div>
 
@@ -230,20 +231,13 @@ export function ContasReceber() {
             <h2 className="text-xl font-bold mb-4">{editando ? 'Editar Conta a Receber' : 'Nova Conta a Receber'}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               {lojas.length > 1 && (
-                <div>
-                  <label className="label">Loja</label>
-                  <select
-                    value={form.lojaId}
-                    onChange={(e) => setForm({ ...form, lojaId: e.target.value })}
-                    className="input"
-                    required
-                  >
-                    <option value="">Selecione...</option>
-                    {lojas.map(l => (
-                      <option key={l.id} value={l.id}>{l.nomeFantasia}</option>
-                    ))}
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Loja"
+                  required
+                  value={form.lojaId}
+                  onChange={(val) => setForm({ ...form, lojaId: val })}
+                  options={lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))}
+                />
               )}
 
               <div>
@@ -291,20 +285,18 @@ export function ContasReceber() {
               </div>
 
               {form.recorrente && (
-                <div>
-                  <label className="label">Frequencia</label>
-                  <select
-                    value={form.recorrencia}
-                    onChange={(e) => setForm({ ...form, recorrencia: e.target.value })}
-                    className="input"
-                  >
-                    <option value="SEMANAL">Semanal (52 lancamentos)</option>
-                    <option value="QUINZENAL">Quinzenal (26 lancamentos)</option>
-                    <option value="MENSAL">Mensal (12 lancamentos)</option>
-                    <option value="SEMESTRAL">Semestral (4 lancamentos)</option>
-                    <option value="ANUAL">Anual (2 lancamentos)</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Frequencia"
+                  value={form.recorrencia}
+                  onChange={(val) => setForm({ ...form, recorrencia: val })}
+                  options={[
+                    { value: 'SEMANAL', label: 'Semanal (52 lancamentos)' },
+                    { value: 'QUINZENAL', label: 'Quinzenal (26 lancamentos)' },
+                    { value: 'MENSAL', label: 'Mensal (12 lancamentos)' },
+                    { value: 'SEMESTRAL', label: 'Semestral (4 lancamentos)' },
+                    { value: 'ANUAL', label: 'Anual (2 lancamentos)' }
+                  ]}
+                />
               )}
 
               <div className="flex gap-2 justify-end">

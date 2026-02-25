@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { ImportExport } from '../components/ImportExport';
 import { buscarCNPJ, formatCNPJ } from '../services/cnpj';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface Grupo {
   id: number;
@@ -290,18 +291,13 @@ export function Lojas() {
             />
           </div>
           <div>
-            <label className="label">Grupo *</label>
-            <select
-              value={form.grupoId}
-              onChange={(e) => setForm({ ...form, grupoId: Number(e.target.value) })}
-              className="input"
+            <CustomSelect
+              label="Grupo"
               required
-            >
-              <option value="">Selecione o grupo</option>
-              {grupos.map(g => (
-                <option key={g.id} value={g.id}>{g.nome}</option>
-              ))}
-            </select>
+              value={String(form.grupoId || '')}
+              onChange={(val) => setForm({ ...form, grupoId: Number(val) })}
+              options={grupos.map(g => ({ value: String(g.id), label: g.nome }))}
+            />
             <p className="text-xs text-gray-500 mt-1">As lojas do mesmo grupo compartilham estoque</p>
           </div>
           <div>

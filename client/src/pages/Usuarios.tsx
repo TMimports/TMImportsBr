@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../contexts/AuthContext';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface Usuario {
   id: number;
@@ -283,33 +284,26 @@ export function Usuarios() {
             />
           </div>
           <div>
-            <label className="label">Perfil *</label>
-            <select
+            <CustomSelect
+              label="Perfil"
+              required
               value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="input"
-            >
-              {rolesDisponiveis.map(role => (
-                <option key={role} value={role}>{roleLabels[role]}</option>
-              ))}
-            </select>
+              onChange={(val) => setForm({ ...form, role: val })}
+              options={rolesDisponiveis.map(role => ({ value: role, label: roleLabels[role] }))}
+            />
             <p className="text-xs text-gray-500 mt-1">
               {roleDescriptions[form.role]}
             </p>
           </div>
-          <div>
-            <label className="label">Loja</label>
-            <select
-              value={form.lojaId}
-              onChange={(e) => setForm({ ...form, lojaId: e.target.value })}
-              className="input"
-            >
-              <option value="">Nenhuma (Admin)</option>
-              {lojas.map(l => (
-                <option key={l.id} value={l.id}>{l.nomeFantasia}</option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect
+            label="Loja"
+            value={form.lojaId}
+            onChange={(val) => setForm({ ...form, lojaId: val })}
+            options={[
+              { value: '', label: 'Nenhuma (Admin)' },
+              ...lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))
+            ]}
+          />
 
           {(form.role === 'VENDEDOR' || form.role === 'GERENTE_LOJA' || form.role === 'TECNICO') && (
             <>
@@ -354,15 +348,15 @@ export function Usuarios() {
                   />
                 </div>
                 <div>
-                  <label className="label">Tipo de Conta</label>
-                  <select
+                  <CustomSelect
+                    label="Tipo de Conta"
                     value={form.tipoConta}
-                    onChange={(e) => setForm({ ...form, tipoConta: e.target.value })}
-                    className="input"
-                  >
-                    <option value="CORRENTE">Corrente</option>
-                    <option value="POUPANCA">Poupanca</option>
-                  </select>
+                    onChange={(val) => setForm({ ...form, tipoConta: val })}
+                    options={[
+                      { value: 'CORRENTE', label: 'Corrente' },
+                      { value: 'POUPANCA', label: 'Poupanca' }
+                    ]}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

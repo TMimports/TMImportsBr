@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { ImportPlanilha } from '../components/ImportPlanilha';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface Produto {
   id: number;
@@ -290,17 +291,16 @@ export function Produtos() {
               required
             />
           </div>
-          <div>
-            <label className="label">Tipo *</label>
-            <select
-              value={form.tipo}
-              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
-              className="input"
-            >
-              <option value="MOTO">Moto (Margem {margens.lucroMoto}%)</option>
-              <option value="PECA">Peca (Margem {margens.lucroPeca}%)</option>
-            </select>
-          </div>
+          <CustomSelect
+            label="Tipo"
+            required
+            value={form.tipo}
+            onChange={(val) => setForm({ ...form, tipo: val })}
+            options={[
+              { value: 'MOTO', label: `Moto (Margem ${margens.lucroMoto}%)` },
+              { value: 'PECA', label: `Peca (Margem ${margens.lucroPeca}%)` }
+            ]}
+          />
           <div>
             <label className="label">Custo (R$) *</label>
             <input

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface Comissao {
   id: number;
@@ -141,57 +142,57 @@ export function Comissoes() {
       <div className="card mb-6">
         <div className="flex flex-wrap gap-4 items-end">
           <div className="flex-1 min-w-[150px]">
-            <label className="label">Mes</label>
-            <select 
-              value={filtroMes} 
-              onChange={(e) => setFiltroMes(e.target.value)}
-              className="input"
-            >
-              <option value="">Todos os meses</option>
-              {mesesDisponiveis.map(mes => (
-                <option key={mes} value={mes}>{formatMes(mes)}</option>
-              ))}
-            </select>
+            <CustomSelect
+              label="Mes"
+              value={filtroMes}
+              onChange={(val) => setFiltroMes(val)}
+              placeholder="Todos os meses"
+              options={[
+                { value: '', label: 'Todos os meses' },
+                ...mesesDisponiveis.map(mes => ({ value: mes, label: formatMes(mes) }))
+              ]}
+            />
           </div>
           
           <div className="flex-1 min-w-[150px]">
-            <label className="label">Colaborador</label>
-            <select 
-              value={filtroColaborador} 
-              onChange={(e) => setFiltroColaborador(e.target.value)}
-              className="input"
-            >
-              <option value="">Todos</option>
-              {colaboradores.map(c => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
+            <CustomSelect
+              label="Colaborador"
+              value={filtroColaborador}
+              onChange={(val) => setFiltroColaborador(val)}
+              placeholder="Todos"
+              options={[
+                { value: '', label: 'Todos' },
+                ...colaboradores.map(c => ({ value: String(c.id), label: c.nome }))
+              ]}
+            />
           </div>
           
           <div className="flex-1 min-w-[150px]">
-            <label className="label">Tipo</label>
-            <select 
-              value={filtroTipo} 
-              onChange={(e) => setFiltroTipo(e.target.value)}
-              className="input"
-            >
-              <option value="">Todos</option>
-              <option value="vendedor">Vendedor</option>
-              <option value="tecnico">Tecnico</option>
-            </select>
+            <CustomSelect
+              label="Tipo"
+              value={filtroTipo}
+              onChange={(val) => setFiltroTipo(val)}
+              placeholder="Todos"
+              options={[
+                { value: '', label: 'Todos' },
+                { value: 'vendedor', label: 'Vendedor' },
+                { value: 'tecnico', label: 'Tecnico' }
+              ]}
+            />
           </div>
           
           <div className="flex-1 min-w-[150px]">
-            <label className="label">Status</label>
-            <select 
-              value={filtroStatus} 
-              onChange={(e) => setFiltroStatus(e.target.value as any)}
-              className="input"
-            >
-              <option value="todas">Todas</option>
-              <option value="pendentes">Pendentes</option>
-              <option value="pagas">Pagas</option>
-            </select>
+            <CustomSelect
+              label="Status"
+              value={filtroStatus}
+              onChange={(val) => setFiltroStatus(val as any)}
+              placeholder="Todas"
+              options={[
+                { value: 'todas', label: 'Todas' },
+                { value: 'pendentes', label: 'Pendentes' },
+                { value: 'pagas', label: 'Pagas' }
+              ]}
+            />
           </div>
           
           <button onClick={limparFiltros} className="btn btn-secondary">

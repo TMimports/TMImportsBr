@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../contexts/AuthContext';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface OrdemServicoItem {
   id: number;
@@ -437,36 +438,22 @@ export function OrdensServico() {
           </div>
 
           {lojas.length > 1 && (
-            <div>
-              <label className="label">Loja *</label>
-              <select
-                value={form.lojaId}
-                onChange={(e) => setForm({ ...form, lojaId: e.target.value })}
-                className="input"
-                required
-              >
-                <option value="">Selecione...</option>
-                {lojas.map(l => (
-                  <option key={l.id} value={l.id}>{l.nomeFantasia}</option>
-                ))}
-              </select>
-            </div>
+            <CustomSelect
+              label="Loja"
+              required
+              value={form.lojaId}
+              onChange={(val) => setForm({ ...form, lojaId: val })}
+              options={lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))}
+            />
           )}
 
-          <div>
-            <label className="label">Cliente *</label>
-            <select
-              value={form.clienteId}
-              onChange={(e) => setForm({ ...form, clienteId: e.target.value })}
-              className="input"
-              required
-            >
-              <option value="">Selecione...</option>
-              {clientes.map(c => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect
+            label="Cliente"
+            required
+            value={form.clienteId}
+            onChange={(val) => setForm({ ...form, clienteId: val })}
+            options={clientes.map(c => ({ value: String(c.id), label: c.nome }))}
+          />
 
           <div>
             <label className="label">Descricao da Moto/Veiculo</label>
@@ -479,19 +466,12 @@ export function OrdensServico() {
             />
           </div>
 
-          <div>
-            <label className="label">Tecnico</label>
-            <select
-              value={form.tecnicoId}
-              onChange={(e) => setForm({ ...form, tecnicoId: e.target.value })}
-              className="input"
-            >
-              <option value="">Selecione...</option>
-              {tecnicos.map(t => (
-                <option key={t.id} value={t.id}>{t.nome}</option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect
+            label="Tecnico"
+            value={form.tecnicoId}
+            onChange={(val) => setForm({ ...form, tecnicoId: val })}
+            options={tecnicos.map(t => ({ value: String(t.id), label: t.nome }))}
+          />
 
           <div className="border-t border-zinc-700 pt-4">
             <div className="flex justify-between items-center mb-2">
@@ -506,18 +486,12 @@ export function OrdensServico() {
               <div className="space-y-2">
                 {servicosSelecionados.map((item, index) => (
                   <div key={index} className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                    <select
+                    <CustomSelect
                       value={item.servicoId}
-                      onChange={(e) => atualizarServico(index, 'servicoId', e.target.value)}
-                      className="input flex-1"
-                    >
-                      <option value="">Selecione...</option>
-                      {servicos.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.nome}{s.duracao ? ` (${s.duracao}min)` : ''} - R$ {Number(s.preco).toFixed(2)}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => atualizarServico(index, 'servicoId', val)}
+                      className="flex-1"
+                      options={servicos.map(s => ({ value: String(s.id), label: `${s.nome}${s.duracao ? ` (${s.duracao}min)` : ''} - R$ ${Number(s.preco).toFixed(2)}` }))}
+                    />
                     <div className="flex gap-2 items-center">
                       <input
                         type="number"
@@ -552,18 +526,12 @@ export function OrdensServico() {
               <div className="space-y-2">
                 {pecasSelecionadas.map((item, index) => (
                   <div key={index} className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                    <select
+                    <CustomSelect
                       value={item.produtoId}
-                      onChange={(e) => atualizarPeca(index, 'produtoId', e.target.value)}
-                      className="input flex-1"
-                    >
-                      <option value="">Selecione...</option>
-                      {produtos.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.nome} - R$ {Number(p.preco).toFixed(2)}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => atualizarPeca(index, 'produtoId', val)}
+                      className="flex-1"
+                      options={produtos.map(p => ({ value: String(p.id), label: `${p.nome} - R$ ${Number(p.preco).toFixed(2)}` }))}
+                    />
                     <div className="flex gap-2 items-center">
                       <input
                         type="number"

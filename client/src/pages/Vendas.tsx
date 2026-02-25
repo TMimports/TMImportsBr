@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../contexts/AuthContext';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface VendaItem {
   id: number;
@@ -424,23 +425,16 @@ export function Vendas() {
           </div>
 
           {lojas.length > 1 && (
-            <div>
-              <label className="label">Loja *</label>
-              <select
-                value={form.lojaId}
-                onChange={(e) => {
-                  setForm({ ...form, lojaId: e.target.value });
-                  setItensSelecionados([]);
-                }}
-                className="input"
-                required
-              >
-                <option value="">Selecione...</option>
-                {lojas.map(l => (
-                  <option key={l.id} value={l.id}>{l.nomeFantasia}</option>
-                ))}
-              </select>
-            </div>
+            <CustomSelect
+              label="Loja"
+              required
+              value={form.lojaId}
+              onChange={(val) => {
+                setForm({ ...form, lojaId: val });
+                setItensSelecionados([]);
+              }}
+              options={lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))}
+            />
           )}
 
           {unidadesDisponiveis.length > 0 && (
@@ -493,20 +487,13 @@ export function Vendas() {
             </div>
           )}
 
-          <div>
-            <label className="label">Cliente *</label>
-            <select
-              value={form.clienteId}
-              onChange={(e) => setForm({ ...form, clienteId: e.target.value })}
-              className="input"
-              required
-            >
-              <option value="">Selecione...</option>
-              {clientes.map(c => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
-          </div>
+          <CustomSelect
+            label="Cliente"
+            required
+            value={form.clienteId}
+            onChange={(val) => setForm({ ...form, clienteId: val })}
+            options={clientes.map(c => ({ value: String(c.id), label: c.nome }))}
+          />
 
           <div className="border-t border-zinc-700 pt-4">
             <div className="flex justify-between items-center mb-2">
@@ -616,18 +603,19 @@ export function Vendas() {
           </div>
 
           <div>
-            <label className="label">Forma de Pagamento *</label>
-            <select
+            <CustomSelect
+              label="Forma de Pagamento"
+              required
               value={form.formaPagamento}
-              onChange={(e) => setForm({ ...form, formaPagamento: e.target.value })}
-              className="input"
-            >
-              <option value="PIX">PIX</option>
-              <option value="DINHEIRO">Dinheiro</option>
-              <option value="CARTAO_DEBITO">Cartao Debito</option>
-              <option value="CARTAO_CREDITO">Cartao Credito</option>
-              <option value="FINANCIAMENTO">Financiamento</option>
-            </select>
+              onChange={(val) => setForm({ ...form, formaPagamento: val })}
+              options={[
+                { value: 'PIX', label: 'PIX' },
+                { value: 'DINHEIRO', label: 'Dinheiro' },
+                { value: 'CARTAO_DEBITO', label: 'Cartao Debito' },
+                { value: 'CARTAO_CREDITO', label: 'Cartao Credito' },
+                { value: 'FINANCIAMENTO', label: 'Financiamento' }
+              ]}
+            />
             {(form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO') && (
               <div className="mt-2 p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg flex items-start gap-2">
                 <span className="text-blue-400 text-lg">i</span>

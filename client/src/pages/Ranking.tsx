@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface RankingProduto {
   posicao: number;
@@ -76,24 +77,26 @@ export function Ranking() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Ranking de Vendas</h1>
         <div className="flex flex-wrap gap-2">
-          <select
+          <CustomSelect
             value={periodo}
-            onChange={(e) => setPeriodo(e.target.value)}
-            className="input w-full sm:w-40"
-          >
-            <option value="7">Ultimos 7 dias</option>
-            <option value="30">Ultimos 30 dias</option>
-            <option value="90">Ultimos 90 dias</option>
-            <option value="365">Ultimo ano</option>
-          </select>
-          <select
+            onChange={(val) => setPeriodo(val)}
+            className="w-full sm:w-40"
+            options={[
+              { value: '7', label: 'Ultimos 7 dias' },
+              { value: '30', label: 'Ultimos 30 dias' },
+              { value: '90', label: 'Ultimos 90 dias' },
+              { value: '365', label: 'Ultimo ano' }
+            ]}
+          />
+          <CustomSelect
             value={ordem}
-            onChange={(e) => setOrdem(e.target.value as 'desc' | 'asc')}
-            className="input w-full sm:w-40"
-          >
-            <option value="desc">Mais vendidos</option>
-            <option value="asc">Menos vendidos</option>
-          </select>
+            onChange={(val) => setOrdem(val as 'desc' | 'asc')}
+            className="w-full sm:w-40"
+            options={[
+              { value: 'desc', label: 'Mais vendidos' },
+              { value: 'asc', label: 'Menos vendidos' }
+            ]}
+          />
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { CustomSelect } from '../components/CustomSelect';
 
 interface DashboardData {
   vendasMes: { total: number; quantidade: number };
@@ -116,16 +117,16 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <div className="flex gap-3 items-center flex-wrap">
           {canCompare && (
             <>
-              <select
+              <CustomSelect
                 value={lojaFiltro}
-                onChange={(e) => setLojaFiltro(e.target.value)}
-                className="input w-full sm:w-48"
-              >
-                <option value="">Todas as lojas</option>
-                {lojas.map(l => (
-                  <option key={l.id} value={l.id}>{l.nome}</option>
-                ))}
-              </select>
+                onChange={(val) => setLojaFiltro(val)}
+                className="w-full sm:w-48"
+                placeholder="Todas as lojas"
+                options={[
+                  { value: '', label: 'Todas as lojas' },
+                  ...lojas.map(l => ({ value: String(l.id), label: l.nome }))
+                ]}
+              />
               <button onClick={loadComparativo} className="btn btn-secondary">
                 Comparar Lojas
               </button>
