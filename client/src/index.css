@@ -170,19 +170,13 @@ select {
   color: white !important;
   -webkit-text-fill-color: white !important;
   background-color: #27272a !important;
+  color-scheme: dark;
 }
 
 select option {
-  background-color: #27272a !important;
-  color: white !important;
-  -webkit-text-fill-color: white !important;
+  background-color: #27272a;
+  color: white;
   padding: 8px 12px;
-}
-
-select option:hover,
-select option:checked {
-  background-color: #f97316 !important;
-  color: white !important;
 }
 
 select:focus {
