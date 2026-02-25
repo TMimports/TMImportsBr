@@ -7,6 +7,7 @@
 
 html {
   scroll-behavior: smooth;
+  color-scheme: dark;
 }
 
 body {
@@ -174,9 +175,17 @@ select {
 }
 
 select option {
-  background-color: #27272a;
-  color: white;
+  background: #27272a !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   padding: 8px 12px;
+  font-size: 14px;
+}
+
+select option:checked,
+select option:hover {
+  background: linear-gradient(#f97316, #f97316) !important;
+  color: #ffffff !important;
 }
 
 select:focus {
