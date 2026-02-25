@@ -110,21 +110,19 @@ app.use('/api/configuracoes', configuracoesRoutes);
 app.use('/api/admin', adminRoutes);
 
 if (!isDev) {
-  app.use(express.static(path.join(process.cwd(), 'client/dist'), {
-    setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
-        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      } else if (filePath.includes('/assets/')) {
-        res.set('Cache-Control', 'public, max-age=31536000, immutable');
-      } else {
-        res.set('Cache-Control', 'no-cache');
-      }
+  app.use((req, res, next) => {
+    if (!req.path.startsWith('/api')) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
     }
-  }));
+    next();
+  });
+
+  app.use(express.static(path.join(process.cwd(), 'client/dist')));
 
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(path.join(process.cwd(), 'client/dist/index.html'));
     }
   });
