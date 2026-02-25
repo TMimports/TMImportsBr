@@ -35,42 +35,92 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
   return (
     <div className={className}>
       {label && <label className="label">{label}{required ? ' *' : ''}</label>}
-      <div ref={ref} className="relative">
+      <div ref={ref} style={{ position: 'relative' }}>
         <button
           type="button"
           disabled={disabled}
           onClick={() => !disabled && setOpen(!open)}
-          className={`w-full px-4 py-2.5 bg-zinc-800 border rounded-lg text-left flex items-center justify-between transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-            open ? 'border-orange-500 ring-1 ring-orange-500/50' : 'border-zinc-700 hover:border-zinc-600'
-          }`}
+          style={{
+            width: '100%',
+            padding: '10px 16px',
+            backgroundColor: '#27272a',
+            border: open ? '1px solid #f97316' : '1px solid #3f3f46',
+            borderRadius: '8px',
+            textAlign: 'left' as const,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.5 : 1,
+            color: selected ? '#ffffff' : '#9ca3af',
+            fontSize: '14px',
+            outline: open ? '1px solid rgba(249, 115, 22, 0.5)' : 'none',
+            transition: 'border-color 0.2s',
+          }}
         >
-          <span className={selected ? 'text-white' : 'text-gray-500'}>
-            {selected ? selected.label : placeholder}
-          </span>
-          <svg className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span>{selected ? selected.label : placeholder}</span>
+          <svg
+            style={{
+              width: '16px',
+              height: '16px',
+              color: '#9ca3af',
+              transition: 'transform 0.2s',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
         {open && (
-          <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-2xl max-h-60 overflow-y-auto animate-fade-in">
-            {options.map(opt => (
+          <div
+            style={{
+              position: 'absolute',
+              zIndex: 9999,
+              width: '100%',
+              marginTop: '4px',
+              backgroundColor: '#27272a',
+              border: '1px solid #3f3f46',
+              borderRadius: '8px',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+              maxHeight: '240px',
+              overflowY: 'auto',
+            }}
+          >
+            {options.map((opt, idx) => (
               <div
                 key={opt.value}
                 onClick={() => {
                   onChange(opt.value);
                   setOpen(false);
                 }}
-                className={`px-4 py-2.5 cursor-pointer transition-colors border-b border-zinc-700/50 last:border-0 ${
-                  opt.value === value
-                    ? 'bg-orange-500/20 text-orange-400'
-                    : 'text-white hover:bg-zinc-700'
-                }`}
+                style={{
+                  padding: '10px 16px',
+                  cursor: 'pointer',
+                  color: opt.value === value ? '#fb923c' : '#ffffff',
+                  backgroundColor: opt.value === value ? 'rgba(249, 115, 22, 0.15)' : 'transparent',
+                  borderBottom: idx < options.length - 1 ? '1px solid rgba(63, 63, 70, 0.5)' : 'none',
+                  fontSize: '14px',
+                  transition: 'background-color 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  if (opt.value !== value) {
+                    (e.target as HTMLElement).style.backgroundColor = '#3f3f46';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.target as HTMLElement).style.backgroundColor = opt.value === value ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
+                }}
               >
                 {opt.label}
               </div>
             ))}
             {options.length === 0 && (
-              <div className="px-4 py-3 text-gray-500 text-center">Nenhuma opcao</div>
+              <div style={{ padding: '12px 16px', color: '#6b7280', textAlign: 'center' }}>
+                Nenhuma opcao
+              </div>
             )}
           </div>
         )}
