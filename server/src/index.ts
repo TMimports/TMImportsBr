@@ -109,6 +109,42 @@ app.use('/api/sistema', sistemaRoutes);
 app.use('/api/configuracoes', configuracoesRoutes);
 app.use('/api/admin', adminRoutes);
 
+app.get('/api/debug-build', (req, res) => {
+  const fs = require('fs');
+  try {
+    const distPath = path.join(process.cwd(), 'client/dist');
+    const htmlPath = path.join(distPath, 'index.html');
+    const assetsPath = path.join(distPath, 'assets');
+    
+    const htmlExists = fs.existsSync(htmlPath);
+    const html = htmlExists ? fs.readFileSync(htmlPath, 'utf8') : 'NOT FOUND';
+    const jsMatch = html.match(/index-([^.]+)\.js/);
+    const cssMatch = html.match(/index-([^.]+)\.css/);
+    const assetFiles = fs.existsSync(assetsPath) ? fs.readdirSync(assetsPath) : [];
+    
+    const cssFile = assetFiles.find((f: string) => f.endsWith('.css'));
+    let hasOldSelectRules = false;
+    if (cssFile) {
+      const cssContent = fs.readFileSync(path.join(assetsPath, cssFile), 'utf8');
+      hasOldSelectRules = /select\.input|select\s*\{[^}]*cursor.*pointer/.test(cssContent);
+    }
+    
+    res.json({
+      cwd: process.cwd(),
+      distExists: fs.existsSync(distPath),
+      htmlExists,
+      jsHash: jsMatch ? jsMatch[1] : 'unknown',
+      cssHash: cssMatch ? cssMatch[1] : 'unknown',
+      assetFiles,
+      hasOldSelectRules,
+      nodeEnv: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e: any) {
+    res.json({ error: e.message });
+  }
+});
+
 if (!isDev) {
   app.use((req, res, next) => {
     if (!req.path.startsWith('/api')) {

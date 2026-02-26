@@ -38,17 +38,18 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
     <div className={className}>
       {label && <label className="label">{label}{required ? ' *' : ''}</label>}
       <div ref={ref} style={{ position: 'relative' }}>
-        <button
-          type="button"
-          disabled={disabled}
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => !disabled && setOpen(!open)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); !disabled && setOpen(!open); } }}
           style={{
             width: '100%',
             padding: '10px 16px',
             backgroundColor: '#27272a',
             border: open ? '1px solid #f97316' : '1px solid #3f3f46',
             borderRadius: '8px',
-            textAlign: 'left' as const,
+            textAlign: 'left',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -59,6 +60,7 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
             fontSize: '14px',
             outline: open ? '1px solid rgba(249, 115, 22, 0.5)' : 'none',
             transition: 'border-color 0.2s',
+            userSelect: 'none',
           }}
         >
           <span style={{ color: textColor, WebkitTextFillColor: textColor }}>{selected ? selected.label : placeholder}</span>
@@ -69,6 +71,7 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
               color: '#9ca3af',
               transition: 'transform 0.2s',
               transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              flexShrink: 0,
             }}
             fill="none"
             stroke="currentColor"
@@ -76,7 +79,7 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
-        </button>
+        </div>
         {open && (
           <div
             style={{
