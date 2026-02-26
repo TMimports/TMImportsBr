@@ -15,7 +15,10 @@ async function getMargens() {
   };
 }
 
-function calcularPrecoComMargem(custo: number, margemPercent: number): number {
+function calcularPrecoComMargem(custo: number, margemPercent: number, tipo: string): number {
+  if (tipo === 'MOTO') {
+    return custo * (1 + margemPercent / 100);
+  }
   return custo / (1 - margemPercent / 100);
 }
 
@@ -62,7 +65,7 @@ router.post('/', requireAdminGeral, async (req: AuthRequest, res) => {
     const margens = await getMargens();
     const margemTipo = tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca;
     const lucro = percentualLucro ?? margemTipo;
-    const precoCalculado = preco ?? calcularPrecoComMargem(Number(custo), margemTipo);
+    const precoCalculado = preco ?? calcularPrecoComMargem(Number(custo), margemTipo, tipo);
 
     const produto = await prisma.produto.create({
       data: {
