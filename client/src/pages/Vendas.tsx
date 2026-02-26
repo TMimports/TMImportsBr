@@ -155,6 +155,8 @@ export function Vendas() {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

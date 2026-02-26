@@ -39,6 +39,8 @@ export function Garantias() {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const calcularDiasRestantes = (dataFim: string): number => {

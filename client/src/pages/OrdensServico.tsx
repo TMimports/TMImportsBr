@@ -145,6 +145,8 @@ export function OrdensServico() {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const adicionarServico = () => {

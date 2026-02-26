@@ -40,6 +40,8 @@ export function Comissoes() {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const marcarPago = async (id: number) => {

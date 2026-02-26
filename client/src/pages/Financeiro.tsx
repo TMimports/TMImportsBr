@@ -61,8 +61,8 @@ export function Financeiro() {
     return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const loadData = () => {
-    setLoading(true);
+  const loadData = (silent = false) => {
+    if (!silent) setLoading(true);
     Promise.all([
       api.get<ContaPagar[]>(`/financeiro/contas-pagar${filtroStatus !== 'todas' ? `?status=${filtroStatus}` : ''}`),
       api.get<Resumo>('/financeiro/contas-pagar/resumo')
@@ -78,6 +78,8 @@ export function Financeiro() {
   useEffect(() => {
     loadData();
     api.get<Loja[]>('/lojas').then(setLojas).catch(console.error);
+    const interval = setInterval(() => loadData(true), 30000);
+    return () => clearInterval(interval);
   }, [filtroStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {

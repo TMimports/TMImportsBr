@@ -65,17 +65,23 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   }, [canCompare]);
 
   useEffect(() => {
-    setLoading(true);
-    const params = lojaFiltro ? `?lojaId=${lojaFiltro}` : '';
-    
-    Promise.all([
-      api.get<DashboardData>(`/dashboard${params}`),
-      api.get<any[]>('/financeiro/comissoes')
-    ]).then(([dashData, comissoes]) => {
-      setData(dashData);
-      const pendentes = comissoes.filter(c => !c.pago).reduce((acc, c) => acc + Number(c.valor), 0);
-      setComissoesPendentes(pendentes);
-    }).catch(console.error).finally(() => setLoading(false));
+    const fetchDashboard = (silent = false) => {
+      if (!silent) setLoading(true);
+      const params = lojaFiltro ? `?lojaId=${lojaFiltro}` : '';
+      
+      Promise.all([
+        api.get<DashboardData>(`/dashboard${params}`),
+        api.get<any[]>('/financeiro/comissoes')
+      ]).then(([dashData, comissoes]) => {
+        setData(dashData);
+        const pendentes = comissoes.filter(c => !c.pago).reduce((acc, c) => acc + Number(c.valor), 0);
+        setComissoesPendentes(pendentes);
+      }).catch(console.error).finally(() => setLoading(false));
+    };
+
+    fetchDashboard();
+    const interval = setInterval(() => fetchDashboard(true), 30000);
+    return () => clearInterval(interval);
   }, [lojaFiltro]);
 
   const loadComparativo = async () => {

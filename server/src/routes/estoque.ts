@@ -9,6 +9,11 @@ router.use(verifyToken);
 
 router.get('/grupo', async (req: AuthRequest, res) => {
   try {
+    if (req.user?.role === 'ADMIN_GERAL') {
+      const estoqueGeral = await InventoryService.getEstoqueTodas();
+      return res.json(estoqueGeral);
+    }
+
     let grupoId = req.user?.grupoId;
     
     if (!grupoId && req.user?.lojaId) {
