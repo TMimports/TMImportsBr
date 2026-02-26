@@ -32,6 +32,8 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const textColor = selected ? '#ffffff' : '#9ca3af';
+
   return (
     <div className={className}>
       {label && <label className="label">{label}{required ? ' *' : ''}</label>}
@@ -52,13 +54,14 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
             justifyContent: 'space-between',
             cursor: disabled ? 'not-allowed' : 'pointer',
             opacity: disabled ? 0.5 : 1,
-            color: selected ? '#ffffff' : '#9ca3af',
+            color: textColor,
+            WebkitTextFillColor: textColor,
             fontSize: '14px',
             outline: open ? '1px solid rgba(249, 115, 22, 0.5)' : 'none',
             transition: 'border-color 0.2s',
           }}
         >
-          <span>{selected ? selected.label : placeholder}</span>
+          <span style={{ color: textColor, WebkitTextFillColor: textColor }}>{selected ? selected.label : placeholder}</span>
           <svg
             style={{
               width: '16px',
@@ -86,39 +89,44 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
               borderRadius: '8px',
               boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
               maxHeight: '240px',
-              overflowY: 'auto',
+              overflowY: 'auto' as const,
             }}
           >
-            {options.map((opt, idx) => (
-              <div
-                key={opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-                style={{
-                  padding: '10px 16px',
-                  cursor: 'pointer',
-                  color: opt.value === value ? '#fb923c' : '#ffffff',
-                  backgroundColor: opt.value === value ? 'rgba(249, 115, 22, 0.15)' : 'transparent',
-                  borderBottom: idx < options.length - 1 ? '1px solid rgba(63, 63, 70, 0.5)' : 'none',
-                  fontSize: '14px',
-                  transition: 'background-color 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  if (opt.value !== value) {
-                    (e.target as HTMLElement).style.backgroundColor = '#3f3f46';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  (e.target as HTMLElement).style.backgroundColor = opt.value === value ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
-                }}
-              >
-                {opt.label}
-              </div>
-            ))}
+            {options.map((opt, idx) => {
+              const itemColor = opt.value === value ? '#fb923c' : '#ffffff';
+              const itemBg = opt.value === value ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
+              return (
+                <div
+                  key={opt.value}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                  style={{
+                    padding: '10px 16px',
+                    cursor: 'pointer',
+                    color: itemColor,
+                    WebkitTextFillColor: itemColor,
+                    backgroundColor: itemBg,
+                    borderBottom: idx < options.length - 1 ? '1px solid rgba(63, 63, 70, 0.5)' : 'none',
+                    fontSize: '14px',
+                    transition: 'background-color 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (opt.value !== value) {
+                      (e.target as HTMLElement).style.backgroundColor = '#3f3f46';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.target as HTMLElement).style.backgroundColor = opt.value === value ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
+                  }}
+                >
+                  {opt.label}
+                </div>
+              );
+            })}
             {options.length === 0 && (
-              <div style={{ padding: '12px 16px', color: '#6b7280', textAlign: 'center' }}>
+              <div style={{ padding: '12px 16px', color: '#6b7280', WebkitTextFillColor: '#6b7280', textAlign: 'center' }}>
                 Nenhuma opcao
               </div>
             )}
