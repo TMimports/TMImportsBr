@@ -54,15 +54,14 @@ router.post('/reset', verifyToken, requireRole('ADMIN_GERAL'), async (req: AuthR
       }
     });
 
-    const senhaAdmin = await bcrypt.hash('admin123', 10);
+    const senhaAdmin = await bcrypt.hash('123456', 10);
 
     await prisma.user.create({
       data: {
-        nome: 'Administrador Geral',
+        nome: 'Admin Geral',
         email: 'admin@teclemotos.com',
         senha: senhaAdmin,
         role: 'ADMIN_GERAL',
-        lojaId: loja.id,
         ativo: true
       }
     });
@@ -96,7 +95,7 @@ router.post('/reset', verifyToken, requireRole('ADMIN_GERAL'), async (req: AuthR
       message: 'Sistema limpo com sucesso!',
       credenciais: {
         email: 'admin@teclemotos.com',
-        senha: 'admin123'
+        senha: '123456'
       }
     });
   } catch (error: any) {

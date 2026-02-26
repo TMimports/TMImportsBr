@@ -30,27 +30,8 @@ export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : []
 });
 
-prisma.$connect().then(async () => {
+prisma.$connect().then(() => {
   console.log('Prisma conectado ao banco de dados');
-  try {
-    const bcrypt = await import('bcryptjs');
-    const adminExiste = await prisma.user.findFirst({ where: { role: 'ADMIN_GERAL' } });
-    if (!adminExiste) {
-      const senhaHash = await bcrypt.default.hash('123456', 10);
-      await prisma.user.create({
-        data: {
-          nome: 'Admin Geral',
-          email: 'admin@teclemotos.com',
-          senha: senhaHash,
-          role: 'ADMIN_GERAL',
-          ativo: true
-        }
-      });
-      console.log('Admin criado automaticamente: admin@teclemotos.com / 123456');
-    }
-  } catch (e) {
-    console.error('Erro ao verificar/criar admin:', e);
-  }
 }).catch((e: Error) => {
   console.error('Erro ao conectar Prisma:', e.message);
 });
@@ -179,40 +160,31 @@ const PORT = isDev ? 3001 : 5000;
 async function initializeDatabase() {
   const bcrypt = await import('bcryptjs');
   
-  const userCount = await prisma.user.count();
-  if (userCount === 0) {
-    console.log('Banco vazio, inicializando dados...');
-    
-    let grupo = await prisma.grupo.findFirst();
-    if (!grupo) {
-      grupo = await prisma.grupo.create({ data: { nome: 'Tecle Motos' } });
-    }
-
-    let loja = await prisma.loja.findFirst();
-    if (!loja) {
-      loja = await prisma.loja.create({
-        data: {
-          cnpj: '00.000.000/0001-00',
-          razaoSocial: 'Tecle Motos Centro Ltda',
-          nomeFantasia: 'Tecle Motos Centro',
-          endereco: 'Rua Principal, 100 - Centro',
-          telefone: '(11) 99999-9999',
-          grupoId: grupo.id
-        }
-      });
-    }
-
-    const senhaAdmin = await bcrypt.default.hash('admin123', 10);
+  const adminExiste = await prisma.user.findFirst({ where: { role: 'ADMIN_GERAL' } });
+  
+  if (!adminExiste) {
+    console.log('Admin nao encontrado, criando...');
+    const senhaAdmin = await bcrypt.default.hash('123456', 10);
     await prisma.user.create({
       data: {
-        nome: 'Administrador Geral',
+        nome: 'Admin Geral',
         email: 'admin@teclemotos.com',
         senha: senhaAdmin,
-        role: 'ADMIN_GERAL'
+        role: 'ADMIN_GERAL',
+        ativo: true
       }
     });
-
-    console.log('Dados iniciais criados! Login: admin@teclemotos.com / admin123');
+    console.log('Admin criado! Login: admin@teclemotos.com / 123456');
+  } else {
+    const senhaCorreta = await bcrypt.default.compare('123456', adminExiste.senha);
+    if (!senhaCorreta) {
+      const senhaAdmin = await bcrypt.default.hash('123456', 10);
+      await prisma.user.update({
+        where: { id: adminExiste.id },
+        data: { senha: senhaAdmin, lojaId: null, grupoId: null, ativo: true }
+      });
+      console.log('Senha do admin corrigida para 123456');
+    }
   }
 }
 
