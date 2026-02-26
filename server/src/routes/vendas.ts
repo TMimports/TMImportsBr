@@ -511,6 +511,106 @@ router.put('/:id/converter-venda', async (req: AuthRequest, res) => {
   }
 });
 
+router.put('/:id/cancelar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), async (req: AuthRequest, res) => {
+  try {
+    const vendaId = Number(req.params.id);
+    const { motivo } = req.body;
+
+    if (!motivo || motivo.trim().length < 3) {
+      return res.status(400).json({ error: 'Informe o motivo do cancelamento (mínimo 3 caracteres)' });
+    }
+
+    const venda = await prisma.venda.findUnique({
+      where: { id: vendaId },
+      include: {
+        itens: { include: { produto: true, unidadeFisica: true } },
+        loja: true
+      }
+    });
+
+    if (!venda) {
+      return res.status(404).json({ error: 'Venda não encontrada' });
+    }
+
+    if (venda.deletedAt) {
+      return res.status(400).json({ error: 'Esta venda já foi cancelada' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (venda.tipo === 'VENDA') {
+        for (const item of venda.itens) {
+          if (item.produtoId) {
+            const estoque = await tx.estoque.findUnique({
+              where: { produtoId_lojaId: { produtoId: item.produtoId, lojaId: venda.lojaId } }
+            });
+
+            if (estoque) {
+              await tx.estoque.update({
+                where: { id: estoque.id },
+                data: { quantidade: estoque.quantidade + item.quantidade }
+              });
+
+              await tx.logEstoque.create({
+                data: {
+                  tipo: 'ENTRADA',
+                  origem: 'CANCELAMENTO',
+                  origemId: vendaId,
+                  produtoId: item.produtoId,
+                  lojaId: venda.lojaId,
+                  quantidade: item.quantidade,
+                  quantidadeAnterior: estoque.quantidade,
+                  quantidadeNova: estoque.quantidade + item.quantidade,
+                  usuarioId: req.user!.id
+                }
+              });
+            }
+
+            if (item.unidadeFisicaId) {
+              await tx.unidadeFisica.update({
+                where: { id: item.unidadeFisicaId },
+                data: { status: 'ESTOQUE' }
+              });
+            }
+          }
+        }
+
+        await tx.contaReceber.deleteMany({ where: { vendaId } });
+        await tx.comissao.deleteMany({ where: { vendaId } });
+        await tx.garantia.updateMany({
+          where: { vendaId },
+          data: { ativa: false }
+        });
+        await tx.caixa.deleteMany({
+          where: { referencia: `venda_${vendaId}` }
+        });
+      }
+
+      await tx.venda.update({
+        where: { id: vendaId },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: req.user!.id
+        }
+      });
+
+      await tx.logAuditoria.create({
+        data: {
+          usuarioId: req.user!.id,
+          acao: 'CANCELAMENTO',
+          entidade: 'Venda',
+          entidadeId: vendaId,
+          dados: JSON.stringify({ motivo, tipo: venda.tipo, valorTotal: venda.valorTotal })
+        }
+      });
+    });
+
+    res.json({ message: 'Venda cancelada com sucesso. Estoque restaurado e registros financeiros removidos.' });
+  } catch (error) {
+    console.error('Erro ao cancelar venda:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.delete('/:id', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), async (req: AuthRequest, res) => {
   try {
     const venda = await prisma.venda.findUnique({

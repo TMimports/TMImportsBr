@@ -35,6 +35,7 @@ interface Venda {
   valorTotal: number;
   formaPagamento: string;
   confirmadaFinanceiro: boolean;
+  deletedAt: string | null;
   createdAt: string;
 }
 
@@ -84,7 +85,7 @@ interface ConfigDescontos {
 }
 
 export function Vendas() {
-  useAuth();
+  const { user } = useAuth();
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -96,6 +97,9 @@ export function Vendas() {
   const [vendaDetalhada, setVendaDetalhada] = useState<VendaFull | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [configDescontos, setConfigDescontos] = useState<ConfigDescontos>({ descontoMaxMoto: 3.5, descontoMaxPeca: 10 });
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelVendaId, setCancelVendaId] = useState<number | null>(null);
+  const [cancelMotivo, setCancelMotivo] = useState('');
 
   const [form, setForm] = useState({
     clienteId: '',
@@ -262,6 +266,26 @@ export function Vendas() {
     }
   };
 
+  const abrirCancelamento = (id: number) => {
+    setCancelVendaId(id);
+    setCancelMotivo('');
+    setCancelModalOpen(true);
+  };
+
+  const confirmarCancelamento = async () => {
+    if (!cancelVendaId || !cancelMotivo.trim()) return;
+    try {
+      await api.put(`/vendas/${cancelVendaId}/cancelar`, { motivo: cancelMotivo });
+      setCancelModalOpen(false);
+      setCancelVendaId(null);
+      setCancelMotivo('');
+      loadData();
+      alert('Venda cancelada com sucesso! Estoque restaurado.');
+    } catch (err: any) {
+      alert(err.message || 'Erro ao cancelar venda');
+    }
+  };
+
   const converterParaVenda = async (id: number) => {
     if (!window.confirm('Deseja concluir este orçamento como venda?')) return;
     try {
@@ -361,6 +385,11 @@ export function Vendas() {
                   {venda.tipo === 'ORCAMENTO' && !venda.confirmadaFinanceiro && (
                     <button onClick={() => converterParaVenda(venda.id)} className="btn btn-sm btn-success">
                       Concluir
+                    </button>
+                  )}
+                  {!venda.deletedAt && (user?.role === 'ADMIN_GERAL' || user?.role === 'GERENTE_LOJA' || user?.role === 'DONO_LOJA') && (
+                    <button onClick={() => abrirCancelamento(venda.id)} className="btn btn-sm btn-danger">
+                      Cancelar
                     </button>
                   )}
                 </div>
@@ -828,6 +857,42 @@ export function Vendas() {
             </button>
             <button onClick={handlePrint} className="btn btn-primary">
               Imprimir
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={cancelModalOpen} onClose={() => setCancelModalOpen(false)} title="Cancelar Venda">
+        <div className="space-y-4">
+          <div className="p-3 bg-red-900/30 border border-red-700 rounded-lg">
+            <p className="text-red-400 text-sm font-medium">Atenção: Esta ação irá:</p>
+            <ul className="text-red-300 text-xs mt-2 space-y-1 list-disc list-inside">
+              <li>Restaurar o estoque dos produtos</li>
+              <li>Remover contas a receber vinculadas</li>
+              <li>Cancelar comissões do vendedor</li>
+              <li>Desativar garantias geradas</li>
+              <li>Remover entrada do caixa</li>
+            </ul>
+          </div>
+          <div>
+            <label className="label">Motivo do cancelamento / estorno *</label>
+            <textarea
+              value={cancelMotivo}
+              onChange={e => setCancelMotivo(e.target.value)}
+              className="input w-full h-24 resize-none"
+              placeholder="Ex: Cliente desistiu da compra, erro no pedido, etc."
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setCancelModalOpen(false)} className="btn btn-secondary">
+              Voltar
+            </button>
+            <button
+              onClick={confirmarCancelamento}
+              disabled={cancelMotivo.trim().length < 3}
+              className="btn btn-danger"
+            >
+              Confirmar Cancelamento
             </button>
           </div>
         </div>
