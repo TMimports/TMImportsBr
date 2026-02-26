@@ -82,6 +82,7 @@ export function Garantias() {
   };
 
   const garantiasFiltradas = garantias.filter(g => {
+    if (!g.ativa) return false;
     const dias = calcularDiasRestantes(g.dataFim);
     if (filtro === 'ativas') return dias > 5;
     if (filtro === 'vencendo') return dias > 0 && dias <= 5;
@@ -108,12 +109,13 @@ export function Garantias() {
     grupo.garantias.push(g);
   }
 
-  const ativas = garantias.filter(g => calcularDiasRestantes(g.dataFim) > 5).length;
-  const vencendo = garantias.filter(g => {
+  const garantiasAtivas = garantias.filter(g => g.ativa);
+  const ativas = garantiasAtivas.filter(g => calcularDiasRestantes(g.dataFim) > 5).length;
+  const vencendo = garantiasAtivas.filter(g => {
     const dias = calcularDiasRestantes(g.dataFim);
     return dias > 0 && dias <= 5;
   }).length;
-  const expiradas = garantias.filter(g => calcularDiasRestantes(g.dataFim) <= 0).length;
+  const expiradas = garantiasAtivas.filter(g => calcularDiasRestantes(g.dataFim) <= 0).length;
 
   const getStatusGrupo = (grupo: ClienteGrupo) => {
     const temExpirada = grupo.garantias.some(g => calcularDiasRestantes(g.dataFim) <= 0);
@@ -142,7 +144,7 @@ export function Garantias() {
           onClick={() => setFiltro('todas')}
         >
           <p className="text-gray-400 text-sm">Total</p>
-          <p className="text-2xl font-bold">{garantias.length}</p>
+          <p className="text-2xl font-bold">{garantiasAtivas.length}</p>
         </div>
         <div 
           className={`card cursor-pointer ${filtro === 'ativas' ? 'ring-2 ring-orange-500' : ''}`}

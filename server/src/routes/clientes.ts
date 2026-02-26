@@ -95,7 +95,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { nome, cpfCnpj, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, estado } = req.body;
+    const { nome, cpfCnpj, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, estado, lojaId: lojaIdBody } = req.body;
 
     if (!nome) {
       return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -103,6 +103,21 @@ router.post('/', async (req: AuthRequest, res) => {
 
     if (!cep) {
       return res.status(400).json({ error: 'CEP é obrigatório' });
+    }
+
+    let lojaId = req.user!.lojaId;
+    if (!lojaId && lojaIdBody && req.user!.grupoId) {
+      const lojaValida = await prisma.loja.findFirst({
+        where: { id: parseInt(lojaIdBody), grupoId: req.user!.grupoId, ativo: true }
+      });
+      if (lojaValida) lojaId = lojaValida.id;
+    }
+    if (!lojaId && req.user!.grupoId) {
+      const primeiraLoja = await prisma.loja.findFirst({
+        where: { grupoId: req.user!.grupoId, ativo: true },
+        select: { id: true }
+      });
+      if (primeiraLoja) lojaId = primeiraLoja.id;
     }
 
     const cliente = await prisma.cliente.create({
@@ -118,7 +133,7 @@ router.post('/', async (req: AuthRequest, res) => {
         bairro,
         cidade,
         estado,
-        lojaId: req.user!.lojaId,
+        lojaId,
         createdBy: req.user!.id
       }
     });

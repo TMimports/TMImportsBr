@@ -34,6 +34,7 @@ interface OrdemServico {
   tipo: string;
   status: string;
   valorTotal: number;
+  confirmadaFinanceiro: boolean;
   cliente: { nome: string };
   tecnico?: string;
   createdAt: string;
@@ -362,7 +363,7 @@ export function OrdensServico() {
                     {statusLabels[os.status] || os.status}
                   </span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {os.tipo === 'ORCAMENTO' && os.status === 'ORCAMENTO' && (
                     <button
                       onClick={async () => {
@@ -377,6 +378,23 @@ export function OrdensServico() {
                       className="btn btn-sm btn-success"
                     >
                       Converter em OS
+                    </button>
+                  )}
+                  {os.status === 'EM_EXECUCAO' && !os.confirmadaFinanceiro && (
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Finalizar esta OS? Sera gerada comissao do tecnico e conta a receber.')) return;
+                        try {
+                          await api.put(`/os/${os.id}/confirmar`, {});
+                          loadData();
+                          alert('OS finalizada com sucesso!');
+                        } catch (err: any) {
+                          alert(err.message || 'Erro ao finalizar OS');
+                        }
+                      }}
+                      className="btn btn-sm btn-success"
+                    >
+                      Finalizar
                     </button>
                   )}
                   <button onClick={() => abrirVisualizacao(os.id)} className="btn btn-sm btn-secondary">
