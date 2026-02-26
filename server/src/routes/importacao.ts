@@ -97,6 +97,10 @@ router.post('/produtos', verifyToken, upload.single('arquivo'), async (req, res)
     const produtosAtualizados: any[] = [];
     let erros: string[] = [];
 
+    const config = await prisma.configuracao.findFirst();
+    const margemMoto = Number(config?.lucroMoto ?? 30);
+    const margemPeca = Number(config?.lucroPeca ?? 60);
+
     for (let i = 1; i < dados.length; i++) {
       const row = dados[i];
       if (!row || !row[1]) continue;
@@ -111,9 +115,8 @@ router.post('/produtos', verifyToken, upload.single('arquivo'), async (req, res)
         continue;
       }
 
-      const percentualCusto = tipo === 'MOTO' ? 0.7368 : 0.40;
-      const percentualLucro = tipo === 'MOTO' ? 26.32 : 60;
-      const preco = custo > 0 ? custo / percentualCusto : 0;
+      const percentualLucro = tipo === 'MOTO' ? margemMoto : margemPeca;
+      const preco = custo > 0 ? custo / (1 - percentualLucro / 100) : 0;
 
       const existente = await prisma.produto.findFirst({ where: { nome } });
       if (existente) {
