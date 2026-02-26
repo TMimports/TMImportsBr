@@ -26,7 +26,15 @@ import sistemaRoutes from './routes/sistema.js';
 import configuracoesRoutes from './routes/configuracoes.js';
 import adminRoutes from './routes/admin.js';
 
-export const prisma = new PrismaClient();
+export const prisma = new PrismaClient({
+  log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : []
+});
+
+prisma.$connect().then(() => {
+  console.log('Prisma conectado ao banco de dados');
+}).catch((e: Error) => {
+  console.error('Erro ao conectar Prisma:', e.message);
+});
 
 const app = express();
 const isDev = process.env.NODE_ENV !== 'production';

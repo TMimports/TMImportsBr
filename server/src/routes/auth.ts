@@ -15,10 +15,26 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+    const emailNormalized = email.toLowerCase().trim();
+    console.log('Buscando email normalizado:', JSON.stringify(emailNormalized));
+
+    let user = await prisma.user.findUnique({
+      where: { email: emailNormalized },
       include: { loja: true, grupo: true }
     });
+
+    if (!user) {
+      console.log('findUnique retornou null, tentando findFirst...');
+      user = await prisma.user.findFirst({
+        where: { email: emailNormalized },
+        include: { loja: true, grupo: true }
+      });
+    }
+
+    if (!user) {
+      const allUsers = await prisma.user.findMany({ select: { id: true, email: true, ativo: true } });
+      console.log('Todos os usuarios no banco:', JSON.stringify(allUsers));
+    }
 
     console.log('Usuário encontrado:', user ? { id: user.id, email: user.email, ativo: user.ativo } : 'Não');
 
