@@ -24,7 +24,7 @@ interface LojaComparativo {
 
 interface Loja {
   id: number;
-  nome: string;
+  nomeFantasia: string;
 }
 
 interface DashboardProps {
@@ -124,7 +124,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 placeholder="Todas as lojas"
                 options={[
                   { value: '', label: 'Todas as lojas' },
-                  ...lojas.map(l => ({ value: String(l.id), label: l.nome }))
+                  ...lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))
                 ]}
               />
               <button onClick={loadComparativo} className="btn btn-secondary">

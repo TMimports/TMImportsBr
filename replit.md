@@ -17,7 +17,7 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Safe client deletion (prevents deletion if client has linked sales/OS)
 - PWA Support for mobile installation and offline capabilities
 - Granular RBAC permission system with 5 roles
-- Strict multi-tenant isolation on all GET-by-ID routes (vendas, clientes, OS, grupos)
+- Strict multi-tenant isolation on all GET-by-ID routes (vendas, clientes, OS, grupos, garantias, revisoes)
 - Group owner registration with temporary password and mandatory password change on first login
 - Admin-configurable percentage settings (commissions, discounts) with change history
 - Real-time group-wide stock monitoring (Utilidades page)

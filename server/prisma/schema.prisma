@@ -343,6 +343,7 @@ model ItemOS {
   servicoId       Int?
   quantidade      Int          @default(1)
   precoUnitario   Decimal      @db.Decimal(10, 2)
+  desconto        Decimal      @db.Decimal(5, 2) @default(0)
   
   ordemServico    OrdemServico @relation(fields: [ordemServicoId], references: [id], onDelete: Cascade)
   produto         Produto?     @relation(fields: [produtoId], references: [id])

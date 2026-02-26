@@ -63,7 +63,7 @@ function AppContent() {
       case 'servicos':
         return <Servicos />;
       case 'unidades':
-        return <div className="card p-8 text-center text-gray-500">Modulo descontinuado. Utilize o Estoque.</div>;
+        return <div className="card p-8 text-center text-gray-500">Módulo descontinuado. Utilize o Estoque.</div>;
       case 'estoque':
         return <Estoque />;
       case 'os':

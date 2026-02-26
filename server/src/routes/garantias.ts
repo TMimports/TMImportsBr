@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
-import { verifyToken, AuthRequest } from '../middleware/auth.js';
+import { verifyToken, AuthRequest, applyTenantFilter } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -8,24 +8,19 @@ router.use(verifyToken);
 
 router.get('/', async (req: AuthRequest, res) => {
   try {
-    const userRole = req.user?.role;
-    const userId = req.user?.id;
-    const userGrupoId = req.user?.grupoId;
-    const userLojaId = req.user?.lojaId;
+    const filter = applyTenantFilter(req);
     const where: any = {};
 
-    if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
-      if ((userRole === 'DONO_LOJA' || userRole === 'GERENTE_LOJA') && userGrupoId) {
-        where.OR = [
-          { unidadeFisica: { loja: { grupoId: userGrupoId } } },
-          { unidadeFisicaId: null, venda: { loja: { grupoId: userGrupoId } } }
-        ];
-      } else if (userLojaId) {
-        where.OR = [
-          { unidadeFisica: { lojaId: userLojaId } },
-          { unidadeFisicaId: null, venda: { lojaId: userLojaId } }
-        ];
-      }
+    if (filter.lojaId) {
+      where.OR = [
+        { unidadeFisica: { lojaId: filter.lojaId } },
+        { unidadeFisicaId: null, venda: { lojaId: filter.lojaId } }
+      ];
+    } else if (filter.grupoId) {
+      where.OR = [
+        { unidadeFisica: { loja: { grupoId: filter.grupoId } } },
+        { unidadeFisicaId: null, venda: { loja: { grupoId: filter.grupoId } } }
+      ];
     }
 
     const garantias = await prisma.garantia.findMany({
@@ -73,11 +68,26 @@ router.get('/alertas', async (req: AuthRequest, res) => {
     const limite = new Date();
     limite.setDate(limite.getDate() + 20);
 
+    const filter = applyTenantFilter(req);
+    const where: any = {
+      ativa: true,
+      dataFim: { gte: hoje, lte: limite }
+    };
+
+    if (filter.lojaId) {
+      where.OR = [
+        { unidadeFisica: { lojaId: filter.lojaId } },
+        { unidadeFisicaId: null, venda: { lojaId: filter.lojaId } }
+      ];
+    } else if (filter.grupoId) {
+      where.OR = [
+        { unidadeFisica: { loja: { grupoId: filter.grupoId } } },
+        { unidadeFisicaId: null, venda: { loja: { grupoId: filter.grupoId } } }
+      ];
+    }
+
     const garantias = await prisma.garantia.findMany({
-      where: {
-        ativa: true,
-        dataFim: { gte: hoje, lte: limite }
-      },
+      where,
       include: { unidadeFisica: { include: { produto: true } } },
       orderBy: { dataFim: 'asc' }
     });
@@ -220,7 +230,17 @@ router.post('/', async (req: AuthRequest, res) => {
 
 router.get('/revisoes', async (req: AuthRequest, res) => {
   try {
+    const filter = applyTenantFilter(req);
+    const where: any = {};
+
+    if (filter.lojaId) {
+      where.unidadeFisica = { lojaId: filter.lojaId };
+    } else if (filter.grupoId) {
+      where.unidadeFisica = { loja: { grupoId: filter.grupoId } };
+    }
+
     const revisoes = await prisma.revisao.findMany({
+      where,
       include: { unidadeFisica: { include: { produto: true } } },
       orderBy: { dataAgendada: 'asc' }
     });
@@ -238,11 +258,20 @@ router.get('/revisoes/alertas', async (req: AuthRequest, res) => {
     const limite = new Date();
     limite.setDate(limite.getDate() + 20);
 
+    const filter = applyTenantFilter(req);
+    const where: any = {
+      dataRealizada: null,
+      dataAgendada: { gte: hoje, lte: limite }
+    };
+
+    if (filter.lojaId) {
+      where.unidadeFisica = { lojaId: filter.lojaId };
+    } else if (filter.grupoId) {
+      where.unidadeFisica = { loja: { grupoId: filter.grupoId } };
+    }
+
     const revisoes = await prisma.revisao.findMany({
-      where: {
-        dataRealizada: null,
-        dataAgendada: { gte: hoje, lte: limite }
-      },
+      where,
       include: { unidadeFisica: { include: { produto: true } } },
       orderBy: { dataAgendada: 'asc' }
     });
