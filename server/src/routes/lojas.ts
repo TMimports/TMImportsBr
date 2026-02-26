@@ -202,6 +202,10 @@ router.delete('/:id', requireAdminRede, async (req, res) => {
     await prisma.contaReceber.deleteMany({ where: { lojaId } });
     await prisma.contaPagar.deleteMany({ where: { lojaId } });
     await prisma.cliente.deleteMany({ where: { lojaId } });
+    await prisma.user.updateMany({
+      where: { lojaId, role: { in: ['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'] } },
+      data: { lojaId: null }
+    });
     await prisma.user.deleteMany({ where: { lojaId } });
 
     await prisma.loja.delete({ where: { id: lojaId } });

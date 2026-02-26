@@ -206,8 +206,7 @@ async function initializeDatabase() {
         nome: 'Administrador Geral',
         email: 'admin@teclemotos.com',
         senha: senhaAdmin,
-        role: 'ADMIN_GERAL',
-        lojaId: loja.id
+        role: 'ADMIN_GERAL'
       }
     });
 
