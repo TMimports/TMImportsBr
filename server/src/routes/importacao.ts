@@ -98,8 +98,11 @@ router.post('/produtos', verifyToken, upload.single('arquivo'), async (req, res)
     let erros: string[] = [];
 
     const config = await prisma.configuracao.findFirst();
-    const margemMoto = Number(config?.lucroMoto ?? 30);
-    const margemPeca = Number(config?.lucroPeca ?? 60);
+    if (!config) {
+      return res.status(400).json({ error: 'Configurações não encontradas. Defina as margens na aba Configurações antes de importar.' });
+    }
+    const margemMoto = Number(config.lucroMoto);
+    const margemPeca = Number(config.lucroPeca);
 
     for (let i = 1; i < dados.length; i++) {
       const row = dados[i];

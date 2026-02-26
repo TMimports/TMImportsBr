@@ -9,9 +9,10 @@ router.use(verifyToken);
 
 async function getMargens() {
   const config = await prisma.configuracao.findFirst();
+  if (!config) throw new Error('Configurações não encontradas. Defina as margens na aba Configurações.');
   return {
-    lucroMoto: Number(config?.lucroMoto ?? 30),
-    lucroPeca: Number(config?.lucroPeca ?? 60)
+    lucroMoto: Number(config.lucroMoto),
+    lucroPeca: Number(config.lucroPeca)
   };
 }
 

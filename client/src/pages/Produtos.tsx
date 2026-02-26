@@ -38,7 +38,7 @@ export function Produtos() {
   const [selecionados, setSelecionados] = useState<number[]>([]);
   const [busca, setBusca] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('TODOS');
-  const [margens, setMargens] = useState<Margens>({ lucroMoto: 30, lucroPeca: 60 });
+  const [margens, setMargens] = useState<Margens>({ lucroMoto: 0, lucroPeca: 0 });
 
   const loadProdutos = () => {
     setLoading(true);
@@ -50,8 +50,8 @@ export function Produtos() {
         setProdutos(produtosData);
         if (config) {
           setMargens({
-            lucroMoto: Number(config.lucroMoto ?? 30),
-            lucroPeca: Number(config.lucroPeca ?? 60)
+            lucroMoto: Number(config.lucroMoto || 0),
+            lucroPeca: Number(config.lucroPeca || 0)
           });
         }
       })
