@@ -9,7 +9,7 @@ requiredFiles = [".replit", "replit.nix", "package.json", "package-lock.json"]
 channel = "stable-24_11"
 
 [deployment]
-run = ["bash", "-c", "NODE_ENV=production npx tsx server/src/index.ts"]
+run = ["bash", "-c", "npx prisma db push --skip-generate && NODE_ENV=production npx tsx server/src/index.ts"]
 deploymentTarget = "autoscale"
 ignorePorts = false
 build = ["bash", "-c", "cd client && npm run build"]
