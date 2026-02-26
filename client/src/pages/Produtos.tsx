@@ -65,9 +65,6 @@ export function Produtos() {
 
   const calcularPreco = (custo: number, tipo: string) => {
     const margem = tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca;
-    if (tipo === 'MOTO') {
-      return custo * (1 + margem / 100);
-    }
     return custo / (1 - margem / 100);
   };
 

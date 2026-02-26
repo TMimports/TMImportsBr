@@ -223,9 +223,7 @@ router.post('/recalcular-precos', requireRole('ADMIN_GERAL'), async (req: AuthRe
 
     for (const produto of produtos) {
       const margem = produto.tipo === 'MOTO' ? lucroMoto : lucroPeca;
-      const novoPreco = produto.tipo === 'MOTO'
-        ? Number(produto.custo) * (1 + margem / 100)
-        : Number(produto.custo) / (1 - margem / 100);
+      const novoPreco = Number(produto.custo) / (1 - margem / 100);
 
       if (Math.abs(Number(produto.preco) - novoPreco) > 0.01) {
         await prisma.produto.update({
