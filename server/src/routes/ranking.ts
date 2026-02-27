@@ -8,8 +8,10 @@ router.get('/produtos', verifyToken, async (req, res) => {
   try {
     const { periodo = '30', limite = '10', ordem = 'desc' } = req.query;
     
+    const periodoMap: Record<string, number> = { dia: 1, semana: 7, mes: 30, trimestre: 90, ano: 365 };
+    const dias = periodoMap[periodo as string] || parseInt(periodo as string) || 30;
     const dataInicio = new Date();
-    dataInicio.setDate(dataInicio.getDate() - parseInt(periodo as string));
+    dataInicio.setDate(dataInicio.getDate() - dias);
 
     const vendas = await prisma.itemVenda.groupBy({
       by: ['produtoId'],
@@ -66,8 +68,10 @@ router.get('/servicos', verifyToken, async (req, res) => {
   try {
     const { periodo = '30', limite = '10', ordem = 'desc' } = req.query;
     
+    const periodoMap: Record<string, number> = { dia: 1, semana: 7, mes: 30, trimestre: 90, ano: 365 };
+    const dias = periodoMap[periodo as string] || parseInt(periodo as string) || 30;
     const dataInicio = new Date();
-    dataInicio.setDate(dataInicio.getDate() - parseInt(periodo as string));
+    dataInicio.setDate(dataInicio.getDate() - dias);
 
     const osServicos = await prisma.itemOS.groupBy({
       by: ['servicoId'],
@@ -123,8 +127,10 @@ router.get('/resumo', verifyToken, async (req, res) => {
   try {
     const { periodo = '30' } = req.query;
     
+    const periodoMap: Record<string, number> = { dia: 1, semana: 7, mes: 30, trimestre: 90, ano: 365 };
+    const dias = periodoMap[periodo as string] || parseInt(periodo as string) || 30;
     const dataInicio = new Date();
-    dataInicio.setDate(dataInicio.getDate() - parseInt(periodo as string));
+    dataInicio.setDate(dataInicio.getDate() - dias);
 
     const [
       maisVendidoProduto,

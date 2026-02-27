@@ -80,9 +80,14 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
     const userRole = req.user?.role;
     if (userRole !== 'ADMIN_GERAL' && userRole !== 'ADMIN_REDE') {
-      const userGrupoId = req.user?.grupoId;
-      if (cliente.loja && cliente.loja.grupoId !== userGrupoId) {
-        return res.status(403).json({ error: 'Acesso negado' });
+      if (req.user?.lojaId) {
+        if (cliente.lojaId && cliente.lojaId !== req.user.lojaId) {
+          return res.status(403).json({ error: 'Acesso negado' });
+        }
+      } else if (req.user?.grupoId) {
+        if (cliente.loja && cliente.loja.grupoId !== req.user.grupoId) {
+          return res.status(403).json({ error: 'Acesso negado' });
+        }
       }
     }
 
@@ -106,11 +111,16 @@ router.post('/', async (req: AuthRequest, res) => {
     }
 
     let lojaId = req.user!.lojaId;
-    if (!lojaId && lojaIdBody && req.user!.grupoId) {
-      const lojaValida = await prisma.loja.findFirst({
-        where: { id: parseInt(lojaIdBody), grupoId: req.user!.grupoId, ativo: true }
-      });
-      if (lojaValida) lojaId = lojaValida.id;
+    if (!lojaId && lojaIdBody) {
+      if (req.user!.role === 'ADMIN_GERAL' || req.user!.role === 'ADMIN_REDE') {
+        const lojaExists = await prisma.loja.findFirst({ where: { id: parseInt(lojaIdBody), ativo: true } });
+        if (lojaExists) lojaId = lojaExists.id;
+      } else if (req.user!.grupoId) {
+        const lojaValida = await prisma.loja.findFirst({
+          where: { id: parseInt(lojaIdBody), grupoId: req.user!.grupoId, ativo: true }
+        });
+        if (lojaValida) lojaId = lojaValida.id;
+      }
     }
     if (!lojaId && req.user!.grupoId) {
       const primeiraLoja = await prisma.loja.findFirst({
