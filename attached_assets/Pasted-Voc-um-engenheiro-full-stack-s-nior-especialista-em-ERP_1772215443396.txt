@@ -1,0 +1,124 @@
+Você é um engenheiro full-stack sênior especialista em ERP/PDV, controle de estoque e UX de sistemas administrativos.
+
+Contexto
+
+O Módulo de Ordem de Serviço (OS) já está correto e funcionando bem:
+
+Mostra graficamente quais peças tem estoque e quantas tem
+
+Mostra quais peças não tem estoque
+
+Possui campo de pesquisa para facilitar localizar e adicionar peças rapidamente
+
+A UI/UX está boa e prática
+
+Porém, o Módulo de Vendas NÃO segue a mesma lógica e está inconsistente.
+
+Objetivo
+
+Fazer o Módulo de Vendas seguir EXATAMENTE a mesma lógica e experiência do Módulo de OS, reaproveitando componentes/queries/regras já existentes, ao invés de inventar outra implementação.
+
+Correções obrigatórias — Módulo de Vendas
+1) Exibição de produtos e estoque (mesma lógica da OS)
+
+No Módulo de Vendas, a listagem/seleção de produtos deve:
+
+Mostrar TODOS os produtos (como na OS)
+
+Informar claramente:
+
+nome do produto
+
+estoque atual (quantidade)
+
+status visual:
+
+Em estoque
+
+Baixo estoque (se existir essa regra na OS, reutilizar)
+
+Sem estoque
+
+Produtos sem estoque devem aparecer, mas:
+
+Devem ficar claramente marcados como “Sem estoque”
+
+Devem estar desabilitados para venda (não permitir finalizar venda com quantidade acima do estoque)
+
+Se o sistema permitir “venda sem estoque” por configuração, isso deve ser opcional e controlado por permissão (Admin)
+
+2) Campo de pesquisa (mesmo da OS)
+
+Adicionar no Módulo de Vendas o MESMO campo de pesquisa da OS, com o mesmo comportamento:
+
+Filtrar por nome/código/SKU (conforme OS)
+
+Busca rápida (debounce se já existir na OS)
+
+Deve funcionar tanto com produtos com estoque quanto sem estoque
+
+3) Reuso de código (evitar divergência)
+
+Identificar quais componentes, hooks, serviços e queries a OS usa para:
+
+buscar produtos
+
+mostrar estoque
+
+renderizar lista e status
+
+pesquisar
+
+Reutilizar no Módulo de Vendas:
+
+os mesmos métodos e componentes
+
+a mesma fonte de verdade (backend)
+
+Eliminar duplicação: não manter duas lógicas diferentes para a mesma função.
+
+4) Validação obrigatória na venda
+
+Garantir que:
+
+Não seja possível adicionar quantidade maior do que o estoque disponível
+
+Se estoque = 0:
+
+exibir mas impedir adicionar (ou permitir apenas se configuração/permite backorder + permissão admin)
+
+Validar no backend também (não confiar só no frontend)
+
+Requisitos técnicos
+
+Não reescrever o sistema inteiro
+
+Corrigir apenas o necessário
+
+Manter performance em listas grandes
+
+Garantir consistência total entre OS e Vendas
+
+Testar fluxo completo:
+
+pesquisar produto
+
+adicionar produto com estoque
+
+tentar adicionar produto sem estoque
+
+finalizar venda
+
+validar estoque
+
+Saída esperada
+
+Retorne somente:
+
+Arquivos alterados
+
+Trechos exatos de código modificados
+
+Pequena explicação por item (máximo 2–3 linhas cada)
+
+Não explique teoria. Implemente a correção.

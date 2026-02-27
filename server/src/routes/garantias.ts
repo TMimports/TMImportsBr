@@ -49,9 +49,28 @@ router.get('/', async (req: AuthRequest, res) => {
 router.put('/:id/revisao', async (req: AuthRequest, res) => {
   try {
     const { revisaoFeita } = req.body;
-    
+    const filter = applyTenantFilter(req);
+
+    const where: any = { id: Number(req.params.id) };
+    if (filter.lojaId) {
+      where.OR = [
+        { unidadeFisica: { lojaId: filter.lojaId } },
+        { unidadeFisicaId: null, venda: { lojaId: filter.lojaId } }
+      ];
+    } else if (filter.grupoId) {
+      where.OR = [
+        { unidadeFisica: { loja: { grupoId: filter.grupoId } } },
+        { unidadeFisicaId: null, venda: { loja: { grupoId: filter.grupoId } } }
+      ];
+    }
+
+    const garantiaExistente = await prisma.garantia.findFirst({ where });
+    if (!garantiaExistente) {
+      return res.status(404).json({ error: 'Garantia não encontrada' });
+    }
+
     const garantia = await prisma.garantia.update({
-      where: { id: Number(req.params.id) },
+      where: { id: garantiaExistente.id },
       data: { revisaoFeita: Boolean(revisaoFeita) }
     });
 

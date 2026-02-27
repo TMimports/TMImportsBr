@@ -152,6 +152,15 @@ router.post('/contas-receber', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Dados incompletos' });
     }
 
+    const filter = applyTenantFilter(req);
+    if (filter.lojaId && filter.lojaId !== Number(lojaId)) {
+      return res.status(403).json({ error: 'Acesso negado a esta loja' });
+    }
+    if (filter.grupoId) {
+      const loja = await prisma.loja.findFirst({ where: { id: Number(lojaId), grupoId: filter.grupoId } });
+      if (!loja) return res.status(403).json({ error: 'Acesso negado a esta loja' });
+    }
+
     const conta = await prisma.contaReceber.create({
       data: {
         lojaId: Number(lojaId),
@@ -409,6 +418,15 @@ router.post('/contas-pagar', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Dados incompletos' });
     }
 
+    const filter = applyTenantFilter(req);
+    if (filter.lojaId && filter.lojaId !== Number(lojaId)) {
+      return res.status(403).json({ error: 'Acesso negado a esta loja' });
+    }
+    if (filter.grupoId) {
+      const loja = await prisma.loja.findFirst({ where: { id: Number(lojaId), grupoId: filter.grupoId } });
+      if (!loja) return res.status(403).json({ error: 'Acesso negado a esta loja' });
+    }
+
     const conta = await prisma.contaPagar.create({
       data: {
         lojaId: Number(lojaId),
@@ -575,8 +593,8 @@ router.put('/comissoes/:id/pagar', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERE
   try {
     const filter = applyTenantFilter(req);
     const whereCheck: any = { id: Number(req.params.id) };
-    if (filter.lojaId) whereCheck.lojaId = filter.lojaId;
-    if (filter.grupoId) whereCheck.loja = { grupoId: filter.grupoId };
+    if (filter.lojaId) whereCheck.usuario = { lojaId: filter.lojaId };
+    if (filter.grupoId) whereCheck.usuario = { grupoId: filter.grupoId };
 
     const comissaoExistente = await prisma.comissao.findFirst({ where: whereCheck });
     if (!comissaoExistente) {

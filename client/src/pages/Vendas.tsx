@@ -101,7 +101,6 @@ export function Vendas() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelVendaId, setCancelVendaId] = useState<number | null>(null);
   const [cancelMotivo, setCancelMotivo] = useState('');
-  const [mostrarSemEstoque, setMostrarSemEstoque] = useState(false);
 
   const [form, setForm] = useState({
     clienteId: '',
@@ -179,7 +178,14 @@ export function Vendas() {
     const novos = [...itensSelecionados];
     if (field === 'produtoId') {
       const produto = produtos.find(p => p.id === parseInt(value));
+      if (produto && produto.estoque <= 0 && form.tipo === 'VENDA') return;
       novos[index] = { ...novos[index], produtoId: value, preco: produto?.preco || 0, tipo: produto?.tipo || '' };
+    } else if (field === 'quantidade') {
+      const produto = produtos.find(p => p.id === parseInt(novos[index].produtoId));
+      if (produto && form.tipo === 'VENDA' && produto.tipo !== 'MOTO') {
+        value = Math.min(value, produto.estoque);
+      }
+      novos[index] = { ...novos[index], [field]: Math.max(1, value) };
     } else {
       novos[index] = { ...novos[index], [field]: value };
     }
@@ -529,102 +535,43 @@ export function Vendas() {
           />
 
           <div className="border-t border-zinc-700 pt-4">
-            <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
+            <div className="flex justify-between items-center mb-2">
               <label className="label mb-0">Produtos</label>
-              <div className="flex items-center gap-3">
-                {form.tipo === 'VENDA' && (
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-400">
-                    <input
-                      type="checkbox"
-                      checked={mostrarSemEstoque}
-                      onChange={(e) => setMostrarSemEstoque(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500"
-                    />
-                    Mostrar sem estoque
-                  </label>
-                )}
-                <button type="button" onClick={adicionarItem} className="btn btn-sm btn-secondary">
-                  + Adicionar Produto
-                </button>
-              </div>
+              <button type="button" onClick={adicionarItem} className="btn btn-sm btn-secondary">
+                + Adicionar Produto
+              </button>
             </div>
             {itensSelecionados.length === 0 ? (
               <p className="text-gray-500 text-sm">Nenhum produto adicionado</p>
             ) : (
               <div className="space-y-3">
-                {itensSelecionados.map((item, index) => (
+                {itensSelecionados.map((item, index) => {
+                  const produtoAtual = produtos.find(p => p.id === parseInt(item.produtoId));
+                  const maxQtd = produtoAtual && form.tipo === 'VENDA' && produtoAtual.tipo !== 'MOTO' ? produtoAtual.estoque : 9999;
+                  return (
                   <div key={index} className="p-3 bg-zinc-800 rounded-lg">
                     <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                      <div className="flex-1 relative">
-                        <div 
-                          className="w-full px-4 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg cursor-pointer flex justify-between items-center hover:border-orange-500 transition-colors"
-                          onClick={() => {
-                            const el = document.getElementById(`dropdown-${index}`);
-                            if (el) el.classList.toggle('hidden');
-                          }}
-                        >
-                          <span className={item.produtoId ? 'text-white' : 'text-gray-500'}>
-                            {item.produtoId 
-                              ? produtos.find(p => p.id === parseInt(item.produtoId))?.nome || 'Produto'
-                              : 'Selecione um produto...'}
-                          </span>
-                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                        <div 
-                          id={`dropdown-${index}`}
-                          className="hidden absolute z-50 w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl"
-                          style={{ maxHeight: '320px', overflowY: 'auto' }}
-                        >
-                          {(() => {
-                            const pecas = produtos.filter(p => p.tipo !== 'MOTO');
-                            const lista = form.tipo === 'VENDA' && !mostrarSemEstoque
-                              ? pecas.filter(p => p.estoque > 0)
-                              : pecas;
-                            if (lista.length === 0) {
-                              return <div className="px-4 py-4 text-gray-500 text-center text-sm">Nenhum produto disponivel</div>;
-                            }
-                            return lista.map(p => {
-                              const semEstoque = p.estoque <= 0;
-                              const bloqueado = semEstoque && form.tipo === 'VENDA';
-                              return (
-                                <div 
-                                  key={p.id}
-                                  className={`px-4 py-3 border-b border-zinc-800 last:border-b-0 transition-colors flex justify-between items-center ${
-                                    bloqueado ? 'opacity-40 cursor-not-allowed' :
-                                    item.produtoId === String(p.id) 
-                                      ? 'bg-orange-500/20 text-orange-400 cursor-pointer' 
-                                      : 'hover:bg-zinc-800 text-white cursor-pointer'
-                                  }`}
-                                  onClick={() => {
-                                    if (bloqueado) return;
-                                    atualizarItem(index, 'produtoId', String(p.id));
-                                    const el = document.getElementById(`dropdown-${index}`);
-                                    if (el) el.classList.add('hidden');
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="truncate">{p.nome}</span>
-                                    <span className={`text-xs px-1.5 py-0.5 rounded whitespace-nowrap flex-shrink-0 ${
-                                      p.estoque > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                                    }`}>
-                                      {p.estoque > 0 ? `${p.estoque} un` : 'Sem estoque'}
-                                    </span>
-                                  </div>
-                                  <span className="text-sm text-gray-400 whitespace-nowrap ml-3">R$ {Number(p.preco).toFixed(2)}</span>
-                                </div>
-                              );
-                            });
-                          })()}
-                        </div>
-                      </div>
+                      <CustomSelect
+                        value={item.produtoId}
+                        onChange={(val) => atualizarItem(index, 'produtoId', val)}
+                        className="flex-1"
+                        placeholder="Selecione um produto..."
+                        options={produtos.filter(p => p.tipo !== 'MOTO').map(p => {
+                          const statusTag = p.estoque <= 0 ? ' [Sem estoque]' : p.estoque <= 3 ? ` [Baixo: ${p.estoque}]` : ` [${p.estoque} un]`;
+                          return {
+                            value: String(p.id),
+                            label: `${p.nome}${statusTag} - R$ ${Number(p.preco).toFixed(2)}`,
+                            disabled: p.estoque <= 0 && form.tipo === 'VENDA'
+                          };
+                        })}
+                      />
                       <div className="flex gap-3 items-center">
                         <input
                           type="number"
                           min="1"
+                          max={maxQtd}
                           value={item.quantidade}
-                          onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value))}
+                          onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value) || 1)}
                           className="input w-20"
                         />
                         <span className="text-green-400 w-24 text-right">
@@ -662,7 +609,8 @@ export function Vendas() {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

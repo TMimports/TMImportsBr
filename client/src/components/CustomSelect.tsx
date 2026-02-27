@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 interface CustomSelectOption {
   value: string;
   label: string;
+  disabled?: boolean;
 }
 
 interface CustomSelectProps {
@@ -136,28 +137,31 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
             <div style={{ overflowY: 'auto', flex: 1 }}>
               {filtradas.map((opt, idx) => {
                 const isSelected = opt.value === value;
-                const itemColor = isSelected ? '#fb923c' : '#ffffff';
+                const isDisabled = opt.disabled === true;
+                const itemColor = isDisabled ? '#6b7280' : isSelected ? '#fb923c' : '#ffffff';
                 const itemBg = isSelected ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
                 return (
                   <div
                     key={opt.value}
                     onClick={() => {
+                      if (isDisabled) return;
                       onChange(opt.value);
                       setOpen(false);
                       setBusca('');
                     }}
                     style={{
                       padding: '11px 16px',
-                      cursor: 'pointer',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
                       color: itemColor,
                       WebkitTextFillColor: itemColor,
                       backgroundColor: itemBg,
                       borderBottom: idx < filtradas.length - 1 ? '1px solid rgba(39, 39, 42, 0.8)' : 'none',
                       fontSize: '14px',
                       transition: 'background-color 0.15s',
+                      opacity: isDisabled ? 0.5 : 1,
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSelected) {
+                      if (!isSelected && !isDisabled) {
                         (e.target as HTMLElement).style.backgroundColor = '#27272a';
                       }
                     }}
