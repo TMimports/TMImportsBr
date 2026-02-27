@@ -1,0 +1,188 @@
+Você é um engenheiro full-stack sênior especialista em ERP, controle de estoque e sistemas administrativos.
+
+Analise o sistema atual e implemente as correções abaixo com precisão.
+NÃO reescreva o sistema inteiro. Corrija apenas o necessário.
+
+🔴 1) ERRO NA LISTAGEM DE PRODUTOS NA VENDA
+
+Após ajuste anterior, ocorreu um bug crítico:
+
+Produtos com estoque NÃO estão aparecendo na tela de venda.
+
+O filtro está bloqueando itens válidos.
+
+A lógica provavelmente foi invertida ou conflitou com o modo “mostrar sem estoque”.
+
+✅ Regra obrigatória:
+MODO VENDA:
+
+Mostrar SOMENTE produtos com estoque > 0
+
+Garantir que:
+
+Nenhuma condição esteja invertida
+
+Nenhum filtro adicional esconda produtos válidos
+
+Query do banco esteja correta
+
+Frontend não esteja filtrando novamente de forma incorreta
+
+Revisar:
+
+Queries
+
+Condições if
+
+Filtros aplicados no backend
+
+Filtros no frontend
+
+Estados React (se houver)
+
+🔴 2) COMISSÃO DO TÉCNICO CALCULADA ERRADA
+
+Problema:
+A comissão está sendo calculada sobre o valor total da OS (incluindo peças).
+
+✅ Regra correta:
+
+A comissão deve ser calculada SOMENTE sobre o valor dos SERVIÇOS.
+
+Implementar:
+
+comissao = percentual_tecnico * total_servicos
+
+Garantir:
+
+Peças NÃO entram no cálculo
+
+Impostos NÃO entram
+
+Descontos sejam aplicados corretamente
+
+Não quebrar OS antigas
+
+Não permitir comissão sobre peças em hipótese alguma
+
+🔴 3) RESET DO SISTEMA ESTÁ ERRADO (BUG GRAVE)
+
+Problema crítico:
+
+Ao resetar, está sendo criado automaticamente um grupo.
+
+O reset não limpa completamente o banco.
+
+Existem resíduos após reset.
+
+✅ Regra obrigatória absoluta:
+
+Quando o ADMIN executar reset:
+
+Apagar TODOS os registros de TODAS as tabelas
+
+NÃO criar grupo padrão
+
+NÃO rodar seed automático
+
+NÃO recriar nada
+
+Banco deve ficar completamente limpo
+
+ZERO resíduos
+
+ZERO dados automáticos
+
+Implementar:
+
+Delete/Truncate completo
+
+Respeitar integridade relacional
+
+Reset só pode ser executado por ADMIN
+
+Remover qualquer função de auto-seed pós-reset
+
+🔴 4) PROBLEMA DE UI — SELECT DE PRODUTO ESTÁ ERRADO
+
+Ao selecionar produto, a janela dropdown está:
+
+Pequena
+
+Em formato quadrado estranho
+
+Visual quebrado
+
+Difícil de usar
+
+✅ Ajuste obrigatório:
+
+O dropdown deve seguir o padrão da imagem fornecida:
+
+Características esperadas:
+
+Modal escuro profissional
+
+Dropdown grande
+
+Lista com scroll vertical
+
+Ocupando largura adequada
+
+Visual moderno
+
+Lista legível
+
+Altura confortável (não mini dropdown)
+
+Layout fluido
+
+Corrigir:
+
+CSS do select
+
+Componente UI
+
+Limites de largura/altura
+
+Overflow
+
+Z-index se necessário
+
+Se for necessário:
+
+Substituir select padrão por componente customizado
+
+Usar biblioteca adequada (ex: headless UI, shadcn, etc.)
+
+Garantir responsividade
+
+⚙️ REGRAS GERAIS
+
+Não quebrar funcionalidades existentes
+
+Manter arquitetura atual
+
+Código modular
+
+Separar lógica de negócio da interface
+
+Manter performance
+
+Não duplicar lógica
+
+Não reescrever sistema inteiro
+
+📌 SAÍDA OBRIGATÓRIA
+
+Retornar apenas:
+
+Arquivos alterados
+
+Trechos de código modificados
+
+Pequena explicação técnica por item corrigido
+
+NÃO explicar teoria.
+NÃO comentar excessivamente.
+Apenas corrigir de forma profissional e segura.

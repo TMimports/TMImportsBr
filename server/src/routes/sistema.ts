@@ -38,22 +38,6 @@ router.post('/reset', verifyToken, requireRole('ADMIN_GERAL'), async (req: AuthR
     await prisma.grupo.deleteMany({});
     await prisma.configuracao.deleteMany({});
 
-    // Criar dados iniciais
-    const grupo = await prisma.grupo.create({
-      data: { nome: 'Tecle Motos' }
-    });
-
-    const loja = await prisma.loja.create({
-      data: {
-        cnpj: '00.000.000/0001-00',
-        razaoSocial: 'Tecle Motos Centro Ltda',
-        nomeFantasia: 'Tecle Motos Centro',
-        endereco: 'Rua Principal, 100 - Centro',
-        telefone: '(11) 99999-9999',
-        grupoId: grupo.id
-      }
-    });
-
     const senhaAdmin = await bcrypt.hash('123456', 10);
 
     await prisma.user.create({
@@ -66,33 +50,9 @@ router.post('/reset', verifyToken, requireRole('ADMIN_GERAL'), async (req: AuthR
       }
     });
 
-    await prisma.servico.createMany({
-      data: [
-        { nome: 'Revisão Completa', preco: 150.00, duracao: 120 },
-        { nome: 'Troca de Bateria', preco: 80.00, duracao: 30 },
-        { nome: 'Troca de Pneu', preco: 50.00, duracao: 45 },
-        { nome: 'Regulagem de Freios', preco: 40.00, duracao: 30 },
-        { nome: 'Diagnóstico Elétrico', preco: 100.00, duracao: 60 },
-        { nome: 'Instalação de Acessórios', preco: 60.00, duracao: 45 }
-      ]
-    });
-
-    await prisma.configuracao.create({
-      data: {
-        comissaoVendedorMoto: 1,
-        comissaoTecnico: 25,
-        comissaoPecaHabilitada: false,
-        periodoComissao: 'MENSAL',
-        descontoMaxMoto: 3.5,
-        descontoMaxPeca: 10,
-        descontoMaxServico: 10,
-        descontoMaxOS: 10
-      }
-    });
-
     res.json({ 
       success: true, 
-      message: 'Sistema limpo com sucesso!',
+      message: 'Sistema resetado. Banco completamente limpo. Apenas o admin foi recriado.',
       credenciais: {
         email: 'admin@teclemotos.com',
         senha: '123456'

@@ -18,7 +18,9 @@ interface CustomSelectProps {
 
 export function CustomSelect({ value, onChange, options, placeholder = 'Selecione...', className = '', label, required, disabled }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
+  const [busca, setBusca] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const selected = options.find(o => o.value === value);
 
@@ -26,11 +28,22 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+        setBusca('');
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  useEffect(() => {
+    if (open && inputRef.current && options.length > 8) {
+      inputRef.current.focus();
+    }
+  }, [open, options.length]);
+
+  const filtradas = busca
+    ? options.filter(o => o.label.toLowerCase().includes(busca.toLowerCase()))
+    : options;
 
   const textColor = selected ? '#ffffff' : '#9ca3af';
 
@@ -63,7 +76,7 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
             userSelect: 'none',
           }}
         >
-          <span style={{ color: textColor, WebkitTextFillColor: textColor }}>{selected ? selected.label : placeholder}</span>
+          <span style={{ color: textColor, WebkitTextFillColor: textColor, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected ? selected.label : placeholder}</span>
           <svg
             style={{
               width: '16px',
@@ -86,53 +99,82 @@ export function CustomSelect({ value, onChange, options, placeholder = 'Selecion
               position: 'absolute',
               zIndex: 9999,
               width: '100%',
+              minWidth: '280px',
               marginTop: '4px',
-              backgroundColor: '#27272a',
+              backgroundColor: '#18181b',
               border: '1px solid #3f3f46',
-              borderRadius: '8px',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-              maxHeight: '240px',
-              overflowY: 'auto' as const,
+              borderRadius: '10px',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)',
+              maxHeight: '360px',
+              display: 'flex',
+              flexDirection: 'column' as const,
             }}
           >
-            {options.map((opt, idx) => {
-              const itemColor = opt.value === value ? '#fb923c' : '#ffffff';
-              const itemBg = opt.value === value ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
-              return (
-                <div
-                  key={opt.value}
-                  onClick={() => {
-                    onChange(opt.value);
-                    setOpen(false);
-                  }}
+            {options.length > 8 && (
+              <div style={{ padding: '8px', borderBottom: '1px solid #27272a' }}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Buscar..."
                   style={{
-                    padding: '10px 16px',
-                    cursor: 'pointer',
-                    color: itemColor,
-                    WebkitTextFillColor: itemColor,
-                    backgroundColor: itemBg,
-                    borderBottom: idx < options.length - 1 ? '1px solid rgba(63, 63, 70, 0.5)' : 'none',
-                    fontSize: '14px',
-                    transition: 'background-color 0.15s',
+                    width: '100%',
+                    padding: '8px 12px',
+                    backgroundColor: '#27272a',
+                    border: '1px solid #3f3f46',
+                    borderRadius: '6px',
+                    color: '#ffffff',
+                    fontSize: '13px',
+                    outline: 'none',
                   }}
-                  onMouseEnter={(e) => {
-                    if (opt.value !== value) {
-                      (e.target as HTMLElement).style.backgroundColor = '#3f3f46';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.target as HTMLElement).style.backgroundColor = opt.value === value ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
-                  }}
-                >
-                  {opt.label}
-                </div>
-              );
-            })}
-            {options.length === 0 && (
-              <div style={{ padding: '12px 16px', color: '#6b7280', WebkitTextFillColor: '#6b7280', textAlign: 'center' }}>
-                Nenhuma opcao
+                  onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = '#f97316'; }}
+                  onBlur={(e) => { (e.target as HTMLInputElement).style.borderColor = '#3f3f46'; }}
+                />
               </div>
             )}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {filtradas.map((opt, idx) => {
+                const isSelected = opt.value === value;
+                const itemColor = isSelected ? '#fb923c' : '#ffffff';
+                const itemBg = isSelected ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
+                return (
+                  <div
+                    key={opt.value}
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                      setBusca('');
+                    }}
+                    style={{
+                      padding: '11px 16px',
+                      cursor: 'pointer',
+                      color: itemColor,
+                      WebkitTextFillColor: itemColor,
+                      backgroundColor: itemBg,
+                      borderBottom: idx < filtradas.length - 1 ? '1px solid rgba(39, 39, 42, 0.8)' : 'none',
+                      fontSize: '14px',
+                      transition: 'background-color 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        (e.target as HTMLElement).style.backgroundColor = '#27272a';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.target as HTMLElement).style.backgroundColor = isSelected ? 'rgba(249, 115, 22, 0.15)' : 'transparent';
+                    }}
+                  >
+                    {opt.label}
+                  </div>
+                );
+              })}
+              {filtradas.length === 0 && (
+                <div style={{ padding: '16px', color: '#6b7280', WebkitTextFillColor: '#6b7280', textAlign: 'center', fontSize: '14px' }}>
+                  Nenhuma opcao encontrada
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

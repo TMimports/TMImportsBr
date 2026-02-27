@@ -574,25 +574,24 @@ export function Vendas() {
                         </div>
                         <div 
                           id={`dropdown-${index}`}
-                          className="hidden absolute z-50 w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-lg max-h-60 overflow-y-auto shadow-2xl"
+                          className="hidden absolute z-50 w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl"
+                          style={{ maxHeight: '320px', overflowY: 'auto' }}
                         >
                           {(() => {
-                            const produtosFiltrados = produtos
-                              .filter(p => p.tipo !== 'MOTO')
-                              .filter(p => {
-                                if (form.tipo !== 'VENDA') return true;
-                                return mostrarSemEstoque || p.estoque > 0;
-                              });
-                            if (produtosFiltrados.length === 0) {
-                              return <div className="px-4 py-3 text-gray-500 text-center">Nenhum produto disponivel</div>;
+                            const pecas = produtos.filter(p => p.tipo !== 'MOTO');
+                            const lista = form.tipo === 'VENDA' && !mostrarSemEstoque
+                              ? pecas.filter(p => p.estoque > 0)
+                              : pecas;
+                            if (lista.length === 0) {
+                              return <div className="px-4 py-4 text-gray-500 text-center text-sm">Nenhum produto disponivel</div>;
                             }
-                            return produtosFiltrados.map(p => {
+                            return lista.map(p => {
                               const semEstoque = p.estoque <= 0;
                               const bloqueado = semEstoque && form.tipo === 'VENDA';
                               return (
                                 <div 
                                   key={p.id}
-                                  className={`px-4 py-2.5 border-b border-zinc-800 last:border-b-0 transition-colors flex justify-between items-center ${
+                                  className={`px-4 py-3 border-b border-zinc-800 last:border-b-0 transition-colors flex justify-between items-center ${
                                     bloqueado ? 'opacity-40 cursor-not-allowed' :
                                     item.produtoId === String(p.id) 
                                       ? 'bg-orange-500/20 text-orange-400 cursor-pointer' 
@@ -605,15 +604,15 @@ export function Vendas() {
                                     if (el) el.classList.add('hidden');
                                   }}
                                 >
-                                  <div className="flex items-center gap-2">
-                                    <span>{p.nome}</span>
-                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="truncate">{p.nome}</span>
+                                    <span className={`text-xs px-1.5 py-0.5 rounded whitespace-nowrap flex-shrink-0 ${
                                       p.estoque > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
                                     }`}>
                                       {p.estoque > 0 ? `${p.estoque} un` : 'Sem estoque'}
                                     </span>
                                   </div>
-                                  <span className="text-sm text-gray-400">R$ {Number(p.preco).toFixed(2)}</span>
+                                  <span className="text-sm text-gray-400 whitespace-nowrap ml-3">R$ {Number(p.preco).toFixed(2)}</span>
                                 </div>
                               );
                             });
