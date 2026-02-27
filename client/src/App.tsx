@@ -21,6 +21,7 @@ import { Ranking } from './pages/Ranking';
 import { ContasReceber } from './pages/ContasReceber';
 import { Configuracoes } from './pages/Configuracoes';
 import { Utilidades } from './pages/Utilidades';
+import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
   const { user, loading, mustChangePassword, refreshUser } = useAuth();
@@ -93,6 +94,7 @@ function AppContent() {
   return (
     <Layout currentPage={currentPage} onNavigate={setCurrentPage}>
       {renderPage()}
+      <InstallBanner />
     </Layout>
   );
 }

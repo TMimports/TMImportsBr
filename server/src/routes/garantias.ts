@@ -209,12 +209,26 @@ router.delete('/:id', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Sem permissão para excluir garantias' });
     }
 
-    const garantia = await prisma.garantia.findUnique({ where: { id: Number(req.params.id) } });
+    const filter = applyTenantFilter(req);
+    const where: any = { id: Number(req.params.id) };
+    if (filter.lojaId) {
+      where.OR = [
+        { unidadeFisica: { lojaId: filter.lojaId } },
+        { unidadeFisicaId: null, venda: { lojaId: filter.lojaId } }
+      ];
+    } else if (filter.grupoId) {
+      where.OR = [
+        { unidadeFisica: { loja: { grupoId: filter.grupoId } } },
+        { unidadeFisicaId: null, venda: { loja: { grupoId: filter.grupoId } } }
+      ];
+    }
+
+    const garantia = await prisma.garantia.findFirst({ where });
     if (!garantia) {
       return res.status(404).json({ error: 'Garantia não encontrada' });
     }
 
-    await prisma.garantia.delete({ where: { id: Number(req.params.id) } });
+    await prisma.garantia.delete({ where: { id: garantia.id } });
     res.json({ message: 'Garantia excluída com sucesso' });
   } catch (error) {
     console.error('Erro ao excluir garantia:', error);

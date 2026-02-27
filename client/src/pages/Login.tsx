@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { InstallBanner } from '../components/InstallBanner';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -75,6 +76,7 @@ export function Login() {
           TM Imports | Tecle Motos
         </p>
       </div>
+      <InstallBanner />
     </div>
   );
 }
