@@ -57,6 +57,7 @@ interface Produto {
   nome: string;
   preco: number;
   tipo: string;
+  estoque: number;
 }
 
 interface Loja {
@@ -118,26 +119,39 @@ export function OrdensServico() {
   const [servicosSelecionados, setServicosSelecionados] = useState<ItemServico[]>([]);
   const [pecasSelecionadas, setPecasSelecionadas] = useState<ItemPeca[]>([]);
 
+  const loadProdutosLoja = async (lojaId: string) => {
+    if (!lojaId) {
+      setProdutos([]);
+      return;
+    }
+    try {
+      const data = await api.get<Produto[]>(`/vendas/produtos-catalogo/${lojaId}`);
+      setProdutos(data.filter(p => p.tipo === 'PECA').map((p: any) => ({ id: p.id, nome: p.nome, preco: Number(p.preco), tipo: p.tipo, estoque: p.estoque || 0 })));
+    } catch (err) {
+      console.error('Erro ao buscar produtos da loja:', err);
+    }
+  };
+
   const loadData = () => {
     Promise.all([
       api.get<OrdemServico[]>('/os'),
       api.get<Cliente[]>('/clientes'),
       api.get<Servico[]>('/servicos'),
-      api.get<Produto[]>('/produtos'),
       api.get<Loja[]>('/lojas'),
       api.get<Usuario[]>('/usuarios'),
       api.get<ConfigDescontos>('/configuracoes/public')
     ])
-      .then(([ordensData, clientesData, servicosData, produtosData, lojasData, usuariosData, configData]) => {
+      .then(([ordensData, clientesData, servicosData, lojasData, usuariosData, configData]) => {
         setOrdens(ordensData);
         setClientes(clientesData);
         setServicos(servicosData);
-        setProdutos(produtosData.filter(p => p.tipo === 'PECA'));
         setLojas(lojasData);
         setTecnicos(usuariosData.filter(u => u.role === 'TECNICO'));
         if (configData) setConfigDescontos(configData);
         if (lojasData.length === 1) {
-          setForm(f => ({ ...f, lojaId: String(lojasData[0].id) }));
+          const lojaIdStr = String(lojasData[0].id);
+          setForm(f => ({ ...f, lojaId: lojaIdStr }));
+          loadProdutosLoja(lojaIdStr);
         }
       })
       .catch(console.error)

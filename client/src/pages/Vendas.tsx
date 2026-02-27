@@ -49,6 +49,7 @@ interface Produto {
   nome: string;
   preco: number;
   tipo: string;
+  estoque: number;
 }
 
 interface Loja {
@@ -121,10 +122,10 @@ export function Vendas() {
     }
     try {
       const [produtosData, unidades] = await Promise.all([
-        api.get<Produto[]>(`/vendas/produtos-disponiveis/${lojaId}`),
+        api.get<Produto[]>(`/vendas/produtos-catalogo/${lojaId}`),
         api.get<UnidadeDisponivel[]>(`/unidades/disponiveis/${lojaId}`)
       ]);
-      setProdutos(produtosData.map((p: any) => ({ id: p.id, nome: p.nome, preco: Number(p.preco), tipo: p.tipo })));
+      setProdutos(produtosData.map((p: any) => ({ id: p.id, nome: p.nome, preco: Number(p.preco), tipo: p.tipo, estoque: p.estoque || 0 })));
       setUnidadesDisponiveis(unidades);
     } catch (err) {
       console.error('Erro ao buscar produtos da loja:', err);
@@ -564,24 +565,37 @@ export function Vendas() {
                           {produtos.length === 0 ? (
                             <div className="px-4 py-3 text-gray-500 text-center">Nenhum produto cadastrado</div>
                           ) : (
-                            produtos.map(p => (
-                              <div 
-                                key={p.id}
-                                className={`px-4 py-2.5 cursor-pointer border-b border-zinc-800 last:border-b-0 transition-colors flex justify-between items-center ${
-                                  item.produtoId === String(p.id) 
-                                    ? 'bg-orange-500/20 text-orange-400' 
-                                    : 'hover:bg-zinc-800 text-white'
-                                }`}
-                                onClick={() => {
-                                  atualizarItem(index, 'produtoId', String(p.id));
-                                  const el = document.getElementById(`dropdown-${index}`);
-                                  if (el) el.classList.add('hidden');
-                                }}
-                              >
-                                <span>{p.nome}</span>
-                                <span className="text-sm text-gray-400">R$ {Number(p.preco).toFixed(2)}</span>
-                              </div>
-                            ))
+                            produtos.filter(p => p.tipo !== 'MOTO').map(p => {
+                              const semEstoque = p.estoque <= 0;
+                              const bloqueado = semEstoque && form.tipo === 'VENDA';
+                              return (
+                                <div 
+                                  key={p.id}
+                                  className={`px-4 py-2.5 border-b border-zinc-800 last:border-b-0 transition-colors flex justify-between items-center ${
+                                    bloqueado ? 'opacity-40 cursor-not-allowed' :
+                                    item.produtoId === String(p.id) 
+                                      ? 'bg-orange-500/20 text-orange-400 cursor-pointer' 
+                                      : 'hover:bg-zinc-800 text-white cursor-pointer'
+                                  }`}
+                                  onClick={() => {
+                                    if (bloqueado) return;
+                                    atualizarItem(index, 'produtoId', String(p.id));
+                                    const el = document.getElementById(`dropdown-${index}`);
+                                    if (el) el.classList.add('hidden');
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span>{p.nome}</span>
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      p.estoque > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                    }`}>
+                                      {p.estoque > 0 ? `${p.estoque} un` : 'Sem estoque'}
+                                    </span>
+                                  </div>
+                                  <span className="text-sm text-gray-400">R$ {Number(p.preco).toFixed(2)}</span>
+                                </div>
+                              );
+                            })
                           )}
                         </div>
                       </div>

@@ -231,8 +231,18 @@ router.put('/contas-receber/:id', async (req: AuthRequest, res) => {
 
 router.put('/contas-receber/:id/receber', async (req: AuthRequest, res) => {
   try {
+    const filter = applyTenantFilter(req);
+    const whereCheck: any = { id: Number(req.params.id) };
+    if (filter.lojaId) whereCheck.lojaId = filter.lojaId;
+    if (filter.grupoId) whereCheck.loja = { grupoId: filter.grupoId };
+
+    const contaExistente = await prisma.contaReceber.findFirst({ where: whereCheck });
+    if (!contaExistente) {
+      return res.status(404).json({ error: 'Conta não encontrada' });
+    }
+
     const conta = await prisma.contaReceber.update({
-      where: { id: Number(req.params.id) },
+      where: { id: contaExistente.id },
       data: { pago: true, dataPago: new Date() }
     });
 
@@ -255,8 +265,18 @@ router.put('/contas-receber/:id/receber', async (req: AuthRequest, res) => {
 
 router.delete('/contas-receber/:id', async (req: AuthRequest, res) => {
   try {
+    const filter = applyTenantFilter(req);
+    const whereCheck: any = { id: Number(req.params.id) };
+    if (filter.lojaId) whereCheck.lojaId = filter.lojaId;
+    if (filter.grupoId) whereCheck.loja = { grupoId: filter.grupoId };
+
+    const contaExistente = await prisma.contaReceber.findFirst({ where: whereCheck });
+    if (!contaExistente) {
+      return res.status(404).json({ error: 'Conta não encontrada' });
+    }
+
     await prisma.contaReceber.update({
-      where: { id: Number(req.params.id) },
+      where: { id: contaExistente.id },
       data: { deletedAt: new Date(), deletedBy: req.user!.id }
     });
     res.json({ success: true });
@@ -465,16 +485,18 @@ router.put('/contas-pagar/:id', async (req: AuthRequest, res) => {
 
 router.put('/contas-pagar/:id/pagar', async (req: AuthRequest, res) => {
   try {
-    const contaAtual = await prisma.contaPagar.findUnique({
-      where: { id: Number(req.params.id) }
-    });
+    const filter = applyTenantFilter(req);
+    const whereCheck: any = { id: Number(req.params.id) };
+    if (filter.lojaId) whereCheck.lojaId = filter.lojaId;
+    if (filter.grupoId) whereCheck.loja = { grupoId: filter.grupoId };
 
+    const contaAtual = await prisma.contaPagar.findFirst({ where: whereCheck });
     if (!contaAtual) {
       return res.status(404).json({ error: 'Conta não encontrada' });
     }
 
     const conta = await prisma.contaPagar.update({
-      where: { id: Number(req.params.id) },
+      where: { id: contaAtual.id },
       data: { pago: true, dataPago: new Date() }
     });
 
@@ -497,8 +519,18 @@ router.put('/contas-pagar/:id/pagar', async (req: AuthRequest, res) => {
 
 router.delete('/contas-pagar/:id', async (req: AuthRequest, res) => {
   try {
+    const filter = applyTenantFilter(req);
+    const whereCheck: any = { id: Number(req.params.id) };
+    if (filter.lojaId) whereCheck.lojaId = filter.lojaId;
+    if (filter.grupoId) whereCheck.loja = { grupoId: filter.grupoId };
+
+    const contaExistente = await prisma.contaPagar.findFirst({ where: whereCheck });
+    if (!contaExistente) {
+      return res.status(404).json({ error: 'Conta não encontrada' });
+    }
+
     await prisma.contaPagar.update({
-      where: { id: Number(req.params.id) },
+      where: { id: contaExistente.id },
       data: { deletedAt: new Date(), deletedBy: req.user!.id }
     });
     res.json({ success: true });
@@ -541,8 +573,18 @@ router.get('/comissoes', async (req: AuthRequest, res) => {
 
 router.put('/comissoes/:id/pagar', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
   try {
+    const filter = applyTenantFilter(req);
+    const whereCheck: any = { id: Number(req.params.id) };
+    if (filter.lojaId) whereCheck.lojaId = filter.lojaId;
+    if (filter.grupoId) whereCheck.loja = { grupoId: filter.grupoId };
+
+    const comissaoExistente = await prisma.comissao.findFirst({ where: whereCheck });
+    if (!comissaoExistente) {
+      return res.status(404).json({ error: 'Comissão não encontrada' });
+    }
+
     const comissao = await prisma.comissao.update({
-      where: { id: Number(req.params.id) },
+      where: { id: comissaoExistente.id },
       data: { pago: true, dataPago: new Date() }
     });
 

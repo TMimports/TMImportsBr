@@ -122,6 +122,35 @@ router.get('/produtos-disponiveis/:lojaId', async (req: AuthRequest, res) => {
   }
 });
 
+router.get('/produtos-catalogo/:lojaId', async (req: AuthRequest, res) => {
+  try {
+    const lojaId = Number(req.params.lojaId);
+    const produtos = await prisma.produto.findMany({
+      where: { ativo: true },
+      include: {
+        estoques: {
+          where: { lojaId }
+        }
+      },
+      orderBy: { nome: 'asc' }
+    });
+
+    const resultado = produtos.map(p => ({
+      id: p.id,
+      nome: p.nome,
+      preco: p.preco,
+      tipo: p.tipo,
+      codigo: p.codigo,
+      estoque: p.estoques[0]?.quantidade || 0
+    }));
+
+    res.json(resultado);
+  } catch (error) {
+    console.error('Erro ao buscar catálogo:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const venda = await prisma.venda.findUnique({
