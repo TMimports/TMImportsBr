@@ -101,6 +101,7 @@ export function Vendas() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelVendaId, setCancelVendaId] = useState<number | null>(null);
   const [cancelMotivo, setCancelMotivo] = useState('');
+  const [mostrarSemEstoque, setMostrarSemEstoque] = useState(false);
 
   const [form, setForm] = useState({
     clienteId: '',
@@ -528,11 +529,24 @@ export function Vendas() {
           />
 
           <div className="border-t border-zinc-700 pt-4">
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-2">
               <label className="label mb-0">Produtos</label>
-              <button type="button" onClick={adicionarItem} className="btn btn-sm btn-secondary">
-                + Adicionar Produto
-              </button>
+              <div className="flex items-center gap-3">
+                {form.tipo === 'VENDA' && (
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-400">
+                    <input
+                      type="checkbox"
+                      checked={mostrarSemEstoque}
+                      onChange={(e) => setMostrarSemEstoque(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500"
+                    />
+                    Mostrar sem estoque
+                  </label>
+                )}
+                <button type="button" onClick={adicionarItem} className="btn btn-sm btn-secondary">
+                  + Adicionar Produto
+                </button>
+              </div>
             </div>
             {itensSelecionados.length === 0 ? (
               <p className="text-gray-500 text-sm">Nenhum produto adicionado</p>
@@ -562,10 +576,17 @@ export function Vendas() {
                           id={`dropdown-${index}`}
                           className="hidden absolute z-50 w-full mt-1 bg-zinc-900 border border-zinc-700 rounded-lg max-h-60 overflow-y-auto shadow-2xl"
                         >
-                          {produtos.length === 0 ? (
-                            <div className="px-4 py-3 text-gray-500 text-center">Nenhum produto cadastrado</div>
-                          ) : (
-                            produtos.filter(p => p.tipo !== 'MOTO').map(p => {
+                          {(() => {
+                            const produtosFiltrados = produtos
+                              .filter(p => p.tipo !== 'MOTO')
+                              .filter(p => {
+                                if (form.tipo !== 'VENDA') return true;
+                                return mostrarSemEstoque || p.estoque > 0;
+                              });
+                            if (produtosFiltrados.length === 0) {
+                              return <div className="px-4 py-3 text-gray-500 text-center">Nenhum produto disponivel</div>;
+                            }
+                            return produtosFiltrados.map(p => {
                               const semEstoque = p.estoque <= 0;
                               const bloqueado = semEstoque && form.tipo === 'VENDA';
                               return (
@@ -595,8 +616,8 @@ export function Vendas() {
                                   <span className="text-sm text-gray-400">R$ {Number(p.preco).toFixed(2)}</span>
                                 </div>
                               );
-                            })
-                          )}
+                            });
+                          })()}
                         </div>
                       </div>
                       <div className="flex gap-3 items-center">

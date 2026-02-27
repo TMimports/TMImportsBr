@@ -476,7 +476,7 @@ export function OrdensServico() {
               label="Loja"
               required
               value={form.lojaId}
-              onChange={(val) => setForm({ ...form, lojaId: val })}
+              onChange={(val) => { setForm({ ...form, lojaId: val }); loadProdutosLoja(val); }}
               options={lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))}
             />
           )}
@@ -564,7 +564,10 @@ export function OrdensServico() {
                       value={item.produtoId}
                       onChange={(val) => atualizarPeca(index, 'produtoId', val)}
                       className="flex-1"
-                      options={produtos.map(p => ({ value: String(p.id), label: `${p.nome} - R$ ${Number(p.preco).toFixed(2)}` }))}
+                      options={produtos.map(p => {
+                        const statusTag = p.estoque <= 0 ? ' [Sem estoque]' : p.estoque <= 3 ? ` [Baixo: ${p.estoque}]` : ` [${p.estoque} un]`;
+                        return { value: String(p.id), label: `${p.nome}${statusTag} - R$ ${Number(p.preco).toFixed(2)}` };
+                      })}
                     />
                     <div className="flex gap-2 items-center">
                       <input

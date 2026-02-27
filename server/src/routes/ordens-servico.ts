@@ -360,17 +360,27 @@ router.put('/:id/confirmar', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LO
       if (tecnicoUser) {
         const config = await prisma.configuracao.findFirst();
         const comissaoPercent = Number(config?.comissaoTecnico || 25);
-        const comissaoValor = Number(os.valorTotal) * (comissaoPercent / 100);
 
-        await prisma.comissao.create({
-          data: {
-            usuarioId: tecnicoUser.id,
-            ordemServicoId: os.id,
-            tipo: 'tecnico',
-            valor: comissaoValor,
-            periodo: config?.periodoComissao || 'MENSAL'
-          }
-        });
+        const itensServico = osAtual.itens.filter(i => i.servicoId !== null);
+        const valorServicos = itensServico.reduce((acc, i) => {
+          const subtotal = Number(i.precoUnitario) * i.quantidade;
+          const desc = Number(i.desconto || 0);
+          return acc + subtotal * (1 - desc / 100);
+        }, 0);
+
+        if (valorServicos > 0) {
+          const comissaoValor = valorServicos * (comissaoPercent / 100);
+
+          await prisma.comissao.create({
+            data: {
+              usuarioId: tecnicoUser.id,
+              ordemServicoId: os.id,
+              tipo: 'tecnico',
+              valor: comissaoValor,
+              periodo: config?.periodoComissao || 'MENSAL'
+            }
+          });
+        }
       }
     }
 
