@@ -132,12 +132,14 @@ export function Vendas() {
       return;
     }
     try {
-      const [produtosData, unidades] = await Promise.all([
-        api.get<Produto[]>(`/vendas/produtos-catalogo/${lojaId}`),
-        api.get<UnidadeDisponivel[]>(`/unidades/disponiveis/${lojaId}`)
-      ]);
+      const produtosData = await api.get<Produto[]>(`/vendas/produtos-catalogo/${lojaId}`);
       setProdutos(produtosData.map((p: any) => ({ id: p.id, nome: p.nome, preco: Number(p.preco), tipo: p.tipo, estoque: p.estoque || 0 })));
-      setUnidadesDisponiveis(unidades);
+      try {
+        const unidades = await api.get<UnidadeDisponivel[]>(`/unidades/disponiveis/${lojaId}`);
+        setUnidadesDisponiveis(unidades);
+      } catch {
+        setUnidadesDisponiveis([]);
+      }
     } catch (err) {
       console.error('Erro ao buscar produtos da loja:', err);
     }
@@ -213,18 +215,31 @@ export function Vendas() {
 
   const atualizarMoto = (index: number, field: string, value: any) => {
     const novas = [...motosSelecionadas];
-    if (field === 'unidadeId') {
+    if (field === 'produtoId') {
+      const produto = produtos.find(p => p.id === parseInt(value));
+      if (produto) {
+        const unidade = unidadesDisponiveis.find(u => u.produtoId === produto.id);
+        novas[index] = {
+          ...novas[index],
+          produtoId: value,
+          preco: produto.preco,
+          unidadeId: unidade ? String(unidade.id) : '',
+          chassi: unidade?.chassi || '',
+          motor: unidade?.codigoMotor || '',
+          displayName: produto.nome
+        };
+      }
+    } else if (field === 'unidadeId') {
       const unidade = unidadesDisponiveis.find(u => String(u.id) === value);
       if (unidade) {
         novas[index] = {
           ...novas[index],
           unidadeId: value,
-          produtoId: String(unidade.produtoId),
-          preco: Number(unidade.preco),
           chassi: unidade.chassi || '',
-          motor: unidade.codigoMotor || '',
-          displayName: unidade.displayName
+          motor: unidade.codigoMotor || ''
         };
+      } else {
+        novas[index] = { ...novas[index], unidadeId: '', chassi: '', motor: '' };
       }
     } else {
       novas[index] = { ...novas[index], [field]: value };
@@ -233,7 +248,7 @@ export function Vendas() {
   };
 
   const motosSemDadosCompletos = () => {
-    return motosSelecionadas.filter(item => item.unidadeId && (!item.chassi || !item.motor));
+    return motosSelecionadas.filter(item => item.produtoId && (!item.chassi || !item.motor));
   };
 
   const calcularTotal = () => {
@@ -278,7 +293,7 @@ export function Vendas() {
         }));
 
       const itensMotos = motosSelecionadas
-        .filter(item => item.unidadeId)
+        .filter(item => item.produtoId)
         .map(item => ({
           produtoId: parseInt(item.produtoId),
           quantidade: 1,
@@ -286,7 +301,7 @@ export function Vendas() {
           desconto: parseFloat(form.desconto),
           chassi: item.chassi || null,
           motor: item.motor || null,
-          unidadeFisicaId: parseInt(item.unidadeId) || null
+          unidadeFisicaId: item.unidadeId ? parseInt(item.unidadeId) : null
         }));
 
       const itens = [...itensMotos, ...itensPecas];
@@ -545,34 +560,36 @@ export function Vendas() {
           <div className="border-t border-zinc-700 pt-4">
             <div className="flex justify-between items-center mb-2">
               <label className="label mb-0">Motos</label>
-              <button type="button" onClick={adicionarMoto} className="btn btn-sm btn-secondary" disabled={unidadesDisponiveis.length === 0}>
+              <button type="button" onClick={adicionarMoto} className="btn btn-sm btn-secondary" disabled={produtos.filter(p => p.tipo === 'MOTO').length === 0}>
                 + Adicionar Moto
               </button>
             </div>
-            {unidadesDisponiveis.length === 0 && form.lojaId ? (
+            {produtos.filter(p => p.tipo === 'MOTO').length === 0 && form.lojaId ? (
               <p className="text-gray-500 text-sm">Nenhuma moto disponivel nesta loja</p>
             ) : motosSelecionadas.length === 0 ? (
               <p className="text-gray-500 text-sm">Nenhuma moto adicionada</p>
             ) : (
               <div className="space-y-3">
                 {motosSelecionadas.map((item, index) => {
-                  const unidadesJaSelecionadas = motosSelecionadas
-                    .filter((_, i) => i !== index)
-                    .map(m => m.unidadeId);
+                  const unidadesDoModelo = item.produtoId
+                    ? unidadesDisponiveis.filter(u => u.produtoId === parseInt(item.produtoId))
+                    : [];
                   return (
                   <div key={index} className="p-3 bg-zinc-800 rounded-lg">
                     <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                       <CustomSelect
-                        value={item.unidadeId}
-                        onChange={(val) => atualizarMoto(index, 'unidadeId', val)}
+                        value={item.produtoId}
+                        onChange={(val) => atualizarMoto(index, 'produtoId', val)}
                         className="flex-1"
                         placeholder="Selecione uma moto..."
-                        options={unidadesDisponiveis
-                          .filter(u => !unidadesJaSelecionadas.includes(String(u.id)))
-                          .map(u => ({
-                            value: String(u.id),
-                            label: `${u.produtoNome} - Chassi: ${u.chassi || 'N/A'} | Motor: ${u.codigoMotor || 'N/A'} | Cor: ${u.cor || 'N/A'} - R$ ${Number(u.preco).toFixed(2)}`
-                          }))}
+                        options={produtos.filter(p => p.tipo === 'MOTO').map(p => {
+                          const statusTag = p.estoque <= 0 ? ' [Sem estoque]' : ` [${p.estoque} un]`;
+                          return {
+                            value: String(p.id),
+                            label: `${p.nome}${statusTag} - R$ ${Number(p.preco).toFixed(2)}`,
+                            disabled: p.estoque <= 0 && form.tipo === 'VENDA'
+                          };
+                        })}
                       />
                       <div className="flex gap-2 items-center">
                         <span className="text-green-400 w-28 text-right">
@@ -583,31 +600,49 @@ export function Vendas() {
                         </button>
                       </div>
                     </div>
-                    {item.unidadeId && (
-                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-xs text-gray-400">Numero do Chassi *</label>
-                          <input
-                            type="text"
-                            value={item.chassi || ''}
-                            onChange={(e) => atualizarMoto(index, 'chassi', e.target.value)}
-                            className="input"
-                            placeholder="Ex: 9C6KE0810PR000000"
-                            required
-                          />
+                    {item.produtoId && (
+                      <>
+                        {unidadesDoModelo.length > 0 && (
+                          <div className="mt-3">
+                            <CustomSelect
+                              value={item.unidadeId}
+                              onChange={(val) => atualizarMoto(index, 'unidadeId', val)}
+                              placeholder="Selecione unidade fisica (opcional)..."
+                              options={[
+                                { value: '', label: 'Preencher manualmente' },
+                                ...unidadesDoModelo.map(u => ({
+                                  value: String(u.id),
+                                  label: `Chassi: ${u.chassi || 'N/A'} | Motor: ${u.codigoMotor || 'N/A'} | Cor: ${u.cor || 'N/A'}`
+                                }))
+                              ]}
+                            />
+                          </div>
+                        )}
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-gray-400">Numero do Chassi *</label>
+                            <input
+                              type="text"
+                              value={item.chassi || ''}
+                              onChange={(e) => atualizarMoto(index, 'chassi', e.target.value)}
+                              className="input"
+                              placeholder="Ex: 9C6KE0810PR000000"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-400">Numero do Motor *</label>
+                            <input
+                              type="text"
+                              value={item.motor || ''}
+                              onChange={(e) => atualizarMoto(index, 'motor', e.target.value)}
+                              className="input"
+                              placeholder="Ex: E3K6E0000000"
+                              required
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <label className="text-xs text-gray-400">Numero do Motor *</label>
-                          <input
-                            type="text"
-                            value={item.motor || ''}
-                            onChange={(e) => atualizarMoto(index, 'motor', e.target.value)}
-                            className="input"
-                            placeholder="Ex: E3K6E0000000"
-                            required
-                          />
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
                   );
@@ -730,9 +765,9 @@ export function Vendas() {
           <div className="border-t border-zinc-700 pt-4 space-y-3">
             <h4 className="text-sm font-medium text-gray-400">Resumo de Precos</h4>
             
-            {(motosSelecionadas.filter(m => m.unidadeId).length > 0 || itensSelecionados.filter(i => i.produtoId).length > 0) && (
+            {(motosSelecionadas.filter(m => m.produtoId).length > 0 || itensSelecionados.filter(i => i.produtoId).length > 0) && (
               <div className="bg-zinc-800/50 rounded-lg p-3 space-y-2">
-                {motosSelecionadas.filter(m => m.unidadeId).map((item, idx) => {
+                {motosSelecionadas.filter(m => m.produtoId).map((item, idx) => {
                   const subtotal = item.preco * item.quantidade;
                   const descontoValor = subtotal * (parseFloat(form.desconto) || 0) / 100;
                   const finalItem = subtotal - descontoValor;
@@ -794,7 +829,7 @@ export function Vendas() {
             )}
 
             <div className="space-y-2 pt-2">
-              {motosSelecionadas.filter(m => m.unidadeId).length > 0 && (
+              {motosSelecionadas.filter(m => m.produtoId).length > 0 && (
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-400">Motos:</span>
                   <span className="text-white">
