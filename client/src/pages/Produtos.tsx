@@ -20,6 +20,7 @@ const initialForm = {
   nome: '',
   tipo: 'PECA',
   custo: '',
+  precoManual: '',
   descricao: ''
 };
 
@@ -65,7 +66,8 @@ export function Produtos() {
 
   const calcularPreco = (custo: number, tipo: string) => {
     const margem = tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca;
-    return custo / (1 - margem / 100);
+    const preco = custo / (1 - margem / 100);
+    return Math.ceil(preco / 10) * 10;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,7 +75,8 @@ export function Produtos() {
     setSaving(true);
     try {
       const custo = parseFloat(form.custo);
-      const preco = calcularPreco(custo, form.tipo);
+      const precoAuto = calcularPreco(custo, form.tipo);
+      const preco = form.precoManual ? parseFloat(form.precoManual) : precoAuto;
       
       const dados = {
         nome: form.nome,
@@ -105,6 +108,7 @@ export function Produtos() {
       nome: produto.nome,
       tipo: produto.tipo,
       custo: String(produto.custo),
+      precoManual: String(produto.preco),
       descricao: produto.descricao || ''
     });
     setEditando(true);
@@ -313,14 +317,37 @@ export function Produtos() {
             />
           </div>
           {form.custo && (
-            <div className="p-3 bg-zinc-700 rounded-lg">
-              <p className="text-sm text-gray-400">Preco calculado automaticamente:</p>
-              <p className="text-xl font-bold text-green-400">
+            <div className="p-3 bg-zinc-700 rounded-lg space-y-2">
+              <p className="text-sm text-gray-400">Preco sugerido (margem {form.tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca}%):</p>
+              <p className="text-lg font-bold text-gray-300">
                 R$ {precoCalculado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
-              <p className="text-xs text-gray-500">
-                Margem: {form.tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca}% (Custo / {(100 - (form.tipo === 'MOTO' ? margens.lucroMoto : margens.lucroPeca)).toFixed(0)}%)
-              </p>
+              <div>
+                <label className="text-sm text-gray-400">Preco final (editavel):</label>
+                <div className="flex gap-2 items-center mt-1">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.precoManual}
+                      onChange={(e) => setForm({ ...form, precoManual: e.target.value })}
+                      className="input pl-10 text-green-400 font-bold"
+                      placeholder={precoCalculado.toFixed(2)}
+                    />
+                  </div>
+                  {form.precoManual && parseFloat(form.precoManual) !== precoCalculado && (
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, precoManual: String(precoCalculado) })}
+                      className="text-xs text-orange-400 hover:text-orange-300 whitespace-nowrap"
+                    >
+                      Resetar
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           <div>

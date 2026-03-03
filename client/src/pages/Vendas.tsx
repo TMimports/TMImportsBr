@@ -267,7 +267,7 @@ export function Vendas() {
     }, 0);
     const total = totalPecas + totalMotos;
     if (total % 1 !== 0) {
-      return Math.ceil(total / 5) * 5;
+      return Math.ceil(total);
     }
     return total;
   };
@@ -325,7 +325,8 @@ export function Vendas() {
         itens,
         formaPagamento: form.formaPagamento,
         tipo: form.tipo,
-        observacoes: form.observacoes
+        observacoes: form.observacoes,
+        valorTotalManual: calcularTotal()
       });
 
       setModalOpen(false);
@@ -618,9 +619,17 @@ export function Vendas() {
                           />
                           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
                         </div>
-                        <span className="text-green-400 w-28 text-right">
-                          R$ {(item.preco * (1 - (isCartao ? 0 : (parseFloat(item.desconto) || 0)) / 100)).toFixed(2)}
-                        </span>
+                        <div className="relative w-32">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.preco}
+                            onChange={(e) => atualizarMoto(index, 'preco', parseFloat(e.target.value) || 0)}
+                            className="input text-sm pl-8 text-green-400"
+                          />
+                        </div>
                         <button type="button" onClick={() => removerMoto(index)} className="text-red-500 hover:text-red-400">
                           X
                         </button>
@@ -733,9 +742,17 @@ export function Vendas() {
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
                       </div>
-                      <span className="text-green-400 w-24 text-right">
-                        R$ {(item.preco * item.quantidade * (1 - (isCartao ? 0 : (parseFloat(item.desconto) || 0)) / 100)).toFixed(2)}
-                      </span>
+                      <div className="relative w-28">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.preco}
+                          onChange={(e) => atualizarItem(index, 'preco', parseFloat(e.target.value) || 0)}
+                          className="input text-sm pl-8 text-green-400"
+                        />
+                      </div>
                       <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400">
                         X
                       </button>

@@ -17,7 +17,8 @@ async function getMargens() {
 }
 
 function calcularPrecoComMargem(custo: number, margemPercent: number): number {
-  return custo / (1 - margemPercent / 100);
+  const preco = custo / (1 - margemPercent / 100);
+  return Math.ceil(preco / 10) * 10;
 }
 
 router.get('/', async (req: AuthRequest, res) => {

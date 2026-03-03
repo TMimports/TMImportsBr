@@ -184,7 +184,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { tipo, clienteId, vendedorId, lojaId, formaPagamento, parcelas, itens } = req.body;
+    const { tipo, clienteId, vendedorId, lojaId, formaPagamento, parcelas, itens, valorTotalManual } = req.body;
 
     if (!clienteId || !lojaId || !formaPagamento || !itens?.length) {
       return res.status(400).json({ error: 'Dados incompletos' });
@@ -253,8 +253,10 @@ router.post('/', async (req: AuthRequest, res) => {
       });
     }
 
-    if (valorTotal % 1 !== 0) {
-      valorTotal = Math.ceil(valorTotal / 5) * 5;
+    if (valorTotalManual && Number(valorTotalManual) > 0) {
+      valorTotal = Number(valorTotalManual);
+    } else if (valorTotal % 1 !== 0) {
+      valorTotal = Math.ceil(valorTotal);
     }
 
     const tipoVenda = tipo || 'VENDA';

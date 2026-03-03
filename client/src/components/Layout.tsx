@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui';
+import { Button, Input } from './ui';
 
 interface LayoutProps {
   children: ReactNode;
@@ -83,12 +83,60 @@ const roleLabels: Record<string, string> = {
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [senhaModal, setSenhaModal] = useState(false);
+  const [senhaForm, setSenhaForm] = useState({ senhaAtual: '', novaSenha: '', confirmar: '' });
+  const [senhaErro, setSenhaErro] = useState('');
+  const [senhaSucesso, setSenhaSucesso] = useState('');
+  const [senhaLoading, setSenhaLoading] = useState(false);
   
   const items = menuItems[user?.role as keyof typeof menuItems] || menuItems.VENDEDOR;
 
   const handleNavigate = (page: string) => {
     onNavigate(page);
     setMenuOpen(false);
+  };
+
+  const handleTrocarSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSenhaErro('');
+    setSenhaSucesso('');
+
+    if (senhaForm.novaSenha !== senhaForm.confirmar) {
+      setSenhaErro('Nova senha e confirmacao nao conferem');
+      return;
+    }
+    if (senhaForm.novaSenha.length < 8) {
+      setSenhaErro('Nova senha deve ter no minimo 8 caracteres');
+      return;
+    }
+
+    setSenhaLoading(true);
+    try {
+      const response = await fetch('/api/auth/trocar-senha', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          senhaAtual: senhaForm.senhaAtual,
+          novaSenha: senhaForm.novaSenha,
+          confirmarSenha: senhaForm.confirmar
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setSenhaErro(data.error || 'Erro ao trocar senha');
+        return;
+      }
+      setSenhaSucesso('Senha alterada com sucesso!');
+      setSenhaForm({ senhaAtual: '', novaSenha: '', confirmar: '' });
+      setTimeout(() => { setSenhaModal(false); setSenhaSucesso(''); }, 1500);
+    } catch {
+      setSenhaErro('Erro de conexao com o servidor');
+    } finally {
+      setSenhaLoading(false);
+    }
   };
 
   return (
@@ -150,9 +198,14 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <p className="text-xs text-orange-400 mt-1 truncate">{user.loja.nomeFantasia}</p>
             )}
           </div>
-          <Button variant="danger" size="sm" fullWidth onClick={logout}>
-            Sair do Sistema
-          </Button>
+          <div className="space-y-2">
+            <Button variant="secondary" size="sm" fullWidth onClick={() => { setSenhaModal(true); setSenhaErro(''); setSenhaSucesso(''); setSenhaForm({ senhaAtual: '', novaSenha: '', confirmar: '' }); }}>
+              Alterar Senha
+            </Button>
+            <Button variant="danger" size="sm" fullWidth onClick={logout}>
+              Sair do Sistema
+            </Button>
+          </div>
         </div>
       </aside>
 
@@ -179,6 +232,48 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           </div>
         </main>
       </div>
+
+      {senhaModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSenhaModal(false)}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-white mb-4">Alterar Senha</h2>
+            <form onSubmit={handleTrocarSenha} className="space-y-4">
+              <Input
+                label="Senha Atual"
+                type="password"
+                value={senhaForm.senhaAtual}
+                onChange={(e) => setSenhaForm({ ...senhaForm, senhaAtual: e.target.value })}
+                required
+              />
+              <Input
+                label="Nova Senha"
+                type="password"
+                value={senhaForm.novaSenha}
+                onChange={(e) => setSenhaForm({ ...senhaForm, novaSenha: e.target.value })}
+                hint="Minimo 8 caracteres"
+                required
+              />
+              <Input
+                label="Confirmar Nova Senha"
+                type="password"
+                value={senhaForm.confirmar}
+                onChange={(e) => setSenhaForm({ ...senhaForm, confirmar: e.target.value })}
+                required
+              />
+              {senhaErro && (
+                <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 text-sm">{senhaErro}</div>
+              )}
+              {senhaSucesso && (
+                <div className="p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-400 text-sm">{senhaSucesso}</div>
+              )}
+              <div className="flex gap-3">
+                <Button type="button" variant="secondary" fullWidth onClick={() => setSenhaModal(false)}>Cancelar</Button>
+                <Button type="submit" variant="primary" fullWidth loading={senhaLoading}>Salvar</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
