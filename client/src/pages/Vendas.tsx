@@ -265,7 +265,11 @@ export function Vendas() {
       const desc = isCartao ? 0 : (parseFloat(item.desconto) || 0);
       return acc + sub * (1 - desc / 100);
     }, 0);
-    return totalPecas + totalMotos;
+    const total = totalPecas + totalMotos;
+    if (total % 1 !== 0) {
+      return Math.ceil(total / 5) * 5;
+    }
+    return total;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

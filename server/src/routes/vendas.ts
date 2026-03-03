@@ -253,6 +253,10 @@ router.post('/', async (req: AuthRequest, res) => {
       });
     }
 
+    if (valorTotal % 1 !== 0) {
+      valorTotal = Math.ceil(valorTotal / 5) * 5;
+    }
+
     const tipoVenda = tipo || 'VENDA';
     const confirmarAutomaticamente = tipoVenda === 'VENDA';
 
