@@ -239,14 +239,13 @@ export function Clientes() {
             />
           </div>
           <div>
-            <label className="label">CPF/CNPJ *</label>
+            <label className="label">CPF/CNPJ</label>
             <input
               type="text"
               value={form.cpfCnpj}
               onChange={(e) => setForm({ ...form, cpfCnpj: e.target.value })}
               className="input"
               placeholder="000.000.000-00 ou 00.000.000/0000-00"
-              required
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
