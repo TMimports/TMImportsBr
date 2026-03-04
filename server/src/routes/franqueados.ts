@@ -25,8 +25,8 @@ router.post('/', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { nome, email, cnpj, razaoSocial, nomeFantasia, endereco, telefone, emailLoja, nomeGrupo } = req.body;
 
-    if (!nome || !email || !cnpj || !razaoSocial) {
-      return res.status(400).json({ error: 'Nome, email, CNPJ e razao social sao obrigatorios' });
+    if (!nome || !email || !razaoSocial) {
+      return res.status(400).json({ error: 'Nome, email e razao social sao obrigatorios' });
     }
 
     const emailExistente = await prisma.user.findUnique({ where: { email } });

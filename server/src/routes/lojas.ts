@@ -80,8 +80,8 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
   try {
     const { cnpj, razaoSocial, nomeFantasia, endereco, telefone, email, grupoId: grupoIdParam } = req.body;
 
-    if (!cnpj || !razaoSocial) {
-      return res.status(400).json({ error: 'CNPJ e razão social são obrigatórios' });
+    if (!razaoSocial) {
+      return res.status(400).json({ error: 'Razão social é obrigatória' });
     }
 
     if (!grupoIdParam) {

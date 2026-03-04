@@ -250,7 +250,7 @@ export function Lojas() {
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Loja' : 'Nova Loja'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">CNPJ *</label>
+            <label className="label">CNPJ</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -258,7 +258,6 @@ export function Lojas() {
                 onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
                 className="input"
                 placeholder="00.000.000/0000-00"
-                required
               />
               <button
                 type="button"

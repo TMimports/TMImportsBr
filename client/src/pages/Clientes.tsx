@@ -80,11 +80,6 @@ export function Clientes() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!form.cep) {
-      alert('CEP é obrigatório');
-      return;
-    }
-
     setSaving(true);
     try {
       if (editando && form.id) {
@@ -278,7 +273,7 @@ export function Clientes() {
             <h3 className="font-semibold mb-3">Endereco</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="label">CEP *</label>
+                <label className="label">CEP</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -287,7 +282,6 @@ export function Clientes() {
                     onBlur={(e) => buscarCep(e.target.value)}
                     className="input"
                     placeholder="00000-000"
-                    required
                   />
                   {buscandoCep && <span className="text-sm text-gray-400 self-center">...</span>}
                 </div>
