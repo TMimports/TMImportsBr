@@ -106,10 +106,6 @@ router.post('/', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Nome é obrigatório' });
     }
 
-    if (!cep) {
-      return res.status(400).json({ error: 'CEP é obrigatório' });
-    }
-
     let lojaId = req.user!.lojaId;
     if (!lojaId && lojaIdBody) {
       if (req.user!.role === 'ADMIN_GERAL' || req.user!.role === 'ADMIN_REDE') {
