@@ -333,6 +333,44 @@ export function Garantias() {
                         </tbody>
                       </table>
                     </div>
+
+                    <div className="mt-4 pt-3 border-t border-zinc-700">
+                      <h4 className="text-xs font-semibold text-gray-400 mb-2">Cronograma de Revisoes (a cada 3 meses)</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[90, 180, 270, 360].map((dias, idx) => {
+                          const dataRevisao = new Date(grupo.dataInicio);
+                          dataRevisao.setDate(dataRevisao.getDate() + dias);
+                          const hoje = new Date();
+                          const diffMs = dataRevisao.getTime() - hoje.getTime();
+                          const diasFaltam = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                          const realizada = diasFaltam < 0;
+                          const proxima = !realizada && diasFaltam <= 30;
+                          return (
+                            <div key={dias} className={`p-2 rounded-lg text-center ${
+                              realizada ? 'bg-zinc-800/50' :
+                              proxima ? 'bg-yellow-500/10 border border-yellow-500/30' :
+                              'bg-zinc-800/30'
+                            }`}>
+                              <p className="text-xs text-gray-500">{idx + 1}a Revisao ({dias} dias)</p>
+                              <p className="text-sm font-semibold text-white mt-0.5">
+                                {dataRevisao.toLocaleDateString('pt-BR')}
+                              </p>
+                              {realizada ? (
+                                <p className="text-xs text-gray-500 mt-0.5">Periodo encerrado</p>
+                              ) : (
+                                <p className={`text-xs font-bold mt-0.5 ${
+                                  diasFaltam <= 7 ? 'text-red-400' :
+                                  diasFaltam <= 30 ? 'text-yellow-400' :
+                                  'text-green-400'
+                                }`}>
+                                  {diasFaltam} dias restantes
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

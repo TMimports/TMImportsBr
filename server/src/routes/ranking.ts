@@ -19,6 +19,7 @@ router.get('/produtos', verifyToken, async (req, res) => {
         produtoId: { not: null },
         venda: {
           confirmadaFinanceiro: true,
+          deletedAt: null,
           createdAt: { gte: dataInicio }
         }
       },
@@ -79,6 +80,7 @@ router.get('/servicos', verifyToken, async (req, res) => {
         servicoId: { not: null },
         ordemServico: {
           status: 'EXECUTADA',
+          deletedAt: null,
           createdAt: { gte: dataInicio }
         }
       },
@@ -144,7 +146,7 @@ router.get('/resumo', verifyToken, async (req, res) => {
         by: ['produtoId'],
         where: {
           produtoId: { not: null },
-          venda: { confirmadaFinanceiro: true, createdAt: { gte: dataInicio } }
+          venda: { confirmadaFinanceiro: true, deletedAt: null, createdAt: { gte: dataInicio } }
         },
         _sum: { quantidade: true },
         orderBy: { _sum: { quantidade: 'desc' } },
@@ -154,7 +156,7 @@ router.get('/resumo', verifyToken, async (req, res) => {
         by: ['produtoId'],
         where: {
           produtoId: { not: null },
-          venda: { confirmadaFinanceiro: true, createdAt: { gte: dataInicio } }
+          venda: { confirmadaFinanceiro: true, deletedAt: null, createdAt: { gte: dataInicio } }
         },
         _sum: { quantidade: true },
         orderBy: { _sum: { quantidade: 'asc' } },
@@ -164,7 +166,7 @@ router.get('/resumo', verifyToken, async (req, res) => {
         by: ['servicoId'],
         where: {
           servicoId: { not: null },
-          ordemServico: { status: 'EXECUTADA', createdAt: { gte: dataInicio } }
+          ordemServico: { status: 'EXECUTADA', deletedAt: null, createdAt: { gte: dataInicio } }
         },
         _sum: { quantidade: true },
         orderBy: { _sum: { quantidade: 'desc' } },
@@ -174,7 +176,7 @@ router.get('/resumo', verifyToken, async (req, res) => {
         by: ['servicoId'],
         where: {
           servicoId: { not: null },
-          ordemServico: { status: 'EXECUTADA', createdAt: { gte: dataInicio } }
+          ordemServico: { status: 'EXECUTADA', deletedAt: null, createdAt: { gte: dataInicio } }
         },
         _sum: { quantidade: true },
         orderBy: { _sum: { quantidade: 'asc' } },
@@ -183,14 +185,14 @@ router.get('/resumo', verifyToken, async (req, res) => {
       prisma.itemVenda.aggregate({
         where: {
           produtoId: { not: null },
-          venda: { confirmadaFinanceiro: true, createdAt: { gte: dataInicio } }
+          venda: { confirmadaFinanceiro: true, deletedAt: null, createdAt: { gte: dataInicio } }
         },
         _sum: { quantidade: true }
       }),
       prisma.itemOS.aggregate({
         where: {
           servicoId: { not: null },
-          ordemServico: { status: 'EXECUTADA', createdAt: { gte: dataInicio } }
+          ordemServico: { status: 'EXECUTADA', deletedAt: null, createdAt: { gte: dataInicio } }
         },
         _sum: { quantidade: true }
       })

@@ -431,8 +431,17 @@ export function OrdensServico() {
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-zinc-700 flex justify-between items-center">
-                <span className="text-gray-500 text-sm">Valor Total</span>
-                <span className="text-xl font-bold text-green-400">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 text-sm">Valor Total</span>
+                  {os.confirmadaFinanceiro ? (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 font-semibold">Pago</span>
+                  ) : os.tipo === 'ORCAMENTO' ? (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-700 text-gray-400 font-semibold">Orcamento</span>
+                  ) : (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 font-semibold">Pendente</span>
+                  )}
+                </div>
+                <span className={`text-xl font-bold ${os.confirmadaFinanceiro ? 'text-green-400' : 'text-gray-300'}`}>
                   R$ {Number(os.valorTotal).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>

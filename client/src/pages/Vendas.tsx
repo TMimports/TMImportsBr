@@ -605,7 +605,7 @@ export function Vendas() {
                         })}
                       />
                       <div className="flex gap-2 items-center">
-                        <div className="relative w-24">
+                        <div className="relative w-28">
                           <input
                             type="number"
                             step="0.1"
@@ -613,11 +613,11 @@ export function Vendas() {
                             max="100"
                             value={item.desconto}
                             onChange={(e) => atualizarMoto(index, 'desconto', e.target.value)}
-                            className="input text-sm pr-6"
+                            className="input text-sm pr-8 text-yellow-400"
                             disabled={isCartao}
                             placeholder="0"
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
                         </div>
                         <div className="relative w-32">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
@@ -728,7 +728,7 @@ export function Vendas() {
                         onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value) || 1)}
                         className="input w-16"
                       />
-                      <div className="relative w-20">
+                      <div className="relative w-28">
                         <input
                           type="number"
                           step="0.1"
@@ -736,11 +736,11 @@ export function Vendas() {
                           max="100"
                           value={item.desconto}
                           onChange={(e) => atualizarItem(index, 'desconto', e.target.value)}
-                          className="input text-sm pr-6"
+                          className="input text-sm pr-8 text-yellow-400"
                           disabled={isCartao}
                           placeholder="0"
                         />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
                       </div>
                       <div className="relative w-28">
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
@@ -916,18 +916,40 @@ export function Vendas() {
                   <th className="text-left p-2 text-gray-400 text-sm">Produto</th>
                   <th className="text-center p-2 text-gray-400 text-sm">Qtd</th>
                   <th className="text-right p-2 text-gray-400 text-sm">Valor Unit.</th>
+                  <th className="text-right p-2 text-gray-400 text-sm">Desc.</th>
                   <th className="text-right p-2 text-gray-400 text-sm">Subtotal</th>
                 </tr>
               </thead>
               <tbody>
-                {vendaDetalhada?.itens?.map((item, i) => (
-                  <tr key={i} className="border-b border-zinc-800">
-                    <td className="p-2">{item.produto?.nome}</td>
-                    <td className="p-2 text-center">{item.quantidade}</td>
-                    <td className="p-2 text-right">R$ {Number(item.precoUnitario).toFixed(2)}</td>
-                    <td className="p-2 text-right">R$ {(Number(item.precoUnitario) * item.quantidade).toFixed(2)}</td>
-                  </tr>
-                ))}
+                {vendaDetalhada?.itens?.map((item, i) => {
+                  const desc = Number(item.desconto || 0);
+                  const subtotalBruto = Number(item.precoUnitario) * item.quantidade;
+                  const subtotalFinal = subtotalBruto * (1 - desc / 100);
+                  return (
+                    <tr key={i} className="border-b border-zinc-800">
+                      <td className="p-2">{item.produto?.nome}</td>
+                      <td className="p-2 text-center">{item.quantidade}</td>
+                      <td className="p-2 text-right">R$ {Number(item.precoUnitario).toFixed(2)}</td>
+                      <td className="p-2 text-right">
+                        {desc > 0 ? (
+                          <span className="text-yellow-400 font-semibold">{desc}%</span>
+                        ) : (
+                          <span className="text-gray-600">-</span>
+                        )}
+                      </td>
+                      <td className="p-2 text-right">
+                        {desc > 0 ? (
+                          <div>
+                            <span className="text-green-400">R$ {subtotalFinal.toFixed(2)}</span>
+                            <span className="text-red-400 text-xs block">-R$ {(subtotalBruto - subtotalFinal).toFixed(2)}</span>
+                          </div>
+                        ) : (
+                          <span>R$ {subtotalBruto.toFixed(2)}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
