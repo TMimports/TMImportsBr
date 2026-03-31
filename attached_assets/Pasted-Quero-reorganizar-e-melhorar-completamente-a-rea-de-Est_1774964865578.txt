@@ -1,0 +1,210 @@
+Quero reorganizar e melhorar completamente a área de Estoque do sistema para que a navegação fique mais lógica, intuitiva e profissional.
+
+Objetivo da nova estrutura
+
+A visualização do estoque deve seguir esta hierarquia:
+
+Responsável / Franqueado / Grupo
+Exemplo: Mauro e Felipe
+
+↓ dentro dele mostrar:
+
+Lojas vinculadas
+Exemplo: Loja A, Loja B, Loja C
+
+↓ ao clicar em uma loja, abrir uma tela completa da loja com:
+
+nome da loja
+responsável
+endereço da loja
+telefone
+status da loja
+data de criação
+estoque atual
+histórico dos últimos pedidos
+data de cada pedido
+número ou ID do pedido
+tipo do pedido
+itens do pedido
+quantidade de cada item
+status do pedido
+origem do pedido
+observações
+usuário que lançou o pedido no sistema
+Estrutura desejada da área Estoque
+1. Primeira tela da área Estoque
+
+Ao entrar em Estoque, quero visualizar uma lista de grupos, franqueados ou responsáveis, por exemplo:
+
+Mauro e Felipe
+João e Carlos
+Matriz
+Unidade Parceira
+
+Cada card ou linha deve mostrar rapidamente:
+
+nome do grupo/responsável
+quantidade de lojas vinculadas
+quantidade total de itens no estoque somado
+quantidade de pedidos recentes
+botão para visualizar lojas
+2. Segunda tela: Lojas vinculadas ao grupo
+
+Ao clicar em Mauro e Felipe, por exemplo, abrir a lista de lojas vinculadas:
+
+Loja A
+Loja B
+Loja C
+
+Cada loja deve mostrar:
+
+nome da loja
+cidade ou bairro
+responsável
+quantidade de motos
+quantidade de peças
+quantidade de OS vinculadas
+data do último pedido
+status do estoque (normal, baixo, crítico)
+botão “Ver detalhes”
+3. Terceira tela: Detalhes da loja
+
+Ao clicar na loja, abrir uma tela detalhada e bem organizada com abas ou blocos:
+
+Aba 1: Resumo da loja
+nome da loja
+responsável
+endereço
+telefone
+data de cadastro
+situação da loja
+total de motos em estoque
+total de peças em estoque
+total de itens com estoque baixo
+valor estimado do estoque
+data da última movimentação
+Aba 2: Últimos pedidos
+
+Mostrar uma tabela profissional com:
+
+data do pedido
+número do pedido
+tipo do pedido
+origem
+solicitante
+status
+valor total
+botão para abrir detalhes
+
+Os pedidos devem estar ordenados do mais recente para o mais antigo.
+
+Aba 3: Detalhes do pedido
+
+Ao clicar em um pedido, abrir:
+
+data
+número do pedido
+responsável pela solicitação
+loja de destino
+fornecedor ou origem
+lista completa dos itens
+categoria do item
+quantidade
+valor unitário
+valor total
+observação
+status do pedido
+histórico de atualização
+Aba 4: Movimentação de estoque
+
+Mostrar:
+
+entradas
+saídas
+transferências
+ajustes
+devoluções
+data
+usuário responsável
+observação
+saldo após movimentação
+Aba 5: Alertas e reposição
+
+Mostrar automaticamente:
+
+itens com estoque baixo
+itens sem estoque
+itens com giro alto
+sugestão de reposição
+previsão de ruptura
+Melhorias de usabilidade
+
+Quero que essa área fique com aparência de ERP profissional, limpa e intuitiva.
+
+Requisitos visuais:
+layout moderno
+navegação simples
+cards bem organizados
+tabelas profissionais
+filtros fáceis de usar
+responsividade
+visual limpo, sem poluição
+hierarquia visual clara
+botões padronizados
+cores discretas e profissionais
+Filtros importantes
+
+Na tela da loja e nos pedidos, incluir filtros por:
+
+data inicial e final
+status do pedido
+tipo do pedido
+loja
+responsável
+categoria do item
+produto específico
+pedidos recentes
+pedidos pendentes
+pedidos finalizados
+Pesquisa
+
+Adicionar campo de pesquisa para encontrar rapidamente:
+
+loja
+pedido
+produto
+peça
+moto
+responsável
+Regras importantes
+A navegação deve seguir exatamente esta lógica:
+Grupo/Responsável → Lojas → Detalhes da loja → Últimos pedidos / Estoque / Movimentações
+Cada loja deve ter seu histórico individual separado.
+Os últimos pedidos devem aparecer logo no topo da visualização da loja.
+O sistema deve destacar:
+estoque baixo
+estoque zerado
+pedidos pendentes
+pedidos recentes
+A interface deve facilitar muito a leitura e a tomada de decisão.
+Criar estrutura preparada para crescimento, pois no futuro podem existir vários grupos, vários responsáveis e várias lojas.
+Entrega técnica esperada
+
+Quero que você:
+
+reorganize a arquitetura dessa área
+melhore a experiência do usuário
+crie componentes reutilizáveis
+organize as telas com boa separação de responsabilidades
+padronize tabelas, cards, filtros e navegação
+deixe pronto para integrar com backend e banco de dados
+mantenha o código limpo e escalável
+Sugestão extra
+
+Se possível, criar também:
+
+dashboard resumido por grupo
+dashboard resumido por loja
+indicador de estoque crítico
+indicador de pedidos recentes
+indicador de necessidade de reposição

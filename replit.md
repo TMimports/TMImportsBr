@@ -23,6 +23,8 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Real-time group-wide stock monitoring (Utilidades page)
 - XLSX/CSV import for Units (Motos) with automatic product linking
 - Sales product selection filtered by store inventory (only shows products with stock in selected store)
+- Hierarchical Estoque page: Groups → Stores → Store Detail (5 tabs: Resumo, Estoque, Pedidos, Movimentação, Alertas)
+- New backend endpoints: GET /api/estoque/grupo-resumo and GET /api/estoque/loja/:lojaId/detalhes
 
 **Business Model:**
 - **Grupo** = A franchisee/owner entity that can contain multiple stores
