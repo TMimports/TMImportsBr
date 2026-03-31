@@ -199,4 +199,278 @@ router.get('/comparativo-lojas', async (req: AuthRequest, res) => {
   }
 });
 
+// Helper: resolve date range from periodo param
+function resolverPeriodo(periodoStr: string, dataInicioStr?: string, dataFimStr?: string): { dataInicio: Date; dataFim: Date } {
+  const agora = new Date();
+  const dataFim = dataFimStr ? new Date(dataFimStr + 'T23:59:59') : new Date(agora.setHours(23, 59, 59, 999));
+  // reset agora
+  const now = new Date();
+
+  switch (periodoStr) {
+    case 'hoje': {
+      const ini = new Date(now); ini.setHours(0, 0, 0, 0);
+      const fim = new Date(now); fim.setHours(23, 59, 59, 999);
+      return { dataInicio: ini, dataFim: fim };
+    }
+    case 'ontem': {
+      const ini = new Date(now); ini.setDate(ini.getDate() - 1); ini.setHours(0, 0, 0, 0);
+      const fim = new Date(now); fim.setDate(fim.getDate() - 1); fim.setHours(23, 59, 59, 999);
+      return { dataInicio: ini, dataFim: fim };
+    }
+    case '7dias': {
+      const ini = new Date(now); ini.setDate(ini.getDate() - 6); ini.setHours(0, 0, 0, 0);
+      const fim = new Date(now); fim.setHours(23, 59, 59, 999);
+      return { dataInicio: ini, dataFim: fim };
+    }
+    case '30dias': {
+      const ini = new Date(now); ini.setDate(ini.getDate() - 29); ini.setHours(0, 0, 0, 0);
+      const fim = new Date(now); fim.setHours(23, 59, 59, 999);
+      return { dataInicio: ini, dataFim: fim };
+    }
+    case 'mes':
+    default: {
+      const ini = new Date(now.getFullYear(), now.getMonth(), 1);
+      const fim = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      if (periodoStr === 'custom' && dataInicioStr && dataFimStr) {
+        return { dataInicio: new Date(dataInicioStr + 'T00:00:00'), dataFim: new Date(dataFimStr + 'T23:59:59') };
+      }
+      return { dataInicio: ini, dataFim: fim };
+    }
+  }
+}
+
+// Ranking completo das lojas com metricas de periodo
+router.get('/ranking-lojas', async (req: AuthRequest, res) => {
+  try {
+    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user?.role || '')) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const { periodo = 'mes', dataInicio: di, dataFim: df } = req.query as Record<string, string>;
+    const { dataInicio, dataFim } = resolverPeriodo(periodo, di, df);
+
+    const filter = applyTenantFilter(req);
+    const whereLojas: any = { ativo: true };
+    if (filter.grupoId) whereLojas.grupoId = filter.grupoId;
+    if (filter.lojaId) whereLojas.id = filter.lojaId;
+
+    const lojas = await prisma.loja.findMany({
+      where: whereLojas,
+      include: { grupo: { select: { nome: true } } },
+      orderBy: { nomeFantasia: 'asc' }
+    });
+
+    // Buscar vendas agrupadas por loja no periodo
+    const vendasPorLoja = await prisma.venda.groupBy({
+      by: ['lojaId'],
+      where: { tipo: 'VENDA', deletedAt: null, confirmadaFinanceiro: true, createdAt: { gte: dataInicio, lte: dataFim } },
+      _sum: { valorTotal: true },
+      _count: { id: true }
+    });
+    const vendasMap = new Map(vendasPorLoja.map(v => [v.lojaId, { total: Number(v._sum.valorTotal || 0), qtd: v._count.id }]));
+
+    // Buscar OS agrupadas por loja no periodo
+    const osPorLoja = await prisma.ordemServico.groupBy({
+      by: ['lojaId'],
+      where: { deletedAt: null, confirmadaFinanceiro: true, createdAt: { gte: dataInicio, lte: dataFim } },
+      _sum: { valorTotal: true },
+      _count: { id: true }
+    });
+    const osMap = new Map(osPorLoja.map(o => [o.lojaId, { total: Number(o._sum.valorTotal || 0), qtd: o._count.id }]));
+
+    // Ultima venda por loja
+    const ultimasVendas = await prisma.venda.findMany({
+      where: { tipo: 'VENDA', deletedAt: null, createdAt: { gte: dataInicio, lte: dataFim } },
+      select: { lojaId: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['lojaId']
+    });
+    const ultimaVendaMap = new Map(ultimasVendas.map(v => [v.lojaId, v.createdAt]));
+
+    // Produto mais vendido por loja (por quantidade de itens)
+    const itensPorLoja = await prisma.itemVenda.groupBy({
+      by: ['produtoId'],
+      where: {
+        produtoId: { not: null },
+        venda: { tipo: 'VENDA', deletedAt: null, confirmadaFinanceiro: true, lojaId: { in: lojas.map(l => l.id) }, createdAt: { gte: dataInicio, lte: dataFim } }
+      },
+      _sum: { quantidade: true },
+      orderBy: { _sum: { quantidade: 'desc' } },
+      take: 50
+    });
+
+    // Para cada loja, identificar produto mais vendido individualmente
+    const produtosMaisVendidosPorLoja = new Map<number, string>();
+    for (const loja of lojas) {
+      const itensLoja = await prisma.itemVenda.groupBy({
+        by: ['produtoId'],
+        where: {
+          produtoId: { not: null },
+          venda: { tipo: 'VENDA', deletedAt: null, confirmadaFinanceiro: true, lojaId: loja.id, createdAt: { gte: dataInicio, lte: dataFim } }
+        },
+        _sum: { quantidade: true },
+        orderBy: { _sum: { quantidade: 'desc' } },
+        take: 1
+      });
+      if (itensLoja[0]?.produtoId) {
+        const prod = await prisma.produto.findUnique({ where: { id: itensLoja[0].produtoId }, select: { nome: true } });
+        if (prod) produtosMaisVendidosPorLoja.set(loja.id, prod.nome);
+      }
+    }
+
+    // Montar ranking
+    const ranking = lojas.map(loja => {
+      const v = vendasMap.get(loja.id) || { total: 0, qtd: 0 };
+      const o = osMap.get(loja.id) || { total: 0, qtd: 0 };
+      const faturamento = v.total + o.total;
+      const qtdTotal = v.qtd + o.qtd;
+      return {
+        lojaId: loja.id,
+        lojaNome: loja.nomeFantasia || loja.razaoSocial,
+        grupoNome: loja.grupo?.nome || '',
+        totalVendas: v.total,
+        quantidadeVendas: v.qtd,
+        totalOS: o.total,
+        quantidadeOS: o.qtd,
+        faturamento,
+        ticketMedio: qtdTotal > 0 ? faturamento / qtdTotal : 0,
+        produtoMaisVendido: produtosMaisVendidosPorLoja.get(loja.id) || null,
+        ultimaVenda: ultimaVendaMap.get(loja.id) || null
+      };
+    });
+
+    // Ordenar por faturamento desc, desempate por qtd vendas
+    ranking.sort((a, b) => {
+      if (b.faturamento !== a.faturamento) return b.faturamento - a.faturamento;
+      if (b.quantidadeVendas !== a.quantidadeVendas) return b.quantidadeVendas - a.quantidadeVendas;
+      if (b.ticketMedio !== a.ticketMedio) return b.ticketMedio - a.ticketMedio;
+      return 0;
+    });
+
+    const rankedResult = ranking.map((r, i) => ({ ...r, posicao: i + 1 }));
+
+    // KPIs gerais do periodo
+    const totalGeral = rankedResult.reduce((s, r) => s + r.faturamento, 0);
+    const totalVendasGeral = rankedResult.reduce((s, r) => s + r.totalVendas, 0);
+    const totalQtdGeral = rankedResult.reduce((s, r) => s + r.quantidadeVendas + r.quantidadeOS, 0);
+
+    // KPIs do DIA (independente do filtro de periodo)
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const fimHoje = new Date(); fimHoje.setHours(23, 59, 59, 999);
+    const vendasHoje = await prisma.venda.aggregate({
+      where: { tipo: 'VENDA', deletedAt: null, confirmadaFinanceiro: true, createdAt: { gte: hoje, lte: fimHoje }, ...(filter.lojaId ? { lojaId: filter.lojaId } : filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {}) },
+      _sum: { valorTotal: true },
+      _count: { id: true }
+    });
+
+    res.json({
+      periodo: { inicio: dataInicio, fim: dataFim, tipo: periodo },
+      kpis: {
+        faturamentoTotal: totalGeral,
+        totalVendasValor: totalVendasGeral,
+        totalTransacoes: totalQtdGeral,
+        ticketMedioGeral: totalQtdGeral > 0 ? totalGeral / totalQtdGeral : 0,
+        lojaLider: rankedResult[0]?.lojaNome || null,
+        vendasHoje: Number(vendasHoje._sum.valorTotal || 0),
+        qtdVendasHoje: vendasHoje._count.id
+      },
+      ranking: rankedResult
+    });
+  } catch (error) {
+    console.error('Erro no ranking de lojas:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Produtos mais vendidos por tipo no periodo
+router.get('/produtos-mais-vendidos', async (req: AuthRequest, res) => {
+  try {
+    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user?.role || '')) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const { periodo = 'mes', dataInicio: di, dataFim: df, limite = '10' } = req.query as Record<string, string>;
+    const { dataInicio, dataFim } = resolverPeriodo(periodo, di, df);
+    const lim = parseInt(limite) || 10;
+
+    const filter = applyTenantFilter(req);
+    const lojaFilter = filter.lojaId ? { lojaId: filter.lojaId } : filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {};
+
+    // Top produtos (MOTO e PECA) de vendas
+    const topProdutos = await prisma.itemVenda.groupBy({
+      by: ['produtoId'],
+      where: {
+        produtoId: { not: null },
+        venda: { tipo: 'VENDA', deletedAt: null, confirmadaFinanceiro: true, createdAt: { gte: dataInicio, lte: dataFim }, ...lojaFilter }
+      },
+      _sum: { quantidade: true, precoUnitario: true },
+      _count: { id: true },
+      orderBy: { _sum: { quantidade: 'desc' } },
+      take: lim
+    });
+
+    const produtosIds = topProdutos.map(p => p.produtoId).filter(Boolean) as number[];
+    const produtos = await prisma.produto.findMany({ where: { id: { in: produtosIds } }, select: { id: true, nome: true, tipo: true } });
+    const prodMap = new Map(produtos.map(p => [p.id, p]));
+
+    // Total geral de quantidade vendida (para participação %)
+    const totalQtd = topProdutos.reduce((s, p) => s + (p._sum.quantidade || 0), 0);
+
+    // Loja que mais vendeu cada produto
+    const produtosRanking = topProdutos.map((item, i) => {
+      const prod = prodMap.get(item.produtoId!);
+      return {
+        posicao: i + 1,
+        produtoId: item.produtoId,
+        nome: prod?.nome || 'Produto removido',
+        tipo: prod?.tipo || '',
+        quantidadeVendida: item._sum.quantidade || 0,
+        faturamento: (item._sum.quantidade || 0) * Number(item._sum.precoUnitario || 0),
+        participacao: totalQtd > 0 ? ((item._sum.quantidade || 0) / totalQtd) * 100 : 0
+      };
+    });
+
+    // Top serviços de OS
+    const topServicos = await prisma.itemOS.groupBy({
+      by: ['servicoId'],
+      where: {
+        servicoId: { not: null },
+        ordemServico: { deletedAt: null, confirmadaFinanceiro: true, createdAt: { gte: dataInicio, lte: dataFim }, ...lojaFilter }
+      },
+      _sum: { quantidade: true, precoUnitario: true },
+      _count: { id: true },
+      orderBy: { _sum: { quantidade: 'desc' } },
+      take: lim
+    });
+
+    const servicosIds = topServicos.map(s => s.servicoId).filter(Boolean) as number[];
+    const servicos = await prisma.servico.findMany({ where: { id: { in: servicosIds } }, select: { id: true, nome: true } });
+    const servMap = new Map(servicos.map(s => [s.id, s]));
+
+    const servicosRanking = topServicos.map((item, i) => {
+      const serv = servMap.get(item.servicoId!);
+      return {
+        posicao: i + 1,
+        servicoId: item.servicoId,
+        nome: serv?.nome || 'Serviço removido',
+        tipo: 'SERVICO',
+        quantidadeVendida: item._sum.quantidade || 0,
+        faturamento: (item._sum.quantidade || 0) * Number(item._sum.precoUnitario || 0),
+        participacao: 0
+      };
+    });
+
+    res.json({
+      motos: produtosRanking.filter(p => p.tipo === 'MOTO'),
+      pecas: produtosRanking.filter(p => p.tipo === 'PECA'),
+      servicos: servicosRanking,
+      todos: produtosRanking
+    });
+  } catch (error) {
+    console.error('Erro em produtos-mais-vendidos:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;
+

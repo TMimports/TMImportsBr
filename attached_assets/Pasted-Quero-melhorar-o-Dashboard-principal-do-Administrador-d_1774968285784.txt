@@ -1,0 +1,256 @@
+Quero melhorar o Dashboard principal do Administrador do sistema para que ele mostre, em tempo real, o desempenho das lojas, com foco em ranking de vendas, top 3 lojas, valor vendido, e produtos com maior saída.
+
+Objetivo principal
+
+O Dashboard do ADM deve ser atualizado automaticamente, sem depender de nenhuma ação manual.
+
+Regra principal:
+
+Toda vez que uma venda for concluída no sistema, o Dashboard deve ser atualizado sozinho imediatamente.
+Sem precisar atualizar manualmente, sem precisar clicar em botão, sem precisar recarregar a página.
+
+Estrutura desejada do Dashboard principal do ADM
+1. Bloco de Ranking Geral das Lojas
+
+Quero um quadro principal mostrando o ranking das lojas.
+
+Esse ranking deve listar:
+
+posição da loja no ranking
+nome da loja
+valor total vendido
+quantidade de vendas realizadas
+quantidade de produtos vendidos
+ticket médio
+variação em relação ao período anterior
+status da loja no ranking
+
+Exemplo:
+
+Loja Recreio
+Loja Campo Grande
+Loja Bangu
+Loja Itaipuaçu
+2. Bloco com as 3 melhores lojas
+
+Quero uma área de destaque visual no Dashboard mostrando as 3 melhores lojas.
+
+Cada card das 3 melhores deve exibir:
+
+posição no ranking
+nome da loja
+valor vendido no período
+número de vendas
+produto mais vendido
+categoria com maior saída
+crescimento em relação ao período anterior
+indicador visual de desempenho
+
+Essa área deve ficar em destaque no topo ou logo abaixo dos indicadores principais.
+
+3. Bloco de produtos com maior saída
+
+Quero uma lista ou tabela mostrando os produtos que mais estão saindo no sistema.
+
+Exibir:
+
+nome do produto
+categoria
+quantidade vendida
+valor total gerado
+loja que mais vendeu aquele item
+participação no total das vendas
+tendência de saída
+
+Separar por:
+
+motos
+peças
+serviços
+4. Bloco de desempenho por loja
+
+Quero uma lista de todas as lojas com seus principais números.
+
+Cada loja deve mostrar:
+
+nome da loja
+total vendido
+quantidade de vendas
+produto mais vendido
+quantidade de itens vendidos
+último horário de venda
+status da loja
+posição atual no ranking
+Atualização em tempo real
+
+Isso é obrigatório.
+
+Quero que o Dashboard funcione em tempo real:
+vendeu, atualizou automaticamente
+cancelou venda, atualizou automaticamente
+editou venda, atualizou automaticamente
+mudou status da venda concluída, atualizou automaticamente
+sem reload manual
+sem botão de atualizar
+Requisitos técnicos de tempo real:
+
+Implementar atualização automática usando uma arquitetura adequada para tempo real, por exemplo:
+
+WebSocket
+Supabase Realtime
+Firebase Realtime
+polling inteligente apenas se necessário
+ou outro método robusto e escalável
+
+Mas a preferência é por solução real-time de verdade, não gambiarra visual.
+
+Indicadores principais no topo do Dashboard
+
+Quero cards de resumo com:
+
+total vendido no dia
+total vendido no mês
+quantidade total de vendas
+ticket médio geral
+loja líder do momento
+produto mais vendido do momento
+quantidade de itens vendidos hoje
+número de vendas em tempo real
+Filtros do Dashboard
+
+Adicionar filtros para o ADM visualizar os dados por:
+
+hoje
+ontem
+últimos 7 dias
+últimos 30 dias
+mês atual
+período personalizado
+
+Também quero filtros por:
+
+loja
+categoria
+vendedor
+tipo de venda
+produto
+motos
+peças
+serviços
+Regras de negócio do ranking
+
+O ranking das lojas deve ser calculado com base em critérios claros.
+
+Critério principal:
+
+Ordenar por valor total vendido
+
+Critérios complementares:
+
+Se houver empate, usar nesta ordem:
+
+quantidade de vendas
+ticket médio
+quantidade de produtos vendidos
+data/hora da última venda
+Produtos mais vendidos
+
+Quero que o sistema identifique automaticamente:
+
+top produtos do dia
+top produtos do mês
+produtos com maior giro
+produtos com maior faturamento
+produtos que mais cresceram em vendas
+
+Se possível, mostrar:
+
+tendência de alta
+tendência de queda
+estabilidade
+Comportamento automático obrigatório
+
+Toda vez que uma loja vender:
+
+atualizar total vendido da loja
+atualizar ranking
+atualizar top 3
+atualizar produto mais vendido
+atualizar indicadores gerais
+atualizar horário da última venda
+atualizar sem intervenção humana
+Visual e interface
+
+Quero um Dashboard com aparência de ERP profissional.
+
+Requisitos visuais:
+layout moderno e limpo
+cards elegantes
+tabelas profissionais
+ranking visualmente destacado
+top 3 lojas com design diferenciado
+boa hierarquia visual
+fácil leitura
+rápido de entender
+responsivo
+visual administrativo premium
+Componentes desejados
+
+Criar os seguintes blocos/componentes:
+
+Card de indicadores gerais
+Card de top 3 lojas
+Tabela de ranking completo das lojas
+Tabela de produtos mais vendidos
+Lista de desempenho por loja
+Filtros globais do dashboard
+Atualização em tempo real dos dados
+Indicador visual de última atualização automática
+Requisitos técnicos
+
+Quero que você:
+
+estruture isso com componentes reutilizáveis
+deixe o código limpo e escalável
+organize a lógica de atualização em tempo real
+evite recarregar a página inteira
+atualize apenas os blocos necessários
+prepare para crescimento com várias lojas
+garanta boa performance mesmo com aumento de vendas
+Regras de banco de dados e integração
+
+O Dashboard deve consumir os dados diretamente do módulo de vendas.
+
+Quando uma venda for:
+
+criada
+aprovada
+concluída
+cancelada
+alterada
+
+o Dashboard deve refletir isso automaticamente.
+
+Também quero prever agregações para:
+
+vendas por loja
+vendas por produto
+vendas por categoria
+ticket médio por loja
+ranking geral das lojas
+Resultado final esperado
+
+Quero que o Dashboard principal do ADM mostre:
+
+lista de todas as lojas em ranking
+destaque das 3 melhores lojas
+quanto cada loja está vendendo
+quais produtos mais estão saindo
+tudo em tempo real
+vendeu, atualizou automaticamente
+
+Sem precisar de ação de ninguém.
+
+Instrução final
+
+Implemente isso de forma profissional, como um painel administrativo real de ERP, com atualização automática e visual moderno, priorizando clareza, performance e escalabilidade.
