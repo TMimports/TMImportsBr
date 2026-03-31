@@ -112,7 +112,7 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString('pt-BR');
 const fmtDateTime = (d: string) => new Date(d).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 const fmtCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-function StatusBadge({ value, type }: { value: string; type: 'os' | 'venda' | 'estoque' | 'loja' }) {
+function StatusBadge({ value }: { value: string; type?: 'os' | 'venda' | 'estoque' | 'loja' }) {
   const configs: Record<string, string> = {
     ORCAMENTO: 'bg-zinc-700 text-zinc-300',
     EM_EXECUCAO: 'bg-blue-900/50 text-blue-300',
@@ -944,7 +944,7 @@ function LojaDetalheView({
 
 type View = 'grupos' | 'lojas' | 'loja';
 
-export default function Estoque() {
+export function Estoque() {
   const { user } = useAuth();
   const [grupos, setGrupos] = useState<GrupoResumo[]>([]);
   const [loading, setLoading] = useState(true);
