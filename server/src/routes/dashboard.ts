@@ -472,5 +472,104 @@ router.get('/produtos-mais-vendidos', async (req: AuthRequest, res) => {
   }
 });
 
+// Dados de movimentação para gráficos
+router.get('/grafico-vendas', async (req: AuthRequest, res) => {
+  try {
+    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user?.role || '')) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const { periodo = 'mes', dataInicio: di, dataFim: df } = req.query as Record<string, string>;
+    const { dataInicio, dataFim } = resolverPeriodo(periodo, di, df);
+
+    const filter = applyTenantFilter(req);
+    const lojaFilter = filter.lojaId ? { lojaId: filter.lojaId } : filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {};
+
+    // Buscar todas as vendas no período
+    const vendas = await prisma.venda.findMany({
+      where: { tipo: 'VENDA', deletedAt: null, confirmadaFinanceiro: true, createdAt: { gte: dataInicio, lte: dataFim }, ...lojaFilter },
+      select: { valorTotal: true, createdAt: true, lojaId: true, loja: { select: { nomeFantasia: true, razaoSocial: true } } }
+    });
+
+    const ordens = await prisma.ordemServico.findMany({
+      where: { deletedAt: null, confirmadaFinanceiro: true, createdAt: { gte: dataInicio, lte: dataFim }, ...lojaFilter },
+      select: { valorTotal: true, createdAt: true, lojaId: true }
+    });
+
+    const diffDias = Math.ceil((dataFim.getTime() - dataInicio.getTime()) / (1000 * 60 * 60 * 24));
+    const agruparPorHora = diffDias <= 1;
+
+    // Agrupar movimentação por hora ou por dia
+    const buckets = new Map<string, { vendas: number; os: number; qtdVendas: number; qtdOS: number }>();
+
+    const getBucket = (d: Date) => {
+      if (agruparPorHora) {
+        return `${String(d.getHours()).padStart(2, '0')}h`;
+      } else {
+        return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+    };
+
+    // Inicializar todos os buckets do período
+    if (agruparPorHora) {
+      for (let h = 0; h < 24; h++) {
+        buckets.set(`${String(h).padStart(2, '0')}h`, { vendas: 0, os: 0, qtdVendas: 0, qtdOS: 0 });
+      }
+    } else {
+      const cur = new Date(dataInicio);
+      while (cur <= dataFim) {
+        const k = `${String(cur.getDate()).padStart(2, '0')}/${String(cur.getMonth() + 1).padStart(2, '0')}`;
+        if (!buckets.has(k)) buckets.set(k, { vendas: 0, os: 0, qtdVendas: 0, qtdOS: 0 });
+        cur.setDate(cur.getDate() + 1);
+      }
+    }
+
+    for (const v of vendas) {
+      const k = getBucket(new Date(v.createdAt));
+      const b = buckets.get(k);
+      if (b) { b.vendas += Number(v.valorTotal || 0); b.qtdVendas++; }
+    }
+    for (const o of ordens) {
+      const k = getBucket(new Date(o.createdAt));
+      const b = buckets.get(k);
+      if (b) { b.os += Number(o.valorTotal || 0); b.qtdOS++; }
+    }
+
+    const movimentacao = Array.from(buckets.entries()).map(([label, v]) => ({
+      label,
+      vendas: v.vendas,
+      os: v.os,
+      total: v.vendas + v.os,
+      qtdVendas: v.qtdVendas,
+      qtdOS: v.qtdOS
+    }));
+
+    // Faturamento por loja
+    const lojaFat = new Map<number, { nome: string; faturamento: number; vendas: number; os: number }>();
+    for (const v of vendas) {
+      const nome = v.loja?.nomeFantasia || v.loja?.razaoSocial || `Loja ${v.lojaId}`;
+      const prev = lojaFat.get(v.lojaId) || { nome, faturamento: 0, vendas: 0, os: 0 };
+      prev.faturamento += Number(v.valorTotal || 0);
+      prev.vendas += Number(v.valorTotal || 0);
+      lojaFat.set(v.lojaId, prev);
+    }
+    for (const o of ordens) {
+      const prev = lojaFat.get(o.lojaId) || { nome: `Loja ${o.lojaId}`, faturamento: 0, vendas: 0, os: 0 };
+      prev.faturamento += Number(o.valorTotal || 0);
+      prev.os += Number(o.valorTotal || 0);
+      lojaFat.set(o.lojaId, prev);
+    }
+
+    const faturamentoPorLoja = Array.from(lojaFat.values())
+      .sort((a, b) => b.faturamento - a.faturamento)
+      .slice(0, 10);
+
+    res.json({ movimentacao, faturamentoPorLoja, agruparPorHora });
+  } catch (error) {
+    console.error('Erro em grafico-vendas:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;
 

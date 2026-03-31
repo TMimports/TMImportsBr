@@ -1,0 +1,182 @@
+Quero simplificar o Dashboard principal do Administrador e deixá-lo com visual mais limpo, direto e fácil de entender.
+
+Objetivo do novo Dashboard
+
+O Dashboard deve ter aparência profissional, porém mais simples, com foco em:
+
+números grandes
+leitura rápida
+gráficos de movimentação
+ranking das lojas
+atualização automática em tempo real
+
+Quero que o administrador bata o olho e entenda rapidamente o que está acontecendo no negócio.
+
+Estrutura desejada do Dashboard
+1. Área principal com indicadores grandes
+
+No topo do Dashboard, quero cards grandes, bem visíveis e com destaque numérico.
+
+Mostrar pelo menos estes indicadores:
+
+total vendido hoje
+total vendido no mês
+quantidade de vendas hoje
+ticket médio
+produtos vendidos hoje
+loja líder do momento
+Requisitos visuais:
+números grandes
+título pequeno acima ou abaixo
+visual limpo
+sem excesso de informação
+boa separação entre os cards
+design moderno de ERP
+fácil leitura até de longe
+2. Gráficos de movimentação
+
+Quero gráficos simples, bonitos e fáceis de entender, mostrando a movimentação das vendas.
+
+Gráfico 1: vendas por período
+
+Mostrar a movimentação das vendas ao longo do tempo:
+
+por hora no dia
+por dia na semana
+por dia no mês
+
+Esse gráfico pode ser em:
+
+linha
+barras
+área
+
+Priorizar clareza visual.
+
+Gráfico 2: faturamento por loja
+
+Mostrar quanto cada loja vendeu no período selecionado.
+
+Pode ser:
+
+gráfico de barras
+barras horizontais
+Gráfico 3: produtos mais vendidos
+
+Mostrar os produtos que mais saíram:
+
+nome do produto
+quantidade vendida
+categoria
+
+Pode ser em barras ou gráfico simples de ranking visual.
+
+3. Ranking das lojas
+
+Manter o ranking das lojas no Dashboard.
+
+Quero uma seção clara mostrando:
+
+posição
+nome da loja
+valor vendido
+quantidade de vendas
+produto mais vendido da loja
+
+O ranking deve continuar existindo, mas de forma mais limpa e objetiva.
+
+Regra:
+
+Ordenar por valor total vendido.
+
+Se houver empate:
+quantidade de vendas
+ticket médio
+quantidade de produtos vendidos
+4. Atualização automática em tempo real
+
+Isso continua obrigatório.
+
+Toda vez que uma venda acontecer, o Dashboard deve atualizar sozinho automaticamente.
+
+Regra principal:
+vendeu, atualizou
+cancelou, atualizou
+editou venda, atualizou
+concluiu venda, atualizou
+
+Sem precisar atualizar a página manualmente.
+
+Organização visual desejada
+Estrutura sugerida da tela:
+Linha 1:
+
+cards grandes com os números principais
+
+Linha 2:
+
+gráfico principal de movimentação de vendas
+
+Linha 3:
+
+gráfico de faturamento por loja + gráfico de produtos mais vendidos
+
+Linha 4:
+
+ranking das lojas
+
+Estilo visual
+
+Quero um Dashboard:
+
+mais simples
+mais leve
+mais limpo
+mais profissional
+com menos poluição visual
+com foco nos números
+com foco em gráficos claros
+com boa hierarquia visual
+Importante:
+usar poucos elementos por bloco
+evitar excesso de texto
+evitar tabelas pesadas no topo
+destacar o que é mais importante
+deixar os cards numéricos bem grandes
+deixar os gráficos fáceis de interpretar
+Filtros
+
+Adicionar filtros simples no topo do Dashboard:
+
+hoje
+últimos 7 dias
+últimos 30 dias
+mês atual
+período personalizado
+
+Se possível, incluir também filtro por loja.
+
+Requisitos técnicos
+
+Quero que você:
+
+simplifique o layout atual
+deixe os indicadores principais maiores
+mantenha o ranking das lojas
+adicione gráficos de movimentação
+garanta atualização em tempo real
+use componentes reutilizáveis
+mantenha código limpo e escalável
+evite excesso de informação visual
+priorize performance
+Resultado final esperado
+
+Quero um Dashboard administrativo mais simples e mais forte visualmente, com:
+
+números grandes no topo
+gráficos de movimentação
+ranking das lojas mantido
+atualização automática em tempo real
+leitura rápida e profissional
+
+Quero um painel que seja bonito, intuitivo e objetivo, parecendo um ERP moderno.
