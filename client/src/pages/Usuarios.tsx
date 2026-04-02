@@ -36,20 +36,19 @@ const initialForm = {
 
 const roleLabels: Record<string, string> = {
   ADMIN_GERAL: 'Administrador Geral',
-  ADMIN_REDE: 'Administrador de Rede',
+  ADMIN_FINANCEIRO: 'Administrador Financeiro',
   DONO_LOJA: 'Dono da Loja',
-  GERENTE_LOJA: 'Gerente da Loja',
   VENDEDOR: 'Vendedor',
-  TECNICO: 'Tecnico'
+  ADMIN_REDE: 'Administrador de Rede',
+  GERENTE_LOJA: 'Gerente da Loja',
+  TECNICO: 'Técnico'
 };
 
 const roleDescriptions: Record<string, string> = {
-  ADMIN_GERAL: 'Define produtos, servicos, precos, margens, regras, comissoes. Ve tudo.',
-  ADMIN_REDE: 'Cria grupos, lojas, usuarios. Vincula lojas a donos. Nao mexe em preco.',
-  DONO_LOJA: 'Ve sua loja: estoque, vendas, OS, financeiro, comissoes da equipe.',
-  GERENTE_LOJA: 'Opera vendas, OS, clientes. Confirma pagamentos. Nao altera precos.',
-  VENDEDOR: 'Cria vendas, OS, orcamentos. Atende clientes. Ve apenas suas comissoes.',
-  TECNICO: 'Apenas cadastro para vincular em OS. Nao possui acesso ao sistema.'
+  ADMIN_GERAL: 'Acesso total ao sistema: produtos, precos, estoque, usuarios, financeiro, todas as lojas.',
+  ADMIN_FINANCEIRO: 'Acesso completo a toda a area financeira de todas as lojas. Sem acesso operacional.',
+  DONO_LOJA: 'Gerencia sua loja: cadastra produtos, funcionarios, ve estoque, vendas, OS e financeiro.',
+  VENDEDOR: 'Cria vendas e orcamentos, atende clientes. Ve apenas suas proprias comissoes.',
 };
 
 export function Usuarios() {
@@ -63,9 +62,9 @@ export function Usuarios() {
   const [form, setForm] = useState(initialForm);
   const [selecionados, setSelecionados] = useState<number[]>([]);
 
-  const rolesDisponiveis = user?.role === 'DONO_LOJA' 
-    ? ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO']
-    : ['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA', 'VENDEDOR', 'TECNICO'];
+  const rolesDisponiveis = user?.role === 'DONO_LOJA'
+    ? ['VENDEDOR']
+    : ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', 'VENDEDOR'];
 
   const loadData = () => {
     setLoading(true);
@@ -305,7 +304,7 @@ export function Usuarios() {
             ]}
           />
 
-          {(form.role === 'VENDEDOR' || form.role === 'GERENTE_LOJA' || form.role === 'TECNICO') && (
+          {form.role === 'VENDEDOR' && (
             <>
               <div className="border-t border-zinc-700 pt-4 mt-4">
                 <h3 className="text-lg font-semibold text-white mb-3">Dados Pessoais</h3>
