@@ -66,19 +66,25 @@ export function NotasFiscais() {
       if (filtroStatus) params.set('status', filtroStatus);
       if (filtroMes) params.set('mes', filtroMes);
       const r = await fetch(`/api/notas-fiscais?${params}`, { headers });
-      setNotas(await r.json());
-    } finally { setLoading(false); }
+      const data = await r.json();
+      setNotas(Array.isArray(data) ? data : []);
+    } catch { setNotas([]); } finally { setLoading(false); }
   }
 
   async function loadLojas() {
-    const r = await fetch('/api/lojas', { headers });
-    const data = await r.json();
-    setLojas(Array.isArray(data) ? data : data.lojas ?? []);
+    try {
+      const r = await fetch('/api/lojas', { headers });
+      const data = await r.json();
+      setLojas(Array.isArray(data) ? data : data.lojas ?? []);
+    } catch { setLojas([]); }
   }
 
   async function loadFornecedores() {
-    const r = await fetch('/api/fornecedores', { headers });
-    setFornecedores(await r.json());
+    try {
+      const r = await fetch('/api/fornecedores', { headers });
+      const data = await r.json();
+      setFornecedores(Array.isArray(data) ? data : data.data ?? []);
+    } catch { setFornecedores([]); }
   }
 
   async function saveNota() {

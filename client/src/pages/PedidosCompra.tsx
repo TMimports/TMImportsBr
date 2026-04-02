@@ -31,8 +31,8 @@ interface Loja { id: number; nomeFantasia: string; cnpj: string; }
 const STATUS_LABEL: Record<string, string> = {
   PENDENTE: 'Pendente', APROVADO: 'Aprovado', CONFIRMADO: 'Confirmado', CANCELADO: 'Cancelado'
 };
-const STATUS_COLOR: Record<string, 'yellow' | 'blue' | 'green' | 'red'> = {
-  PENDENTE: 'yellow', APROVADO: 'blue', CONFIRMADO: 'green', CANCELADO: 'red'
+const STATUS_COLOR: Record<string, 'warning' | 'info' | 'success' | 'danger'> = {
+  PENDENTE: 'warning', APROVADO: 'info', CONFIRMADO: 'success', CANCELADO: 'danger'
 };
 
 const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -198,7 +198,7 @@ function DetalhesPedido({ pedido, onClose, onAction, role }: {
             <p className="text-xs text-zinc-400">{pedido.loja.nomeFantasia} — {pedido.loja.cnpj}</p>
           </div>
           <div className="flex items-center gap-3">
-            <Badge color={STATUS_COLOR[pedido.status]}>{STATUS_LABEL[pedido.status]}</Badge>
+            <Badge variant={STATUS_COLOR[pedido.status]}>{STATUS_LABEL[pedido.status]}</Badge>
             <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">×</button>
           </div>
         </div>
@@ -281,8 +281,8 @@ export function PedidosCompra() {
         fetch(`${API}/lojas`, { headers }),
         fetch(`${API}/produtos`, { headers }),
       ]);
-      if (rP.ok) setPedidos(await rP.json());
-      if (rL.ok) setLojas(await rL.json());
+      if (rP.ok) { const d = await rP.json(); setPedidos(Array.isArray(d) ? d : []); }
+      if (rL.ok) { const d = await rL.json(); setLojas(Array.isArray(d) ? d : d.lojas ?? []); }
       if (rProd.ok) {
         const p = await rProd.json();
         setProdutos(Array.isArray(p) ? p : p.data || []);
@@ -324,11 +324,13 @@ export function PedidosCompra() {
 
   return (
     <div className="p-6 space-y-6">
-      <SectionHeader title="Pedidos de Compra" subtitle="Gestão de ordens de entrada de mercadoria com custo médio ponderado">
-        {['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', 'GERENTE_LOJA'].includes(role) && (
+      <SectionHeader
+        title="Pedidos de Compra"
+        subtitle="Gestão de ordens de entrada de mercadoria com custo médio ponderado"
+        actions={['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', 'GERENTE_LOJA'].includes(role) ? (
           <Button variant="primary" onClick={() => setShowModal(true)}>+ Novo Pedido</Button>
-        )}
-      </SectionHeader>
+        ) : undefined}
+      />
 
       {erro && (
         <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg text-sm flex items-center justify-between">
@@ -408,7 +410,7 @@ export function PedidosCompra() {
                     <td className="p-4 text-zinc-400">{p.itens.length} {p.itens.length === 1 ? 'item' : 'itens'}</td>
                     <td className="p-4 text-right font-semibold text-orange-500">{fmtBRL(Number(p.valorTotal))}</td>
                     <td className="p-4 text-zinc-400">{fmtDate(p.previsaoEntrega)}</td>
-                    <td className="p-4"><Badge color={STATUS_COLOR[p.status]}>{STATUS_LABEL[p.status]}</Badge></td>
+                    <td className="p-4"><Badge variant={STATUS_COLOR[p.status]}>{STATUS_LABEL[p.status]}</Badge></td>
                     <td className="p-4 text-zinc-400">{fmtDate(p.createdAt)}</td>
                   </tr>
                 ))}
