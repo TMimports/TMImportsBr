@@ -96,6 +96,9 @@ const roleLabels: Record<string, string> = {
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+  });
   const [senhaModal, setSenhaModal] = useState(false);
   const [senhaForm, setSenhaForm] = useState({ senhaAtual: '', novaSenha: '', confirmar: '' });
   const [senhaErro, setSenhaErro] = useState('');
@@ -107,6 +110,14 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const handleNavigate = (page: string) => {
     onNavigate(page);
     setMenuOpen(false);
+  };
+
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('sidebar-collapsed', String(next)); } catch {}
+      return next;
+    });
   };
 
   const handleTrocarSenha = async (e: React.FormEvent) => {
@@ -154,75 +165,151 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-zinc-950">
+      {/* Mobile overlay */}
       <div 
         className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setMenuOpen(false)}
       />
 
+      {/* Sidebar */}
       <aside className={`
         fixed md:static inset-y-0 left-0 z-50
-        w-64 bg-zinc-900 min-h-screen border-r border-zinc-800 flex flex-col
-        transform transition-transform duration-300 ease-in-out
+        bg-zinc-900 min-h-screen border-r border-zinc-800 flex flex-col
+        transition-all duration-300 ease-in-out
+        ${collapsed ? 'w-16' : 'w-56'}
         ${menuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <div className="h-16 px-4 border-b border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Tecle Motos" className="w-10 h-10" />
-            <div className="hidden md:block">
-              <p className="text-sm font-semibold text-white">Tecle Motos</p>
-              <p className="text-xs text-orange-500">Sistema ERP</p>
-            </div>
+        {/* Header */}
+        <div className="h-14 px-3 border-b border-zinc-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <img src="/logo.png" alt="Tecle Motos" className="w-8 h-8 shrink-0" />
+            {!collapsed && (
+              <div className="min-w-0 hidden md:block">
+                <p className="text-sm font-semibold text-white leading-tight truncate">Tecle Motos</p>
+                <p className="text-[10px] text-orange-500 leading-tight">Sistema ERP</p>
+              </div>
+            )}
           </div>
-          <button 
+          {/* Collapse toggle (desktop) */}
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            className="hidden md:flex items-center justify-center w-7 h-7 rounded-md text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {collapsed
+                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M19 19l-7-7 7-7" />
+              }
+            </svg>
+          </button>
+          {/* Close (mobile) */}
+          <button
             onClick={() => setMenuOpen(false)}
-            className="md:hidden text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+            className="md:hidden text-gray-400 hover:text-white p-1 rounded-lg hover:bg-zinc-800 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {items.map(item => (
-            <button
-              key={item.id}
-              onClick={() => handleNavigate(item.id)}
-              className={`
-                w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                transition-all duration-200 text-left
-                ${currentPage === item.id 
-                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' 
-                  : 'text-gray-400 hover:bg-zinc-800 hover:text-white'
-                }
-              `}
-            >
-              <span className="text-base">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
+
+        {/* Nav */}
+        <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
+          {items.map(item => {
+            const active = currentPage === item.id;
+            return (
+              <div key={item.id} className="relative group">
+                <button
+                  onClick={() => handleNavigate(item.id)}
+                  className={`
+                    w-full flex items-center rounded-lg text-sm font-medium
+                    transition-all duration-150 text-left
+                    ${collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-2.5 py-2'}
+                    ${active
+                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                      : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                    }
+                  `}
+                >
+                  <span className="text-base shrink-0">{item.icon}</span>
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                </button>
+                {/* Tooltip when collapsed */}
+                {collapsed && (
+                  <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[70]
+                    opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    <div className="bg-zinc-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-xl border border-zinc-700">
+                      {item.label}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
-        <div className="p-3 border-t border-zinc-800">
-          <div className="p-3 bg-zinc-800/50 rounded-lg mb-3">
-            <p className="text-sm font-medium text-white truncate">{user?.nome}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{roleLabels[user?.role || ''] || user?.role}</p>
-            {user?.loja && (
-              <p className="text-xs text-orange-400 mt-1 truncate">{user.loja.nomeFantasia}</p>
+        {/* Footer */}
+        <div className="shrink-0 p-2 border-t border-zinc-800 space-y-1">
+          {!collapsed && (
+            <div className="px-2 py-2 bg-zinc-800/50 rounded-lg mb-1">
+              <p className="text-xs font-semibold text-white truncate">{user?.nome}</p>
+              <p className="text-[10px] text-zinc-500 mt-0.5">{roleLabels[user?.role || ''] || user?.role}</p>
+              {user?.loja && (
+                <p className="text-[10px] text-orange-400 mt-0.5 truncate">{user.loja.nomeFantasia}</p>
+              )}
+            </div>
+          )}
+
+          {/* Trocar senha */}
+          <div className="relative group">
+            <button
+              onClick={() => { setSenhaModal(true); setSenhaErro(''); setSenhaSucesso(''); setSenhaForm({ senhaAtual: '', novaSenha: '', confirmar: '' }); }}
+              className={`w-full flex items-center rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors
+                ${collapsed ? 'justify-center py-2.5' : 'gap-2 px-2.5 py-2'}`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              {!collapsed && <span>Alterar Senha</span>}
+            </button>
+            {collapsed && (
+              <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[70]
+                opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="bg-zinc-800 text-white text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-xl border border-zinc-700">
+                  Alterar Senha
+                </div>
+              </div>
             )}
           </div>
-          <div className="space-y-2">
-            <Button variant="secondary" size="sm" fullWidth onClick={() => { setSenhaModal(true); setSenhaErro(''); setSenhaSucesso(''); setSenhaForm({ senhaAtual: '', novaSenha: '', confirmar: '' }); }}>
-              Alterar Senha
-            </Button>
-            <Button variant="danger" size="sm" fullWidth onClick={logout}>
-              Sair do Sistema
-            </Button>
+
+          {/* Sair */}
+          <div className="relative group">
+            <button
+              onClick={logout}
+              className={`w-full flex items-center rounded-lg text-xs text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors
+                ${collapsed ? 'justify-center py-2.5' : 'gap-2 px-2.5 py-2'}`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {!collapsed && <span>Sair do Sistema</span>}
+            </button>
+            {collapsed && (
+              <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[70]
+                opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="bg-zinc-800 text-red-400 text-xs font-medium px-2.5 py-1.5 rounded-md whitespace-nowrap shadow-xl border border-zinc-700">
+                  Sair do Sistema
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
+        {/* Mobile topbar */}
         <header className="md:hidden h-14 bg-zinc-900 border-b border-zinc-800 px-4 flex items-center justify-between sticky top-0 z-30">
           <button 
             onClick={() => setMenuOpen(true)}
@@ -239,7 +326,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
           <div className="w-10" />
         </header>
 
-        <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-zinc-950">
+        <main className="flex-1 p-4 md:p-5 overflow-y-auto bg-zinc-950">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
