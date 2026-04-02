@@ -385,7 +385,7 @@ router.get('/ranking-lojas', async (req: AuthRequest, res) => {
 // Produtos mais vendidos por tipo no periodo
 router.get('/produtos-mais-vendidos', async (req: AuthRequest, res) => {
   try {
-    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user?.role || '')) {
+    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA', 'ADMIN_FINANCEIRO'].includes(req.user?.role || '')) {
       return res.status(403).json({ error: 'Sem permissão' });
     }
 
@@ -393,8 +393,9 @@ router.get('/produtos-mais-vendidos', async (req: AuthRequest, res) => {
     const { dataInicio, dataFim } = resolverPeriodo(periodo, di, df);
     const lim = parseInt(limite) || 10;
 
+    const lojaIdParam = req.query.lojaId ? Number(req.query.lojaId) : null;
     const filter = applyTenantFilter(req);
-    const lojaFilter = filter.lojaId ? { lojaId: filter.lojaId } : filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {};
+    const lojaFilter = lojaIdParam ? { lojaId: lojaIdParam } : filter.lojaId ? { lojaId: filter.lojaId } : filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {};
 
     // Top produtos (MOTO e PECA) de vendas
     const topProdutos = await prisma.itemVenda.groupBy({
@@ -475,15 +476,16 @@ router.get('/produtos-mais-vendidos', async (req: AuthRequest, res) => {
 // Dados de movimentação para gráficos
 router.get('/grafico-vendas', async (req: AuthRequest, res) => {
   try {
-    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user?.role || '')) {
+    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA', 'ADMIN_FINANCEIRO'].includes(req.user?.role || '')) {
       return res.status(403).json({ error: 'Sem permissão' });
     }
 
     const { periodo = 'mes', dataInicio: di, dataFim: df } = req.query as Record<string, string>;
     const { dataInicio, dataFim } = resolverPeriodo(periodo, di, df);
 
+    const lojaIdParam = req.query.lojaId ? Number(req.query.lojaId) : null;
     const filter = applyTenantFilter(req);
-    const lojaFilter = filter.lojaId ? { lojaId: filter.lojaId } : filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {};
+    const lojaFilter = lojaIdParam ? { lojaId: lojaIdParam } : filter.lojaId ? { lojaId: filter.lojaId } : filter.grupoId ? { loja: { grupoId: filter.grupoId } } : {};
 
     // Buscar todas as vendas no período
     const vendas = await prisma.venda.findMany({

@@ -6,7 +6,7 @@ import {
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useLojaContext } from '../contexts/LojaContext';
-import { DashboardEmpresa } from './DashboardEmpresa';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +73,7 @@ interface GraficoData {
 
 interface DashboardProps {
   onNavigate?: (page: string) => void;
+  lojaId?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -250,8 +251,9 @@ function RankingRow({ loja, maxFat }: { loja: LojaRanking; maxFat: number }) {
 
 // ─── Admin Dashboard ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate }: DashboardProps) {
+function AdminDashboard({ onNavigate, lojaId }: DashboardProps) {
   const { user } = useAuth();
+  const { selectedLoja } = useLojaContext();
   const [periodo, setPeriodo] = useState<Periodo>('mes');
   const [customInicio, setCustomInicio] = useState('');
   const [customFim, setCustomFim] = useState('');
@@ -277,25 +279,39 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
     if (periodo === 'custom' && customInicio && customFim) {
       params += `&dataInicio=${customInicio}&dataFim=${customFim}`;
     }
+    if (lojaId) params += `&lojaId=${lojaId}`;
     return params;
-  }, [periodo, customInicio, customFim]);
+  }, [periodo, customInicio, customFim, lojaId]);
 
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
 
     const params = buildParams();
+    const basicSuffix = lojaId ? `?lojaId=${lojaId}` : '';
     try {
-      const [ranking, produtos, grafico, basic] = await Promise.all([
-        api.get<RankingData>(`/dashboard/ranking-lojas${params}`),
-        api.get<ProdutosData>(`/dashboard/produtos-mais-vendidos${params}`),
-        api.get<GraficoData>(`/dashboard/grafico-vendas${params}`),
-        api.get<DashboardData>('/dashboard'),
-      ]);
-      setRankingData(ranking);
-      setProdutosData(produtos);
-      setGraficoData(grafico);
-      setBasicData(basic);
+      if (lojaId) {
+        const [produtos, grafico, basic] = await Promise.all([
+          api.get<ProdutosData>(`/dashboard/produtos-mais-vendidos${params}`),
+          api.get<GraficoData>(`/dashboard/grafico-vendas${params}`),
+          api.get<DashboardData>(`/dashboard${basicSuffix}`),
+        ]);
+        setProdutosData(produtos);
+        setGraficoData(grafico);
+        setBasicData(basic);
+        setRankingData(null);
+      } else {
+        const [ranking, produtos, grafico, basic] = await Promise.all([
+          api.get<RankingData>(`/dashboard/ranking-lojas${params}`),
+          api.get<ProdutosData>(`/dashboard/produtos-mais-vendidos${params}`),
+          api.get<GraficoData>(`/dashboard/grafico-vendas${params}`),
+          api.get<DashboardData>('/dashboard'),
+        ]);
+        setRankingData(ranking);
+        setProdutosData(produtos);
+        setGraficoData(grafico);
+        setBasicData(basic);
+      }
       setLastUpdated(new Date());
     } catch (err) {
       console.error(err);
@@ -303,7 +319,7 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [buildParams]);
+  }, [buildParams, lojaId]);
 
   useEffect(() => {
     fetchAll();
@@ -327,7 +343,18 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
     }
   };
 
-  const kpis = rankingData?.kpis;
+  const faturamentoPeriodo = (basicData?.vendasMes?.total || 0) + (basicData?.osMes?.total || 0);
+  const transacoesPeriodo = (basicData?.vendasMes?.quantidade || 0) + (basicData?.osMes?.quantidade || 0);
+  const kpis = lojaId
+    ? {
+        vendasHoje: basicData?.vendasMes?.total || 0,
+        faturamentoTotal: faturamentoPeriodo,
+        totalTransacoes: transacoesPeriodo,
+        ticketMedioGeral: transacoesPeriodo > 0 ? faturamentoPeriodo / transacoesPeriodo : 0,
+        lojaLider: selectedLoja?.nomeFantasia || '—',
+        qtdVendasHoje: basicData?.vendasMes?.quantidade || 0,
+      }
+    : rankingData?.kpis;
   const ranking = rankingData?.ranking || [];
   const alertasHoje = basicData?.contasVencer?.hoje || 0;
   const maxFat = ranking[0]?.faturamento || 1;
@@ -350,17 +377,27 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
       {/* ── Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-zinc-100">Dashboard</h1>
-          <p className="text-sm text-zinc-500">Bem-vindo, <span className="text-zinc-300">{user?.nome}</span></p>
+          <h1 className="text-xl font-bold text-zinc-100">
+            {lojaId ? (selectedLoja?.nomeFantasia || 'Dashboard da Loja') : 'Dashboard'}
+          </h1>
+          <p className="text-sm text-zinc-500">
+            {lojaId ? (
+              <span className="text-zinc-400">Visão individual da unidade</span>
+            ) : (
+              <>Bem-vindo, <span className="text-zinc-300">{user?.nome}</span></>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <LiveBadge refreshing={refreshing} lastUpdated={lastUpdated} onRefresh={() => fetchAll(true)} />
-          <button
-            onClick={() => setShowResetModal(true)}
-            className="px-3 py-1 bg-red-900/30 text-red-500 border border-red-900/50 rounded-full text-xs hover:bg-red-900/50 transition-colors"
-          >
-            Resetar Sistema
-          </button>
+          {!lojaId && (
+            <button
+              onClick={() => setShowResetModal(true)}
+              className="px-3 py-1 bg-red-900/30 text-red-500 border border-red-900/50 rounded-full text-xs hover:bg-red-900/50 transition-colors"
+            >
+              Resetar Sistema
+            </button>
+          )}
         </div>
       </div>
 
@@ -422,7 +459,7 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
         <KpiBig
           icon="💰"
-          label="Vendas hoje"
+          label={lojaId ? 'Vendas (período)' : 'Vendas hoje'}
           value={fmtCurrencyShort(kpis?.vendasHoje || 0)}
           sub={`${fmtNum(kpis?.qtdVendasHoje || 0)} venda${(kpis?.qtdVendasHoje || 0) !== 1 ? 's' : ''}`}
           accent
@@ -446,10 +483,10 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
           sub="por transação"
         />
         <KpiBig
-          icon="🏆"
-          label="Loja líder"
+          icon={lojaId ? '🏪' : '🏆'}
+          label={lojaId ? 'Loja ativa' : 'Loja líder'}
           value={kpis?.lojaLider || '—'}
-          sub="maior faturamento"
+          sub={lojaId ? 'unidade selecionada' : 'maior faturamento'}
         />
         <KpiBig
           icon="⚠️"
@@ -609,25 +646,52 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
         </div>
       </div>
 
-      {/* ── Ranking das Lojas ── */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span>🏆</span>
-            <h2 className="text-sm font-semibold text-zinc-200">Ranking das Lojas</h2>
+      {/* ── Ranking das Lojas / Resumo Financeiro ── */}
+      {lojaId ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <p className="text-xs text-zinc-500 mb-1">Contas vencendo hoje</p>
+            <p className="text-2xl font-bold text-red-400">{basicData?.contasVencer?.hoje || 0}</p>
+            <p className="text-xs text-zinc-600 mt-1">contas a receber</p>
           </div>
-          <span className="text-xs text-zinc-500">{ranking.length} lojas</span>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <p className="text-xs text-zinc-500 mb-1">Próximos 7 dias</p>
+            <p className="text-2xl font-bold text-orange-400">{basicData?.contasVencer?.em7dias || 0}</p>
+            <p className="text-xs text-zinc-600 mt-1">contas a vencer</p>
+          </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <p className="text-xs text-zinc-500 mb-1">Saldo de caixa</p>
+            <p className={`text-2xl font-bold ${(basicData?.fluxoCaixa?.saldo || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              {fmtCurrencyShort(basicData?.fluxoCaixa?.saldo || 0)}
+            </p>
+            <p className="text-xs text-zinc-600 mt-1">entradas − saídas</p>
+          </div>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <p className="text-xs text-zinc-500 mb-1">Estoque baixo</p>
+            <p className="text-2xl font-bold text-yellow-400">{basicData?.alertasEstoque || 0}</p>
+            <p className="text-xs text-zinc-600 mt-1">produtos abaixo mínimo</p>
+          </div>
         </div>
-        {ranking.length === 0 ? (
-          <div className="py-12 text-center text-zinc-600 text-sm">Nenhuma venda no período</div>
-        ) : (
-          <div className="px-1 py-2">
-            {ranking.map(loja => (
-              <RankingRow key={loja.lojaId} loja={loja} maxFat={maxFat} />
-            ))}
+      ) : (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>🏆</span>
+              <h2 className="text-sm font-semibold text-zinc-200">Ranking das Lojas</h2>
+            </div>
+            <span className="text-xs text-zinc-500">{ranking.length} lojas</span>
           </div>
-        )}
-      </div>
+          {ranking.length === 0 ? (
+            <div className="py-12 text-center text-zinc-600 text-sm">Nenhuma venda no período</div>
+          ) : (
+            <div className="px-1 py-2">
+              {ranking.map(loja => (
+                <RankingRow key={loja.lojaId} loja={loja} maxFat={maxFat} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Reset Modal ── */}
       {showResetModal && (
@@ -744,10 +808,10 @@ function UserDashboard({ onNavigate }: DashboardProps) {
 export function Dashboard({ onNavigate }: DashboardProps) {
   const { user } = useAuth();
   const { selectedLojaId } = useLojaContext();
-  const isAdmin = user?.role === 'ADMIN_GERAL' || user?.role === 'ADMIN_REDE' || user?.role === 'ADMIN_FINANCEIRO';
+  const isAdmin = ['ADMIN_GERAL', 'ADMIN_REDE', 'ADMIN_FINANCEIRO', 'DONO_LOJA'].includes(user?.role || '');
 
-  if (selectedLojaId) {
-    return <DashboardEmpresa lojaId={selectedLojaId} />;
+  if (isAdmin) {
+    return <AdminDashboard onNavigate={onNavigate} lojaId={selectedLojaId || undefined} />;
   }
-  return isAdmin ? <AdminDashboard onNavigate={onNavigate} /> : <UserDashboard onNavigate={onNavigate} />;
+  return <UserDashboard onNavigate={onNavigate} />;
 }
