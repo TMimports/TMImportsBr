@@ -38,6 +38,9 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - CRM module: Fornecedor model (CNPJ/CPF, class, contacts, address) with InteracaoCRM (history/timeline for both clientes and fornecedores)
 - Fiscal module: NotaFiscal (NF entrada/saída) + ItemNotaFiscal with full fiscal fields (NCM, CFOP, CST, CSOSN, ICMS, IPI, PIS, COFINS)
 - Fiscal fields added to Produto: ncm, cfop, cst, csosn, unidade (UnidadeMedida enum), aliquotas
+- Bank reconciliation module (ConciliacaoBancaria): ContaBancaria + LancamentoBancario models, OFX import parser, manual entries, conciliation matching with Pagamento/Recebimento, balance calculation
+- Backend: /api/conciliacao-bancaria (contas, lancamentos, OFX import, conciliar/desconciliar, candidatos, resumo)
+- ConciliacaoBancaria tab added to FinanceiroHub (after Notas Fiscais)
 - Dashboard por CNPJ: GET /api/dashboard/empresa/:lojaId returns full per-store KPIs (vendas, estoque, financeiro, fiscal, atividade recente)
 - New pages: Fornecedores.tsx (CRM with timeline), NotasFiscais.tsx (fiscal control), DashboardEmpresa.tsx (per-CNPJ KPIs)
 - New backend routes: /api/fornecedores, /api/crm (interações/follow-ups), /api/notas-fiscais, /api/dashboard/empresa/:id

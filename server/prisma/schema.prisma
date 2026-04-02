@@ -145,6 +145,18 @@ enum UnidadeMedida {
   JOGO
 }
 
+enum TipoLancamentoBancario {
+  CREDITO
+  DEBITO
+}
+
+enum TipoConta {
+  CC
+  CP
+  POUPANCA
+  INVESTIMENTO
+}
+
 model Grupo {
   id        Int      @id @default(autoincrement())
   nome      String
@@ -191,6 +203,7 @@ model Loja {
   recebimentos          Recebimento[]
   notasFiscais          NotaFiscal[]
   fornecedores          Fornecedor[]
+  contasBancarias       ContaBancaria[]
 }
 
 model User {
@@ -777,6 +790,7 @@ model Pagamento {
   loja                Loja               @relation(fields: [lojaId], references: [id])
   contaPagar          ContaPagar?        @relation(fields: [contaPagarId], references: [id])
   parcela             ParcelaContaPagar? @relation(fields: [parcelaId], references: [id])
+  lancamentosBancarios LancamentoBancario[]
 }
 
 model Recebimento {
@@ -795,6 +809,7 @@ model Recebimento {
   loja                Loja                 @relation(fields: [lojaId], references: [id])
   contaReceber        ContaReceber?        @relation(fields: [contaReceberId], references: [id])
   parcela             ParcelaContaReceber? @relation(fields: [parcelaId], references: [id])
+  lancamentosBancarios LancamentoBancario[]
 }
 
 // ── CRM — Fornecedores ────────────────────────────────────────────────────────
@@ -918,4 +933,46 @@ model ItemNotaFiscal {
 
   notaFiscal      NotaFiscal  @relation(fields: [notaFiscalId], references: [id], onDelete: Cascade)
   produto         Produto?    @relation(fields: [produtoId], references: [id])
+}
+
+// ── Bancário — Conciliação ────────────────────────────────────────────────────
+
+model ContaBancaria {
+  id            Int       @id @default(autoincrement())
+  lojaId        Int
+  banco         String
+  agencia       String
+  conta         String
+  digitoConta   String?
+  tipoConta     TipoConta @default(CC)
+  saldoInicial  Decimal   @db.Decimal(10, 2) @default(0)
+  ativa         Boolean   @default(true)
+  descricao     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  loja          Loja                 @relation(fields: [lojaId], references: [id])
+  lancamentos   LancamentoBancario[]
+}
+
+model LancamentoBancario {
+  id              Int                    @id @default(autoincrement())
+  contaBancariaId Int
+  data            DateTime
+  descricao       String
+  valor           Decimal                @db.Decimal(10, 2)
+  tipo            TipoLancamentoBancario
+  conciliado      Boolean                @default(false)
+  pagamentoId     Int?
+  recebimentoId   Int?
+  fitid           String?
+  importadoOFX    Boolean                @default(false)
+  observacoes     String?
+  createdAt       DateTime               @default(now())
+
+  contaBancaria   ContaBancaria          @relation(fields: [contaBancariaId], references: [id], onDelete: Cascade)
+  pagamento       Pagamento?             @relation(fields: [pagamentoId], references: [id])
+  recebimento     Recebimento?           @relation(fields: [recebimentoId], references: [id])
+
+  @@unique([contaBancariaId, fitid])
 }

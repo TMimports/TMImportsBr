@@ -28,6 +28,7 @@ import { Fornecedores } from './pages/Fornecedores';
 import { NotasFiscais } from './pages/NotasFiscais';
 import { DashboardEmpresa } from './pages/DashboardEmpresa';
 import { FinanceiroHub } from './pages/FinanceiroHub';
+import { ConciliacaoBancaria } from './pages/ConciliacaoBancaria';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -90,6 +91,8 @@ function AppContent() {
         return <CategoriasDepartamentos />;
       case 'financeiro-hub':
         return <FinanceiroHub />;
+      case 'conciliacao-bancaria':
+        return <ConciliacaoBancaria />;
       case 'fornecedores':
         return <Fornecedores />;
       case 'notas-fiscais':

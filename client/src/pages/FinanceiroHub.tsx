@@ -6,6 +6,7 @@ import { CategoriasDepartamentos } from './CategoriasDepartamentos';
 import { PedidosCompra } from './PedidosCompra';
 import { NotasFiscais } from './NotasFiscais';
 import { DashboardEmpresa } from './DashboardEmpresa';
+import { ConciliacaoBancaria } from './ConciliacaoBancaria';
 
 // ── Visão Geral (resumo consolidado) ──────────────────────────────────────────
 
@@ -106,15 +107,16 @@ const TABS = [
   { id: 'por-cnpj',       label: 'Por CNPJ',            icon: '🏢' },
   { id: 'contas-pagar',   label: 'Contas a Pagar',      icon: '📤' },
   { id: 'contas-receber', label: 'Contas a Receber',    icon: '📥' },
-  { id: 'pedidos-compra', label: 'Pedidos de Compra',   icon: '🛒' },
-  { id: 'notas-fiscais',  label: 'Notas Fiscais',       icon: '🧾' },
-  { id: 'plano-contas',   label: 'Plano de Contas',     icon: '🏷' },
+  { id: 'pedidos-compra',       label: 'Pedidos de Compra',   icon: '🛒' },
+  { id: 'notas-fiscais',        label: 'Notas Fiscais',       icon: '🧾' },
+  { id: 'conciliacao-bancaria', label: 'Conciliação Bancária', icon: '🏦' },
+  { id: 'plano-contas',         label: 'Plano de Contas',     icon: '🏷' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
 
-const ADMIN_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'plano-contas'];
-const STORE_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'plano-contas'];
+const ADMIN_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'plano-contas'];
+const STORE_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'plano-contas'];
 
 // ── Hub principal ──────────────────────────────────────────────────────────────
 
@@ -134,9 +136,10 @@ export function FinanceiroHub() {
       case 'por-cnpj':       return <DashboardEmpresa />;
       case 'contas-pagar':   return <Financeiro />;
       case 'contas-receber': return <ContasReceber />;
-      case 'pedidos-compra': return <PedidosCompra />;
-      case 'notas-fiscais':  return <NotasFiscais />;
-      case 'plano-contas':   return <CategoriasDepartamentos />;
+      case 'pedidos-compra':       return <PedidosCompra />;
+      case 'notas-fiscais':        return <NotasFiscais />;
+      case 'conciliacao-bancaria': return <ConciliacaoBancaria />;
+      case 'plano-contas':         return <CategoriasDepartamentos />;
     }
   };
 
