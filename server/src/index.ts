@@ -25,6 +25,8 @@ import franqueadosRoutes from './routes/franqueados.js';
 import sistemaRoutes from './routes/sistema.js';
 import configuracoesRoutes from './routes/configuracoes.js';
 import adminRoutes from './routes/admin.js';
+import pedidosCompraRoutes from './routes/pedidos-compra.js';
+import auditoriaRoutes from './routes/auditoria.js';
 
 export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : []
@@ -99,6 +101,8 @@ app.use('/api/franqueados', franqueadosRoutes);
 app.use('/api/sistema', sistemaRoutes);
 app.use('/api/configuracoes', configuracoesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/pedidos-compra', pedidosCompraRoutes);
+app.use('/api/auditoria', auditoriaRoutes);
 
 app.get('/api/debug-build', (req, res) => {
   const fs = require('fs');

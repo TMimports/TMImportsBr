@@ -16,15 +16,18 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Comprehensive financial management (AR/AP, cash flow, bank reconciliation)
 - Safe client deletion (prevents deletion if client has linked sales/OS)
 - PWA Support for mobile installation and offline capabilities
-- Granular RBAC permission system with 5 roles
+- Granular RBAC permission system with 6 roles (ADMIN_GERAL, ADMIN_FINANCEIRO, ADMIN_REDE, DONO_LOJA, GERENTE_LOJA, VENDEDOR)
 - Strict multi-tenant isolation on all GET-by-ID routes (vendas, clientes, OS, grupos, garantias, revisoes)
 - Group owner registration with temporary password and mandatory password change on first login
 - Admin-configurable percentage settings (commissions, discounts) with change history
 - Real-time group-wide stock monitoring (Utilidades page)
 - XLSX/CSV import for Units (Motos) with automatic product linking
 - Sales product selection filtered by store inventory (only shows products with stock in selected store)
-- Hierarchical Estoque page: Groups → Stores → Store Detail (5 tabs: Resumo, Estoque, Pedidos, Movimentação, Alertas)
-- New backend endpoints: GET /api/estoque/grupo-resumo and GET /api/estoque/loja/:lojaId/detalhes
+- Two-layer Estoque page: Gerencial (by model/custoMédio) + Unitária (by chassi), with per-CNPJ selector and consolidated admin view
+- Purchase order system (PedidosCompra) with weighted average cost recalculation on stock entry confirmation
+- Inventory audit log (AuditoriaEstoque) tracking all stock changes with user attribution
+- Weighted average cost (custoMedio) on Estoque model, auto-calculated via PedidoCompra confirmation
+- Backend endpoints: GET /api/estoque/empresa/:lojaId, GET /api/estoque/consolidado, /api/pedidos-compra, /api/auditoria/estoque
 
 **Business Model:**
 - **Grupo** = A franchisee/owner entity that can contain multiple stores

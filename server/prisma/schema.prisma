@@ -10,10 +10,18 @@ datasource db {
 enum Role {
   ADMIN_GERAL
   ADMIN_REDE
+  ADMIN_FINANCEIRO
   DONO_LOJA
   GERENTE_LOJA
   VENDEDOR
   TECNICO
+}
+
+enum StatusPedidoCompra {
+  PENDENTE
+  APROVADO
+  CONFIRMADO
+  CANCELADO
 }
 
 enum TipoProduto {
@@ -121,6 +129,8 @@ model Loja {
   transferenciasDestino Transferencia[] @relation("TransferenciaDestino")
   logsEstoque           LogEstoque[]
   clientes              Cliente[]
+  pedidosCompra         PedidoCompra[]
+  auditoriaEstoque      AuditoriaEstoque[]
 }
 
 model User {
@@ -151,6 +161,8 @@ model User {
   logs        LogAuditoria[]
   logsEstoque LogEstoque[]
   logsConfiguracao LogConfiguracao[]
+  pedidosCompraConfirmados PedidoCompra[] @relation("PedidoConfirmadoPor")
+  auditoriaEstoque AuditoriaEstoque[]
 }
 
 model Produto {
@@ -171,6 +183,8 @@ model Produto {
   itensVenda      ItemVenda[]
   itensOS         ItemOS[]
   logsEstoque     LogEstoque[]
+  itensPedidoCompra ItemPedidoCompra[]
+  auditoriaEstoque  AuditoriaEstoque[]
 }
 
 model Servico {
@@ -216,6 +230,7 @@ model Estoque {
   quantidade    Int      @default(0)
   estoqueMinimo Int      @default(0)
   estoqueMaximo Int      @default(0)
+  custoMedio    Decimal? @db.Decimal(10, 2)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
@@ -489,6 +504,11 @@ enum TipoMovimentoEstoque {
   TRANSFERENCIA
   VENDA
   OS
+  PEDIDO_COMPRA
+  DEVOLUCAO
+  PERDA
+  AVARIA
+  RESERVA
 }
 
 model LogEstoque {
@@ -518,4 +538,58 @@ model LogConfiguracao {
   createdAt   DateTime @default(now())
   
   usuario     User     @relation(fields: [usuarioId], references: [id])
+}
+
+// ── Pedidos de Compra ─────────────────────────────────────────────────────────
+
+model PedidoCompra {
+  id              Int                @id @default(autoincrement())
+  lojaId          Int
+  fornecedor      String
+  numero          String?
+  status          StatusPedidoCompra @default(PENDENTE)
+  previsaoEntrega DateTime?
+  observacoes     String?
+  valorTotal      Decimal            @db.Decimal(10, 2) @default(0)
+  confirmedAt     DateTime?
+  confirmedBy     Int?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  createdBy       Int?
+
+  loja            Loja               @relation(fields: [lojaId], references: [id])
+  confirmadoPor   User?              @relation("PedidoConfirmadoPor", fields: [confirmedBy], references: [id])
+  itens           ItemPedidoCompra[]
+}
+
+model ItemPedidoCompra {
+  id             Int          @id @default(autoincrement())
+  pedidoId       Int
+  produtoId      Int
+  quantidade     Int
+  valorUnitario  Decimal      @db.Decimal(10, 2)
+  valorTotal     Decimal      @db.Decimal(10, 2)
+
+  pedido         PedidoCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto        Produto      @relation(fields: [produtoId], references: [id])
+}
+
+// ── Auditoria de Estoque ──────────────────────────────────────────────────────
+
+model AuditoriaEstoque {
+  id            Int      @id @default(autoincrement())
+  lojaId        Int
+  usuarioId     Int
+  acao          String
+  produtoId     Int?
+  quantidade    Int?
+  custoAnterior Decimal? @db.Decimal(10, 2)
+  custoNovo     Decimal? @db.Decimal(10, 2)
+  observacao    String?
+  referencia    String?
+  createdAt     DateTime @default(now())
+
+  loja          Loja     @relation(fields: [lojaId], references: [id])
+  usuario       User     @relation(fields: [usuarioId], references: [id])
+  produto       Produto? @relation(fields: [produtoId], references: [id])
 }

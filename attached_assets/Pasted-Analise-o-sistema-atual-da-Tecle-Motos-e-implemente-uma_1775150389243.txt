@@ -1,0 +1,301 @@
+Analise o sistema atual da Tecle Motos e implemente uma reestruturação do módulo de estoque e dashboards empresariais, mantendo a lógica principal já existente, sem quebrar fluxos atuais e sem refatoração desnecessária.
+
+OBJETIVO:
+Reorganizar o sistema para funcionar por EMPRESA / CNPJ, onde cada CNPJ tenha seu próprio dashboard e sua própria visualização de estoque, com foco em modelo, quantidade e custo médio, usando o chassi apenas para identificação e garantia das motos.
+
+======================================================================
+1. ESTRUTURA POR EMPRESA / CNPJ
+======================================================================
+
+Criar ou ajustar a estrutura do sistema para que todas as informações de estoque sejam organizadas por empresa / CNPJ.
+
+Cada empresa deve ter:
+- id
+- razão social
+- nome fantasia
+- CNPJ
+- status
+
+Toda movimentação e toda visualização de estoque deve estar vinculada a um CNPJ.
+
+======================================================================
+2. DASHBOARD INDIVIDUAL POR CNPJ
+======================================================================
+
+Cada CNPJ precisa ter seu próprio dashboard.
+
+Criar dashboards individuais por empresa com:
+- nome da empresa
+- CNPJ
+- total de motos em estoque
+- total de peças em estoque
+- total geral de itens
+- valor total do estoque
+- entradas recentes
+- saídas recentes
+- transferências
+- pedidos de compra relacionados
+- custo médio por modelo
+- produtos com baixo estoque
+- produtos sem giro
+- movimentação do período
+
+Criar também visão consolidada para perfis autorizados, mas mantendo a separação clara por CNPJ.
+
+======================================================================
+3. ESTOQUE POR CNPJ
+======================================================================
+
+Reestruturar o módulo de estoque para que a visualização seja feita por empresa / CNPJ.
+
+Permitir filtros por:
+- empresa / CNPJ
+- loja / unidade / localização
+- tipo do item
+- modelo
+- quantidade
+- status
+- período
+- fornecedor
+- documento de origem
+
+O sistema não deve depender da aba "Utilidades" para essa visualização.
+Retirar essa necessidade da arquitetura atual.
+
+======================================================================
+4. TOTALIZADORES
+======================================================================
+
+Adicionar totalizadores claros no dashboard e nas telas de estoque:
+- total de motos
+- total de peças
+- total de itens
+- valor total do estoque
+- entradas no mês
+- saídas no mês
+- transferências no período
+
+Esses totalizadores devem existir por CNPJ.
+
+======================================================================
+5. CHASSI
+======================================================================
+
+Alterar a lógica do sistema para que o chassi NÃO seja a base principal do cálculo de custo do estoque.
+
+O chassi deve ser utilizado somente para:
+- garantia
+- identificação individual da moto
+- rastreabilidade
+- histórico técnico
+- consulta unitária
+
+A base gerencial do estoque deve ser:
+- empresa / CNPJ
+- modelo
+- quantidade
+- custo médio
+
+======================================================================
+6. CUSTO MÉDIO AUTOMÁTICO
+======================================================================
+
+O custo não deve ser definido manualmente como regra principal.
+
+Fluxo correto:
+1. responsável de compras insere um pedido de compra
+2. o pedido informa fornecedor, modelo, quantidade e valor unitário
+3. ao confirmar a entrada, o sistema recalcula automaticamente o custo médio do modelo
+4. o custo médio passa a refletir no estoque daquela empresa / CNPJ
+
+Implementar cálculo automático de custo médio ponderado.
+
+Fórmula:
+Custo Médio = ((Quantidade Anterior x Custo Médio Anterior) + (Quantidade Nova x Custo Novo)) / Quantidade Total
+
+Exemplo:
+Compra do modelo X11 em dois fornecedores diferentes:
+- fornecedor X com custo 110
+- fornecedor Y com custo 120
+
+O sistema deve recalcular automaticamente o custo médio, sem depender de preenchimento manual do usuário.
+
+Somente usuários com permissão de auditoria podem ajustar custo manualmente, com log obrigatório.
+
+======================================================================
+7. PEDIDO DE COMPRA
+======================================================================
+
+A entrada de estoque deve nascer a partir do pedido de compra.
+
+Cada pedido deve conter:
+- empresa / CNPJ
+- fornecedor
+- modelo
+- categoria
+- quantidade
+- valor unitário
+- valor total
+- data
+- previsão de entrega
+- status
+- documento relacionado
+
+Ao confirmar entrada:
+- atualizar estoque
+- recalcular custo médio
+- registrar movimentação
+- vincular ao histórico do CNPJ
+
+======================================================================
+8. MOVIMENTAÇÃO DE ESTOQUE
+======================================================================
+
+Registrar movimentações com base em:
+- empresa / CNPJ
+- local
+- tipo de movimentação
+- modelo
+- quantidade
+- custo
+- documento relacionado
+- usuário
+- data/hora
+
+Tipos:
+- entrada
+- saída
+- transferência
+- ajuste
+- devolução
+- perda
+- avaria
+- reserva
+
+Quando houver moto com chassi:
+- manter também o vínculo individual do chassi na movimentação
+
+======================================================================
+9. SEPARAÇÃO ENTRE VISÃO GERENCIAL E VISÃO UNITÁRIA
+======================================================================
+
+Implementar duas camadas no estoque:
+
+9.1 VISÃO GERENCIAL
+Baseada em:
+- empresa / CNPJ
+- modelo
+- quantidade
+- custo médio
+- valor total
+
+9.2 VISÃO UNITÁRIA
+Baseada em:
+- chassi
+- identificação da moto
+- garantia
+- rastreabilidade
+- histórico individual
+
+A visão gerencial deve ser a principal para operação de estoque e gestão.
+A visão unitária deve complementar a gestão para motos individualizadas.
+
+======================================================================
+10. REMOVER DEPENDÊNCIA DE MÓDULOS INADEQUADOS
+======================================================================
+
+Retirar da lógica dessa área:
+- necessidade da aba "Utilidades"
+- dependência do módulo "Contas a pagar" para visualização e gestão de estoque
+
+O estoque deve funcionar de forma autônoma e bem estruturada.
+Se houver integração com financeiro, ela deve ser indireta e organizada, sem poluir a operação do estoque.
+
+======================================================================
+11. PERFIL ADMINFINANCEIRO
+======================================================================
+
+O perfil `adminfinanceiro` deve continuar existindo e deve ter acesso total a:
+- dashboards por CNPJ
+- estoque consolidado
+- estoque por empresa
+- custo médio
+- movimentações
+- relatórios de estoque
+- auditoria de estoque
+
+Mas a lógica do estoque deve ser baseada em empresa / CNPJ, e não em visão única misturada.
+
+======================================================================
+12. RELATÓRIOS
+======================================================================
+
+Criar relatórios por CNPJ com:
+- posição de estoque
+- custo médio por modelo
+- total de motos
+- total de peças
+- entradas por período
+- saídas por período
+- transferências
+- histórico por chassi
+- divergências
+- inventário
+
+======================================================================
+13. AUDITORIA
+======================================================================
+
+Criar log para:
+- criação de pedido de compra
+- confirmação de entrada
+- alteração de custo
+- movimentação de estoque
+- transferência entre unidades
+- ajustes
+- alterações em chassi
+- alterações em modelo
+- alteração manual excepcional de custo
+
+Registrar:
+- usuário
+- data/hora
+- empresa / CNPJ
+- ação
+- antes e depois, quando possível
+- observação
+
+======================================================================
+14. UX/UI
+======================================================================
+
+Melhorar a interface mantendo a identidade atual do sistema.
+
+Ajustar para:
+- dashboard por CNPJ mais claro
+- filtros simples e rápidos
+- tabelas organizadas
+- totalizadores visíveis
+- visão consolidada e visão por empresa
+- navegação intuitiva
+
+Não mudar radicalmente a estética do sistema.
+Melhorar sem fugir da base atual.
+
+======================================================================
+15. ENTREGA TÉCNICA
+======================================================================
+
+Executar:
+1. estruturação do sistema por empresa / CNPJ
+2. criação de dashboard individual para cada CNPJ
+3. criação de visão consolidada
+4. reorganização do estoque por CNPJ
+5. totalizadores de peças e motos
+6. alteração da lógica do chassi
+7. implementação de custo médio automático
+8. integração com pedidos de compra
+9. remoção da dependência da aba "Utilidades"
+10. remoção da dependência do módulo "Contas a pagar" nessa área
+11. auditoria completa
+12. revisão final das permissões e rotas

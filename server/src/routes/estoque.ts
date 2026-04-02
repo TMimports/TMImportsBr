@@ -329,16 +329,17 @@ router.post('/', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async 
   }
 });
 
-router.put('/:id', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
+router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
   try {
-    const { quantidade, estoqueMinimo, estoqueMaximo } = req.body;
+    const { quantidade, estoqueMinimo, estoqueMaximo, custoMedio } = req.body;
 
     const estoque = await prisma.estoque.update({
       where: { id: Number(req.params.id) },
       data: {
         quantidade: quantidade !== undefined ? Number(quantidade) : undefined,
         estoqueMinimo: estoqueMinimo !== undefined ? Number(estoqueMinimo) : undefined,
-        estoqueMaximo: estoqueMaximo !== undefined ? Number(estoqueMaximo) : undefined
+        estoqueMaximo: estoqueMaximo !== undefined ? Number(estoqueMaximo) : undefined,
+        custoMedio: custoMedio !== undefined ? Number(custoMedio) : undefined,
       },
       include: { produto: true, loja: true }
     });
@@ -346,6 +347,187 @@ router.put('/:id', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), asyn
     res.json(estoque);
   } catch (error) {
     console.error('Erro ao atualizar estoque:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ─── VISÃO GERENCIAL POR EMPRESA / CNPJ ──────────────────────────────────────
+router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
+  try {
+    const lojaId = Number(req.params.lojaId);
+    if (isNaN(lojaId)) return res.status(400).json({ error: 'ID inválido' });
+
+    const role = req.user!.role;
+
+    // Autorização multi-tenant
+    if (!['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role)) {
+      if (req.user!.lojaId && req.user!.lojaId !== lojaId) {
+        const loja = await prisma.loja.findFirst({ where: { id: lojaId, grupoId: req.user!.grupoId ?? -1 } });
+        if (!loja) return res.status(403).json({ error: 'Acesso negado' });
+      }
+    }
+
+    const loja = await prisma.loja.findUnique({
+      where: { id: lojaId },
+      include: { grupo: { select: { id: true, nome: true } } }
+    });
+    if (!loja) return res.status(404).json({ error: 'Empresa não encontrada' });
+
+    const [estoques, unidades, pedidosPendentes, logsRecentes] = await Promise.all([
+      prisma.estoque.findMany({
+        where: { lojaId },
+        include: {
+          produto: { select: { id: true, nome: true, tipo: true, preco: true, custo: true, codigo: true } }
+        },
+        orderBy: { produto: { nome: 'asc' } }
+      }),
+      prisma.unidadeFisica.findMany({
+        where: { lojaId },
+        include: { produto: { select: { id: true, nome: true, tipo: true } } },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.pedidoCompra.count({ where: { lojaId, status: { in: ['PENDENTE', 'APROVADO'] } } }),
+      prisma.logEstoque.findMany({
+        where: { lojaId },
+        include: {
+          produto: { select: { nome: true, tipo: true } },
+          usuario: { select: { nome: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50
+      }),
+    ]);
+
+    // Totalizadores gerenciais
+    const motosEstoque  = estoques.filter(e => e.produto.tipo === 'MOTO');
+    const pecasEstoque  = estoques.filter(e => e.produto.tipo === 'PECA');
+    const totalMotos    = motosEstoque.reduce((s, e) => s + e.quantidade, 0);
+    const totalPecas    = pecasEstoque.reduce((s, e) => s + e.quantidade, 0);
+    const valorTotalCM  = estoques.reduce((s, e) => {
+      const cm = e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo);
+      return s + cm * e.quantidade;
+    }, 0);
+    const valorTotalPreco = estoques.reduce((s, e) => s + Number(e.produto.preco) * e.quantidade, 0);
+    const alertasBaixo  = estoques.filter(e => e.quantidade <= e.estoqueMinimo && e.estoqueMinimo > 0).length;
+    const semGiro       = estoques.filter(e => e.quantidade === 0).length;
+
+    // Visão gerencial por modelo (produto)
+    const gerencial = estoques.map(e => ({
+      id: e.id,
+      produtoId: e.produtoId,
+      nome: e.produto.nome,
+      tipo: e.produto.tipo,
+      codigo: e.produto.codigo,
+      quantidade: e.quantidade,
+      estoqueMinimo: e.estoqueMinimo,
+      estoqueMaximo: e.estoqueMaximo,
+      custoMedio: e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo),
+      precoVenda: Number(e.produto.preco),
+      valorTotalCusto: (e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo)) * e.quantidade,
+      valorTotalPreco: Number(e.produto.preco) * e.quantidade,
+      alerta: e.quantidade <= e.estoqueMinimo && e.estoqueMinimo > 0,
+      semEstoque: e.quantidade === 0,
+    }));
+
+    // Visão unitária (chassi)
+    const unitaria = unidades.map(u => ({
+      id: u.id,
+      produtoId: u.produtoId,
+      modeloNome: u.produto.nome,
+      chassi: u.chassi,
+      codigoMotor: u.codigoMotor,
+      cor: u.cor,
+      ano: u.ano,
+      status: u.status,
+      createdAt: u.createdAt,
+    }));
+
+    res.json({
+      empresa: {
+        id: loja.id,
+        cnpj: loja.cnpj,
+        razaoSocial: loja.razaoSocial,
+        nomeFantasia: loja.nomeFantasia,
+        grupoNome: loja.grupo.nome,
+      },
+      totalizadores: {
+        totalMotos,
+        totalPecas,
+        totalItens: totalMotos + totalPecas,
+        valorTotalCusto: valorTotalCM,
+        valorTotalVenda: valorTotalPreco,
+        alertasBaixoEstoque: alertasBaixo,
+        semGiro,
+        pedidosPendentes,
+        unidadesTotal: unidades.length,
+        unidadesEmEstoque: unidades.filter(u => u.status === 'ESTOQUE').length,
+        unidadesVendidas: unidades.filter(u => u.status === 'VENDIDA').length,
+      },
+      gerencial,
+      unitaria,
+      logsRecentes,
+    });
+  } catch (error) {
+    console.error('Erro ao buscar estoque empresa:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ─── VISÃO CONSOLIDADA (todos os CNPJs) ───────────────────────────────────────
+router.get('/consolidado', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'), async (req: AuthRequest, res) => {
+  try {
+    const lojas = await prisma.loja.findMany({
+      where: { ativo: true },
+      include: {
+        grupo: { select: { id: true, nome: true } },
+        estoques: {
+          include: { produto: { select: { tipo: true, preco: true, custo: true } } }
+        },
+        _count: { select: { unidades: true, pedidosCompra: { where: { status: { in: ['PENDENTE', 'APROVADO'] } } } } }
+      },
+      orderBy: { razaoSocial: 'asc' }
+    });
+
+    const resultado = lojas.map(loja => {
+      const totalMotos  = loja.estoques.filter(e => e.produto.tipo === 'MOTO').reduce((s, e) => s + e.quantidade, 0);
+      const totalPecas  = loja.estoques.filter(e => e.produto.tipo === 'PECA').reduce((s, e) => s + e.quantidade, 0);
+      const valorCusto  = loja.estoques.reduce((s, e) => {
+        const cm = e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo);
+        return s + cm * e.quantidade;
+      }, 0);
+      const valorPreco  = loja.estoques.reduce((s, e) => s + Number(e.produto.preco) * e.quantidade, 0);
+      const alertas     = loja.estoques.filter(e => e.quantidade <= e.estoqueMinimo && e.estoqueMinimo > 0).length;
+
+      return {
+        lojaId: loja.id,
+        cnpj: loja.cnpj,
+        razaoSocial: loja.razaoSocial,
+        nomeFantasia: loja.nomeFantasia,
+        grupoId: loja.grupoId,
+        grupoNome: loja.grupo.nome,
+        totalMotos,
+        totalPecas,
+        totalItens: totalMotos + totalPecas,
+        valorTotalCusto: valorCusto,
+        valorTotalVenda: valorPreco,
+        alertas,
+        unidades: loja._count.unidades,
+        pedidosPendentes: loja._count.pedidosCompra,
+      };
+    });
+
+    const totais = {
+      totalEmpresas: resultado.length,
+      totalMotos: resultado.reduce((s, l) => s + l.totalMotos, 0),
+      totalPecas: resultado.reduce((s, l) => s + l.totalPecas, 0),
+      valorTotalCusto: resultado.reduce((s, l) => s + l.valorTotalCusto, 0),
+      valorTotalVenda: resultado.reduce((s, l) => s + l.valorTotalVenda, 0),
+      totalAlertas: resultado.reduce((s, l) => s + l.alertas, 0),
+    };
+
+    res.json({ totais, empresas: resultado });
+  } catch (error) {
+    console.error('Erro ao buscar estoque consolidado:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

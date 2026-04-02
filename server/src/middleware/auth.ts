@@ -91,7 +91,7 @@ export function applyTenantFilter(req: AuthRequest): { grupoId?: number; lojaId?
     return {};
   }
 
-  if (role === 'ADMIN_REDE') {
+  if (role === 'ADMIN_REDE' || role === 'ADMIN_FINANCEIRO') {
     return {};
   }
 

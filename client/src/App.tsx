@@ -21,6 +21,7 @@ import { Ranking } from './pages/Ranking';
 import { ContasReceber } from './pages/ContasReceber';
 import { Configuracoes } from './pages/Configuracoes';
 import { Utilidades } from './pages/Utilidades';
+import { PedidosCompra } from './pages/PedidosCompra';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -67,6 +68,8 @@ function AppContent() {
         return <div className="card p-8 text-center text-gray-500">Módulo descontinuado. Utilize o Estoque.</div>;
       case 'estoque':
         return <Estoque />;
+      case 'pedidos-compra':
+        return <PedidosCompra />;
       case 'os':
         return <OrdensServico />;
       case 'financeiro':

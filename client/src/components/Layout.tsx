@@ -19,6 +19,7 @@ const menuItems = {
     { id: 'produtos', label: 'Produtos', icon: '📦' },
     { id: 'servicos', label: 'Servicos', icon: '🔧' },
     { id: 'estoque', label: 'Estoque', icon: '📋' },
+    { id: 'pedidos-compra', label: 'Pedidos de Compra', icon: '🛒' },
     { id: 'clientes', label: 'Clientes', icon: '👤' },
     { id: 'vendas', label: 'Vendas', icon: '💰' },
     { id: 'os', label: 'Ordens de Servico', icon: '🔩' },
@@ -28,6 +29,15 @@ const menuItems = {
     { id: 'comissoes', label: 'Comissoes', icon: '💸' },
     { id: 'utilidades', label: 'Utilidades', icon: '🔄' },
     { id: 'configuracoes', label: 'Configuracoes', icon: '⚙️' },
+  ],
+  ADMIN_FINANCEIRO: [
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'estoque', label: 'Estoque', icon: '📋' },
+    { id: 'pedidos-compra', label: 'Pedidos de Compra', icon: '🛒' },
+    { id: 'financeiro', label: 'Contas a Pagar', icon: '💵' },
+    { id: 'contas-receber', label: 'Contas a Receber', icon: '💳' },
+    { id: 'comissoes', label: 'Comissoes', icon: '💸' },
+    { id: 'ranking', label: 'Ranking', icon: '🏆' },
   ],
   ADMIN_REDE: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -39,6 +49,7 @@ const menuItems = {
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'usuarios', label: 'Usuarios', icon: '👥' },
     { id: 'estoque', label: 'Estoque', icon: '📋' },
+    { id: 'pedidos-compra', label: 'Pedidos de Compra', icon: '🛒' },
     { id: 'clientes', label: 'Clientes', icon: '👤' },
     { id: 'vendas', label: 'Vendas', icon: '💰' },
     { id: 'os', label: 'Ordens de Servico', icon: '🔩' },
@@ -51,6 +62,7 @@ const menuItems = {
   GERENTE_LOJA: [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'estoque', label: 'Estoque', icon: '📋' },
+    { id: 'pedidos-compra', label: 'Pedidos de Compra', icon: '🛒' },
     { id: 'clientes', label: 'Clientes', icon: '👤' },
     { id: 'vendas', label: 'Vendas', icon: '💰' },
     { id: 'os', label: 'Ordens de Servico', icon: '🔩' },
@@ -74,6 +86,7 @@ const menuItems = {
 
 const roleLabels: Record<string, string> = {
   ADMIN_GERAL: 'Admin Geral',
+  ADMIN_FINANCEIRO: 'Admin Financeiro',
   ADMIN_REDE: 'Admin Rede',
   DONO_LOJA: 'Dono de Loja',
   GERENTE_LOJA: 'Gerente',
