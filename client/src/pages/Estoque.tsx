@@ -265,7 +265,9 @@ function ViewConsolidada({ token, onSelectEmpresa }: {
 
   useEffect(() => {
     fetch(`${API}/estoque/consolidado`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(setData).finally(() => setLoading(false));
+      .then(r => r.json())
+      .then(d => setData(d && d.totais ? d : null))
+      .finally(() => setLoading(false));
   }, []);
 
   const empresas = useMemo(() => {
@@ -336,7 +338,7 @@ function ViewConsolidada({ token, onSelectEmpresa }: {
                   </td>
                   <td className="p-4 text-right">
                     {e.pedidosPendentes > 0
-                      ? <Badge color="blue">{e.pedidosPendentes}</Badge>
+                      ? <Badge variant="info">{e.pedidosPendentes}</Badge>
                       : <span className="text-zinc-500">—</span>
                     }
                   </td>
@@ -367,7 +369,9 @@ function ViewEmpresa({ lojaId, token, onBack }: { lojaId: number; token: string;
   useEffect(() => {
     setLoading(true);
     fetch(`${API}/estoque/empresa/${lojaId}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(setData).finally(() => setLoading(false));
+      .then(r => r.json())
+      .then(d => setData(d && d.empresa ? d : null))
+      .finally(() => setLoading(false));
   }, [lojaId]);
 
   if (loading) return <div className="p-12 text-center text-zinc-400">Carregando estoque da empresa...</div>;

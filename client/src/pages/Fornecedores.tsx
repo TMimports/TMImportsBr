@@ -63,7 +63,8 @@ export function Fornecedores() {
     setLoading(true);
     try {
       const r = await fetch('/api/fornecedores', { headers });
-      setFornecedores(await r.json());
+      const d = await r.json();
+      setFornecedores(Array.isArray(d) ? d : []);
     } finally { setLoading(false); }
   }
 
@@ -78,7 +79,8 @@ export function Fornecedores() {
   async function openDetail(f: Fornecedor) {
     setSelected(f);
     const r = await fetch(`/api/crm/interacoes?fornecedorId=${f.id}`, { headers });
-    setInteracoes(await r.json());
+    const d = await r.json();
+    setInteracoes(Array.isArray(d) ? d : []);
   }
 
   async function saveFornecedor() {
