@@ -7,6 +7,7 @@ import { PedidosCompra } from './PedidosCompra';
 import { NotasFiscais } from './NotasFiscais';
 import { DashboardEmpresa } from './DashboardEmpresa';
 import { ConciliacaoBancaria } from './ConciliacaoBancaria';
+import { Fornecedores } from './Fornecedores';
 
 // ── Visão Geral (resumo consolidado) ──────────────────────────────────────────
 
@@ -110,13 +111,14 @@ const TABS = [
   { id: 'pedidos-compra',       label: 'Pedidos de Compra',   icon: '🛒' },
   { id: 'notas-fiscais',        label: 'Notas Fiscais',       icon: '🧾' },
   { id: 'conciliacao-bancaria', label: 'Conciliação Bancária', icon: '🏦' },
+  { id: 'fornecedores',         label: 'CRM / Fornecedores',  icon: '🤝' },
   { id: 'plano-contas',         label: 'Plano de Contas',     icon: '🏷' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
 
-const ADMIN_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'plano-contas'];
-const STORE_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'plano-contas'];
+const ADMIN_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'fornecedores', 'plano-contas'];
+const STORE_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'fornecedores', 'plano-contas'];
 
 // ── Hub principal ──────────────────────────────────────────────────────────────
 
@@ -139,6 +141,7 @@ export function FinanceiroHub() {
       case 'pedidos-compra':       return <PedidosCompra />;
       case 'notas-fiscais':        return <NotasFiscais />;
       case 'conciliacao-bancaria': return <ConciliacaoBancaria />;
+      case 'fornecedores':         return <Fornecedores />;
       case 'plano-contas':         return <CategoriasDepartamentos />;
     }
   };
