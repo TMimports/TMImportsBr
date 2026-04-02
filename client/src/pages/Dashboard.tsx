@@ -71,6 +71,12 @@ interface GraficoData {
   agruparPorHora: boolean;
 }
 
+interface FaturamentoComparativo {
+  hoje: { vendas: number; os: number; total: number; qtd: number };
+  mes: { vendas: number; os: number; total: number; qtd: number };
+  ano: { vendas: number; os: number; total: number; qtd: number };
+}
+
 interface DashboardProps {
   onNavigate?: (page: string) => void;
   lojaId?: number;
@@ -267,6 +273,7 @@ function AdminDashboard({ onNavigate, lojaId }: DashboardProps) {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [prodTab, setProdTab] = useState<'todos' | 'motos' | 'pecas' | 'servicos'>('todos');
+  const [faturamentoComp, setFaturamentoComp] = useState<FaturamentoComparativo | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const navigateTo = (page: string) => {
@@ -291,14 +298,16 @@ function AdminDashboard({ onNavigate, lojaId }: DashboardProps) {
     const basicSuffix = lojaId ? `?lojaId=${lojaId}` : '';
     try {
       if (lojaId) {
-        const [produtos, grafico, basic] = await Promise.all([
+        const [produtos, grafico, basic, comp] = await Promise.all([
           api.get<ProdutosData>(`/dashboard/produtos-mais-vendidos${params}`),
           api.get<GraficoData>(`/dashboard/grafico-vendas${params}`),
           api.get<DashboardData>(`/dashboard${basicSuffix}`),
+          api.get<FaturamentoComparativo>(`/dashboard/faturamento-comparativo?lojaId=${lojaId}`),
         ]);
         setProdutosData(produtos);
         setGraficoData(grafico);
         setBasicData(basic);
+        setFaturamentoComp(comp);
         setRankingData(null);
       } else {
         const [ranking, produtos, grafico, basic] = await Promise.all([
@@ -553,44 +562,90 @@ function AdminDashboard({ onNavigate, lojaId }: DashboardProps) {
       {/* ── Gráficos: Faturamento por Loja + Produtos ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Faturamento por loja */}
+        {/* Faturamento por loja / Comparativo diário-mensal-anual */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <SectionTitle icon="🏪" title="Faturamento por Loja" sub="no período selecionado" />
-          {graficoData && graficoData.faturamentoPorLoja.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart
-                data={graficoData.faturamentoPorLoja}
-                layout="vertical"
-                margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 10, fill: '#71717a' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={v => fmtCurrencyShort(v)}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="nome"
-                  tick={{ fontSize: 11, fill: '#a1a1aa' }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={90}
-                />
-                <Tooltip content={<BarTooltip />} cursor={{ fill: '#27272a' }} />
-                <Bar dataKey="faturamento" name="Faturamento" radius={[0, 4, 4, 0]} maxBarSize={22}>
-                  {graficoData.faturamentoPorLoja.map((_, i) => (
-                    <Cell key={i} fill={i === 0 ? '#f97316' : i === 1 ? '#fb923c' : '#78716c'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          {lojaId ? (
+            <>
+              <SectionTitle icon="📅" title="Faturamento da Loja" sub="diário · mensal · anual" />
+              {faturamentoComp ? (() => {
+                const compData = [
+                  { label: 'Hoje', total: faturamentoComp.hoje.total, vendas: faturamentoComp.hoje.vendas, os: faturamentoComp.hoje.os, qtd: faturamentoComp.hoje.qtd },
+                  { label: 'Mês atual', total: faturamentoComp.mes.total, vendas: faturamentoComp.mes.vendas, os: faturamentoComp.mes.os, qtd: faturamentoComp.mes.qtd },
+                  { label: 'Ano atual', total: faturamentoComp.ano.total, vendas: faturamentoComp.ano.vendas, os: faturamentoComp.ano.os, qtd: faturamentoComp.ano.qtd },
+                ];
+                const maxVal = Math.max(...compData.map(d => d.total), 1);
+                const colors = ['#f97316', '#3b82f6', '#22c55e'];
+                return (
+                  <div className="space-y-4 mt-4">
+                    {compData.map((item, i) => (
+                      <div key={item.label}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-medium text-zinc-400">{item.label}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-zinc-500">{item.qtd} transaç{item.qtd !== 1 ? 'ões' : 'ão'}</span>
+                            <span className="text-sm font-bold text-zinc-100">{fmtCurrencyShort(item.total)}</span>
+                          </div>
+                        </div>
+                        <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{ width: `${(item.total / maxVal) * 100}%`, backgroundColor: colors[i] }}
+                          />
+                        </div>
+                        <div className="flex gap-3 mt-1">
+                          <span className="text-xs text-zinc-600">Vendas: <span className="text-zinc-400">{fmtCurrencyShort(item.vendas)}</span></span>
+                          <span className="text-xs text-zinc-600">OS: <span className="text-zinc-400">{fmtCurrencyShort(item.os)}</span></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })() : (
+                <div className="h-[220px] flex items-center justify-center">
+                  <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </>
           ) : (
-            <div className="h-[220px] flex items-center justify-center">
-              <p className="text-zinc-600 text-sm">Nenhum dado no período</p>
-            </div>
+            <>
+              <SectionTitle icon="🏪" title="Faturamento por Loja" sub="no período selecionado" />
+              {graficoData && graficoData.faturamentoPorLoja.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={graficoData.faturamentoPorLoja}
+                    layout="vertical"
+                    margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 10, fill: '#71717a' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={v => fmtCurrencyShort(v)}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="nome"
+                      tick={{ fontSize: 11, fill: '#a1a1aa' }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={90}
+                    />
+                    <Tooltip content={<BarTooltip />} cursor={{ fill: '#27272a' }} />
+                    <Bar dataKey="faturamento" name="Faturamento" radius={[0, 4, 4, 0]} maxBarSize={22}>
+                      {graficoData.faturamentoPorLoja.map((_, i) => (
+                        <Cell key={i} fill={i === 0 ? '#f97316' : i === 1 ? '#fb923c' : '#78716c'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[220px] flex items-center justify-center">
+                  <p className="text-zinc-600 text-sm">Nenhum dado no período</p>
+                </div>
+              )}
+            </>
           )}
         </div>
 

@@ -239,6 +239,62 @@ function resolverPeriodo(periodoStr: string, dataInicioStr?: string, dataFimStr?
   }
 }
 
+// Faturamento comparativo: hoje / mês / ano (para visão por loja)
+router.get('/faturamento-comparativo', async (req: AuthRequest, res) => {
+  try {
+    if (!['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA', 'ADMIN_FINANCEIRO', 'GERENTE_LOJA'].includes(req.user?.role || '')) {
+      return res.status(403).json({ error: 'Sem permissão' });
+    }
+
+    const lojaIdParam = req.query.lojaId ? Number(req.query.lojaId) : null;
+    const filter = applyTenantFilter(req);
+
+    const buildLojaFilter = (lid: number | null) => {
+      if (lid) return { lojaId: lid };
+      if (filter.lojaId) return { lojaId: filter.lojaId };
+      if (filter.grupoId) return { loja: { grupoId: filter.grupoId } };
+      return {};
+    };
+
+    const lf = buildLojaFilter(lojaIdParam);
+
+    const now = new Date();
+    const hojeIni = new Date(now); hojeIni.setHours(0, 0, 0, 0);
+    const hojeFim = new Date(now); hojeFim.setHours(23, 59, 59, 999);
+    const mesIni = new Date(now.getFullYear(), now.getMonth(), 1);
+    const mesFim = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const anoIni = new Date(now.getFullYear(), 0, 1);
+    const anoFim = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+
+    const baseWhere = { deletedAt: null, confirmadaFinanceiro: true, ...lf };
+
+    const [vHoje, osHoje, vMes, osMes, vAno, osAno] = await Promise.all([
+      prisma.venda.aggregate({ where: { ...baseWhere, tipo: 'VENDA', createdAt: { gte: hojeIni, lte: hojeFim } }, _sum: { valorTotal: true }, _count: { id: true } }),
+      prisma.ordemServico.aggregate({ where: { ...baseWhere, createdAt: { gte: hojeIni, lte: hojeFim } }, _sum: { valorTotal: true }, _count: { id: true } }),
+      prisma.venda.aggregate({ where: { ...baseWhere, tipo: 'VENDA', createdAt: { gte: mesIni, lte: mesFim } }, _sum: { valorTotal: true }, _count: { id: true } }),
+      prisma.ordemServico.aggregate({ where: { ...baseWhere, createdAt: { gte: mesIni, lte: mesFim } }, _sum: { valorTotal: true }, _count: { id: true } }),
+      prisma.venda.aggregate({ where: { ...baseWhere, tipo: 'VENDA', createdAt: { gte: anoIni, lte: anoFim } }, _sum: { valorTotal: true }, _count: { id: true } }),
+      prisma.ordemServico.aggregate({ where: { ...baseWhere, createdAt: { gte: anoIni, lte: anoFim } }, _sum: { valorTotal: true }, _count: { id: true } }),
+    ]);
+
+    const soma = (v: any, os: any) => ({
+      vendas: Number(v._sum.valorTotal || 0),
+      os: Number(os._sum.valorTotal || 0),
+      total: Number(v._sum.valorTotal || 0) + Number(os._sum.valorTotal || 0),
+      qtd: (v._count.id || 0) + (os._count.id || 0),
+    });
+
+    res.json({
+      hoje: soma(vHoje, osHoje),
+      mes: soma(vMes, osMes),
+      ano: soma(vAno, osAno),
+    });
+  } catch (error) {
+    console.error('Erro em faturamento-comparativo:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // Ranking completo das lojas com metricas de periodo
 router.get('/ranking-lojas', async (req: AuthRequest, res) => {
   try {
