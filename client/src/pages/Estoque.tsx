@@ -480,6 +480,8 @@ export function Estoque() {
 
   const role = user?.role || '';
   const isAdmin = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
+  // null = consolidado (só para admins); number = empresa específica
+  const showConsolidado = isAdmin && lojaId === null;
 
   useEffect(() => {
     const carregarLojas = async () => {
@@ -489,10 +491,11 @@ export function Estoque() {
           const data = await r.json();
           const lista: Loja[] = Array.isArray(data) ? data : [];
           setLojas(lista);
-          // Para não-admin, seleciona automaticamente a loja do usuário
-          if (!isAdmin && user?.lojaId) {
+          // Sempre seleciona a loja do usuário ou a primeira da lista
+          // Admins também começam com a primeira loja (não a visão consolidada)
+          if (user?.lojaId) {
             setLojaId(user.lojaId);
-          } else if (!isAdmin && lista.length > 0) {
+          } else if (lista.length > 0) {
             setLojaId(lista[0].id);
           }
         }
@@ -508,37 +511,30 @@ export function Estoque() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <SectionHeader
           title="Estoque"
-          subtitle={isAdmin
-            ? 'Visão consolidada por empresa/CNPJ com custo médio ponderado'
+          subtitle={showConsolidado
+            ? 'Visão consolidada — todas as empresas'
             : 'Gerencial por modelo e unitária por chassi'
           }
         />
 
         {/* Seletor de empresa */}
-        <div className="flex items-center gap-3">
-          {isAdmin && lojaId && (
-            <Button variant="ghost" onClick={() => setLojaId(null)} className="text-sm">
-              ← Voltar ao consolidado
-            </Button>
-          )}
-          <div className="min-w-60">
-            <Select
-              value={lojaId ?? ''}
-              onChange={e => setLojaId(e.target.value ? Number(e.target.value) : null)}
-            >
-              {isAdmin && <option value="">-- Visão Consolidada (todas as empresas) --</option>}
-              {lojas.map(l => (
-                <option key={l.id} value={l.id}>
-                  {l.nomeFantasia} {l.cnpj ? `— ${l.cnpj}` : ''}
-                </option>
-              ))}
-            </Select>
-          </div>
+        <div className="min-w-72">
+          <Select
+            value={lojaId ?? ''}
+            onChange={e => setLojaId(e.target.value ? Number(e.target.value) : null)}
+          >
+            {isAdmin && <option value="">📊 Todas as Empresas (Consolidado)</option>}
+            {lojas.map(l => (
+              <option key={l.id} value={l.id}>
+                🏪 {l.nomeFantasia}{l.cnpj ? ` — ${l.cnpj}` : ''}
+              </option>
+            ))}
+          </Select>
         </div>
       </div>
 
       {/* Conteúdo */}
-      {isAdmin && !lojaId ? (
+      {showConsolidado ? (
         <ViewConsolidada token={token!} onSelectEmpresa={setLojaId} />
       ) : lojaId ? (
         <ViewEmpresa
@@ -548,8 +544,9 @@ export function Estoque() {
         />
       ) : (
         <div className="text-center py-12 text-zinc-500">
-          <p className="text-2xl mb-2">🏪</p>
-          <p>Selecione uma empresa para ver o estoque</p>
+          <p className="text-4xl mb-3">🏪</p>
+          <p className="text-lg font-medium text-zinc-400">Nenhuma empresa disponível</p>
+          <p className="text-sm mt-1">Cadastre lojas no sistema para ver o estoque</p>
         </div>
       )}
     </div>
