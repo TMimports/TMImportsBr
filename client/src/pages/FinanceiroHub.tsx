@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Financeiro } from './Financeiro';
 import { ContasReceber } from './ContasReceber';
@@ -104,15 +104,15 @@ function VisaoGeral() {
 // ── Tabs config ────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'visao-geral',    label: 'Visão Geral',         icon: '📊' },
-  { id: 'por-cnpj',       label: 'Por CNPJ',            icon: '🏢' },
-  { id: 'contas-pagar',   label: 'Contas a Pagar',      icon: '📤' },
-  { id: 'contas-receber', label: 'Contas a Receber',    icon: '📥' },
-  { id: 'pedidos-compra',       label: 'Pedidos de Compra',   icon: '🛒' },
-  { id: 'notas-fiscais',        label: 'Notas Fiscais',       icon: '🧾' },
-  { id: 'conciliacao-bancaria', label: 'Conciliação Bancária', icon: '🏦' },
-  { id: 'fornecedores',         label: 'CRM / Fornecedores',  icon: '🤝' },
-  { id: 'plano-contas',         label: 'Plano de Contas',     icon: '🏷' },
+  { id: 'visao-geral',          label: 'Visão Geral',    icon: '📊' },
+  { id: 'por-cnpj',             label: 'Por CNPJ',       icon: '🏢' },
+  { id: 'contas-pagar',         label: 'A Pagar',        icon: '📤' },
+  { id: 'contas-receber',       label: 'A Receber',      icon: '📥' },
+  { id: 'pedidos-compra',       label: 'Compras',        icon: '🛒' },
+  { id: 'notas-fiscais',        label: 'Fiscal',         icon: '🧾' },
+  { id: 'conciliacao-bancaria', label: 'Conciliação',    icon: '🏦' },
+  { id: 'fornecedores',         label: 'Fornecedores',   icon: '🤝' },
+  { id: 'plano-contas',         label: 'Categorias',     icon: '🏷' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -125,6 +125,9 @@ const STORE_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-
 export function FinanceiroHub() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('visao-geral');
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const role = user?.role ?? '';
   const allowedTabs: TabId[] =
@@ -132,12 +135,38 @@ export function FinanceiroHub() {
 
   const visibleTabs = TABS.filter(t => allowedTabs.includes(t.id));
 
+  const checkScroll = () => {
+    const el = tabBarRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 0);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  };
+
+  useEffect(() => {
+    // pequeno delay para o layout estar completo
+    const t = setTimeout(checkScroll, 50);
+    const el = tabBarRef.current;
+    if (el) el.addEventListener('scroll', checkScroll, { passive: true });
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      clearTimeout(t);
+      if (el) el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, []);
+
+  const scrollTabs = (dir: 'left' | 'right') => {
+    const el = tabBarRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir === 'left' ? -200 : 200, behavior: 'smooth' });
+  };
+
   const renderContent = () => {
     switch (activeTab) {
-      case 'visao-geral':    return <VisaoGeral />;
-      case 'por-cnpj':       return <DashboardEmpresa />;
-      case 'contas-pagar':   return <Financeiro />;
-      case 'contas-receber': return <ContasReceber />;
+      case 'visao-geral':          return <VisaoGeral />;
+      case 'por-cnpj':             return <DashboardEmpresa />;
+      case 'contas-pagar':         return <Financeiro />;
+      case 'contas-receber':       return <ContasReceber />;
       case 'pedidos-compra':       return <PedidosCompra />;
       case 'notas-fiscais':        return <NotasFiscais />;
       case 'conciliacao-bancaria': return <ConciliacaoBancaria />;
@@ -149,7 +178,7 @@ export function FinanceiroHub() {
   return (
     <div className="flex flex-col h-full min-h-screen bg-zinc-950">
       {/* Header do hub */}
-      <div className="bg-zinc-900 border-b border-zinc-800 px-6 pt-5 pb-0">
+      <div className="bg-zinc-900 border-b border-zinc-800 px-4 md:px-6 pt-5 pb-0">
         <div className="mb-4">
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
             💵 <span>Financeiro</span>
@@ -157,22 +186,59 @@ export function FinanceiroHub() {
           <p className="text-zinc-500 text-xs mt-0.5">Central financeira — tudo em um só lugar</p>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex gap-1 overflow-x-auto pb-0 scrollbar-hide">
-          {visibleTabs.map(tab => (
+        {/* Tab bar com setas de navegação */}
+        <div className="relative flex items-end">
+          {/* Seta esquerda */}
+          {canScrollLeft && (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 whitespace-nowrap transition-all ${
-                activeTab === tab.id
-                  ? 'border-orange-500 text-orange-400 bg-orange-500/5'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-              }`}
+              onClick={() => scrollTabs('left')}
+              className="flex-shrink-0 flex items-center justify-center w-7 h-9 mb-0 text-zinc-400 hover:text-white bg-gradient-to-r from-zinc-900 via-zinc-900 to-transparent pr-2 transition-colors z-10"
+              aria-label="Rolar abas à esquerda"
             >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
+              ‹
             </button>
-          ))}
+          )}
+
+          {/* Tabs scrolláveis */}
+          <div
+            ref={tabBarRef}
+            className="flex gap-0.5 overflow-x-auto pb-0 scroll-smooth"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {visibleTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  // scroll a aba ativa para o centro
+                  setTimeout(() => {
+                    const el = tabBarRef.current?.querySelector(`[data-tab="${tab.id}"]`);
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                  }, 10);
+                }}
+                data-tab={tab.id}
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-t-lg border-b-2 whitespace-nowrap transition-all flex-shrink-0 ${
+                  activeTab === tab.id
+                    ? 'border-orange-500 text-orange-400 bg-orange-500/5'
+                    : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Seta direita */}
+          {canScrollRight && (
+            <button
+              onClick={() => scrollTabs('right')}
+              className="flex-shrink-0 flex items-center justify-center w-7 h-9 mb-0 text-zinc-400 hover:text-white bg-gradient-to-l from-zinc-900 via-zinc-900 to-transparent pl-2 transition-colors z-10"
+              aria-label="Rolar abas à direita"
+            >
+              ›
+            </button>
+          )}
         </div>
       </div>
 
