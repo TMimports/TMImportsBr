@@ -33,6 +33,12 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Plano de Contas page for managing categories and departments
 - Financial dashboard with KPIs (open, overdue, upcoming, paid/received)
 - Backend: /api/categorias-financeiras, /api/departamentos, /api/financeiro/dashboard, /api/financeiro/contas-pagar/parcelas/:id/pagar
+- CRM module: Fornecedor model (CNPJ/CPF, class, contacts, address) with InteracaoCRM (history/timeline for both clientes and fornecedores)
+- Fiscal module: NotaFiscal (NF entrada/saída) + ItemNotaFiscal with full fiscal fields (NCM, CFOP, CST, CSOSN, ICMS, IPI, PIS, COFINS)
+- Fiscal fields added to Produto: ncm, cfop, cst, csosn, unidade (UnidadeMedida enum), aliquotas
+- Dashboard por CNPJ: GET /api/dashboard/empresa/:lojaId returns full per-store KPIs (vendas, estoque, financeiro, fiscal, atividade recente)
+- New pages: Fornecedores.tsx (CRM with timeline), NotasFiscais.tsx (fiscal control), DashboardEmpresa.tsx (per-CNPJ KPIs)
+- New backend routes: /api/fornecedores, /api/crm (interações/follow-ups), /api/notas-fiscais, /api/dashboard/empresa/:id
 
 **Business Model:**
 - **Grupo** = A franchisee/owner entity that can contain multiple stores

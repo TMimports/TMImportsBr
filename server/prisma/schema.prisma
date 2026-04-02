@@ -107,6 +107,44 @@ enum RecorrenciaConta {
   ANUAL
 }
 
+enum TipoNotaFiscal {
+  ENTRADA
+  SAIDA
+}
+
+enum StatusNotaFiscal {
+  PENDENTE
+  AUTORIZADA
+  CANCELADA
+  INUTILIZADA
+}
+
+enum TipoInteracaoCRM {
+  LIGACAO
+  EMAIL
+  REUNIAO
+  VISITA
+  OBSERVACAO
+  FOLLOW_UP
+}
+
+enum ClasseFornecedor {
+  PRODUTO
+  SERVICO
+  AMBOS
+}
+
+enum UnidadeMedida {
+  UN
+  PC
+  KG
+  M
+  L
+  CX
+  PAR
+  JOGO
+}
+
 model Grupo {
   id        Int      @id @default(autoincrement())
   nome      String
@@ -151,6 +189,8 @@ model Loja {
   auditoriaEstoque      AuditoriaEstoque[]
   pagamentos            Pagamento[]
   recebimentos          Recebimento[]
+  notasFiscais          NotaFiscal[]
+  fornecedores          Fornecedor[]
 }
 
 model User {
@@ -183,28 +223,40 @@ model User {
   logsConfiguracao LogConfiguracao[]
   pedidosCompraConfirmados PedidoCompra[] @relation("PedidoConfirmadoPor")
   auditoriaEstoque AuditoriaEstoque[]
+  interacoesCRM    InteracaoCRM[]
 }
 
 model Produto {
-  id              Int         @id @default(autoincrement())
-  codigo          String      @unique @default(cuid())
+  id              Int           @id @default(autoincrement())
+  codigo          String        @unique @default(cuid())
   nome            String
   tipo            TipoProduto
-  custo           Decimal     @db.Decimal(10, 2)
-  percentualLucro Decimal     @db.Decimal(5, 2)
-  preco           Decimal     @db.Decimal(10, 2)
-  ativo           Boolean     @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  custo           Decimal       @db.Decimal(10, 2)
+  percentualLucro Decimal       @db.Decimal(5, 2)
+  preco           Decimal       @db.Decimal(10, 2)
+  ativo           Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   createdBy       Int?
-  
-  estoques        Estoque[]
-  unidades        UnidadeFisica[]
-  itensVenda      ItemVenda[]
-  itensOS         ItemOS[]
-  logsEstoque     LogEstoque[]
+  // Campos fiscais
+  ncm             String?
+  cfop            String?
+  cst             String?
+  csosn           String?
+  unidade         UnidadeMedida @default(UN)
+  aliquotaIcms    Decimal?      @db.Decimal(5, 2)
+  aliquotaIpi     Decimal?      @db.Decimal(5, 2)
+  aliquotaPis     Decimal?      @db.Decimal(5, 2)
+  aliquotaCofins  Decimal?      @db.Decimal(5, 2)
+
+  estoques          Estoque[]
+  unidades          UnidadeFisica[]
+  itensVenda        ItemVenda[]
+  itensOS           ItemOS[]
+  logsEstoque       LogEstoque[]
   itensPedidoCompra ItemPedidoCompra[]
   auditoriaEstoque  AuditoriaEstoque[]
+  itensNotaFiscal   ItemNotaFiscal[]
 }
 
 model Servico {
@@ -298,6 +350,7 @@ model Cliente {
   vendas    Venda[]
   ordensServico OrdemServico[]
   garantias Garantia[]
+  interacoesCRM InteracaoCRM[]
 }
 
 model Venda {
@@ -324,6 +377,7 @@ model Venda {
   itens           ItemVenda[]
   comissoes       Comissao[]
   garantias       Garantia[]
+  notasFiscais    NotaFiscal[]
 }
 
 model ItemVenda {
@@ -442,6 +496,7 @@ model ContaPagar {
   departamentoId        Int?
   descricao             String?
   fornecedor            String?
+  fornecedorId          Int?
   centroCusto           String?
   documento             String?
   observacoes           String?
@@ -464,6 +519,7 @@ model ContaPagar {
   categoria             CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
   departamento          Departamento?      @relation(fields: [departamentoId], references: [id])
   pedidoCompra          PedidoCompra?      @relation(fields: [pedidoCompraId], references: [id])
+  fornecedorRel         Fornecedor?        @relation(fields: [fornecedorId], references: [id])
   parcelas              ParcelaContaPagar[]
   pagamentos            Pagamento[]
 }
@@ -606,6 +662,7 @@ model PedidoCompra {
   confirmadoPor   User?              @relation("PedidoConfirmadoPor", fields: [confirmedBy], references: [id])
   itens           ItemPedidoCompra[]
   contasPagar     ContaPagar[]
+  notasFiscais    NotaFiscal[]
 }
 
 model ItemPedidoCompra {
@@ -738,4 +795,127 @@ model Recebimento {
   loja                Loja                 @relation(fields: [lojaId], references: [id])
   contaReceber        ContaReceber?        @relation(fields: [contaReceberId], references: [id])
   parcela             ParcelaContaReceber? @relation(fields: [parcelaId], references: [id])
+}
+
+// ── CRM — Fornecedores ────────────────────────────────────────────────────────
+
+model Fornecedor {
+  id            Int              @id @default(autoincrement())
+  lojaId        Int
+  cnpj          String?
+  cpf           String?
+  razaoSocial   String
+  nomeFantasia  String?
+  classe        ClasseFornecedor @default(PRODUTO)
+  email         String?
+  telefone      String?
+  celular       String?
+  cep           String?
+  logradouro    String?
+  numero        String?
+  complemento   String?
+  bairro        String?
+  cidade        String?
+  estado        String?
+  contato       String?         // nome do contato principal
+  site          String?
+  observacoes   String?
+  ativo         Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  createdBy     Int?
+
+  loja          Loja             @relation(fields: [lojaId], references: [id])
+  interacoes    InteracaoCRM[]
+  contasPagar   ContaPagar[]
+  notasFiscais  NotaFiscal[]
+}
+
+model InteracaoCRM {
+  id            Int              @id @default(autoincrement())
+  tipo          TipoInteracaoCRM
+  clienteId     Int?
+  fornecedorId  Int?
+  usuarioId     Int
+  titulo        String
+  descricao     String?
+  resultado     String?
+  proximoContato DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  cliente       Cliente?         @relation(fields: [clienteId], references: [id])
+  fornecedor    Fornecedor?      @relation(fields: [fornecedorId], references: [id])
+  usuario       User             @relation(fields: [usuarioId], references: [id])
+}
+
+// ── Módulo Fiscal ─────────────────────────────────────────────────────────────
+
+model NotaFiscal {
+  id                Int              @id @default(autoincrement())
+  lojaId            Int
+  tipo              TipoNotaFiscal
+  status            StatusNotaFiscal @default(PENDENTE)
+  numero            String?
+  serie             String?
+  chaveAcesso       String?
+  // Emitente
+  emitenteCnpj      String?
+  emitenteNome      String?
+  // Destinatário
+  destinatarioCnpj  String?
+  destinatarioNome  String?
+  // Valores
+  valorProdutos     Decimal          @db.Decimal(12, 2) @default(0)
+  valorFrete        Decimal          @db.Decimal(10, 2) @default(0)
+  valorDesconto     Decimal          @db.Decimal(10, 2) @default(0)
+  valorIcms         Decimal          @db.Decimal(10, 2) @default(0)
+  valorIpi          Decimal          @db.Decimal(10, 2) @default(0)
+  valorPis          Decimal          @db.Decimal(10, 2) @default(0)
+  valorCofins       Decimal          @db.Decimal(10, 2) @default(0)
+  valorTotal        Decimal          @db.Decimal(12, 2)
+  // Datas
+  dataEmissao       DateTime
+  dataEntrada       DateTime?
+  // Vínculos
+  fornecedorId      Int?
+  pedidoCompraId    Int?
+  vendaId           Int?
+  observacoes       String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  createdBy         Int?
+
+  loja              Loja             @relation(fields: [lojaId], references: [id])
+  fornecedor        Fornecedor?      @relation(fields: [fornecedorId], references: [id])
+  pedidoCompra      PedidoCompra?    @relation(fields: [pedidoCompraId], references: [id])
+  venda             Venda?           @relation(fields: [vendaId], references: [id])
+  itens             ItemNotaFiscal[]
+}
+
+model ItemNotaFiscal {
+  id              Int         @id @default(autoincrement())
+  notaFiscalId    Int
+  produtoId       Int?
+  descricao       String
+  ncm             String?
+  cfop            String?
+  cst             String?
+  csosn           String?
+  unidade         String      @default("UN")
+  quantidade      Decimal     @db.Decimal(10, 3)
+  valorUnitario   Decimal     @db.Decimal(12, 4)
+  valorDesconto   Decimal     @db.Decimal(10, 2) @default(0)
+  valorTotal      Decimal     @db.Decimal(12, 2)
+  aliquotaIcms    Decimal?    @db.Decimal(5, 2)
+  valorIcms       Decimal?    @db.Decimal(10, 2)
+  aliquotaIpi     Decimal?    @db.Decimal(5, 2)
+  valorIpi        Decimal?    @db.Decimal(10, 2)
+  aliquotaPis     Decimal?    @db.Decimal(5, 2)
+  valorPis        Decimal?    @db.Decimal(10, 2)
+  aliquotaCofins  Decimal?    @db.Decimal(5, 2)
+  valorCofins     Decimal?    @db.Decimal(10, 2)
+
+  notaFiscal      NotaFiscal  @relation(fields: [notaFiscalId], references: [id], onDelete: Cascade)
+  produto         Produto?    @relation(fields: [produtoId], references: [id])
 }

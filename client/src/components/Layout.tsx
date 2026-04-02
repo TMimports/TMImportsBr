@@ -36,15 +36,16 @@ function group(id: string, label: string, icon: string, items: Omit<NavItem, 'ty
   return { type: 'group', id, label, icon, items };
 }
 
-// Vendas group — Clientes incluído dentro
+// Vendas group — Clientes e Fornecedores (CRM) incluídos dentro
 const VENDAS_GROUP = (vendorLabel = 'Vendas') =>
   group('vendas-group', vendorLabel, '💰', [
-    { id: 'clientes',    label: 'Clientes',    icon: '👤' },
-    { id: 'vendas',      label: vendorLabel === 'Vendas' ? 'Vendas' : 'Minhas Vendas', icon: '🛍️' },
-    { id: 'os',          label: vendorLabel === 'Vendas' ? 'Ordens de Serviço' : 'Minhas OS', icon: '🔩' },
-    { id: 'garantias',   label: 'Garantias',   icon: '📜' },
-    { id: 'comissoes',   label: vendorLabel === 'Vendas' ? 'Comissões' : 'Minhas Comissões', icon: '💸' },
-    { id: 'utilidades',  label: 'Utilidades',  icon: '🔄' },
+    { id: 'clientes',      label: 'Clientes',                                               icon: '👤' },
+    { id: 'fornecedores',  label: 'Fornecedores',                                           icon: '🤝' },
+    { id: 'vendas',        label: vendorLabel === 'Vendas' ? 'Vendas' : 'Minhas Vendas',    icon: '🛍️' },
+    { id: 'os',            label: vendorLabel === 'Vendas' ? 'Ordens de Serviço' : 'Minhas OS', icon: '🔩' },
+    { id: 'garantias',     label: 'Garantias',                                              icon: '📜' },
+    { id: 'comissoes',     label: vendorLabel === 'Vendas' ? 'Comissões' : 'Minhas Comissões', icon: '💸' },
+    { id: 'utilidades',    label: 'Utilidades',                                             icon: '🔄' },
   ]);
 
 // Logística — Produtos, Serviços, Estoque
@@ -54,12 +55,14 @@ const LOGISTICA_GROUP = group('logistica-group', 'Logística', '📦', [
   { id: 'estoque',   label: 'Estoque',   icon: '📋' },
 ]);
 
-// Financeiro — Pedidos de Compra incluído dentro
+// Financeiro — Pedidos de Compra + Notas Fiscais incluídos
 const FIN_GROUP = group('fin-group', 'Financeiro', '💵', [
-  { id: 'pedidos-compra',      label: 'Pedidos de Compra',  icon: '🛒' },
-  { id: 'financeiro',          label: 'Contas a Pagar',     icon: '📤' },
-  { id: 'contas-receber',      label: 'Contas a Receber',   icon: '📥' },
-  { id: 'plano-contas',        label: 'Plano de Contas',    icon: '🏷' },
+  { id: 'dashboard-empresa',   label: 'Dashboard por CNPJ',  icon: '🏢' },
+  { id: 'pedidos-compra',      label: 'Pedidos de Compra',   icon: '🛒' },
+  { id: 'notas-fiscais',       label: 'Notas Fiscais',       icon: '🧾' },
+  { id: 'financeiro',          label: 'Contas a Pagar',      icon: '📤' },
+  { id: 'contas-receber',      label: 'Contas a Receber',    icon: '📥' },
+  { id: 'plano-contas',        label: 'Plano de Contas',     icon: '🏷' },
 ]);
 
 // Configurações — Usuários incluído dentro

@@ -571,5 +571,137 @@ router.get('/grafico-vendas', async (req: AuthRequest, res) => {
   }
 });
 
+// ── Dashboard por CNPJ/Empresa ─────────────────────────────────────────────
+router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
+  try {
+    const lojaId = Number(req.params.lojaId);
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
+
+    const [
+      loja,
+      totalVendasMes,
+      totalOSMes,
+      estoqueSummary,
+      contasPagarAbertas,
+      contasReceberAbertas,
+      notasFiscaisEntrada,
+      notasFiscaisSaida,
+      ultimasVendas,
+      ultimasOS,
+    ] = await Promise.all([
+      prisma.loja.findUnique({
+        where: { id: lojaId },
+        include: { grupo: { select: { id: true, nome: true } } },
+      }),
+      prisma.venda.aggregate({
+        where: { lojaId, tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicioMes, lte: fimMes } },
+        _sum: { valorTotal: true },
+        _count: { id: true },
+      }),
+      prisma.ordemServico.aggregate({
+        where: { lojaId, createdAt: { gte: inicioMes, lte: fimMes } },
+        _sum: { valorTotal: true },
+        _count: { id: true },
+      }),
+      prisma.estoque.findMany({
+        where: { lojaId },
+        include: { produto: { select: { id: true, nome: true, tipo: true, preco: true } } },
+      }),
+      prisma.contaPagar.aggregate({
+        where: { lojaId, deletedAt: null, status: { in: ['ABERTO', 'PARCIAL'] } },
+        _sum: { valor: true, valorPago: true },
+        _count: { id: true },
+      }),
+      prisma.contaReceber.aggregate({
+        where: { lojaId, status: { in: ['ABERTO', 'PARCIAL'] } },
+        _sum: { valor: true, valorRecebido: true },
+        _count: { id: true },
+      }),
+      prisma.notaFiscal.aggregate({
+        where: { lojaId, tipo: 'ENTRADA', dataEmissao: { gte: inicioMes, lte: fimMes } },
+        _sum: { valorTotal: true },
+        _count: { id: true },
+      }),
+      prisma.notaFiscal.aggregate({
+        where: { lojaId, tipo: 'SAIDA', dataEmissao: { gte: inicioMes, lte: fimMes } },
+        _sum: { valorTotal: true },
+        _count: { id: true },
+      }),
+      prisma.venda.findMany({
+        where: { lojaId, tipo: 'VENDA', deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { cliente: { select: { id: true, nome: true } } },
+      }),
+      prisma.ordemServico.findMany({
+        where: { lojaId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { cliente: { select: { id: true, nome: true } } },
+      }),
+    ]);
+
+    if (!loja) return res.status(404).json({ error: 'Loja não encontrada' });
+
+    const totalMotos = estoqueSummary
+      .filter(e => e.produto.tipo === 'MOTO')
+      .reduce((sum, e) => sum + e.quantidade, 0);
+    const totalPecas = estoqueSummary
+      .filter(e => e.produto.tipo === 'PECA')
+      .reduce((sum, e) => sum + e.quantidade, 0);
+    const valorEstoque = estoqueSummary.reduce(
+      (sum, e) => sum + Number(e.produto.preco) * e.quantidade, 0
+    );
+
+    res.json({
+      loja,
+      periodo: { inicio: inicioMes, fim: fimMes },
+      vendas: {
+        totalValor: Number(totalVendasMes._sum.valorTotal ?? 0),
+        totalCount: totalVendasMes._count.id,
+      },
+      servicos: {
+        totalValor: Number(totalOSMes._sum.valorTotal ?? 0),
+        totalCount: totalOSMes._count.id,
+      },
+      estoque: {
+        totalMotos,
+        totalPecas,
+        valorEstoque,
+        itens: estoqueSummary.length,
+      },
+      financeiro: {
+        contasPagar: {
+          total: Number(contasPagarAbertas._sum.valor ?? 0),
+          pago: Number(contasPagarAbertas._sum.valorPago ?? 0),
+          count: contasPagarAbertas._count.id,
+        },
+        contasReceber: {
+          total: Number(contasReceberAbertas._sum.valor ?? 0),
+          recebido: Number(contasReceberAbertas._sum.valorRecebido ?? 0),
+          count: contasReceberAbertas._count.id,
+        },
+      },
+      fiscal: {
+        notasEntrada: {
+          total: Number(notasFiscaisEntrada._sum.valorTotal ?? 0),
+          count: notasFiscaisEntrada._count.id,
+        },
+        notasSaida: {
+          total: Number(notasFiscaisSaida._sum.valorTotal ?? 0),
+          count: notasFiscaisSaida._count.id,
+        },
+      },
+      ultimasVendas,
+      ultimasOS,
+    });
+  } catch (error) {
+    console.error('Erro em dashboard/empresa:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;
 

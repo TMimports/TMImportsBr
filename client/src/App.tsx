@@ -23,6 +23,9 @@ import { Configuracoes } from './pages/Configuracoes';
 import { Utilidades } from './pages/Utilidades';
 import { PedidosCompra } from './pages/PedidosCompra';
 import { CategoriasDepartamentos } from './pages/CategoriasDepartamentos';
+import { Fornecedores } from './pages/Fornecedores';
+import { NotasFiscais } from './pages/NotasFiscais';
+import { DashboardEmpresa } from './pages/DashboardEmpresa';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -83,6 +86,12 @@ function AppContent() {
         return <ContasReceber />;
       case 'plano-contas':
         return <CategoriasDepartamentos />;
+      case 'fornecedores':
+        return <Fornecedores />;
+      case 'notas-fiscais':
+        return <NotasFiscais />;
+      case 'dashboard-empresa':
+        return <DashboardEmpresa />;
       case 'configuracoes':
         return <Configuracoes />;
       case 'utilidades':

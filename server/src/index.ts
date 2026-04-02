@@ -29,6 +29,9 @@ import pedidosCompraRoutes from './routes/pedidos-compra.js';
 import auditoriaRoutes from './routes/auditoria.js';
 import categoriasFinanceirasRoutes from './routes/categorias-financeiras.js';
 import departamentosRoutes from './routes/departamentos.js';
+import fornecedoresRoutes from './routes/fornecedores.js';
+import crmRoutes from './routes/crm.js';
+import notasFiscaisRoutes from './routes/notas-fiscais.js';
 
 export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : []
@@ -107,6 +110,9 @@ app.use('/api/pedidos-compra', pedidosCompraRoutes);
 app.use('/api/auditoria', auditoriaRoutes);
 app.use('/api/categorias-financeiras', categoriasFinanceirasRoutes);
 app.use('/api/departamentos', departamentosRoutes);
+app.use('/api/fornecedores', fornecedoresRoutes);
+app.use('/api/crm', crmRoutes);
+app.use('/api/notas-fiscais', notasFiscaisRoutes);
 
 app.get('/api/debug-build', (req, res) => {
   const fs = require('fs');

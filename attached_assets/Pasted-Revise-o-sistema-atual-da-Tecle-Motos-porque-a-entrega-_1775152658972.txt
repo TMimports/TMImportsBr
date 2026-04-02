@@ -1,0 +1,124 @@
+Revise o sistema atual da Tecle Motos porque a entrega anterior ficou incompleta.
+
+O que foi pedido inicialmente NÃO apareceu no sistema em funcionamento.
+
+PROBLEMAS IDENTIFICADOS:
+1. Não foi criada a situação fiscal completa
+2. Não foi criado o CRM
+3. Não foi implementada corretamente a lógica financeira separando:
+   - venda
+   - receita
+   - contas a receber
+   - recebimento
+4. Não foi implementado corretamente o contas a pagar com duas origens:
+   - por pedido de compra vinculado à nota fiscal
+   - por lançamento avulso
+5. Não foi estruturado corretamente o dashboard por CNPJ
+6. Não foi implementada a modelagem completa de categorias, departamentos e plano de contas
+7. Não foi entregue a lógica robusta de estoque por empresa/CNPJ com totalizadores e custo médio automático
+8. Não foi criada a camada fiscal brasileira com base estrutural adequada
+9. Não foi criado o CRM financeiro/comercial para fornecedores e clientes
+
+IMPORTANTE:
+Não quero apenas interface ou menu. Quero implementação funcional real com:
+- banco de dados
+- tabelas
+- relacionamentos
+- backend
+- rotas
+- regras de negócio
+- telas funcionais
+- permissões
+- relatórios
+- logs
+
+ENTREGAR AGORA OS MÓDULOS ABAIXO DE FORMA FUNCIONAL:
+
+1. SITUAÇÃO FISCAL
+Criar módulo fiscal com estrutura preparada para:
+- CFOP
+- CST
+- CSOSN
+- NCM
+- CEST
+- ICMS
+- ICMS-ST
+- IPI
+- PIS
+- COFINS
+- natureza de operação
+- nota de entrada
+- nota de saída
+- nota de importação
+- vínculo com compra
+- vínculo com estoque
+- vínculo com contas a pagar
+- vínculo com contas a receber
+- XML / chave / dados fiscais
+
+2. CRM
+Criar CRM para:
+- fornecedores
+- clientes
+- histórico de interações
+- observações
+- follow-up
+- pendências financeiras
+- documentos relacionados
+- timeline
+- classificação
+- status de relacionamento
+
+3. FINANCEIRO CORRETO
+Separar claramente:
+- venda
+- receita
+- contas a receber
+- recebimento
+- compra
+- despesa
+- contas a pagar
+- pagamento
+
+4. CONTAS A PAGAR
+Duas origens obrigatórias:
+A) pedido de compra + nota fiscal
+B) lançamento avulso (água, luz, aluguel, internet etc.)
+
+5. CATEGORIAS E DEPARTAMENTOS
+Criar estrutura separada de:
+- categorias
+- departamentos
+- plano de contas
+Com validação de natureza:
+- departamentos que só geram despesa
+- departamentos que podem gerar receita
+- departamentos que podem gerar ambos
+
+6. DASHBOARD POR CNPJ
+Cada CNPJ deve ter seu próprio dashboard com:
+- estoque
+- total de motos
+- total de peças
+- valor de estoque
+- compras
+- receitas
+- despesas
+- contas a pagar
+- contas a receber
+- indicadores do período
+
+7. ESTOQUE POR CNPJ
+Organizar estoque por empresa/CNPJ com:
+- totalizadores
+- custo médio automático
+- modelo
+- quantidade
+- chassi apenas para identificação e garantia
+- movimentações
+- transferências
+- visão consolidada e individual
+
+8. ENTREGA TÉCNICA OBRIGATÓRIA
+Ao final, revisar o sistema e confirmar que cada item acima existe de forma funcional no código e na interface.
+Não considerar concluído apenas por ter criado menu, cards ou telas vazias.
