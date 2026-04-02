@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LojaProvider } from './contexts/LojaContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { TrocarSenha } from './pages/TrocarSenha';
@@ -120,7 +121,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <LojaProvider>
+        <AppContent />
+      </LojaProvider>
     </AuthProvider>
   );
 }

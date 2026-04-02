@@ -23,6 +23,8 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Real-time group-wide stock monitoring (Utilidades page)
 - XLSX/CSV import for Units (Motos) with automatic product linking
 - Sales product selection filtered by store inventory (only shows products with stock in selected store)
+- Global loja selector in topbar (desktop + mobile): Visão Consolidada or per-loja; filters Dashboard to DashboardEmpresa when loja selected
+- Lojas management moved to Configurações → "Unidades / Lojas" tab (removed from sidebar menu)
 - Two-layer Estoque page: Gerencial (by model/custoMédio) + Unitária (by chassi), with per-CNPJ selector and consolidated admin view
 - Purchase order system (PedidosCompra) with weighted average cost recalculation on stock entry confirmation
 - Inventory audit log (AuditoriaEstoque) tracking all stock changes with user attribution

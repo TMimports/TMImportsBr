@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLojaContext } from '../contexts/LojaContext';
 import { Input } from './ui';
 import { Button } from './ui';
 
@@ -67,7 +68,6 @@ const CONFIG_GROUP = group('config-group', 'Configurações', '⚙️', [
 const menuItems: Record<string, NavEntry[]> = {
   ADMIN_GERAL: [
     item('dashboard',  'Dashboard', '📊'),
-    item('lojas',      'Lojas',     '🏪'),
     LOGISTICA_GROUP,
     VENDAS_GROUP(),
     FIN_ITEM,
@@ -81,7 +81,6 @@ const menuItems: Record<string, NavEntry[]> = {
   ],
   ADMIN_REDE: [
     item('dashboard', 'Dashboard', '📊'),
-    item('lojas',     'Lojas',     '🏪'),
     item('usuarios',  'Usuários',  '👥'),
   ],
   DONO_LOJA: [
@@ -121,8 +120,13 @@ function groupContainsPage(g: NavGroup, page: string) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const ROLES_CAN_SELECT_LOJA = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA'];
+
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, logout } = useAuth();
+  const { lojas, selectedLojaId, selectedLoja, setSelectedLojaId, loadingLojas } = useLojaContext();
+  const canSelectLoja = user?.role ? ROLES_CAN_SELECT_LOJA.includes(user.role) : false;
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const [menuOpen, setMenuOpen]     = useState(false);
   const [collapsed, setCollapsed]   = useState(() => {
     try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
@@ -399,11 +403,125 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Tecle Motos" className="w-8 h-8" />
-            <span className="text-sm font-semibold text-white">Tecle Motos</span>
-          </div>
+          {canSelectLoja ? (
+            <div className="relative">
+              <button
+                onClick={() => setSelectorOpen(p => !p)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-white hover:border-orange-500/50 transition-all"
+              >
+                <span className="text-base">{selectedLoja ? '🏪' : '🌐'}</span>
+                <span className="max-w-[120px] truncate font-medium">
+                  {selectedLoja ? selectedLoja.nomeFantasia : 'Consolidado'}
+                </span>
+                <svg className="w-3 h-3 text-zinc-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {selectorOpen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl z-50 py-1 min-w-[200px]">
+                  <button
+                    onClick={() => { setSelectedLojaId(null); setSelectorOpen(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-zinc-700 transition-colors ${!selectedLojaId ? 'text-orange-400 font-semibold' : 'text-zinc-300'}`}
+                  >
+                    <span>🌐</span> Visão Consolidada
+                  </button>
+                  {!loadingLojas && lojas.map(loja => (
+                    <button
+                      key={loja.id}
+                      onClick={() => { setSelectedLojaId(loja.id); setSelectorOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-zinc-700 transition-colors ${selectedLojaId === loja.id ? 'text-orange-400 font-semibold' : 'text-zinc-300'}`}
+                    >
+                      <span>🏪</span>
+                      <span className="truncate">{loja.nomeFantasia}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="Tecle Motos" className="w-8 h-8" />
+              <span className="text-sm font-semibold text-white">Tecle Motos</span>
+            </div>
+          )}
           <div className="w-10" />
+        </header>
+
+        {/* Desktop topbar */}
+        <header className="hidden md:flex h-12 bg-zinc-900/80 backdrop-blur border-b border-zinc-800 px-5 items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <span>Tecle Motos</span>
+            {selectedLoja && (
+              <>
+                <span className="text-zinc-700">›</span>
+                <span className="text-orange-400 font-medium">{selectedLoja.nomeFantasia}</span>
+              </>
+            )}
+          </div>
+
+          {canSelectLoja && (
+            <div className="relative">
+              <button
+                onClick={() => setSelectorOpen(p => !p)}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-sm hover:border-orange-500/50 transition-all group"
+              >
+                <span className="text-base">{selectedLoja ? '🏪' : '🌐'}</span>
+                <span className={`font-medium ${selectedLoja ? 'text-white' : 'text-zinc-300'}`}>
+                  {selectedLoja ? selectedLoja.nomeFantasia : 'Visão Consolidada'}
+                </span>
+                {lojas.length > 0 && (
+                  <span className="text-[10px] text-zinc-500 ml-0.5">({lojas.length} unid.)</span>
+                )}
+                <svg className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-200 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {selectorOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setSelectorOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl z-50 py-1.5 min-w-[220px]">
+                    <p className="px-4 py-1 text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Selecionar unidade</p>
+                    <button
+                      onClick={() => { setSelectedLojaId(null); setSelectorOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-zinc-700/60 transition-colors ${!selectedLojaId ? 'text-orange-400 font-semibold' : 'text-zinc-300'}`}
+                    >
+                      <span>🌐</span>
+                      <div>
+                        <p className="leading-tight">Visão Consolidada</p>
+                        <p className="text-[10px] text-zinc-500 leading-tight">Todas as unidades</p>
+                      </div>
+                      {!selectedLojaId && <span className="ml-auto text-orange-500">✓</span>}
+                    </button>
+                    {lojas.length > 0 && <div className="border-t border-zinc-700/60 my-1" />}
+                    {loadingLojas ? (
+                      <div className="px-4 py-3 text-xs text-zinc-500">Carregando...</div>
+                    ) : lojas.map(loja => (
+                      <button
+                        key={loja.id}
+                        onClick={() => { setSelectedLojaId(loja.id); setSelectorOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-zinc-700/60 transition-colors ${selectedLojaId === loja.id ? 'text-orange-400 font-semibold' : 'text-zinc-300'}`}
+                      >
+                        <span>🏪</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="leading-tight truncate">{loja.nomeFantasia}</p>
+                          <p className="text-[10px] text-zinc-500 leading-tight truncate">{loja.cnpj || loja.razaoSocial}</p>
+                        </div>
+                        {selectedLojaId === loja.id && <span className="ml-auto text-orange-500 shrink-0">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {!canSelectLoja && user?.loja && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-zinc-800 rounded-lg border border-zinc-700 text-xs text-zinc-400">
+              <span>🏪</span>
+              <span className="font-medium text-zinc-300">{user.loja.nomeFantasia}</span>
+            </div>
+          )}
         </header>
 
         <main className="flex-1 p-4 md:p-5 overflow-y-auto bg-zinc-950">

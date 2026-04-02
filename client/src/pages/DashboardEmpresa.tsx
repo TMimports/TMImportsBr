@@ -31,18 +31,27 @@ function KPI({ label, value, sub, color = 'text-white' }: { label: string; value
   );
 }
 
-export function DashboardEmpresa() {
+interface DashboardEmpresaProps {
+  lojaId?: number;
+}
+
+export function DashboardEmpresa({ lojaId: lojaIdProp }: DashboardEmpresaProps = {}) {
   const { token, user } = useAuth();
   const [lojas, setLojas] = useState<any[]>([]);
-  const [lojaId, setLojaId] = useState<number | null>(null);
+  const [lojaId, setLojaId] = useState<number | null>(lojaIdProp ?? null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  const isControlled = lojaIdProp !== undefined;
 
   useEffect(() => {
-    loadLojas();
-  }, []);
+    if (isControlled) {
+      setLojaId(lojaIdProp);
+    } else {
+      loadLojas();
+    }
+  }, [lojaIdProp]);
 
   useEffect(() => {
     if (lojaId) loadDashboard(lojaId);
@@ -72,25 +81,27 @@ export function DashboardEmpresa() {
   const aPagarPendente = data ? data.financeiro.contasPagar.total - data.financeiro.contasPagar.pago : 0;
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard por Empresa</h1>
-          <p className="text-zinc-400 text-sm mt-1">KPIs consolidados por CNPJ — mês atual</p>
+    <div className="space-y-6">
+      {/* Header — only show selector when not controlled */}
+      {!isControlled && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Dashboard por Empresa</h1>
+            <p className="text-zinc-400 text-sm mt-1">KPIs consolidados por CNPJ — mês atual</p>
+          </div>
+          <select
+            value={lojaId ?? ''}
+            onChange={e => setLojaId(Number(e.target.value))}
+            className="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2 text-sm min-w-[220px]"
+          >
+            {lojas.map(l => (
+              <option key={l.id} value={l.id}>
+                {l.nomeFantasia || l.razaoSocial} — {l.cnpj}
+              </option>
+            ))}
+          </select>
         </div>
-        <select
-          value={lojaId ?? ''}
-          onChange={e => setLojaId(Number(e.target.value))}
-          className="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-4 py-2 text-sm min-w-[220px]"
-        >
-          {lojas.map(l => (
-            <option key={l.id} value={l.id}>
-              {l.nomeFantasia || l.razaoSocial} — {l.cnpj}
-            </option>
-          ))}
-        </select>
-      </div>
+      )}
 
       {loading && <div className="text-zinc-400 text-center py-12">Carregando...</div>}
 

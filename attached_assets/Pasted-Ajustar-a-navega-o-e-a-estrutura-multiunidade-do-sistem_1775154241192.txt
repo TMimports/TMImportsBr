@@ -1,0 +1,154 @@
+Ajustar a navegação e a estrutura multiunidade do sistema da Tecle Motos sem quebrar a lógica atual.
+
+OBJETIVO:
+Remover a aba "Loja" do menu lateral e substituir essa lógica por um seletor de loja no topo do sistema, permitindo acessar dashboards individuais por loja, todos com a mesma estrutura do dashboard principal, porém filtrados por unidade.
+
+======================================================================
+1. REMOVER ABA "LOJA"
+======================================================================
+
+Remover a aba ou módulo "Loja" do menu lateral principal.
+
+A loja não deve mais aparecer como uma seção isolada no menu lateral.
+
+======================================================================
+2. CRIAR SELETOR DE LOJA NO TOPO DO SISTEMA
+======================================================================
+
+Criar no cabeçalho superior do sistema, em local visível e fixo, um seletor de loja/unidade.
+
+Esse seletor deve permitir escolher:
+- Visão Consolidada
+- Loja 1
+- Loja 2
+- Loja 3
+- demais lojas cadastradas
+
+Esse seletor deve ser global e impactar a navegação e os dados exibidos no sistema.
+
+======================================================================
+3. DASHBOARD INDIVIDUAL POR LOJA
+======================================================================
+
+Ao selecionar uma loja no topo, o sistema deve abrir ou renderizar um dashboard com a MESMA estrutura do dashboard principal, porém filtrado apenas para aquela loja.
+
+Cada dashboard de loja deve exibir:
+- faturamento da loja
+- receitas
+- despesas
+- contas a pagar
+- contas a receber
+- fluxo de caixa
+- estoque da loja
+- total de motos
+- total de peças
+- entradas e saídas
+- movimentações do período
+- indicadores principais
+- gráficos
+- alertas
+
+IMPORTANTE:
+O dashboard da loja deve ser visualmente idêntico ao principal, mudando apenas o escopo dos dados.
+
+======================================================================
+4. VISÃO CONSOLIDADA
+======================================================================
+
+Quando o seletor estiver em "Visão Consolidada", o dashboard principal deve exibir os dados agregados de todas as lojas autorizadas para o usuário.
+
+======================================================================
+5. CADASTRO DE LOJAS EM CONFIGURAÇÕES DO SISTEMA
+======================================================================
+
+Criar dentro de "Configurações do Sistema" uma seção específica para cadastro e gestão de lojas.
+
+Cada loja deve possuir no mínimo:
+- id
+- nome da loja
+- código interno
+- CNPJ vinculado
+- endereço
+- telefone
+- responsável
+- status
+- tipo de unidade
+- estoque vinculado
+- empresa/CNPJ relacionado
+
+Permitir:
+- cadastrar loja
+- editar loja
+- ativar/desativar loja
+- vincular loja a empresa/CNPJ
+- definir estoque padrão da loja
+
+======================================================================
+6. FILTRO GLOBAL POR LOJA
+======================================================================
+
+Ao selecionar uma loja no topo, o sistema deve aplicar filtro global nos módulos compatíveis.
+
+Esse filtro deve impactar:
+- dashboard
+- financeiro
+- estoque
+- contas a pagar
+- contas a receber
+- relatórios
+- movimentações
+- indicadores
+
+Ao trocar de loja, os dados devem atualizar automaticamente sem quebrar a navegação.
+
+======================================================================
+7. PERMISSÕES
+======================================================================
+
+Manter compatibilidade com o sistema de permissões atual.
+
+Perfis autorizados podem:
+- visualizar visão consolidada
+- trocar entre lojas
+- acessar dashboards por loja
+
+Perfis restritos podem:
+- visualizar apenas lojas permitidas
+- não visualizar visão consolidada se não tiver permissão
+
+======================================================================
+8. BANCO DE DADOS
+======================================================================
+
+Criar ou ajustar estrutura para suportar lojas como entidade própria.
+
+Criar ou ajustar tabela de lojas com relacionamento com:
+- empresa/CNPJ
+- estoque
+- lançamentos financeiros
+- vendas
+- dashboards
+- relatórios
+
+======================================================================
+9. UX/UI
+======================================================================
+
+Ajustar interface para:
+- remover a aba loja do menu lateral
+- inserir seletor elegante e claro no topo
+- deixar a troca entre lojas rápida e intuitiva
+- manter o dashboard principal e o dashboard de loja com o mesmo padrão visual
+
+======================================================================
+10. ENTREGA OBRIGATÓRIA
+======================================================================
+
+Executar:
+1. remoção da aba Loja
+2. criação do seletor global de loja no topo
+3. criação do cadastro de lojas em Configurações do Sistema
+4. criação de dashboard individual por loja com estrutura idêntica ao dashboard principal
+5. aplicação de filtro global por loja
+6. revisão das permissões
+7. revisão final para garantir que a navegação ficou coerente e funcional

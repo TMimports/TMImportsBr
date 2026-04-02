@@ -5,6 +5,8 @@ import {
 } from 'recharts';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useLojaContext } from '../contexts/LojaContext';
+import { DashboardEmpresa } from './DashboardEmpresa';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -741,6 +743,11 @@ function UserDashboard({ onNavigate }: DashboardProps) {
 
 export function Dashboard({ onNavigate }: DashboardProps) {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN_GERAL' || user?.role === 'ADMIN_REDE';
+  const { selectedLojaId } = useLojaContext();
+  const isAdmin = user?.role === 'ADMIN_GERAL' || user?.role === 'ADMIN_REDE' || user?.role === 'ADMIN_FINANCEIRO';
+
+  if (selectedLojaId) {
+    return <DashboardEmpresa lojaId={selectedLojaId} />;
+  }
   return isAdmin ? <AdminDashboard onNavigate={onNavigate} /> : <UserDashboard onNavigate={onNavigate} />;
 }

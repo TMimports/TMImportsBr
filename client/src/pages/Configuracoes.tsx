@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Button, Input, Select } from '../components/ui';
+import { Lojas } from './Lojas';
 
 interface Configuracao {
   id: number;
@@ -31,7 +32,10 @@ const periodos = [
   { value: 'MENSAL', label: 'Mensal' }
 ];
 
+type ConfigTab = 'parametros' | 'lojas';
+
 export function Configuracoes() {
+  const [tab, setTab] = useState<ConfigTab>('parametros');
   const [config, setConfig] = useState<Configuracao | null>(null);
   const [logs, setLogs] = useState<LogConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,13 +94,36 @@ export function Configuracoes() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold text-white">Configuracoes do Sistema</h1>
-        <Button variant="secondary" onClick={() => setShowLogs(!showLogs)}>
-          {showLogs ? 'Ocultar Historico' : 'Ver Historico'}
-        </Button>
+        <h1 className="text-2xl font-bold text-white">Configurações do Sistema</h1>
+        {tab === 'parametros' && (
+          <Button variant="secondary" onClick={() => setShowLogs(!showLogs)}>
+            {showLogs ? 'Ocultar Histórico' : 'Ver Histórico'}
+          </Button>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-zinc-800">
+        {[
+          { key: 'parametros', label: '⚙️ Parâmetros' },
+          { key: 'lojas',      label: '🏪 Unidades / Lojas' },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key as ConfigTab)}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px
+              ${tab === t.key
+                ? 'border-orange-500 text-orange-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'lojas' && <Lojas />}
+
+      {tab === 'parametros' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="card space-y-6">
           <h2 className="text-lg font-semibold text-orange-400">Comissoes</h2>
           
@@ -228,15 +255,17 @@ export function Configuracoes() {
             {recalculando ? 'Recalculando...' : 'Recalcular Precos dos Produtos'}
           </button>
         </div>
-      </div>
+      </div>}
 
+      {tab === 'parametros' && (
       <div className="flex justify-end">
         <Button variant="primary" onClick={handleSave} loading={saving}>
-          Salvar Configuracoes
+          Salvar Configurações
         </Button>
       </div>
+      )}
 
-      {showLogs && (
+      {tab === 'parametros' && showLogs && (
         <div className="card">
           <h2 className="text-lg font-semibold text-white mb-4">Historico de Alteracoes</h2>
           <div className="overflow-x-auto">
