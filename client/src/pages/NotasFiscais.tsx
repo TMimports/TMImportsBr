@@ -37,6 +37,106 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+
+function imprimirNF(nf: NotaFiscal) {
+  const w = window.open('', '_blank', 'width=800,height=900');
+  if (!w) { alert('Permita pop-ups para imprimir.'); return; }
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>NF-e #${nf.numero ?? nf.id}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background: #fff; padding: 20px; }
+    .header { text-align: center; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 16px; }
+    .header h1 { font-size: 18px; font-weight: bold; }
+    .header h2 { font-size: 13px; color: #555; margin-top: 4px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+    .badge-autorizada { background: #d1fae5; color: #065f46; }
+    .badge-pendente { background: #fef3c7; color: #92400e; }
+    .badge-cancelada { background: #fee2e2; color: #991b1b; }
+    .section { margin-bottom: 14px; }
+    .section-title { font-weight: bold; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #555; border-bottom: 1px solid #ddd; margin-bottom: 8px; padding-bottom: 4px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; }
+    .field label { color: #666; font-size: 10px; display: block; }
+    .field span { font-weight: 600; }
+    .chave { font-family: monospace; font-size: 9px; word-break: break-all; background: #f3f4f6; padding: 4px 6px; border-radius: 4px; }
+    .totais { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; }
+    .totais-row { display: flex; justify-content: space-between; padding: 2px 0; }
+    .totais-row.total { font-weight: bold; font-size: 14px; border-top: 1px solid #d1d5db; padding-top: 6px; margin-top: 4px; }
+    .obs { background: #fafafa; border: 1px solid #e5e7eb; padding: 8px; border-radius: 4px; color: #444; }
+    .footer { text-align: center; margin-top: 20px; font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+    @media print {
+      body { padding: 10px; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>NOTA FISCAL ELETRÔNICA</h1>
+    <h2>${nf.tipo === 'ENTRADA' ? '📥 Nota de Entrada' : '📤 Nota de Saída'} &nbsp;|&nbsp;
+      <span class="badge badge-${(nf.status || '').toLowerCase()}">${nf.status}</span>
+    </h2>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Identificação</div>
+    <div class="grid2">
+      <div class="field"><label>Número / Série</label><span>${nf.numero ?? '—'} / ${nf.serie ?? '001'}</span></div>
+      <div class="field"><label>Data de Emissão</label><span>${fmtDate(nf.dataEmissao)}</span></div>
+      ${nf.dataEntrada ? `<div class="field"><label>Data de Entrada</label><span>${fmtDate(nf.dataEntrada)}</span></div>` : ''}
+    </div>
+    ${nf.chaveAcesso ? `<div style="margin-top:8px;"><div class="section-title" style="margin-bottom:4px;">Chave de Acesso</div><div class="chave">${nf.chaveAcesso}</div></div>` : ''}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Emitente</div>
+    <div class="grid2">
+      <div class="field"><label>Razão Social</label><span>${nf.emitenteNome ?? (nf.loja?.nomeFantasia ?? '—')}</span></div>
+      <div class="field"><label>CNPJ</label><span>${nf.emitenteCnpj ?? (nf.loja?.cnpj ?? '—')}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Destinatário</div>
+    <div class="grid2">
+      <div class="field"><label>Razão Social</label><span>${nf.destinatarioNome ?? (nf.fornecedor?.razaoSocial ?? '—')}</span></div>
+      <div class="field"><label>CNPJ / CPF</label><span>${nf.destinatarioCnpj ?? (nf.fornecedor?.cnpj ?? '—')}</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Valores</div>
+    <div class="totais">
+      <div class="totais-row"><span>ICMS</span><span>${fmt(Number(nf.valorIcms ?? 0))}</span></div>
+      <div class="totais-row"><span>IPI</span><span>${fmt(Number(nf.valorIpi ?? 0))}</span></div>
+      <div class="totais-row"><span>PIS</span><span>${fmt(Number(nf.valorPis ?? 0))}</span></div>
+      <div class="totais-row"><span>COFINS</span><span>${fmt(Number(nf.valorCofins ?? 0))}</span></div>
+      <div class="totais-row total"><span>TOTAL DA NOTA</span><span>${fmt(Number(nf.valorTotal))}</span></div>
+    </div>
+  </div>
+
+  ${nf.observacoes ? `<div class="section"><div class="section-title">Observações</div><div class="obs">${nf.observacoes}</div></div>` : ''}
+
+  <div class="footer">
+    Documento gerado pelo sistema TM Imports / Tecle Motos &nbsp;·&nbsp; ${new Date().toLocaleString('pt-BR')}
+  </div>
+
+  <div class="no-print" style="text-align:center;margin-top:20px;">
+    <button onclick="window.print()" style="background:#f97316;color:#fff;border:none;padding:10px 24px;border-radius:6px;font-size:14px;cursor:pointer;font-weight:bold;">
+      🖨️ Imprimir / Salvar PDF
+    </button>
+  </div>
+</body>
+</html>`;
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 400);
+}
 
 export function NotasFiscais() {
   const { token, user } = useAuth();
@@ -281,7 +381,13 @@ export function NotasFiscais() {
             {selected.observacoes && (
               <div className="bg-zinc-800 rounded p-3 text-sm text-zinc-300">{selected.observacoes}</div>
             )}
-            <div className="flex justify-end">
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => imprimirNF(selected)}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-medium flex items-center gap-1.5"
+              >
+                🖨️ Imprimir / PDF
+              </button>
               <button onClick={() => setSelected(null)} className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded text-sm">Fechar</button>
             </div>
           </div>
