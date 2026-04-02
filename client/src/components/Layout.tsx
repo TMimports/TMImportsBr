@@ -36,8 +36,10 @@ function group(id: string, label: string, icon: string, items: Omit<NavItem, 'ty
   return { type: 'group', id, label, icon, items };
 }
 
+// Vendas group — Clientes incluído dentro
 const VENDAS_GROUP = (vendorLabel = 'Vendas') =>
   group('vendas-group', vendorLabel, '💰', [
+    { id: 'clientes',    label: 'Clientes',    icon: '👤' },
     { id: 'vendas',      label: vendorLabel === 'Vendas' ? 'Vendas' : 'Minhas Vendas', icon: '🛍️' },
     { id: 'os',          label: vendorLabel === 'Vendas' ? 'Ordens de Serviço' : 'Minhas OS', icon: '🔩' },
     { id: 'garantias',   label: 'Garantias',   icon: '📜' },
@@ -45,32 +47,41 @@ const VENDAS_GROUP = (vendorLabel = 'Vendas') =>
     { id: 'utilidades',  label: 'Utilidades',  icon: '🔄' },
   ]);
 
+// Logística — Produtos, Serviços, Estoque
+const LOGISTICA_GROUP = group('logistica-group', 'Logística', '📦', [
+  { id: 'produtos',  label: 'Produtos',  icon: '🏍️' },
+  { id: 'servicos',  label: 'Serviços',  icon: '🔧' },
+  { id: 'estoque',   label: 'Estoque',   icon: '📋' },
+]);
+
+// Financeiro — Pedidos de Compra incluído dentro
 const FIN_GROUP = group('fin-group', 'Financeiro', '💵', [
-  { id: 'financeiro',          label: 'Contas a Pagar',   icon: '📤' },
-  { id: 'contas-receber',      label: 'Contas a Receber', icon: '📥' },
-  { id: 'plano-contas',        label: 'Plano de Contas',  icon: '🏷' },
+  { id: 'pedidos-compra',      label: 'Pedidos de Compra',  icon: '🛒' },
+  { id: 'financeiro',          label: 'Contas a Pagar',     icon: '📤' },
+  { id: 'contas-receber',      label: 'Contas a Receber',   icon: '📥' },
+  { id: 'plano-contas',        label: 'Plano de Contas',    icon: '🏷' },
+]);
+
+// Configurações — Usuários incluído dentro
+const CONFIG_GROUP = group('config-group', 'Configurações', '⚙️', [
+  { id: 'usuarios',      label: 'Usuários',      icon: '👥' },
+  { id: 'configuracoes', label: 'Configurações', icon: '🔩' },
 ]);
 
 const menuItems: Record<string, NavEntry[]> = {
   ADMIN_GERAL: [
-    item('dashboard',      'Dashboard',       '📊'),
-    item('lojas',          'Lojas',           '🏪'),
-    item('usuarios',       'Usuários',        '👥'),
-    item('produtos',       'Produtos',        '📦'),
-    item('servicos',       'Serviços',        '🔧'),
-    item('estoque',        'Estoque',         '📋'),
-    item('pedidos-compra', 'Pedidos de Compra','🛒'),
-    item('clientes',       'Clientes',        '👤'),
+    item('dashboard',  'Dashboard', '📊'),
+    item('lojas',      'Lojas',     '🏪'),
+    LOGISTICA_GROUP,
     VENDAS_GROUP(),
     FIN_GROUP,
-    item('configuracoes',  'Configurações',   '⚙️'),
+    CONFIG_GROUP,
   ],
   ADMIN_FINANCEIRO: [
-    item('dashboard',      'Dashboard',       '📊'),
-    item('estoque',        'Estoque',         '📋'),
-    item('pedidos-compra', 'Pedidos de Compra','🛒'),
+    item('dashboard', 'Dashboard', '📊'),
+    item('estoque',   'Estoque',   '📋'),
     FIN_GROUP,
-    item('comissoes',      'Comissões',       '💸'),
+    item('comissoes', 'Comissões', '💸'),
   ],
   ADMIN_REDE: [
     item('dashboard', 'Dashboard', '📊'),
@@ -78,25 +89,20 @@ const menuItems: Record<string, NavEntry[]> = {
     item('usuarios',  'Usuários',  '👥'),
   ],
   DONO_LOJA: [
-    item('dashboard',      'Dashboard',        '📊'),
-    item('usuarios',       'Usuários',         '👥'),
-    item('estoque',        'Estoque',          '📋'),
-    item('pedidos-compra', 'Pedidos de Compra','🛒'),
-    item('clientes',       'Clientes',         '👤'),
+    item('dashboard', 'Dashboard', '📊'),
+    item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
     FIN_GROUP,
+    CONFIG_GROUP,
   ],
   GERENTE_LOJA: [
-    item('dashboard',      'Dashboard',        '📊'),
-    item('estoque',        'Estoque',          '📋'),
-    item('pedidos-compra', 'Pedidos de Compra','🛒'),
-    item('clientes',       'Clientes',         '👤'),
+    item('dashboard', 'Dashboard', '📊'),
+    item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
     FIN_GROUP,
   ],
   VENDEDOR: [
     item('dashboard', 'Dashboard', '📊'),
-    item('clientes',  'Clientes',  '👤'),
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP('Minhas Vendas'),
   ],
