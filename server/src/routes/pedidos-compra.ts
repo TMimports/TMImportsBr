@@ -212,6 +212,35 @@ router.post('/:id/confirmar', requireRole(...ROLES_COMPRA), async (req: AuthRequ
       });
     });
 
+    // Auto-gerar ContaPagar se não existir ainda
+    const contaExistente = await prisma.contaPagar.findFirst({ where: { pedidoCompraId: pedido.id } });
+    if (!contaExistente) {
+      const valorTotal = pedido.itens.reduce((acc, item) => acc + Number(item.valorTotal), 0);
+      if (valorTotal > 0) {
+        const vencimento = new Date();
+        vencimento.setDate(vencimento.getDate() + 30); // padrão: 30 dias
+
+        // Buscar categoria "Fornecedores - Peças" ou "Fornecedores - Motos"
+        const categoriaFornecedor = await prisma.categoriaFinanceira.findFirst({
+          where: { nome: { contains: 'Fornecedores' }, ativo: true }
+        });
+
+        await prisma.contaPagar.create({
+          data: {
+            lojaId: pedido.lojaId,
+            origem: 'COMPRA',
+            pedidoCompraId: pedido.id,
+            descricao: `Pedido de Compra #${pedido.numero || pedido.id}`,
+            fornecedor: pedido.fornecedor || null,
+            valor: valorTotal,
+            vencimento,
+            categoriaId: categoriaFornecedor?.id ?? null,
+            createdBy: req.user!.id
+          }
+        });
+      }
+    }
+
     const pedidoAtualizado = await prisma.pedidoCompra.findUnique({
       where: { id: pedido.id },
       include: {

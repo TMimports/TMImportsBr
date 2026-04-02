@@ -46,8 +46,9 @@ const VENDAS_GROUP = (vendorLabel = 'Vendas') =>
   ]);
 
 const FIN_GROUP = group('fin-group', 'Financeiro', '💵', [
-  { id: 'financeiro',     label: 'Contas a Pagar',   icon: '📤' },
-  { id: 'contas-receber', label: 'Contas a Receber', icon: '📥' },
+  { id: 'financeiro',          label: 'Contas a Pagar',   icon: '📤' },
+  { id: 'contas-receber',      label: 'Contas a Receber', icon: '📥' },
+  { id: 'plano-contas',        label: 'Plano de Contas',  icon: '🏷' },
 ]);
 
 const menuItems: Record<string, NavEntry[]> = {

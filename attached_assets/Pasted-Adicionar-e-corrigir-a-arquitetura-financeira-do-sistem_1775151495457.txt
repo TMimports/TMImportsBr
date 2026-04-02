@@ -1,0 +1,327 @@
+Adicionar e corrigir a arquitetura financeira do sistema com base nas seguintes regras obrigatórias de modelagem:
+
+======================================================================
+16. CONTAS A PAGAR COM DUAS ORIGENS
+======================================================================
+
+O módulo de contas a pagar deve possuir duas origens distintas:
+
+16.1 ORIGEM 1 — CONTAS A PAGAR ADVINDAS DE COMPRA
+Essas contas a pagar devem nascer a partir de:
+- pedido de compra
+- nota fiscal vinculada
+- fornecedor vinculado
+- itens vinculados
+- empresa / CNPJ vinculado
+
+Fluxo:
+- pedido de compra é criado
+- nota fiscal de entrada é vinculada
+- sistema gera automaticamente a obrigação no contas a pagar
+- permitir parcelamento
+- permitir múltiplos vencimentos
+- manter vínculo completo com documento fiscal e pedido de compra
+
+16.2 ORIGEM 2 — CONTAS A PAGAR AVULSAS
+Permitir criação de lançamentos avulsos no contas a pagar, sem depender de pedido de compra.
+
+Exemplos:
+- conta de luz
+- água
+- aluguel
+- internet
+- honorários
+- taxas
+- fretes avulsos
+- despesas administrativas
+
+Esses lançamentos devem exigir:
+- empresa / CNPJ
+- categoria
+- departamento
+- fornecedor ou favorecido
+- valor
+- vencimento
+- observação
+- documento/anexo opcional
+- centro de custo, se existir
+
+======================================================================
+17. CATEGORIAS E DEPARTAMENTOS
+======================================================================
+
+Criar estrutura separada para:
+- categorias
+- departamentos
+
+17.1 CATEGORIA
+Categoria representa o tipo/natureza do lançamento financeiro ou gerencial.
+
+Exemplos de categoria:
+- Receita de Vendas - Moto
+- Receita de Vendas - Peça
+- Receita de Serviços - Manutenção
+- Receita de Serviços - Troca de Peça
+- Água e Saneamento
+- Energia Elétrica
+- Internet
+- Aluguel
+- Compra de Mercadorias
+- Compra de Peças
+- Compra de Motos
+- Frete
+- Impostos
+- Taxas Bancárias
+- Despesas Operacionais
+
+17.2 DEPARTAMENTO
+Departamento representa a área responsável pelo lançamento.
+
+Exemplos:
+- Financeiro
+- Comercial
+- RH
+- Compras
+- Engenharia
+- Estoque
+- Assistência Técnica
+- Administrativo
+
+======================================================================
+18. REGRAS DO PLANO DE CONTAS E DEPARTAMENTOS
+======================================================================
+
+Aperfeiçoar o plano de contas para respeitar a natureza econômica do departamento.
+
+Criar regras que determinem se um departamento pode ou não receber lançamentos de:
+- receita
+- despesa
+- ambos
+
+Exemplo obrigatório:
+- RH não pode gerar receita
+- Financeiro normalmente não gera receita operacional
+- Compras normalmente não gera receita
+- Comercial pode gerar receita e despesa
+- Assistência Técnica pode gerar receita e despesa
+- Engenharia normalmente gera despesa
+- Administrativo normalmente gera despesa
+
+Implementar validação no sistema para impedir lançamentos incompatíveis entre departamento e natureza do lançamento.
+
+Exemplo:
+Se o departamento for RH e o usuário tentar lançar uma receita, bloquear a operação e informar que esse departamento não aceita lançamentos de receita.
+
+======================================================================
+19. CATEGORIAS COM SALDO POSITIVO E NEGATIVO
+======================================================================
+
+As categorias devem aceitar movimentações positivas e negativas entre si para evidenciar o saldo real da conta/categoria.
+
+Permitir:
+- despesa
+- receita
+- estorno
+- crédito
+- abatimento
+- compensação
+- ajuste
+
+Exemplo obrigatório:
+Categoria "Água e Saneamento":
+- pagamento de R$ 1.000
+- crédito posterior de R$ 500
+
+Resultado:
+- saldo líquido da categoria = R$ 500 de despesa
+
+O sistema deve exibir:
+- total bruto positivo
+- total bruto negativo
+- saldo líquido final
+
+Essa lógica deve estar disponível em relatórios, dashboards e extratos por categoria.
+
+======================================================================
+20. RECEITA NÃO É CONTAS A RECEBER
+======================================================================
+
+Separar claramente os conceitos de:
+- venda
+- receita
+- contas a receber
+- recebimento
+
+Regra obrigatória:
+Venda registra a receita.
+Contas a receber registra o direito de receber.
+Recebimento registra a baixa financeira do valor.
+
+20.1 VENDA
+A venda é o evento comercial/operacional que ocorre no PDV ou no módulo comercial.
+
+20.2 RECEITA
+A receita é o reconhecimento econômico da venda realizada.
+
+Exemplos:
+- venda de moto gera receita de vendas - moto
+- venda de peça gera receita de vendas - peça
+- serviço gera receita de serviços
+
+20.3 CONTAS A RECEBER
+Contas a receber é o título financeiro gerado a partir da venda quando houver valor a receber.
+
+Exemplos:
+- venda parcelada
+- venda a prazo
+- recebimento futuro
+- títulos em aberto
+
+20.4 RECEBIMENTO
+Recebimento é a liquidação total ou parcial do contas a receber.
+
+O sistema deve manter essas áreas separadas e relacionadas, mas nunca tratá-las como a mesma coisa.
+
+======================================================================
+21. LANÇAMENTOS AUTOMÁTICOS DE VENDA
+======================================================================
+
+Ao registrar uma venda no PDV ou módulo comercial, o sistema deve:
+
+21.1 Registrar a receita na categoria correta
+Exemplo:
+- Categoria: Receita de Vendas - Moto
+- Departamento: Comercial
+
+ou
+
+- Categoria: Receita de Vendas - Peça
+- Departamento: Comercial
+
+ou
+
+- Categoria: Receita de Serviços - Manutenção
+- Departamento: Assistência Técnica
+
+21.2 Criar contas a receber quando aplicável
+Se a venda não for liquidada integralmente no ato, gerar automaticamente os títulos no contas a receber.
+
+21.3 Registrar recebimento separadamente
+Se houve pagamento imediato, registrar recebimento.
+Se houve pagamento parcial, registrar parte recebida e deixar saldo em aberto.
+Se houve parcelamento, criar parcelas separadas.
+
+======================================================================
+22. LANÇAMENTOS AUTOMÁTICOS DE COMPRA
+======================================================================
+
+Ao registrar compra de produtos ou mercadorias, o sistema deve:
+
+- registrar entrada no estoque
+- atualizar custo médio
+- registrar obrigação no contas a pagar
+- direcionar o lançamento para a categoria correta
+- direcionar o lançamento para o departamento correto
+
+Exemplo:
+Categoria:
+- Compra de Motos
+ou
+- Compra de Peças
+
+Departamento:
+- Compras
+
+Se houver nota fiscal vinculada, manter o vínculo obrigatório entre:
+- pedido de compra
+- nota fiscal
+- fornecedor
+- contas a pagar
+- estoque
+
+======================================================================
+23. ESTRUTURA DE DADOS FINANCEIROS
+======================================================================
+
+Criar ou ajustar estrutura para suportar:
+
+- financial_categories
+- departments
+- chart_of_accounts
+- accounts_payable
+- accounts_payable_installments
+- accounts_receivable
+- accounts_receivable_installments
+- revenues
+- receipts
+- expenses
+- purchase_documents
+- sale_documents
+- financial_movements
+
+Cada lançamento deve possuir:
+- empresa / CNPJ
+- categoria
+- departamento
+- natureza (receita ou despesa)
+- origem do lançamento
+- valor
+- saldo
+- data de competência
+- data de vencimento
+- data de liquidação
+- documento relacionado
+- usuário responsável
+
+======================================================================
+24. RELATÓRIOS E DASHBOARDS
+======================================================================
+
+Criar relatórios e painéis separados para:
+- receitas
+- contas a receber
+- recebimentos
+- despesas
+- contas a pagar
+- pagamentos
+- saldo por categoria
+- saldo por departamento
+- saldo por empresa / CNPJ
+
+Exibir claramente:
+- receita reconhecida
+- valores recebidos
+- valores ainda a receber
+- despesas reconhecidas
+- valores pagos
+- valores ainda a pagar
+
+======================================================================
+25. VALIDAÇÕES OBRIGATÓRIAS
+======================================================================
+
+Implementar validações para impedir erros conceituais:
+- não confundir receita com recebimento
+- não confundir compra com pagamento
+- não permitir receita em departamentos que só comportam despesa
+- não permitir contas a pagar de compra sem vínculo mínimo com pedido e/ou nota quando a origem for compra
+- não permitir baixa financeira sem registro de liquidação
+- registrar logs em toda alteração financeira relevante
+
+======================================================================
+26. UX/UI DA ÁREA FINANCEIRA
+======================================================================
+
+A interface deve deixar isso muito claro para o usuário:
+- Venda
+- Receita
+- Contas a Receber
+- Recebimento
+- Compra
+- Despesa
+- Contas a Pagar
+- Pagamento
+
+Essas áreas devem ser conectadas, porém separadas visual e funcionalmente.
+
+Usar nomenclatura clara, filtros simples e dashboards objetivos.

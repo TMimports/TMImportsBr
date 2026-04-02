@@ -22,6 +22,7 @@ import { ContasReceber } from './pages/ContasReceber';
 import { Configuracoes } from './pages/Configuracoes';
 import { Utilidades } from './pages/Utilidades';
 import { PedidosCompra } from './pages/PedidosCompra';
+import { CategoriasDepartamentos } from './pages/CategoriasDepartamentos';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -80,6 +81,8 @@ function AppContent() {
         return <Comissoes />;
       case 'contas-receber':
         return <ContasReceber />;
+      case 'plano-contas':
+        return <CategoriasDepartamentos />;
       case 'configuracoes':
         return <Configuracoes />;
       case 'utilidades':

@@ -75,6 +75,24 @@ enum CategoriaConta {
   OUTROS
 }
 
+enum NaturezaFinanceira {
+  RECEITA
+  DESPESA
+  AMBOS
+}
+
+enum OrigemContaPagar {
+  COMPRA
+  AVULSA
+}
+
+enum StatusLancamento {
+  ABERTO
+  PARCIAL
+  LIQUIDADO
+  CANCELADO
+}
+
 enum PeriodoComissao {
   SEMANAL
   QUINZENAL
@@ -131,6 +149,8 @@ model Loja {
   clientes              Cliente[]
   pedidosCompra         PedidoCompra[]
   auditoriaEstoque      AuditoriaEstoque[]
+  pagamentos            Pagamento[]
+  recebimentos          Recebimento[]
 }
 
 model User {
@@ -413,23 +433,39 @@ model Caixa {
 }
 
 model ContaPagar {
-  id           Int               @id @default(autoincrement())
-  lojaId       Int
-  categoria    CategoriaConta
-  descricao    String?
-  valor        Decimal           @db.Decimal(10, 2)
-  vencimento   DateTime
-  recorrente   Boolean           @default(false)
-  recorrencia  RecorrenciaConta?
-  pago         Boolean           @default(false)
-  dataPago     DateTime?
-  deletedAt    DateTime?
-  deletedBy    Int?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  createdBy    Int?
-  
-  loja         Loja              @relation(fields: [lojaId], references: [id])
+  id                    Int                @id @default(autoincrement())
+  lojaId                Int
+  origem                OrigemContaPagar   @default(AVULSA)
+  pedidoCompraId        Int?
+  categoriaLegacy       CategoriaConta?
+  categoriaId           Int?
+  departamentoId        Int?
+  descricao             String?
+  fornecedor            String?
+  centroCusto           String?
+  documento             String?
+  observacoes           String?
+  valor                 Decimal            @db.Decimal(10, 2)
+  valorPago             Decimal            @db.Decimal(10, 2) @default(0)
+  vencimento            DateTime
+  numeroParcelas        Int                @default(1)
+  status                StatusLancamento   @default(ABERTO)
+  recorrente            Boolean            @default(false)
+  recorrencia           RecorrenciaConta?
+  pago                  Boolean            @default(false)
+  dataPago              DateTime?
+  deletedAt             DateTime?
+  deletedBy             Int?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  createdBy             Int?
+
+  loja                  Loja               @relation(fields: [lojaId], references: [id])
+  categoria             CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
+  departamento          Departamento?      @relation(fields: [departamentoId], references: [id])
+  pedidoCompra          PedidoCompra?      @relation(fields: [pedidoCompraId], references: [id])
+  parcelas              ParcelaContaPagar[]
+  pagamentos            Pagamento[]
 }
 
 model LogAuditoria {
@@ -462,25 +498,34 @@ model Comissao {
 }
 
 model ContaReceber {
-  id           Int               @id @default(autoincrement())
-  lojaId       Int
-  clienteId    Int?
-  vendaId      Int?
-  descricao    String
-  observacoes  String?
-  valor        Decimal           @db.Decimal(10, 2)
-  vencimento   DateTime
-  recorrente   Boolean           @default(false)
-  recorrencia  RecorrenciaConta?
-  pago         Boolean           @default(false)
-  dataPago     DateTime?
-  deletedAt    DateTime?
-  deletedBy    Int?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  createdBy    Int?
-  
-  loja         Loja              @relation(fields: [lojaId], references: [id])
+  id             Int               @id @default(autoincrement())
+  lojaId         Int
+  clienteId      Int?
+  vendaId        Int?
+  categoriaId    Int?
+  departamentoId Int?
+  descricao      String
+  observacoes    String?
+  valor          Decimal           @db.Decimal(10, 2)
+  valorRecebido  Decimal           @db.Decimal(10, 2) @default(0)
+  vencimento     DateTime
+  numeroParcelas Int               @default(1)
+  status         StatusLancamento  @default(ABERTO)
+  recorrente     Boolean           @default(false)
+  recorrencia    RecorrenciaConta?
+  pago           Boolean           @default(false)
+  dataPago       DateTime?
+  deletedAt      DateTime?
+  deletedBy      Int?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  createdBy      Int?
+
+  loja           Loja              @relation(fields: [lojaId], references: [id])
+  categoria      CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
+  departamento   Departamento?     @relation(fields: [departamentoId], references: [id])
+  parcelas       ParcelaContaReceber[]
+  recebimentos   Recebimento[]
 }
 
 model Configuracao {
@@ -560,6 +605,7 @@ model PedidoCompra {
   loja            Loja               @relation(fields: [lojaId], references: [id])
   confirmadoPor   User?              @relation("PedidoConfirmadoPor", fields: [confirmedBy], references: [id])
   itens           ItemPedidoCompra[]
+  contasPagar     ContaPagar[]
 }
 
 model ItemPedidoCompra {
@@ -592,4 +638,104 @@ model AuditoriaEstoque {
   loja          Loja     @relation(fields: [lojaId], references: [id])
   usuario       User     @relation(fields: [usuarioId], references: [id])
   produto       Produto? @relation(fields: [produtoId], references: [id])
+}
+
+// ── Financeiro: Categorias & Departamentos ────────────────────────────────────
+
+model CategoriaFinanceira {
+  id          Int                @id @default(autoincrement())
+  nome        String
+  natureza    NaturezaFinanceira
+  descricao   String?
+  ativo       Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  contasPagar    ContaPagar[]
+  contasReceber  ContaReceber[]
+}
+
+model Departamento {
+  id          Int                @id @default(autoincrement())
+  nome        String
+  natureza    NaturezaFinanceira
+  descricao   String?
+  ativo       Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  contasPagar    ContaPagar[]
+  contasReceber  ContaReceber[]
+}
+
+// ── Parcelas ──────────────────────────────────────────────────────────────────
+
+model ParcelaContaPagar {
+  id            Int              @id @default(autoincrement())
+  contaPagarId  Int
+  numero        Int
+  valor         Decimal          @db.Decimal(10, 2)
+  vencimento    DateTime
+  status        StatusLancamento @default(ABERTO)
+  dataPago      DateTime?
+  valorPago     Decimal?         @db.Decimal(10, 2)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  contaPagar    ContaPagar       @relation(fields: [contaPagarId], references: [id])
+  pagamentos    Pagamento[]
+}
+
+model ParcelaContaReceber {
+  id              Int              @id @default(autoincrement())
+  contaReceberId  Int
+  numero          Int
+  valor           Decimal          @db.Decimal(10, 2)
+  vencimento      DateTime
+  status          StatusLancamento @default(ABERTO)
+  dataPago        DateTime?
+  valorRecebido   Decimal?         @db.Decimal(10, 2)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  contaReceber    ContaReceber     @relation(fields: [contaReceberId], references: [id])
+  recebimentos    Recebimento[]
+}
+
+// ── Movimentos Financeiros ────────────────────────────────────────────────────
+
+model Pagamento {
+  id                  Int                @id @default(autoincrement())
+  lojaId              Int
+  contaPagarId        Int?
+  parcelaId           Int?
+  valor               Decimal            @db.Decimal(10, 2)
+  dataPagamento       DateTime
+  formaPagamento      FormaPagamento
+  observacoes         String?
+  comprovante         String?
+  createdAt           DateTime           @default(now())
+  createdBy           Int?
+
+  loja                Loja               @relation(fields: [lojaId], references: [id])
+  contaPagar          ContaPagar?        @relation(fields: [contaPagarId], references: [id])
+  parcela             ParcelaContaPagar? @relation(fields: [parcelaId], references: [id])
+}
+
+model Recebimento {
+  id                  Int                  @id @default(autoincrement())
+  lojaId              Int
+  contaReceberId      Int?
+  parcelaId           Int?
+  valor               Decimal              @db.Decimal(10, 2)
+  dataRecebimento     DateTime
+  formaPagamento      FormaPagamento
+  observacoes         String?
+  comprovante         String?
+  createdAt           DateTime             @default(now())
+  createdBy           Int?
+
+  loja                Loja                 @relation(fields: [lojaId], references: [id])
+  contaReceber        ContaReceber?        @relation(fields: [contaReceberId], references: [id])
+  parcela             ParcelaContaReceber? @relation(fields: [parcelaId], references: [id])
 }

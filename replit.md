@@ -28,6 +28,11 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Inventory audit log (AuditoriaEstoque) tracking all stock changes with user attribution
 - Weighted average cost (custoMedio) on Estoque model, auto-calculated via PedidoCompra confirmation
 - Backend endpoints: GET /api/estoque/empresa/:lojaId, GET /api/estoque/consolidado, /api/pedidos-compra, /api/auditoria/estoque
+- Full financial architecture: CategoriaFinanceira, Departamento, dual-origin ContaPagar (COMPRA + AVULSA), installment tracking (ParcelaContaPagar/ParcelaContaReceber), Pagamento and Recebimento movement models
+- Auto-generate ContaPagar (origem=COMPRA) when PedidoCompra is confirmed
+- Plano de Contas page for managing categories and departments
+- Financial dashboard with KPIs (open, overdue, upcoming, paid/received)
+- Backend: /api/categorias-financeiras, /api/departamentos, /api/financeiro/dashboard, /api/financeiro/contas-pagar/parcelas/:id/pagar
 
 **Business Model:**
 - **Grupo** = A franchisee/owner entity that can contain multiple stores
