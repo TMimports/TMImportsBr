@@ -55,15 +55,8 @@ const LOGISTICA_GROUP = group('logistica-group', 'Logística', '📦', [
   { id: 'estoque',   label: 'Estoque',   icon: '📋' },
 ]);
 
-// Financeiro — Pedidos de Compra + Notas Fiscais incluídos
-const FIN_GROUP = group('fin-group', 'Financeiro', '💵', [
-  { id: 'dashboard-empresa',   label: 'Dashboard por CNPJ',  icon: '🏢' },
-  { id: 'pedidos-compra',      label: 'Pedidos de Compra',   icon: '🛒' },
-  { id: 'notas-fiscais',       label: 'Notas Fiscais',       icon: '🧾' },
-  { id: 'financeiro',          label: 'Contas a Pagar',      icon: '📤' },
-  { id: 'contas-receber',      label: 'Contas a Receber',    icon: '📥' },
-  { id: 'plano-contas',        label: 'Plano de Contas',     icon: '🏷' },
-]);
+// Financeiro é agora um único portal
+const FIN_ITEM = item('financeiro-hub', 'Financeiro', '💵');
 
 // Configurações — Usuários incluído dentro
 const CONFIG_GROUP = group('config-group', 'Configurações', '⚙️', [
@@ -77,13 +70,13 @@ const menuItems: Record<string, NavEntry[]> = {
     item('lojas',      'Lojas',     '🏪'),
     LOGISTICA_GROUP,
     VENDAS_GROUP(),
-    FIN_GROUP,
+    FIN_ITEM,
     CONFIG_GROUP,
   ],
   ADMIN_FINANCEIRO: [
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',   'Estoque',   '📋'),
-    FIN_GROUP,
+    FIN_ITEM,
     item('comissoes', 'Comissões', '💸'),
   ],
   ADMIN_REDE: [
@@ -95,14 +88,14 @@ const menuItems: Record<string, NavEntry[]> = {
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
-    FIN_GROUP,
+    FIN_ITEM,
     CONFIG_GROUP,
   ],
   GERENTE_LOJA: [
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
-    FIN_GROUP,
+    FIN_ITEM,
   ],
   VENDEDOR: [
     item('dashboard', 'Dashboard', '📊'),

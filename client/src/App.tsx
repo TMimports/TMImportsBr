@@ -26,6 +26,7 @@ import { CategoriasDepartamentos } from './pages/CategoriasDepartamentos';
 import { Fornecedores } from './pages/Fornecedores';
 import { NotasFiscais } from './pages/NotasFiscais';
 import { DashboardEmpresa } from './pages/DashboardEmpresa';
+import { FinanceiroHub } from './pages/FinanceiroHub';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -86,6 +87,8 @@ function AppContent() {
         return <ContasReceber />;
       case 'plano-contas':
         return <CategoriasDepartamentos />;
+      case 'financeiro-hub':
+        return <FinanceiroHub />;
       case 'fornecedores':
         return <Fornecedores />;
       case 'notas-fiscais':
