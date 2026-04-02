@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLojaContext } from '../contexts/LojaContext';
 
 interface DashboardData {
   loja: { id: number; cnpj: string; razaoSocial: string; nomeFantasia?: string; grupo: { nome: string } };
@@ -36,54 +37,97 @@ interface DashboardEmpresaProps {
 }
 
 export function DashboardEmpresa({ lojaId: lojaIdProp }: DashboardEmpresaProps = {}) {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
+  const { selectedLoja } = useLojaContext();
+  const isControlled = lojaIdProp !== undefined;
+
   const [lojas, setLojas] = useState<any[]>([]);
   const [lojaId, setLojaId] = useState<number | null>(lojaIdProp ?? null);
   const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-  const isControlled = lojaIdProp !== undefined;
+  const [loading, setLoading] = useState(isControlled);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     if (isControlled) {
-      setLojaId(lojaIdProp);
+      if (lojaIdProp) {
+        setLojaId(lojaIdProp);
+        setData(null);
+        setErro(null);
+        setLoading(true);
+        loadDashboard(lojaIdProp);
+      }
     } else {
       loadLojas();
     }
   }, [lojaIdProp]);
 
   useEffect(() => {
-    if (lojaId) loadDashboard(lojaId);
+    if (!isControlled && lojaId) {
+      setErro(null);
+      loadDashboard(lojaId);
+    }
   }, [lojaId]);
 
   async function loadLojas() {
-    const r = await fetch('/api/lojas', { headers });
-    const res = await r.json();
-    const list = Array.isArray(res) ? res : res.lojas ?? [];
-    setLojas(list);
-    if (list.length > 0) {
-      const defaultId = user?.lojaId ?? list[0].id;
-      setLojaId(defaultId);
-    }
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    try {
+      const r = await fetch('/api/lojas', { headers });
+      const res = await r.json();
+      const list = Array.isArray(res) ? res : res.lojas ?? [];
+      setLojas(list);
+      if (list.length > 0) {
+        const defaultId = user?.lojaId ?? list[0].id;
+        setLojaId(defaultId);
+      }
+    } catch { /* ignore */ }
   }
 
   async function loadDashboard(id: number) {
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
     setLoading(true);
+    setErro(null);
     try {
       const r = await fetch(`/api/dashboard/empresa/${id}`, { headers });
-      if (r.ok) setData(await r.json());
-    } finally { setLoading(false); }
+      if (r.ok) {
+        const d = await r.json();
+        setData(d);
+      } else {
+        const e = await r.json().catch(() => ({}));
+        setErro(e.error || `Erro ${r.status} ao carregar dados`);
+      }
+    } catch (err: any) {
+      setErro(err?.message || 'Erro de conexão com o servidor');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const receitaTotal = data ? data.vendas.totalValor + data.servicos.totalValor : 0;
   const aReceberPendente = data ? data.financeiro.contasReceber.total - data.financeiro.contasReceber.recebido : 0;
   const aPagarPendente = data ? data.financeiro.contasPagar.total - data.financeiro.contasPagar.pago : 0;
 
+  const nomeExibido = data?.loja?.nomeFantasia || data?.loja?.razaoSocial || selectedLoja?.nomeFantasia || `Loja #${lojaId}`;
+
   return (
     <div className="space-y-6">
-      {/* Header — only show selector when not controlled */}
-      {!isControlled && (
+      {/* Cabeçalho */}
+      {isControlled ? (
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🏪</span>
+          <div>
+            <h1 className="text-xl font-bold text-white">{nomeExibido}</h1>
+            <p className="text-zinc-500 text-xs">Dashboard individual — mês atual</p>
+          </div>
+          {loading && (
+            <div className="ml-auto flex items-center gap-2 text-orange-400 text-sm animate-pulse">
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+              Carregando...
+            </div>
+          )}
+        </div>
+      ) : (
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Dashboard por Empresa</h1>
@@ -103,7 +147,31 @@ export function DashboardEmpresa({ lojaId: lojaIdProp }: DashboardEmpresaProps =
         </div>
       )}
 
-      {loading && <div className="text-zinc-400 text-center py-12">Carregando...</div>}
+      {/* Erro */}
+      {erro && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5 text-center">
+          <p className="text-red-400 font-medium">⚠️ {erro}</p>
+          <button
+            onClick={() => lojaId && loadDashboard(lojaId)}
+            className="mt-3 text-sm text-zinc-400 hover:text-white underline"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {/* Skeleton de carregamento */}
+      {loading && !data && !erro && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="bg-zinc-900 rounded-xl p-5 h-24 border border-zinc-800" />
+          ))}
+        </div>
+      )}
+
+      {!loading && !data && !erro && !isControlled && (
+        <div className="text-zinc-500 text-center py-12">Selecione uma loja</div>
+      )}
 
       {data && !loading && (
         <>
