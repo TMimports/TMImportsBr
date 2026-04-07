@@ -61,6 +61,7 @@ const FIN_ITEM = item('financeiro-hub', 'Financeiro', '💵');
 // Configurações — Usuários incluído dentro
 const CONFIG_GROUP = group('config-group', 'Configurações', '⚙️', [
   { id: 'usuarios',      label: 'Usuários',      icon: '👥' },
+  { id: 'lojas',         label: 'Lojas',         icon: '🏪' },
   { id: 'configuracoes', label: 'Configurações', icon: '🔩' },
 ]);
 
@@ -81,6 +82,7 @@ const menuItems: Record<string, NavEntry[]> = {
   ADMIN_REDE: [
     item('dashboard', 'Dashboard', '📊'),
     item('usuarios',  'Usuários',  '👥'),
+    item('lojas',     'Lojas',     '🏪'),
   ],
   DONO_LOJA: [
     item('dashboard', 'Dashboard', '📊'),
