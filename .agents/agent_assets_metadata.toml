@@ -6,3 +6,9 @@ id = "pCwuG0oSJo50zaHdTbSf2"
 uri = "file://Manual_TM_Imports_ERP.pdf"
 type = "pdf"
 title = "Manual do Sistema ERP — TM Imports / Tecle Motos (screenshots atualizados)"
+
+[[outputs]]
+id = "CS9U3D2GpO92FDypo0HIH"
+uri = "file://Manual_TM_Imports_ERP_v3.pdf"
+type = "pdf"
+title = "Manual ERP v3 — Screenshots novos + Fontes maiores"
