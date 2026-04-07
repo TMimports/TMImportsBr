@@ -143,6 +143,17 @@ router.post('/:id/confirmar', requireRole(...ROLES_COMPRA), async (req: AuthRequ
 
     const lojaId = pedido.lojaId;
 
+    // Carregar margens de lucro configuradas para recalcular o preço de venda
+    const config = await prisma.configuracao.findFirst();
+    const margemMoto = config ? Number(config.lucroMoto) : 30;
+    const margemPeca = config ? Number(config.lucroPeca) : 40;
+
+    function calcularPrecoComMargem(custo: number, margem: number): number {
+      if (margem >= 100 || custo <= 0) return custo;
+      const preco = custo / (1 - margem / 100);
+      return Math.ceil(preco / 10) * 10;
+    }
+
     await prisma.$transaction(async (tx) => {
       for (const item of pedido.itens) {
         const estoqueAtual = await tx.estoque.findUnique({
@@ -159,6 +170,7 @@ router.post('/:id/confirmar', requireRole(...ROLES_COMPRA), async (req: AuthRequ
           ? ((qtdAnterior * custoMedioAnterior) + (qtdNova * custoNovo)) / qtdTotal
           : custoNovo;
 
+        // 1. Atualiza estoque com novo custo médio ponderado
         if (estoqueAtual) {
           await tx.estoque.update({
             where: { id: estoqueAtual.id },
@@ -174,6 +186,27 @@ router.post('/:id/confirmar', requireRole(...ROLES_COMPRA), async (req: AuthRequ
               estoqueMaximo: 50,
               custoMedio: novoCustoMedio,
             },
+          });
+        }
+
+        // 2. Propaga custo médio ao catálogo do produto e recalcula preço de venda
+        const produto = await tx.produto.findUnique({
+          where: { id: item.produtoId },
+          select: { tipo: true, percentualLucro: true }
+        });
+        if (produto) {
+          const margem = produto.tipo === 'MOTO' ? margemMoto : margemPeca;
+          const percentualLucroFinal = produto.percentualLucro && Number(produto.percentualLucro) > 0
+            ? Number(produto.percentualLucro)
+            : margem;
+          const novoPreco = calcularPrecoComMargem(novoCustoMedio, percentualLucroFinal);
+          await tx.produto.update({
+            where: { id: item.produtoId },
+            data: {
+              custo: novoCustoMedio,
+              percentualLucro: percentualLucroFinal,
+              preco: novoPreco
+            }
           });
         }
 
