@@ -61,13 +61,13 @@ const FIN_ITEM = item('financeiro-hub', 'Financeiro', '💵');
 // Configurações — Usuários incluído dentro
 const CONFIG_GROUP = group('config-group', 'Configurações', '⚙️', [
   { id: 'usuarios',      label: 'Usuários',      icon: '👥' },
-  { id: 'lojas',         label: 'Lojas',         icon: '🏪' },
   { id: 'configuracoes', label: 'Configurações', icon: '🔩' },
 ]);
 
 const menuItems: Record<string, NavEntry[]> = {
   ADMIN_GERAL: [
     item('dashboard',  'Dashboard', '📊'),
+    item('lojas',      'Lojas',     '🏪'),
     LOGISTICA_GROUP,
     VENDAS_GROUP(),
     FIN_ITEM,
@@ -86,6 +86,7 @@ const menuItems: Record<string, NavEntry[]> = {
   ],
   DONO_LOJA: [
     item('dashboard', 'Dashboard', '📊'),
+    item('lojas',     'Lojas',     '🏪'),
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
     FIN_ITEM,
