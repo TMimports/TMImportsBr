@@ -174,7 +174,7 @@ if (!isDev) {
   });
 }
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : (isDev ? 3001 : 5000);
+const PORT = isDev ? 3001 : (process.env.PORT ? Number(process.env.PORT) : 5000);
 
 async function initializeDatabase() {
   const bcrypt = await import('bcryptjs');
@@ -212,3 +212,13 @@ app.listen(PORT, '0.0.0.0', async () => {
   await initializeDatabase();
   iniciarScheduler();
 });
+
+// Em produção, o .replit mapeia tanto a porta 3001 quanto a 5000.
+// Sobe um segundo listener na porta alternativa para que o sistema de deploy
+// encontre um processo ativo em ambas as portas configuradas.
+if (!isDev) {
+  const SECONDARY_PORT = PORT === 5000 ? 3001 : 5000;
+  app.listen(SECONDARY_PORT, '0.0.0.0', () => {
+    console.log(`Porta secundária ${SECONDARY_PORT} ativa`);
+  });
+}
