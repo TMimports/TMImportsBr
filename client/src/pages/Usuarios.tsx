@@ -34,6 +34,40 @@ const initialForm = {
   chavePix: ''
 };
 
+const BANCOS_BRASIL = [
+  { value: '', label: 'Selecione o banco' },
+  { value: 'Nubank', label: 'Nubank' },
+  { value: 'Inter', label: 'Banco Inter' },
+  { value: 'C6 Bank', label: 'C6 Bank' },
+  { value: 'PicPay', label: 'PicPay' },
+  { value: 'Mercado Pago', label: 'Mercado Pago' },
+  { value: 'PagBank', label: 'PagBank (PagSeguro)' },
+  { value: 'Neon', label: 'Neon' },
+  { value: 'Next', label: 'Next (Bradesco)' },
+  { value: 'Will Bank', label: 'Will Bank' },
+  { value: 'Agibank', label: 'Agibank' },
+  { value: 'Ame Digital', label: 'Ame Digital' },
+  { value: 'RecargaPay', label: 'RecargaPay' },
+  { value: 'Banco Original', label: 'Banco Original' },
+  { value: 'Banco do Brasil', label: 'Banco do Brasil (BB)' },
+  { value: 'Caixa Econômica', label: 'Caixa Econômica Federal (CEF)' },
+  { value: 'Bradesco', label: 'Bradesco' },
+  { value: 'Itaú', label: 'Itaú' },
+  { value: 'Santander', label: 'Santander' },
+  { value: 'BTG Pactual', label: 'BTG Pactual' },
+  { value: 'XP Investimentos', label: 'XP Investimentos' },
+  { value: 'Sicoob', label: 'Sicoob' },
+  { value: 'Sicredi', label: 'Sicredi' },
+  { value: 'Banrisul', label: 'Banrisul' },
+  { value: 'BRB', label: 'BRB – Banco de Brasília' },
+  { value: 'Banco Pan', label: 'Banco Pan' },
+  { value: 'BMG', label: 'Banco BMG' },
+  { value: 'Safra', label: 'Banco Safra' },
+  { value: 'Rendimento', label: 'Banco Rendimento' },
+  { value: 'Stone', label: 'Stone' },
+  { value: 'Outro', label: 'Outro' },
+];
+
 const roleLabels: Record<string, string> = {
   ADMIN_GERAL: 'Administrador Geral',
   ADMIN_FINANCEIRO: 'Administrador Financeiro',
@@ -89,6 +123,14 @@ export function Usuarios() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editando && form.senha.length < 8) {
+      alert('A senha deve ter no mínimo 8 caracteres.');
+      return;
+    }
+    if (editando && form.senha && form.senha.length < 8) {
+      alert('A nova senha deve ter no mínimo 8 caracteres.');
+      return;
+    }
     setSaving(true);
     try {
       const dados = {
@@ -283,7 +325,9 @@ export function Usuarios() {
               onChange={(e) => setForm({ ...form, senha: e.target.value })}
               className="input"
               required={!editando}
+              minLength={8}
             />
+            <p className="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres</p>
           </div>
           <div>
             <CustomSelect
@@ -340,13 +384,11 @@ export function Usuarios() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Banco</label>
-                  <input
-                    type="text"
+                  <CustomSelect
+                    label="Banco"
                     value={form.banco}
-                    onChange={(e) => setForm({ ...form, banco: e.target.value })}
-                    className="input"
-                    placeholder="Ex: Nubank, Bradesco"
+                    onChange={(val) => setForm({ ...form, banco: val })}
+                    options={BANCOS_BRASIL}
                   />
                 </div>
                 <div>
@@ -356,7 +398,7 @@ export function Usuarios() {
                     onChange={(val) => setForm({ ...form, tipoConta: val })}
                     options={[
                       { value: 'CORRENTE', label: 'Corrente' },
-                      { value: 'POUPANCA', label: 'Poupanca' }
+                      { value: 'POUPANCA', label: 'Poupança' }
                     ]}
                   />
                 </div>

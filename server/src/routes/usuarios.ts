@@ -104,6 +104,7 @@ router.post('/', requireGestorUsuarios, async (req: AuthRequest, res) => {
         email,
         senha: senhaHash,
         role,
+        ativo: true,
         grupoId: finalGrupoId,
         lojaId: lojaId ? Number(lojaId) : null,
         cpf: cpf || null,
