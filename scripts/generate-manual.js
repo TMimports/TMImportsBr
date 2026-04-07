@@ -842,22 +842,33 @@ doc.fontSize(10).font('Helvetica').fillColor(ZINC400)
 doc.fontSize(12).font('Helvetica-Bold').fillColor(ORANGE)
    .text('admin@teclemotos.com', 0, midY + 136, { align: 'center', width: doc.page.width });
 
-// ─── NÚMEROS DE PÁGINA ────────────────────────────────────────────────────────
+// ─── RODAPÉ COM NÚMERO DE PÁGINA ─────────────────────────────────────────────
 
 const range = doc.bufferedPageRange();
 // page 0 = capa (sem número), page 1 = sumário (sem número), page 2+ = conteúdo
+// última página (página final) também fica sem rodapé
+const totalPages = range.count - 2; // desconsidera capa + página final
+
 for (let i = range.start + 2; i < range.start + range.count - 1; i++) {
   doc.switchToPage(i);
   const pageNum = i - 1; // página 1 começa na index 2
-  // Use maxY() - 20 so the footer stays within pdfkit's content area
-  // (doc.page.height - 38 = 803 exceeds maxY=786 and triggers spurious addPage)
+
+  // Use maxY() - 20 para garantir que fica dentro da área permitida pelo pdfkit
   const footerY = doc.page.maxY() - 20;
-  doc.fontSize(8).font('Helvetica').fillColor(ZINC400)
-     .text(
-       `Página ${pageNum}  ·  Manual TM Imports / Tecle Motos`,
-       LM, footerY,
-       { align: 'center', width: PW, lineBreak: false }
-     );
+
+  // Linha separadora laranja
+  doc.rect(LM, footerY - 8, PW, 1).fill(ORANGE);
+
+  // Lado esquerdo: marca
+  doc.fontSize(7.5).font('Helvetica-Bold').fillColor(ORANGE)
+     .text('TM Imports', LM, footerY, { lineBreak: false });
+  doc.fontSize(7.5).font('Helvetica').fillColor(ZINC400)
+     .text('  ·  Sistema ERP Multi-Empresa', LM + 47, footerY, { lineBreak: false });
+
+  // Lado direito: pág. X / Total
+  const pageLabel = `Pág. ${pageNum} / ${totalPages}`;
+  doc.fontSize(7.5).font('Helvetica-Bold').fillColor(ZINC400)
+     .text(pageLabel, LM, footerY, { width: PW, align: 'right', lineBreak: false });
 }
 
 doc.end();
