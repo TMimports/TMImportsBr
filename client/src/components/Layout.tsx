@@ -197,6 +197,40 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [senhaSucesso, setSenhaSucesso] = useState('');
   const [senhaLoading, setSenhaLoading] = useState(false);
 
+  // ── PWA install ──────────────────────────────────────────────────────────────
+  const [pwaPrompt, setPwaPrompt]       = useState<any>(null);
+  const [pwaInstallable, setPwaInstallable] = useState(false);
+  const [showIOSInstall, setShowIOSInstall] = useState(false);
+
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (navigator as any).standalone === true;
+    if (isStandalone) return;
+
+    const ua = navigator.userAgent;
+    const isiOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isiOS) { setPwaInstallable(true); return; }
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setPwaPrompt(e);
+      setPwaInstallable(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handlePwaInstall = async () => {
+    const ua = navigator.userAgent;
+    const isiOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isiOS) { setShowIOSInstall(true); return; }
+    if (!pwaPrompt) return;
+    await pwaPrompt.prompt();
+    const result = await pwaPrompt.userChoice;
+    if (result.outcome === 'accepted') setPwaInstallable(false);
+    setPwaPrompt(null);
+  };
+
   const handleNavigate = (page: string) => { onNavigate(page); setMenuOpen(false); };
 
   const toggleCollapsed = () => {
@@ -409,6 +443,21 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </div>
           )}
 
+          {/* Instalar App (PWA) */}
+          {pwaInstallable && (
+            <Tooltip label="Instalar App">
+              <button
+                onClick={handlePwaInstall}
+                className={`w-full flex items-center rounded-lg text-xs font-medium text-orange-400 hover:text-white hover:bg-orange-500/20 border border-orange-500/30 transition-colors
+                  ${collapsed ? 'justify-center py-2.5' : 'gap-2 px-2.5 py-2'}`}>
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {!collapsed && <span>Instalar App</span>}
+              </button>
+            </Tooltip>
+          )}
+
           {/* Alterar senha */}
           <Tooltip label="Alterar Senha">
             <button
@@ -595,6 +644,46 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                 <Button type="submit" variant="primary" fullWidth loading={senhaLoading}>Salvar</Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Instalar no iOS */}
+      {showIOSInstall && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4"
+          onClick={() => setShowIOSInstall(false)}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-sm w-full"
+            onClick={e => e.stopPropagation()}>
+            <div className="text-center mb-5">
+              <span className="text-4xl">📱</span>
+              <h3 className="text-lg font-bold text-white mt-2">Instalar no iPhone / iPad</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <span className="bg-orange-500/20 text-orange-400 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">1</span>
+                <p className="text-sm text-zinc-300">
+                  Toque no ícone de <strong className="text-white">Compartilhar</strong> (quadrado com seta ↑) na barra inferior do Safari
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="bg-orange-500/20 text-orange-400 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</span>
+                <p className="text-sm text-zinc-300">
+                  Role a lista e toque em <strong className="text-white">"Adicionar à Tela de Início"</strong>
+                </p>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="bg-orange-500/20 text-orange-400 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">3</span>
+                <p className="text-sm text-zinc-300">
+                  Confirme tocando em <strong className="text-white">"Adicionar"</strong> no canto superior direito
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowIOSInstall(false)}
+              className="w-full mt-6 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+            >
+              Entendido!
+            </button>
           </div>
         </div>
       )}

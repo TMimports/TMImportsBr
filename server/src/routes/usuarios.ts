@@ -113,6 +113,7 @@ router.post('/', requireGestorUsuarios, async (req: AuthRequest, res) => {
         conta: conta || null,
         tipoConta: tipoConta || null,
         chavePix: chavePix || null,
+        mustChangePassword: true,
         createdBy: req.user!.id
       },
       select: {
