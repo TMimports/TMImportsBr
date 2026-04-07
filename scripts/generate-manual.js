@@ -389,7 +389,23 @@ bullet([
   'Gerencial – Agrupado por modelo, mostrando custo médio e quantidade total por empresa.',
   'Unitária – Por número de chassi/série, permitindo rastrear cada moto ou peça individualmente.',
 ]);
-body('Administradores veem o estoque de todas as lojas (visão consolidada). Gerentes e vendedores veem apenas o estoque da sua loja.');
+body('Todos os usuários autenticados podem visualizar o estoque de qualquer loja da rede Tecle Motos — inclusive vendedores e donos de loja. Administradores têm acesso adicional à visão consolidada (todas as lojas ao mesmo tempo).');
+
+h2('Visibilidade cross-rede');
+body('O seletor de loja na página de Estoque exibe todas as unidades ativas da rede. Ao escolher uma loja diferente da sua, o sistema exibe:');
+bullet([
+  'Aba Gerencial – Estoque por modelo com custo médio e valor de venda da loja selecionada.',
+  'Aba Unidades Disponíveis – Motos e scooters com status ESTOQUE (prontas para transferência).',
+  'Aba Movimentação – Histórico de entradas e saídas daquela unidade.',
+]);
+body('Qualquer usuário pode solicitar a transferência de uma unidade disponível em outra loja para a sua própria loja. A solicitação fica pendente até aprovação do Financeiro.');
+
+h2('Solicitando uma transferência entre lojas');
+step(1, 'Acessar Estoque', 'No menu lateral, clique em "Estoque".');
+step(2, 'Escolher a loja de origem', 'No seletor de empresa (canto superior direito), escolha a loja que possui a unidade desejada.');
+step(3, 'Ir à aba "Unidades Disponíveis"', 'Veja todas as motos com status "ESTOQUE" naquela loja.');
+step(4, 'Clicar em "Solicitar"', 'Escolha a unidade e confirme. A solicitação é criada automaticamente com sua loja como destino.');
+step(5, 'Aguardar aprovação', 'O ADMIN_GERAL ou ADMIN_FINANCEIRO analisa a solicitação. Após aprovação, a loja de destino confirma o recebimento e o estoque é movimentado automaticamente.');
 
 h2('Como funciona o Pedido de Compra');
 body('Toda entrada de mercadoria no estoque deve ser registrada por meio de um Pedido de Compra. O fluxo é:');
@@ -737,7 +753,7 @@ h2('O que cada perfil vê no menu');
 bullet([
   'ADMIN_GERAL e ADMIN_FINANCEIRO – Sem vínculo com loja: enxergam dados de toda a rede.',
   'ADMIN_REDE e DONO_LOJA – Vinculados a um Grupo: veem todas as lojas do seu grupo.',
-  'GERENTE_LOJA e VENDEDOR – Vinculados a uma Loja: veem apenas os dados daquela unidade.',
+  'GERENTE_LOJA e VENDEDOR – Vinculados a uma Loja: veem os dados operacionais da sua unidade, mas podem consultar o estoque de qualquer loja da rede e solicitar transferências.',
   'TÉCNICO – Menu simplificado: Dashboard, Estoque, Ordens de Serviço, Garantias e Comissões.',
 ]);
 
@@ -747,7 +763,7 @@ bullet([
   'Grupos e Lojas – ADMIN_GERAL e ADMIN_REDE',
   'Usuários – ADMIN_GERAL, DONO_LOJA e GERENTE_LOJA (limitado à sua loja)',
   'Produtos e Catálogo – ADMIN_GERAL, ADMIN_REDE e DONO_LOJA',
-  'Estoque gerencial – ADMIN_GERAL, ADMIN_REDE, DONO_LOJA e GERENTE_LOJA',
+  'Estoque – Consulta de qualquer loja da rede: todos os perfis. Gestão (ajustes, pedidos): ADMIN_GERAL, ADMIN_REDE, DONO_LOJA e GERENTE_LOJA',
   'Financeiro completo – ADMIN_GERAL e ADMIN_FINANCEIRO',
   'Relatórios automáticos – ADMIN_GERAL e ADMIN_FINANCEIRO',
   'WhatsApp CRM – Todos os perfis, exceto TÉCNICO',
@@ -766,8 +782,8 @@ const faqs = [
    'Entre em contato com o administrador do sistema ou com o gerente da sua loja. Ele pode redefinir a sua senha pelo módulo de Usuários. Você receberá uma senha temporária e será obrigado a criar uma nova no próximo acesso.'],
   ['A garantia não foi gerada após a venda de uma moto.',
    'Acesse o módulo de Garantias e utilize a opção "Gerar Garantias Retroativas". O sistema reprocessa a criação das quatro garantias para a venda selecionada.'],
-  ['Como transferir estoque entre lojas do mesmo grupo?',
-   'Acesse Estoque, selecione a loja de origem, clique em "Transferir" no item desejado e informe a loja de destino e a quantidade a transferir. Somente lojas do mesmo grupo podem realizar transferências entre si.'],
+  ['Como solicitar transferência de estoque de outra loja?',
+   'Acesse Estoque, escolha qualquer loja da rede Tecle Motos no seletor de empresa, vá à aba "Unidades Disponíveis" e clique em "Solicitar" na moto desejada. A solicitação é enviada automaticamente para aprovação pelo ADMIN_GERAL ou ADMIN_FINANCEIRO, sem restrição de grupo — qualquer loja pode transferir para qualquer outra da rede.'],
   ['A Conta a Receber não foi gerada após confirmar uma venda.',
    'Acesse Financeiro > A Receber e utilize "Gerar Contas Retroativas". O sistema reprocessa a criação das contas para vendas que não tiveram o registro financeiro gerado.'],
   ['Os relatórios por e-mail não estão chegando.',
