@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -33,17 +33,6 @@ const fmtCNPJ = (v: string) => {
   if (d.length !== 14) return v;
   return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
 };
-
-const API = '/api';
-
-async function apiFetch(path: string, opts?: RequestInit, token?: string) {
-  const r = await fetch(`${API}${path}`, {
-    ...opts,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opts?.headers ?? {}) },
-  });
-  if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || r.statusText); }
-  return r.json();
-}
 
 // ── Modal genérico ─────────────────────────────────────────────────────────────
 
@@ -318,7 +307,6 @@ function LojaCard({
 // ── Página Principal ───────────────────────────────────────────────────────────
 
 export function Lojas() {
-  const { token } = useAuth();
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -341,10 +329,9 @@ export function Lojas() {
   const loadLojas = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch('/lojas', {}, token!);
+      const data = await api.get<Loja[]>('/lojas');
       setLojas(Array.isArray(data) ? data : []);
     } catch (e: any) {
-      console.error('Erro ao carregar lojas:', e);
       setLojas([]);
       flash(e.message || 'Erro ao carregar lojas', 'erro');
     } finally { setLoading(false); }
@@ -352,25 +339,22 @@ export function Lojas() {
 
   const loadGrupos = async () => {
     try {
-      const data = await apiFetch('/grupos', {}, token!);
+      const data = await api.get<Grupo[]>('/grupos');
       setGrupos(Array.isArray(data) ? data : []);
     } catch { setGrupos([]); }
   };
 
   useEffect(() => {
-    if (!token) return;
     loadLojas();
     loadGrupos();
-  }, [token]);
+  }, []);
 
   const handleBuscarCNPJ = async () => {
     const cnpj = form.cnpj.replace(/\D/g, '');
     if (cnpj.length !== 14) { flash('Digite um CNPJ válido com 14 dígitos', 'erro'); return; }
     setBuscando(true);
     try {
-      const r = await fetch(`/api/lojas/consultar-cnpj/${cnpj}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error('CNPJ não encontrado');
-      const d = await r.json();
+      const d = await api.get<any>(`/lojas/consultar-cnpj/${cnpj}`);
       setForm(p => ({
         ...p,
         cnpj: d.cnpj ?? p.cnpj,
@@ -384,7 +368,7 @@ export function Lojas() {
         telefone: d.telefone ?? p.telefone,
         email: d.email ?? p.email,
       }));
-    } catch (e: any) { flash(e.message || 'Erro ao buscar CNPJ', 'erro'); }
+    } catch (e: any) { flash(e.message || 'CNPJ não encontrado na Receita Federal', 'erro'); }
     finally { setBuscando(false); }
   };
 
@@ -395,10 +379,10 @@ export function Lojas() {
       const enderecoFull = [form.endereco, form.bairro, form.cidade, form.uf, form.cep].filter(Boolean).join(', ');
       const body = { ...form, endereco: enderecoFull };
       if (editando && form.id) {
-        await apiFetch(`/lojas/${form.id}`, { method: 'PUT', body: JSON.stringify(body) }, token!);
+        await api.put(`/lojas/${form.id}`, body);
         flash('Loja atualizada com sucesso!', 'ok');
       } else {
-        await apiFetch('/lojas', { method: 'POST', body: JSON.stringify(body) }, token!);
+        await api.post('/lojas', body);
         flash('Loja criada com sucesso!', 'ok');
       }
       setModalForm(false);
@@ -424,7 +408,7 @@ export function Lojas() {
   const handleExcluir = async (id: number) => {
     if (!confirm('Tem certeza que deseja excluir esta loja? Esta ação não pode ser desfeita.')) return;
     try {
-      await apiFetch(`/lojas/${id}`, { method: 'DELETE' }, token!);
+      await api.delete(`/lojas/${id}`);
       flash('Loja excluída.', 'ok');
       await loadLojas();
     } catch (e: any) { flash(e.message || 'Erro ao excluir', 'erro'); }
