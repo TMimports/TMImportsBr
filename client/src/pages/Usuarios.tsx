@@ -45,10 +45,13 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleDescriptions: Record<string, string> = {
-  ADMIN_GERAL: 'Acesso total ao sistema: produtos, precos, estoque, usuarios, financeiro, todas as lojas.',
-  ADMIN_FINANCEIRO: 'Acesso completo a toda a area financeira de todas as lojas. Sem acesso operacional.',
-  DONO_LOJA: 'Gerencia sua loja: cadastra produtos, funcionarios, ve estoque, vendas, OS e financeiro.',
-  VENDEDOR: 'Cria vendas e orcamentos, atende clientes. Ve apenas suas proprias comissoes.',
+  ADMIN_GERAL:      'Acesso total ao sistema: produtos, precos, estoque, usuarios, financeiro, todas as lojas e franquias.',
+  ADMIN_FINANCEIRO: 'Acesso completo a toda a area financeira de todas as lojas. Visualiza vendas e clientes para contexto.',
+  ADMIN_REDE:       'Gerencia a rede de franquias: cadastra lojas, usuarios e acompanha relatorios de toda a rede.',
+  DONO_LOJA:        'Gerencia seu grupo de lojas: cadastra funcionarios, ve estoque, vendas, OS e financeiro do grupo.',
+  GERENTE_LOJA:     'Gerencia a loja: supervisiona vendas, estoque, OS, comissoes e financeiro da unidade.',
+  VENDEDOR:         'Cria vendas e orcamentos, atende clientes. Ve apenas suas proprias comissoes.',
+  TECNICO:          'Executa ordens de servico, registra pecas utilizadas e acompanha suas proprias comissoes.',
 };
 
 export function Usuarios() {
@@ -63,8 +66,8 @@ export function Usuarios() {
   const [selecionados, setSelecionados] = useState<number[]>([]);
 
   const rolesDisponiveis = user?.role === 'DONO_LOJA'
-    ? ['VENDEDOR']
-    : ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', 'VENDEDOR'];
+    ? ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO']
+    : ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA', 'VENDEDOR', 'TECNICO'];
 
   const loadData = () => {
     setLoading(true);

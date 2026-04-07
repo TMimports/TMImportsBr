@@ -8,15 +8,12 @@ const router = Router();
 router.post('/login', async (req, res) => {
   try {
     const { email, senha } = req.body;
-    console.log('Tentativa de login:', { email, senhaLength: senha?.length });
 
     if (!email || !senha) {
-      console.log('Login falhou: campos vazios');
       return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
     const emailNormalized = email.toLowerCase().trim();
-    console.log('Buscando email normalizado:', JSON.stringify(emailNormalized));
 
     let user = await prisma.user.findUnique({
       where: { email: emailNormalized },
@@ -24,27 +21,17 @@ router.post('/login', async (req, res) => {
     });
 
     if (!user) {
-      console.log('findUnique retornou null, tentando findFirst...');
       user = await prisma.user.findFirst({
         where: { email: emailNormalized },
         include: { loja: true, grupo: true }
       });
     }
 
-    if (!user) {
-      const allUsers = await prisma.user.findMany({ select: { id: true, email: true, ativo: true } });
-      console.log('Todos os usuarios no banco:', JSON.stringify(allUsers));
-    }
-
-    console.log('Usuário encontrado:', user ? { id: user.id, email: user.email, ativo: user.ativo } : 'Não');
-
     if (!user || !user.ativo) {
-      console.log('Login falhou: usuário não encontrado ou inativo');
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     const senhaValida = await bcrypt.compare(senha, user.senha);
-    console.log('Senha válida:', senhaValida);
     if (!senhaValida) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }

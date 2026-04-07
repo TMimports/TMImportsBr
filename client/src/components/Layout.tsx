@@ -66,10 +66,30 @@ const CONFIG_GROUP = group('config-group', 'Configurações', '⚙️', [
 
 const RELATORIOS_ITEM = item('relatorios', 'Relatórios', '📈');
 
+// Grupo de rede (franquias) — apenas ADMIN_GERAL
+const REDE_GROUP = group('rede-group', 'Rede de Franquias', '🏢', [
+  { id: 'grupos', label: 'Grupos / Franquias', icon: '🏢' },
+  { id: 'lojas',  label: 'Lojas',              icon: '🏪' },
+]);
+
+// Grupo comercial para ADMIN_FINANCEIRO (acesso de leitura ao contexto de vendas)
+const COMERCIAL_FIN_GROUP = group('comercial-fin-group', 'Comercial', '🛍️', [
+  { id: 'clientes', label: 'Clientes', icon: '👤' },
+  { id: 'vendas',   label: 'Vendas',   icon: '🛍️' },
+  { id: 'os',       label: 'Ordens de Serviço', icon: '🔩' },
+]);
+
+// Menu do Técnico — foco em OS e comissões
+const TECNICO_GROUP = group('tecnico-group', 'Atendimento', '🔧', [
+  { id: 'os',        label: 'Minhas OS',        icon: '🔩' },
+  { id: 'garantias', label: 'Garantias',        icon: '📜' },
+  { id: 'comissoes', label: 'Minhas Comissões', icon: '💸' },
+]);
+
 const menuItems: Record<string, NavEntry[]> = {
   ADMIN_GERAL: [
-    item('dashboard',  'Dashboard', '📊'),
-    item('lojas',      'Lojas',     '🏪'),
+    item('dashboard', 'Dashboard', '📊'),
+    REDE_GROUP,
     LOGISTICA_GROUP,
     VENDAS_GROUP(),
     FIN_ITEM,
@@ -79,6 +99,7 @@ const menuItems: Record<string, NavEntry[]> = {
   ADMIN_FINANCEIRO: [
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',   'Estoque',   '📋'),
+    COMERCIAL_FIN_GROUP,
     FIN_ITEM,
     item('comissoes', 'Comissões', '💸'),
     RELATORIOS_ITEM,
@@ -110,6 +131,11 @@ const menuItems: Record<string, NavEntry[]> = {
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP('Minhas Vendas'),
   ],
+  TECNICO: [
+    item('dashboard', 'Dashboard', '📊'),
+    item('estoque',   'Estoque',   '📋'),
+    TECNICO_GROUP,
+  ],
 };
 
 const roleLabels: Record<string, string> = {
@@ -119,6 +145,7 @@ const roleLabels: Record<string, string> = {
   DONO_LOJA:        'Dono de Loja',
   GERENTE_LOJA:     'Gerente',
   VENDEDOR:         'Vendedor',
+  TECNICO:          'Técnico',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

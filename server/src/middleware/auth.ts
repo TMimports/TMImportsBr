@@ -3,7 +3,11 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../index.js';
 import { Role } from '@prisma/client';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'tecle-motos-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || (
+  process.env.NODE_ENV === 'production'
+    ? (() => { throw new Error('JWT_SECRET env var must be set in production'); })()
+    : 'tecle-motos-dev-secret'
+);
 
 export interface AuthUser {
   id: number;

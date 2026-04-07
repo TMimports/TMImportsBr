@@ -16,7 +16,7 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Comprehensive financial management (AR/AP, cash flow, bank reconciliation)
 - Safe client deletion (prevents deletion if client has linked sales/OS)
 - PWA Support for mobile installation and offline capabilities
-- Granular RBAC permission system with 6 roles (ADMIN_GERAL, ADMIN_FINANCEIRO, ADMIN_REDE, DONO_LOJA, GERENTE_LOJA, VENDEDOR)
+- Granular RBAC permission system with 7 roles (ADMIN_GERAL, ADMIN_FINANCEIRO, ADMIN_REDE, DONO_LOJA, GERENTE_LOJA, VENDEDOR, TECNICO)
 - Strict multi-tenant isolation on all GET-by-ID routes (vendas, clientes, OS, grupos, garantias, revisoes)
 - Group owner registration with temporary password and mandatory password change on first login
 - Admin-configurable percentage settings (commissions, discounts) with change history
@@ -24,7 +24,11 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - XLSX/CSV import for Units (Motos) with automatic product linking
 - Sales product selection filtered by store inventory (only shows products with stock in selected store)
 - Global loja selector in topbar (desktop + mobile): Visão Consolidada or per-loja; filters Dashboard to DashboardEmpresa when loja selected
-- Lojas management moved to Configurações → "Unidades / Lojas" tab (removed from sidebar menu)
+- Lojas management available in Configurações → "Unidades / Lojas" tab AND in sidebar under "Rede de Franquias" (ADMIN_GERAL)
+- Grupos (franchise groups) accessible in sidebar under "Rede de Franquias" group for ADMIN_GERAL
+- TECNICO role has dedicated menu: Dashboard, Estoque, Atendimento (Minhas OS, Garantias, Minhas Comissões)
+- ADMIN_FINANCEIRO has Comercial group (Clientes, Vendas, OS) for financial context
+- Security: auth route cleaned of all debug logs; JWT_SECRET throws in production if not set via env var
 - Two-layer Estoque page: Gerencial (by model/custoMédio) + Unitária (by chassi), with per-CNPJ selector and consolidated admin view
 - Purchase order system (PedidosCompra) with weighted average cost recalculation on stock entry confirmation
 - Inventory audit log (AuditoriaEstoque) tracking all stock changes with user attribution
