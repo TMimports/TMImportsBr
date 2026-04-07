@@ -18,6 +18,15 @@ interface Loja {
   nomeFantasia: string;
 }
 
+interface Grupo {
+  id: number;
+  nome: string;
+}
+
+const ROLES_COM_LOJA = ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
+const ROLES_COM_GRUPO = ['DONO_LOJA', 'ADMIN_REDE'];
+const ROLES_SEM_VINCULO = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'];
+
 const initialForm = {
   id: 0,
   nome: '',
@@ -25,6 +34,7 @@ const initialForm = {
   senha: '',
   role: 'VENDEDOR',
   lojaId: '',
+  grupoId: '',
   cpf: '',
   telefone: '',
   banco: '',
@@ -92,6 +102,7 @@ export function Usuarios() {
   const { user } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [lojas, setLojas] = useState<Loja[]>([]);
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -107,11 +118,13 @@ export function Usuarios() {
     setLoading(true);
     Promise.all([
       api.get<Usuario[]>('/usuarios'),
-      api.get<Loja[]>('/lojas')
+      api.get<Loja[]>('/lojas'),
+      api.get<Grupo[]>('/grupos')
     ])
-      .then(([usuariosData, lojasData]) => {
+      .then(([usuariosData, lojasData, gruposData]) => {
         setUsuarios(usuariosData);
         setLojas(lojasData);
+        setGrupos(gruposData);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -138,7 +151,8 @@ export function Usuarios() {
         email: form.email,
         senha: form.senha || undefined,
         role: form.role,
-        lojaId: form.lojaId ? parseInt(form.lojaId) : null,
+        lojaId: ROLES_COM_LOJA.includes(form.role) && form.lojaId ? parseInt(form.lojaId) : null,
+        grupoId: ROLES_COM_GRUPO.includes(form.role) && form.grupoId ? parseInt(form.grupoId) : null,
         cpf: form.cpf || null,
         telefone: form.telefone || null,
         banco: form.banco || null,
@@ -172,6 +186,7 @@ export function Usuarios() {
       senha: '',
       role: usuario.role,
       lojaId: usuario.lojaId ? String(usuario.lojaId) : '',
+      grupoId: usuario.grupoId ? String(usuario.grupoId) : '',
       cpf: usuario.cpf || '',
       telefone: usuario.telefone || '',
       banco: usuario.banco || '',
@@ -341,15 +356,33 @@ export function Usuarios() {
               {roleDescriptions[form.role]}
             </p>
           </div>
-          <CustomSelect
-            label="Loja"
-            value={form.lojaId}
-            onChange={(val) => setForm({ ...form, lojaId: val })}
-            options={[
-              { value: '', label: 'Nenhuma (Admin)' },
-              ...lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))
-            ]}
-          />
+          {ROLES_COM_LOJA.includes(form.role) && (
+            <CustomSelect
+              label="Loja *"
+              value={form.lojaId}
+              onChange={(val) => setForm({ ...form, lojaId: val })}
+              options={[
+                { value: '', label: 'Selecione a loja' },
+                ...lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))
+              ]}
+            />
+          )}
+          {ROLES_COM_GRUPO.includes(form.role) && (
+            <CustomSelect
+              label="Grupo (Franquia) *"
+              value={form.grupoId}
+              onChange={(val) => setForm({ ...form, grupoId: val })}
+              options={[
+                { value: '', label: 'Selecione o grupo' },
+                ...grupos.map(g => ({ value: String(g.id), label: g.nome }))
+              ]}
+            />
+          )}
+          {ROLES_SEM_VINCULO.includes(form.role) && (
+            <p className="text-xs text-gray-500 bg-zinc-800 rounded p-2">
+              Este perfil tem acesso global — não precisa de loja ou grupo.
+            </p>
+          )}
 
           {form.role === 'VENDEDOR' && (
             <>
