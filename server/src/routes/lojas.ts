@@ -8,10 +8,18 @@ router.use(verifyToken);
 
 router.get('/', async (req: AuthRequest, res) => {
   try {
-    const filter = applyTenantFilter(req);
-    
+    // ?todos=true: retorna todas as lojas da rede (para Estoque cross-store)
+    const todosDaRede = req.query.todos === 'true';
+
+    let where: any = {};
+    if (!todosDaRede) {
+      const filter = applyTenantFilter(req);
+      if (filter.grupoId) where = { grupoId: filter.grupoId };
+      else if (filter.lojaId) where = { id: filter.lojaId };
+    }
+
     const lojas = await prisma.loja.findMany({
-      where: filter.grupoId ? { grupoId: filter.grupoId } : (filter.lojaId ? { id: filter.lojaId } : {}),
+      where,
       include: { grupo: true, _count: { select: { usuarios: true } } },
       orderBy: { nomeFantasia: 'asc' }
     });

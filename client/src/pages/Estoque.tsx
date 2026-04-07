@@ -826,7 +826,7 @@ export function Estoque() {
   const showConsolidado = isAdmin && lojaId === null;
 
   useEffect(() => {
-    api.get<Loja[]>('/lojas')
+    api.get<Loja[]>('/lojas?todos=true')
       .then(lista => {
         setLojas(lista);
         if (user?.lojaId) {
