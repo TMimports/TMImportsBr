@@ -374,12 +374,50 @@ router.get('/ranking-lojas', async (req: AuthRequest, res) => {
       }
     }
 
+    // Buscar motos vendidas por loja
+    const motosVendidasPorLoja = await prisma.itemVenda.findMany({
+      where: {
+        produto: { tipo: 'MOTO' },
+        venda: { tipo: 'VENDA', deletedAt: null, lojaId: { in: lojas.map(l => l.id) }, createdAt: { gte: dataInicio, lte: dataFim } }
+      },
+      select: { quantidade: true, produto: { select: { nome: true } }, venda: { select: { lojaId: true } } }
+    });
+
+    // Buscar seguros vendidos por loja
+    const segurosVendidosPorLoja = await prisma.itemVenda.findMany({
+      where: {
+        produto: { nome: { contains: 'seguro', mode: 'insensitive' } },
+        venda: { tipo: 'VENDA', deletedAt: null, lojaId: { in: lojas.map(l => l.id) }, createdAt: { gte: dataInicio, lte: dataFim } }
+      },
+      select: { quantidade: true, venda: { select: { lojaId: true } } }
+    });
+
+    // Indexar por lojaId
+    const motosMap = new Map<number, { qtd: number; tipos: Map<string, number> }>();
+    const segurosMap = new Map<number, number>();
+    for (const item of motosVendidasPorLoja) {
+      const lid = item.venda.lojaId!;
+      if (!motosMap.has(lid)) motosMap.set(lid, { qtd: 0, tipos: new Map() });
+      const entry = motosMap.get(lid)!;
+      entry.qtd += item.quantidade;
+      const nome = item.produto?.nome || 'Desconhecida';
+      entry.tipos.set(nome, (entry.tipos.get(nome) || 0) + item.quantidade);
+    }
+    for (const item of segurosVendidosPorLoja) {
+      const lid = item.venda.lojaId!;
+      segurosMap.set(lid, (segurosMap.get(lid) || 0) + item.quantidade);
+    }
+
     // Montar ranking
     const ranking = lojas.map(loja => {
       const v = vendasMap.get(loja.id) || { total: 0, qtd: 0 };
       const o = osMap.get(loja.id) || { total: 0, qtd: 0 };
       const faturamento = v.total + o.total;
       const qtdTotal = v.qtd + o.qtd;
+      const motosEntry = motosMap.get(loja.id);
+      const tiposMotos = motosEntry
+        ? Array.from(motosEntry.tipos.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([nome, qtd]) => ({ nome, qtd }))
+        : [];
       return {
         lojaId: loja.id,
         lojaNome: loja.nomeFantasia || loja.razaoSocial,
@@ -391,7 +429,10 @@ router.get('/ranking-lojas', async (req: AuthRequest, res) => {
         faturamento,
         ticketMedio: qtdTotal > 0 ? faturamento / qtdTotal : 0,
         produtoMaisVendido: produtosMaisVendidosPorLoja.get(loja.id) || null,
-        ultimaVenda: ultimaVendaMap.get(loja.id) || null
+        ultimaVenda: ultimaVendaMap.get(loja.id) || null,
+        qtdMotos: motosEntry?.qtd || 0,
+        tiposMotos,
+        qtdSeguros: segurosMap.get(loja.id) || 0,
       };
     });
 
@@ -825,11 +866,46 @@ router.get('/vendedor', async (req: AuthRequest, res) => {
     const prodMap: Record<string, { nome: string; tipo: string; qtd: number; fat: number }> = {};
     for (const item of itensVendidos) {
       const k = String(item.produtoId);
-      if (!prodMap[k]) prodMap[k] = { nome: item.produto.nome, tipo: item.produto.tipo, qtd: 0, fat: 0 };
+      if (!prodMap[k]) prodMap[k] = { nome: item.produto?.nome || '?', tipo: item.produto?.tipo || '', qtd: 0, fat: 0 };
       prodMap[k].qtd += item.quantidade;
-      prodMap[k].fat += Number(item.valorUnitario) * item.quantidade;
+      prodMap[k].fat += Number(item.valorUnitario ?? item.precoUnitario) * item.quantidade;
     }
     const topProdutos = Object.values(prodMap).sort((a, b) => b.fat - a.fat).slice(0, 5);
+
+    // Ranking de vendedores da mesma loja (com motos e seguros)
+    let rankingLoja: any[] = [];
+    if (lojaId) {
+      const vendedoresDaLoja = await prisma.user.findMany({
+        where: { lojaId, role: 'VENDEDOR', ativo: true },
+        select: {
+          id: true, nome: true,
+          vendas: {
+            where: { tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicioMes } },
+            select: {
+              valorTotal: true,
+              itens: { select: { quantidade: true, produto: { select: { nome: true, tipo: true } } } }
+            }
+          }
+        }
+      });
+      rankingLoja = vendedoresDaLoja.map(v => {
+        const totalVendas = v.vendas.reduce((s, vv) => s + Number(vv.valorTotal), 0);
+        let qtdMotos = 0, qtdSeguros = 0;
+        const tiposMap = new Map<string, number>();
+        for (const venda of v.vendas) {
+          for (const item of venda.itens) {
+            if (item.produto?.tipo === 'MOTO') {
+              qtdMotos += item.quantidade;
+              const nm = item.produto.nome || 'Desconhecida';
+              tiposMap.set(nm, (tiposMap.get(nm) || 0) + item.quantidade);
+            }
+            if (item.produto?.nome?.toLowerCase().includes('seguro')) qtdSeguros += item.quantidade;
+          }
+        }
+        const tiposMotos = Array.from(tiposMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([nome, qtd]) => ({ nome, qtd }));
+        return { id: v.id, nome: v.nome, totalVendas, qtdVendas: v.vendas.length, qtdMotos, tiposMotos, qtdSeguros };
+      }).sort((a, b) => b.totalVendas - a.totalVendas).map((v, i) => ({ ...v, posicao: i + 1 }));
+    }
 
     // Metas (configurações da loja)
     let metaMotoPerc = 0, metaComissaoPerc = 0;
@@ -856,6 +932,7 @@ router.get('/vendedor', async (req: AuthRequest, res) => {
       },
       tendenciaDiaria,
       topProdutos,
+      rankingLoja,
       ultimasVendas: ultimasVendas.map(v => ({
         id: v.id,
         valor: Number(v.valorTotal),
@@ -1002,7 +1079,15 @@ router.get('/gerente', async (req: AuthRequest, res) => {
           id: true, nome: true,
           vendas: {
             where: { tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicioMes } },
-            select: { valorTotal: true },
+            select: {
+              valorTotal: true,
+              itens: {
+                select: {
+                  quantidade: true,
+                  produto: { select: { nome: true, tipo: true } }
+                }
+              }
+            },
           },
         },
       }),
@@ -1038,13 +1123,32 @@ router.get('/gerente', async (req: AuthRequest, res) => {
       total: vals.vendas + vals.os,
     }));
 
-    // Ranking de vendedores
-    const rankingVendedores = vendedoresPerf.map(v => ({
-      id: v.id,
-      nome: v.nome,
-      totalVendas: v.vendas.reduce((s: number, vv: any) => s + Number(vv.valorTotal), 0),
-      qtdVendas: v.vendas.length,
-    })).sort((a, b) => b.totalVendas - a.totalVendas);
+    // Ranking de vendedores (com breakdown de motos e seguros)
+    const rankingVendedores = vendedoresPerf.map(v => {
+      const totalVendas = v.vendas.reduce((s: number, vv: any) => s + Number(vv.valorTotal), 0);
+      const qtdVendas = v.vendas.length;
+      // Calcular motos e seguros a partir dos itens de cada venda
+      let qtdMotos = 0;
+      let qtdSeguros = 0;
+      const tiposMotosMap = new Map<string, number>();
+      for (const venda of v.vendas) {
+        for (const item of (venda as any).itens || []) {
+          if (item.produto?.tipo === 'MOTO') {
+            qtdMotos += item.quantidade;
+            const nome = item.produto.nome || 'Desconhecida';
+            tiposMotosMap.set(nome, (tiposMotosMap.get(nome) || 0) + item.quantidade);
+          }
+          if (item.produto?.nome && item.produto.nome.toLowerCase().includes('seguro')) {
+            qtdSeguros += item.quantidade;
+          }
+        }
+      }
+      const tiposMotos = Array.from(tiposMotosMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([nome, qtd]) => ({ nome, qtd }));
+      return { id: v.id, nome: v.nome, totalVendas, qtdVendas, qtdMotos, tiposMotos, qtdSeguros };
+    }).sort((a, b) => b.totalVendas - a.totalVendas);
 
     res.json({
       vendasMes: { total: Number(vendasMes._sum.valorTotal ?? 0), quantidade: vendasMes._count.id },

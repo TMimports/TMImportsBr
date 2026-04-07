@@ -31,6 +31,20 @@ interface LojaRanking {
   ticketMedio: number;
   produtoMaisVendido: string | null;
   ultimaVenda: string | null;
+  qtdMotos?: number;
+  tiposMotos?: { nome: string; qtd: number }[];
+  qtdSeguros?: number;
+}
+
+interface VendedorRankingItem {
+  id: number;
+  nome: string;
+  totalVendas: number;
+  qtdVendas: number;
+  qtdMotos: number;
+  tiposMotos: { nome: string; qtd: number }[];
+  qtdSeguros: number;
+  posicao?: number;
 }
 
 interface RankingData {
@@ -216,6 +230,25 @@ function LiveBadge({ refreshing, lastUpdated, onRefresh }: {
 
 // ─── Ranking Row ──────────────────────────────────────────────────────────────
 
+function MotosSegurosTag({ qtdMotos = 0, tiposMotos = [], qtdSeguros = 0 }: { qtdMotos?: number; tiposMotos?: { nome: string; qtd: number }[]; qtdSeguros?: number }) {
+  if (qtdMotos === 0 && qtdSeguros === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {qtdMotos > 0 && (
+        <span className="inline-flex items-center gap-1 bg-orange-500/10 text-orange-400 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-orange-500/20">
+          🏍️ {qtdMotos} moto{qtdMotos !== 1 ? 's' : ''}
+          {tiposMotos.length > 0 && <span className="text-orange-300/70">· {tiposMotos[0].nome.split(' ').slice(0, 2).join(' ')}{tiposMotos.length > 1 ? ` +${tiposMotos.length - 1}` : ''}</span>}
+        </span>
+      )}
+      {qtdSeguros > 0 && (
+        <span className="inline-flex items-center gap-1 bg-blue-500/10 text-blue-400 text-[10px] font-medium px-1.5 py-0.5 rounded-full border border-blue-500/20">
+          🛡️ {qtdSeguros} seguro{qtdSeguros !== 1 ? 's' : ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function RankingRow({ loja, maxFat }: { loja: LojaRanking; maxFat: number }) {
   const pct = maxFat > 0 ? (loja.faturamento / maxFat) * 100 : 0;
   const medal = loja.posicao <= 3 ? MEDAL_ICON[loja.posicao - 1] : null;
@@ -233,6 +266,7 @@ function RankingRow({ loja, maxFat }: { loja: LojaRanking; maxFat: number }) {
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-zinc-200 text-sm truncate">{loja.lojaNome}</p>
         <p className="text-xs text-zinc-600 truncate">{loja.grupoNome}</p>
+        <MotosSegurosTag qtdMotos={loja.qtdMotos} tiposMotos={loja.tiposMotos} qtdSeguros={loja.qtdSeguros} />
         <div className="mt-1.5 h-1 bg-zinc-800 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-700"
@@ -955,6 +989,7 @@ interface VendedorData {
   comissoes: { total: number; pagas: number; pendentes: number };
   tendenciaDiaria: { label: string; total: number }[];
   topProdutos: { nome: string; tipo: string; qtd: number; fat: number }[];
+  rankingLoja: VendedorRankingItem[];
   ultimasVendas: { id: number; valor: number; cliente: string; data: string }[];
   configuracoes: { comissaoMoto: number; comissaoServico: number };
 }
@@ -1032,6 +1067,51 @@ function VendedorDashboard({ onNavigate }: DashboardProps) {
           )}
         </div>
       </div>
+
+      {/* Ranking da Loja */}
+      {(data?.rankingLoja?.length || 0) > 0 && (() => {
+        const maxV = Math.max(...(data?.rankingLoja.map(v => v.totalVendas) || [1]), 1);
+        return (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span>🏆</span>
+                <h2 className="text-sm font-semibold text-zinc-200">Ranking da Loja</h2>
+              </div>
+              <span className="text-xs text-zinc-500">este mês</span>
+            </div>
+            <div className="px-4 py-3 space-y-3">
+              {data?.rankingLoja.map((v, i) => {
+                const isMe = v.id === user?.id;
+                const pct = maxV > 0 ? (v.totalVendas / maxV) * 100 : 0;
+                return (
+                  <div key={v.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${isMe ? 'bg-orange-500/10 border border-orange-500/30' : 'border border-transparent'}`}>
+                    <div className="w-7 text-center flex-shrink-0">
+                      {i < 3 ? <span className="text-lg">{MEDAL_ICON[i]}</span> : <span className="text-xs text-zinc-600 font-bold">{i + 1}</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className={`text-xs font-semibold truncate ${isMe ? 'text-orange-300' : 'text-zinc-200'}`}>
+                          {v.nome}{isMe ? ' (você)' : ''}
+                        </p>
+                        <p className={`text-xs font-bold flex-shrink-0 ml-2 ${i === 0 ? 'text-orange-400' : 'text-zinc-300'}`}>{fmtCurrencyShort(v.totalVendas)}</p>
+                      </div>
+                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-1">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: isMe ? '#f97316' : i === 0 ? '#f97316' : '#52525b' }} />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-zinc-500">{v.qtdVendas} venda{v.qtdVendas !== 1 ? 's' : ''}</span>
+                        {v.qtdMotos > 0 && <span className="text-[10px] text-orange-400/80">🏍️ {v.qtdMotos} moto{v.qtdMotos !== 1 ? 's' : ''}{v.tiposMotos.length > 0 ? ` · ${v.tiposMotos[0].nome.split(' ').slice(0, 2).join(' ')}` : ''}</span>}
+                        {v.qtdSeguros > 0 && <span className="text-[10px] text-blue-400/80">🛡️ {v.qtdSeguros}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Últimas vendas + Atalhos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1240,7 +1320,7 @@ interface GerenteData {
   comissoesMes: number;
   faturamentoMes: number;
   tendenciaDiaria: { label: string; vendas: number; os: number; total: number }[];
-  rankingVendedores: { id: number; nome: string; totalVendas: number; qtdVendas: number }[];
+  rankingVendedores: VendedorRankingItem[];
 }
 
 function GerenteDashboard({ onNavigate }: DashboardProps) {
@@ -1303,13 +1383,17 @@ function GerenteDashboard({ onNavigate }: DashboardProps) {
                       <p className="text-xs font-semibold text-zinc-200 truncate">{v.nome}</p>
                       <p className={`text-xs font-bold flex-shrink-0 ml-2 ${i === 0 ? 'text-orange-400' : 'text-zinc-300'}`}>{fmtCurrencyShort(v.totalVendas)}</p>
                     </div>
-                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-1">
                       <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{ width: `${(v.totalVendas / maxVend) * 100}%`, background: i === 0 ? '#f97316' : i === 1 ? '#a1a1aa' : '#52525b' }}
                       />
                     </div>
-                    <p className="text-xs text-zinc-600 mt-0.5">{v.qtdVendas} venda{v.qtdVendas !== 1 ? 's' : ''}</p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-zinc-500">{v.qtdVendas} venda{v.qtdVendas !== 1 ? 's' : ''}</span>
+                      {(v.qtdMotos || 0) > 0 && <span className="text-[10px] text-orange-400/80">🏍️ {v.qtdMotos}{(v.tiposMotos || []).length > 0 ? ` · ${v.tiposMotos[0].nome.split(' ').slice(0, 2).join(' ')}` : ''}</span>}
+                      {(v.qtdSeguros || 0) > 0 && <span className="text-[10px] text-blue-400/80">🛡️ {v.qtdSeguros}</span>}
+                    </div>
                   </div>
                 </div>
               ))}
