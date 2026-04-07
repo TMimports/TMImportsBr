@@ -83,32 +83,33 @@ function bullet(items) {
 
 function note(text, color) {
   const c = color || ORANGE;
-  ensureSpace(40);
+  // MUST set font BEFORE heightOfString — pdfkit ignores fontSize in options
+  doc.fontSize(10.5).font('Helvetica');
+  const th = doc.heightOfString(text, { width: PW - 22, lineGap: 3 });
+  const boxH = Math.max(40, th + 18);
+  ensureSpace(boxH + 12);
   const sy = doc.y;
-  // measure text height first
-  const th = doc.heightOfString(text, { width: PW - 24, fontSize: 10.5 });
-  const boxH = Math.max(38, th + 20);
   doc.rect(LM, sy, PW, boxH).fill(ZINC900).stroke(c);
   doc.rect(LM, sy, 4, boxH).fill(c);
-  doc.fontSize(10.5).font('Helvetica').fillColor(ZINC300)
-     .text(text, LM + 14, sy + 10, { width: PW - 22, lineGap: 3 });
+  doc.fillColor(ZINC300).text(text, LM + 14, sy + 9, { width: PW - 22, lineGap: 3 });
   doc.y = sy + boxH + 8;
 }
 
 function step(n, title, desc) {
-  ensureSpace(62);
+  // MUST set font BEFORE heightOfString — pdfkit ignores fontSize in options
+  doc.fontSize(10.5).font('Helvetica');
+  const dh = doc.heightOfString(desc, { width: PW - 54, lineGap: 3 });
+  const boxH = Math.max(56, dh + 34);
+  ensureSpace(boxH + 8);
   const sy = doc.y;
-  // measure desc height
-  const dh = doc.heightOfString(desc, { width: PW - 58, fontSize: 10.5 });
-  const boxH = Math.max(54, dh + 32);
   doc.rect(LM, sy, PW, boxH).fill(ZINC900).stroke(ZINC800);
-  doc.circle(LM + 22, sy + boxH / 2, 14).fill(ORANGE);
+  doc.circle(LM + 22, sy + Math.floor(boxH / 2), 14).fill(ORANGE);
   doc.fontSize(12).font('Helvetica-Bold').fillColor(WHITE)
-     .text(String(n), LM + 22 - (n > 9 ? 7 : 5), sy + boxH / 2 - 8);
+     .text(String(n), LM + 22 - (n > 9 ? 7 : 5), sy + Math.floor(boxH / 2) - 8);
   doc.fontSize(11).font('Helvetica-Bold').fillColor(WHITE)
      .text(title, LM + 46, sy + 10, { width: PW - 54 });
   doc.fontSize(10.5).font('Helvetica').fillColor(ZINC400)
-     .text(desc, LM + 46, sy + 26, { width: PW - 54, lineGap: 3 });
+     .text(desc, LM + 46, sy + 28, { width: PW - 54, lineGap: 3 });
   doc.y = sy + boxH + 6;
 }
 
@@ -765,9 +766,13 @@ const faqs = [
 ];
 
 faqs.forEach((faq) => {
-  const pHeight = doc.heightOfString('P: ' + faq[0], { width: PW - 20, fontSize: 11 });
-  const pBox = Math.max(28, pHeight + 14);
-  ensureSpace(pBox + 60);
+  // MUST set font BEFORE heightOfString — pdfkit ignores fontSize in options
+  doc.fontSize(11).font('Helvetica-Bold');
+  const pHeight = doc.heightOfString('P: ' + faq[0], { width: PW - 18 });
+  const pBox = Math.max(30, pHeight + 14);
+  doc.fontSize(11).font('Helvetica');
+  const rHeight = doc.heightOfString('R: ' + faq[1], { width: PW - 12, lineGap: 3 });
+  ensureSpace(pBox + rHeight + 20);
   const sy = doc.y;
   // pergunta
   doc.rect(LM, sy, PW, pBox).fill('#1e293b');
@@ -809,11 +814,14 @@ const range = doc.bufferedPageRange();
 for (let i = range.start + 2; i < range.start + range.count - 1; i++) {
   doc.switchToPage(i);
   const pageNum = i - 1; // página 1 começa na index 2
+  // Use maxY() - 20 so the footer stays within pdfkit's content area
+  // (doc.page.height - 38 = 803 exceeds maxY=786 and triggers spurious addPage)
+  const footerY = doc.page.maxY() - 20;
   doc.fontSize(8).font('Helvetica').fillColor(ZINC400)
      .text(
        `Página ${pageNum}  ·  Manual TM Imports / Tecle Motos`,
-       LM, doc.page.height - 38,
-       { align: 'center', width: PW }
+       LM, footerY,
+       { align: 'center', width: PW, lineBreak: false }
      );
 }
 
