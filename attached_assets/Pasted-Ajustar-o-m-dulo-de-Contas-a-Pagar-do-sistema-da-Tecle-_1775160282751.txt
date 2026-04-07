@@ -1,0 +1,192 @@
+Ajustar o módulo de Contas a Pagar do sistema da Tecle Motos para incluir rateio por loja/unidade e tornar o fornecedor obrigatório em todos os lançamentos.
+
+OBJETIVO:
+Melhorar o Contas a Pagar para permitir divisão de despesas entre lojas, com cálculo automático de valores e porcentagens, e obrigar o vínculo com fornecedor/favorecido em qualquer lançamento.
+
+======================================================================
+1. FORNECEDOR OBRIGATÓRIO
+======================================================================
+
+Tornar o campo Fornecedor / Favorecido obrigatório em todos os lançamentos do Contas a Pagar.
+
+Isso deve valer para:
+- contas a pagar oriundas de pedido de compra
+- contas a pagar oriundas de nota fiscal
+- lançamentos avulsos
+- despesas operacionais
+- despesas administrativas
+- serviços
+- aluguel
+- água
+- luz
+- internet
+- fretes
+- materiais de escritório
+- qualquer outro lançamento a pagar
+
+Não permitir salvar lançamento sem fornecedor/favorecido vinculado.
+
+Se o fornecedor não existir, permitir:
+- cadastro rápido na própria tela
+ou
+- modal para criar novo fornecedor sem sair do lançamento
+
+Campos mínimos do fornecedor:
+- razão social ou nome
+- CPF/CNPJ
+- tipo (fornecedor, prestador, favorecido)
+- telefone
+- e-mail
+- status
+
+======================================================================
+2. RATEIO NO CONTAS A PAGAR
+======================================================================
+
+Criar funcionalidade de rateio dentro do Contas a Pagar.
+
+Cada lançamento deve poder ser:
+- sem rateio
+- com rateio
+
+Quando o usuário ativar o rateio, permitir dividir o valor do lançamento entre lojas/unidades cadastradas.
+
+======================================================================
+3. FORMAS DE RATEIO
+======================================================================
+
+Permitir duas formas de rateio:
+- por valor fixo
+- por porcentagem
+
+3.1 RATEIO POR VALOR FIXO
+Exemplo:
+- Loja A = 200
+- Loja B = 150
+
+Total do lançamento = 350
+
+O sistema deve calcular automaticamente os percentuais:
+- Loja A = 57,14%
+- Loja B = 42,86%
+
+3.2 RATEIO POR PORCENTAGEM
+Exemplo:
+- Loja A = 60%
+- Loja B = 40%
+
+Se valor total for 1.000:
+- Loja A = 600
+- Loja B = 400
+
+O sistema deve calcular automaticamente os valores.
+
+======================================================================
+4. VALIDAÇÕES DO RATEIO
+======================================================================
+
+O lançamento só pode ser salvo se:
+- a soma dos valores do rateio for exatamente igual ao valor total do lançamento
+ou
+- a soma dos percentuais for exatamente 100%
+
+Exibir alerta claro se houver divergência.
+
+Também permitir:
+- editar rateio
+- remover rateio
+- redistribuir rateio
+- copiar rateio padrão, se houver
+
+======================================================================
+5. DESTINO DO RATEIO
+======================================================================
+
+O rateio deve ser feito por loja/unidade cadastrada no sistema.
+
+Cada linha do rateio deve conter:
+- loja/unidade
+- valor rateado
+- percentual correspondente
+- observação opcional
+
+Manter vínculo com:
+- empresa/CNPJ
+- conta a pagar
+- categoria
+- departamento
+- fornecedor
+
+======================================================================
+6. IMPACTO NOS RELATÓRIOS E DASHBOARDS
+======================================================================
+
+O rateio deve refletir automaticamente em:
+- dashboard por loja
+- despesas por loja
+- relatórios financeiros por unidade
+- visão consolidada
+- DRE gerencial por loja, se existir
+- análises por categoria
+- análises por departamento
+
+Exemplo:
+Se uma despesa de papel for rateada entre duas lojas, cada loja deve receber somente sua parte nos relatórios.
+
+======================================================================
+7. UX/UI
+======================================================================
+
+Na tela de lançamento do Contas a Pagar:
+- manter campo fornecedor como obrigatório e bem visível
+- adicionar botão/chave para ativar rateio
+- ao ativar, abrir grade de rateio simples e intuitiva
+- exibir total rateado
+- exibir saldo faltante ou excedente
+- mostrar percentuais automáticos
+- mostrar valores automáticos
+
+Criar experiência clara e rápida para operação diária.
+
+======================================================================
+8. ESTRUTURA DE DADOS
+======================================================================
+
+Criar ou ajustar estrutura para suportar:
+- suppliers
+- accounts_payable
+- accounts_payable_allocations
+
+Cada rateio deve registrar no mínimo:
+- id
+- account_payable_id
+- company_id
+- store_id
+- allocated_value
+- allocated_percentage
+- created_at
+- updated_at
+
+======================================================================
+9. REGRAS DE NEGÓCIO
+======================================================================
+
+- fornecedor/favorecido é obrigatório em todo contas a pagar
+- rateio é opcional, mas quando ativado deve fechar 100%
+- o rateio deve ser persistido no banco
+- deve ser possível consultar depois como a despesa foi dividida
+- relatórios por loja devem respeitar o rateio
+- visão consolidada deve somar corretamente todas as parcelas rateadas sem duplicidade
+
+======================================================================
+10. ENTREGA OBRIGATÓRIA
+======================================================================
+
+Executar:
+1. tornar fornecedor obrigatório no contas a pagar
+2. permitir cadastro rápido de fornecedor
+3. criar funcionalidade de rateio por loja
+4. permitir rateio por valor e por porcentagem
+5. criar validações
+6. refletir rateio nos dashboards e relatórios
+7. revisar o fluxo final para garantir funcionamento real, não apenas visual
