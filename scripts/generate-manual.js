@@ -2,771 +2,794 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
+const SCREENSHOTS = path.join(__dirname, '..', 'screenshots');
+const OUTPUT = path.join(__dirname, '..', 'Manual_TM_Imports_ERP.pdf');
+
+const ORANGE  = '#f97316';
+const ZINC900 = '#18181b';
+const ZINC800 = '#27272a';
+const ZINC400 = '#a1a1aa';
+const ZINC300 = '#d4d4d8';
+const WHITE   = '#ffffff';
+const GREEN   = '#22c55e';
+const BLUE    = '#3b82f6';
+
 const doc = new PDFDocument({
   size: 'A4',
-  margins: { top: 50, bottom: 50, left: 50, right: 50 },
+  margins: { top: 55, bottom: 55, left: 55, right: 55 },
+  bufferPages: true,
   info: {
-    Title: 'Manual do Sistema ERP - TM Imports / Tecle Motos',
+    Title: 'Manual do Sistema ERP – TM Imports / Tecle Motos',
     Author: 'TM Imports',
-    Subject: 'Sistema de Gestão Multi-Empresa',
-    Keywords: 'ERP, motos, franquias, gestão',
-  }
+    Subject: 'Sistema de Gestão Multi-Empresa para Motos Elétricas',
+  },
 });
 
-const OUTPUT = path.join(__dirname, '..', 'Manual_TM_Imports_ERP.pdf');
 doc.pipe(fs.createWriteStream(OUTPUT));
 
-const SCREENSHOTS = path.join(__dirname, '..', 'screenshots');
-const ORANGE = '#f97316';
-const DARK = '#09090b';
-const GRAY = '#71717a';
-const WHITE = '#ffffff';
-const GREEN = '#22c55e';
+const PW = doc.page.width - 110;   // printable width
+const PH = doc.page.height - 110;  // printable height
+const LM = 55;                      // left margin
 
-function imgPath(name) {
-  return path.join(SCREENSHOTS, name);
-}
+// ─── UTILITÁRIOS ─────────────────────────────────────────────────────────────
 
-function pageW() { return doc.page.width - 100; }
+function img(name) { return path.join(SCREENSHOTS, name); }
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
-
-function coverPage() {
-  doc.rect(0, 0, doc.page.width, doc.page.height).fill('#09090b');
-  doc.rect(0, 0, doc.page.width, 8).fill(ORANGE);
-  doc.rect(0, doc.page.height - 8, doc.page.width, 8).fill(ORANGE);
-
-  doc.moveDown(8);
-  doc.fontSize(9).fillColor(ORANGE).text('MANUAL DO SISTEMA', { align: 'center' });
-  doc.moveDown(1);
-  doc.fontSize(32).fillColor(WHITE).font('Helvetica-Bold')
-     .text('TM Imports', { align: 'center' });
-  doc.fontSize(22).fillColor(ORANGE).font('Helvetica-Bold')
-     .text('Tecle Motos', { align: 'center' });
-  doc.moveDown(0.5);
-  doc.rect(180, doc.y, pageW() - 80, 2).fill(ORANGE);
-  doc.moveDown(1.5);
-  doc.fontSize(14).fillColor('#a1a1aa').font('Helvetica')
-     .text('Sistema Integrado de Gestão Multi-Empresa', { align: 'center' });
-  doc.moveDown(0.5);
-  doc.fontSize(11).fillColor('#a1a1aa')
-     .text('Guia Completo com Tutoriais e Telas do Sistema', { align: 'center' });
-
-  doc.moveDown(3);
-  const boxY = doc.y;
-  doc.rect(100, boxY, pageW() - 0, 160).fill('#18181b').stroke('#27272a');
-  doc.y = boxY + 20;
-  doc.fontSize(10).fillColor(GRAY).text('VERSAO', { align: 'center' });
-  doc.fontSize(16).fillColor(WHITE).font('Helvetica-Bold').text('1.0', { align: 'center' });
-  doc.moveDown(0.5);
-  doc.fontSize(10).fillColor(GRAY).font('Helvetica').text('DATA', { align: 'center' });
-  doc.fontSize(13).fillColor(WHITE).text(new Date().toLocaleDateString('pt-BR', { year:'numeric',month:'long',day:'numeric' }), { align: 'center' });
-  doc.moveDown(0.5);
-  doc.fontSize(10).fillColor(GRAY).text('MODULOS DOCUMENTADOS', { align: 'center' });
-  doc.fontSize(13).fillColor(ORANGE).font('Helvetica-Bold')
-     .text('15 modulos completos', { align: 'center' });
-
-  doc.y = doc.page.height - 100;
-  doc.fontSize(9).fillColor(GRAY).font('Helvetica')
-     .text('TM Imports | Tecle Motos — Sistema ERP Multiempresa — Confidencial', { align: 'center' });
-}
-
-function newSection(title, subtitle) {
-  doc.addPage();
-  doc.rect(0, 0, doc.page.width, 80).fill('#18181b');
-  doc.rect(0, 0, 6, 80).fill(ORANGE);
-  doc.y = 20;
-  doc.x = 60;
-  doc.fontSize(20).fillColor(WHITE).font('Helvetica-Bold').text(title, { continued: false });
-  if (subtitle) {
-    doc.fontSize(10).fillColor(GRAY).font('Helvetica').text(subtitle);
+function ensureSpace(neededPx) {
+  if (doc.y + neededPx > doc.page.height - 60) {
+    doc.addPage();
+    doc.y = 55;
   }
-  doc.y = 95;
-  doc.x = 50;
 }
 
-function sectionHeader(title) {
-  doc.moveDown(0.8);
-  doc.rect(50, doc.y, 4, 16).fill(ORANGE);
-  doc.x = 60;
-  doc.fontSize(13).fillColor(WHITE).font('Helvetica-Bold').text(title, { continued: false });
-  doc.x = 50;
-  doc.moveDown(0.4);
-}
-
-function bodyText(text) {
-  doc.fontSize(10).fillColor('#d4d4d8').font('Helvetica').text(text, { width: pageW(), lineGap: 3 });
-  doc.moveDown(0.3);
-}
-
-function stepBox(num, title, desc) {
-  const y = doc.y;
-  if (y > doc.page.height - 120) { doc.addPage(); doc.y = 50; }
-  doc.rect(50, doc.y, pageW(), 52).fill('#18181b').stroke('#27272a');
-  const circleY = doc.y + 26;
-  doc.circle(75, circleY, 14).fill(ORANGE);
-  doc.fontSize(11).fillColor(WHITE).font('Helvetica-Bold').text(String(num), 72, circleY - 7);
-  doc.fontSize(10).fillColor(WHITE).font('Helvetica-Bold').text(title, 98, circleY - 18, { width: pageW() - 60 });
-  doc.fontSize(9).fillColor(GRAY).font('Helvetica').text(desc, 98, circleY - 4, { width: pageW() - 60 });
-  doc.y += 60;
-  doc.x = 50;
-}
-
-function infoBox(text, color) {
-  const c = color || ORANGE;
-  const y = doc.y;
-  doc.rect(50, y, pageW(), 30).fill('#18181b').stroke(c);
-  doc.rect(50, y, 4, 30).fill(c);
-  doc.fontSize(9).fillColor('#d4d4d8').font('Helvetica').text(text, 62, y + 10, { width: pageW() - 20 });
-  doc.y += 38;
-  doc.x = 50;
-}
-
-function addScreenshot(imgFile, caption, fullWidth) {
-  const imgFull = imgPath(imgFile);
-  if (!fs.existsSync(imgFull)) return;
-  const maxW = fullWidth ? pageW() : pageW();
-  const maxH = 220;
-  doc.moveDown(0.4);
-  if (doc.y + maxH + 50 > doc.page.height - 50) doc.addPage();
-  doc.rect(50, doc.y, maxW, maxH + 24).fill('#18181b').stroke('#27272a');
-  try {
-    doc.image(imgFull, 54, doc.y + 4, { width: maxW - 8, height: maxH, fit: [maxW - 8, maxH], align: 'center', valign: 'center' });
-  } catch(e) {}
-  doc.y += maxH + 8;
-  doc.x = 50;
-  doc.fontSize(8).fillColor(GRAY).font('Helvetica').text(caption, { align: 'center', width: pageW() });
+function h1(text) {
+  ensureSpace(30);
+  doc.fontSize(15).font('Helvetica-Bold').fillColor(WHITE).text(text, LM, doc.y, { width: PW });
+  doc.moveDown(0.15);
+  doc.rect(LM, doc.y, PW, 2).fill(ORANGE);
   doc.moveDown(0.6);
 }
 
-function bulletList(items) {
-  items.forEach(item => {
-    doc.fontSize(10).fillColor('#d4d4d8').font('Helvetica')
-       .text(`  •  ${item}`, { width: pageW(), lineGap: 2 });
-  });
-  doc.moveDown(0.3);
-}
-
-function roleTable(rows) {
-  const y0 = doc.y;
-  if (y0 + rows.length * 22 + 30 > doc.page.height - 50) { doc.addPage(); doc.y = 50; }
-  const cols = [160, 90, 200];
-  const headers = ['Perfil', 'Sigla', 'Acesso Permitido'];
-  doc.rect(50, doc.y, pageW(), 22).fill('#27272a');
-  let x = 54;
-  headers.forEach((h, i) => {
-    doc.fontSize(9).fillColor(ORANGE).font('Helvetica-Bold').text(h, x, doc.y + 6, { width: cols[i] });
-    x += cols[i];
-  });
-  doc.y += 22;
-  rows.forEach((row, ri) => {
-    const bg = ri % 2 === 0 ? '#18181b' : '#1c1c1e';
-    doc.rect(50, doc.y, pageW(), 22).fill(bg);
-    let rx = 54;
-    row.forEach((cell, ci) => {
-      doc.fontSize(9).fillColor(ci === 0 ? WHITE : GRAY).font(ci === 0 ? 'Helvetica-Bold' : 'Helvetica')
-         .text(cell, rx, doc.y + 6, { width: cols[ci] });
-      rx += cols[ci];
-    });
-    doc.y += 22;
-  });
-  doc.x = 50;
+function h2(text) {
+  ensureSpace(24);
+  doc.rect(LM, doc.y, 3, 14).fill(ORANGE);
+  doc.fontSize(11).font('Helvetica-Bold').fillColor(WHITE)
+     .text(text, LM + 8, doc.y + 1, { width: PW - 8 });
   doc.moveDown(0.5);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAPA
-// ────────────────────────────────────────────────────────────────────────────
-coverPage();
+function body(text) {
+  doc.fontSize(9.5).font('Helvetica').fillColor(ZINC300)
+     .text(text, LM, doc.y, { width: PW, lineGap: 3, align: 'justify' });
+  doc.moveDown(0.35);
+}
 
-// ────────────────────────────────────────────────────────────────────────────
-// INDICE
-// ────────────────────────────────────────────────────────────────────────────
+function bullet(items) {
+  items.forEach(item => {
+    ensureSpace(16);
+    doc.fontSize(9.5).font('Helvetica').fillColor(ZINC300)
+       .text('\u2022  ' + item, LM + 8, doc.y, { width: PW - 8, lineGap: 2 });
+  });
+  doc.moveDown(0.4);
+}
+
+function note(text, color) {
+  const c = color || ORANGE;
+  ensureSpace(32);
+  const sy = doc.y;
+  doc.rect(LM, sy, PW, 28).fill(ZINC900).stroke(c);
+  doc.rect(LM, sy, 4, 28).fill(c);
+  doc.fontSize(9).font('Helvetica').fillColor(ZINC300)
+     .text(text, LM + 12, sy + 9, { width: PW - 20 });
+  doc.y = sy + 35;
+}
+
+function step(n, title, desc) {
+  ensureSpace(54);
+  const sy = doc.y;
+  doc.rect(LM, sy, PW, 46).fill(ZINC900).stroke(ZINC800);
+  doc.circle(LM + 20, sy + 23, 13).fill(ORANGE);
+  doc.fontSize(11).font('Helvetica-Bold').fillColor(WHITE)
+     .text(String(n), LM + 20 - (n > 9 ? 6 : 4), sy + 16);
+  doc.fontSize(10).font('Helvetica-Bold').fillColor(WHITE)
+     .text(title, LM + 42, sy + 10, { width: PW - 50 });
+  doc.fontSize(9).font('Helvetica').fillColor(ZINC400)
+     .text(desc, LM + 42, sy + 24, { width: PW - 50 });
+  doc.y = sy + 54;
+}
+
+function addImg(file, caption) {
+  if (!fs.existsSync(img(file))) return;
+  ensureSpace(210);
+  const sy = doc.y;
+  doc.rect(LM, sy, PW, 192).fill(ZINC900).stroke(ZINC800);
+  try {
+    doc.image(img(file), LM + 3, sy + 3, { width: PW - 6, height: 186, fit: [PW - 6, 186], align: 'center', valign: 'center' });
+  } catch (_) {}
+  doc.y = sy + 198;
+  doc.fontSize(8).font('Helvetica').fillColor(ZINC400)
+     .text(caption, LM, doc.y, { width: PW, align: 'center' });
+  doc.moveDown(0.7);
+}
+
+function dividerPage(number, title, subtitle) {
+  doc.addPage();
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill('#09090b');
+  doc.rect(0, 0, 8, doc.page.height).fill(ORANGE);
+  // centered content
+  const cy = doc.page.height / 2 - 60;
+  doc.fontSize(60).font('Helvetica-Bold').fillColor(ORANGE).opacity(0.15)
+     .text(String(number), 0, cy - 30, { align: 'center', width: doc.page.width });
+  doc.opacity(1);
+  doc.fontSize(24).font('Helvetica-Bold').fillColor(WHITE)
+     .text(title, 50, cy + 10, { align: 'center', width: doc.page.width - 100 });
+  doc.fontSize(12).font('Helvetica').fillColor(ZINC400)
+     .text(subtitle, 50, cy + 44, { align: 'center', width: doc.page.width - 100 });
+  doc.addPage();
+  doc.y = 55;
+}
+
+function roleRow(perfil, sigla, acesso, alt) {
+  ensureSpace(22);
+  const sy = doc.y;
+  doc.rect(LM, sy, PW, 20).fill(alt ? '#1c1c1e' : ZINC900);
+  doc.fontSize(9).font('Helvetica-Bold').fillColor(WHITE).text(perfil, LM + 4, sy + 5, { width: 150 });
+  doc.fontSize(9).font('Helvetica').fillColor(ORANGE).text(sigla, LM + 158, sy + 5, { width: 90 });
+  doc.fontSize(9).font('Helvetica').fillColor(ZINC300).text(acesso, LM + 252, sy + 5, { width: PW - 250 });
+  doc.y = sy + 22;
+}
+
+// ─── CAPA ─────────────────────────────────────────────────────────────────────
+
+doc.rect(0, 0, doc.page.width, doc.page.height).fill('#09090b');
+doc.rect(0, 0, doc.page.width, 10).fill(ORANGE);
+doc.rect(0, doc.page.height - 10, doc.page.width, 10).fill(ORANGE);
+
+doc.moveDown(9);
+doc.fontSize(11).font('Helvetica').fillColor(ORANGE)
+   .text('MANUAL DO SISTEMA', { align: 'center' });
+doc.moveDown(0.8);
+doc.fontSize(36).font('Helvetica-Bold').fillColor(WHITE)
+   .text('TM Imports', { align: 'center' });
+doc.fontSize(22).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('Tecle Motos', { align: 'center' });
+doc.moveDown(0.5);
+doc.rect(120, doc.y, doc.page.width - 240, 2).fill(ORANGE);
+doc.moveDown(1.2);
+doc.fontSize(13).font('Helvetica').fillColor(ZINC400)
+   .text('Sistema Integrado de Gestão Multi-Empresa', { align: 'center' });
+doc.fontSize(11).font('Helvetica').fillColor(ZINC400)
+   .text('Guia Completo • Tutoriais Passo a Passo • Capturas de Tela Reais', { align: 'center' });
+
+doc.moveDown(2.5);
+const bx = 90, by = doc.y, bw = doc.page.width - 180, bh = 110;
+doc.rect(bx, by, bw, bh).fill(ZINC900).stroke(ZINC800);
+doc.fontSize(9).font('Helvetica').fillColor(ZINC400).text('VERSÃO', bx + 20, by + 18);
+doc.fontSize(18).font('Helvetica-Bold').fillColor(WHITE).text('1.0', bx + 20, by + 30);
+doc.fontSize(9).font('Helvetica').fillColor(ZINC400).text('DATA', bx + 90, by + 18);
+doc.fontSize(13).font('Helvetica-Bold').fillColor(WHITE)
+   .text(new Date().toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }), bx + 90, by + 30, { width: 160 });
+doc.fontSize(9).font('Helvetica').fillColor(ZINC400).text('MÓDULOS', bx + 20, by + 70);
+doc.fontSize(13).font('Helvetica-Bold').fillColor(ORANGE).text('17 capítulos documentados', bx + 20, by + 82);
+
+doc.fontSize(8).font('Helvetica').fillColor(ZINC400)
+   .text('TM Imports | Tecle Motos — Sistema ERP — Documento Confidencial',
+         0, doc.page.height - 45, { align: 'center', width: doc.page.width });
+
+// ─── SUMÁRIO ──────────────────────────────────────────────────────────────────
+
 doc.addPage();
 doc.rect(0, 0, doc.page.width, doc.page.height).fill('#09090b');
-doc.y = 50;
-doc.fontSize(22).fillColor(WHITE).font('Helvetica-Bold').text('Sumario', { align: 'center' });
-doc.moveDown(0.5);
-doc.rect(50, doc.y, pageW(), 2).fill(ORANGE);
+
+doc.y = 55;
+doc.fontSize(22).font('Helvetica-Bold').fillColor(WHITE)
+   .text('Sumário', LM, doc.y, { width: PW });
+doc.moveDown(0.3);
+doc.rect(LM, doc.y, PW, 2).fill(ORANGE);
 doc.moveDown(1);
 
 const chapters = [
-  ['1', 'Acesso ao Sistema (Login)', '3'],
-  ['2', 'Visao Geral — Dashboard', '4'],
-  ['3', 'Rede de Franquias — Lojas e Grupos', '5'],
-  ['4', 'Logistica — Produtos e Servicos', '6'],
-  ['5', 'Estoque e Pedidos de Compra', '7'],
-  ['6', 'Modulo de Vendas', '8'],
-  ['7', 'Clientes e Fornecedores (CRM)', '9'],
-  ['8', 'Ordens de Servico', '10'],
-  ['9', 'Garantias e Comissoes', '11'],
-  ['10', 'Financeiro — Hub Completo', '12'],
-  ['11', 'Notas Fiscais', '14'],
-  ['12', 'Ranking de Vendas', '15'],
-  ['13', 'WhatsApp CRM', '16'],
-  ['14', 'Relatorios Automaticos', '17'],
-  ['15', 'Configuracoes e Usuarios', '18'],
-  ['16', 'Perfis de Acesso (RBAC)', '19'],
-  ['17', 'Perguntas Frequentes', '20'],
+  ['1',  'Acesso ao Sistema – Login e Senha'],
+  ['2',  'Dashboard – Painel de Indicadores'],
+  ['3',  'Rede de Franquias – Lojas e Grupos'],
+  ['4',  'Catálogo – Produtos e Serviços'],
+  ['5',  'Estoque e Pedidos de Compra'],
+  ['6',  'Módulo de Vendas'],
+  ['7',  'Clientes e Fornecedores (CRM)'],
+  ['8',  'Ordens de Serviço'],
+  ['9',  'Garantias e Comissões'],
+  ['10', 'Financeiro – Hub Completo'],
+  ['11', 'Notas Fiscais'],
+  ['12', 'Ranking de Vendas'],
+  ['13', 'WhatsApp CRM'],
+  ['14', 'Relatórios Automáticos'],
+  ['15', 'Configurações e Usuários'],
+  ['16', 'Perfis de Acesso'],
+  ['17', 'Perguntas Frequentes (FAQ)'],
 ];
-chapters.forEach(([num, title, page]) => {
-  const y = doc.y;
-  doc.fontSize(11).fillColor(ORANGE).font('Helvetica-Bold').text(`${num}.`, 50, y, { width: 30, continued: true });
-  doc.fillColor('#d4d4d8').font('Helvetica').text(` ${title}`, { width: pageW() - 50, continued: true });
-  doc.fillColor(GRAY).text(`${page}`, { align: 'right', width: 0 });
-  doc.moveDown(0.6);
+
+chapters.forEach(([num, title], i) => {
+  const sy = doc.y;
+  ensureSpace(24);
+  // número
+  doc.fontSize(10).font('Helvetica-Bold').fillColor(ORANGE)
+     .text(num + '.', LM, doc.y, { width: 26, lineBreak: false });
+  // título
+  doc.fontSize(10).font('Helvetica').fillColor(ZINC300)
+     .text(title, LM + 26, doc.y, { width: PW - 26, lineBreak: false });
+  doc.moveDown(0.75);
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 1 — LOGIN
-// ────────────────────────────────────────────────────────────────────────────
-newSection('1. Acesso ao Sistema', 'Como fazer login e primeiros passos');
+// ─── CAP 1 — LOGIN ────────────────────────────────────────────────────────────
 
-addScreenshot('01-login.jpg', 'Figura 1 — Tela de login do sistema ERP TM Imports / Tecle Motos');
+dividerPage(1, 'Acesso ao Sistema', 'Como fazer login e primeiros passos');
 
-sectionHeader('Como Acessar o Sistema');
-bodyText('O acesso ao sistema e realizado atraves do navegador web. Nao e necessaria nenhuma instalacao — basta acessar o endereco fornecido pela TM Imports.');
+addImg('01-login.jpg', 'Tela de login do sistema ERP TM Imports / Tecle Motos');
 
-stepBox(1, 'Abra o Navegador', 'Use Chrome, Firefox ou Edge. Acesse o endereco do sistema (URL fornecida pelo administrador).');
-stepBox(2, 'Informe o E-mail', 'Digite o e-mail cadastrado pelo administrador da sua unidade.');
-stepBox(3, 'Informe a Senha', 'Na primeira vez, use a senha temporaria recebida. Voce sera solicitado a criar uma nova senha.');
-stepBox(4, 'Clique em Entrar', 'Apos autenticar, voce sera redirecionado ao Dashboard conforme seu perfil.');
+h1('Como acessar o sistema');
+body('O acesso ao sistema é feito pelo navegador — não é necessário instalar nenhum programa no computador. Basta abrir o endereço (URL) fornecido pelo administrador e inserir suas credenciais.');
 
-infoBox('DICA: Caso esqueca sua senha, entre em contato com o administrador do sistema para redefinicao.', ORANGE);
+step(1, 'Abra o navegador', 'Chrome, Firefox ou Edge. Acesse o endereço do sistema informado pelo administrador.');
+step(2, 'Informe o e-mail', 'Digite o e-mail cadastrado para o seu usuário.');
+step(3, 'Informe a senha', 'Na primeira vez, use a senha temporária que você recebeu.');
+step(4, 'Clique em Entrar', 'Você será redirecionado ao painel principal (Dashboard) do seu perfil.');
 
-sectionHeader('Troca de Senha Obrigatoria');
-bodyText('Na primeira vez que um novo usuario acessa o sistema, e obrigatorio criar uma senha pessoal. O sistema nao permite acesso sem essa etapa de seguranca.');
-bulletList([
-  'A senha deve ter no minimo 6 caracteres',
-  'Nao compartilhe sua senha com outras pessoas',
-  'Cada usuario tem permissoes unicas de acordo com seu perfil',
-  'O sistema bloqueia automaticamente em caso de senha incorreta',
+h2('Troca de senha obrigatória no primeiro acesso');
+body('Na primeira vez que você entra no sistema, é obrigatório criar uma nova senha pessoal. O sistema exibirá um formulário específico para isso e só libera o acesso completo após a troca.');
+
+bullet([
+  'A senha deve ter no mínimo 6 caracteres',
+  'Nunca compartilhe sua senha com outras pessoas',
+  'Cada usuário possui permissões distintas conforme seu perfil',
 ]);
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 2 — DASHBOARD
-// ────────────────────────────────────────────────────────────────────────────
-newSection('2. Dashboard — Visao Geral', 'Painel principal com indicadores em tempo real');
+note('Esqueceu sua senha? Solicite a redefinição ao administrador do sistema (Administrador Geral ou Gerente da sua loja).', ORANGE);
 
-addScreenshot('02-dashboard.jpg', 'Figura 2 — Dashboard principal com KPIs e grafico de vendas');
+// ─── CAP 2 — DASHBOARD ────────────────────────────────────────────────────────
 
-sectionHeader('O que voce ve no Dashboard');
-bodyText('O Dashboard e a primeira tela apos o login. Ele exibe os principais indicadores de desempenho (KPIs) da rede ou da sua unidade, dependendo do seu perfil de acesso.');
+dividerPage(2, 'Dashboard', 'Painel de indicadores em tempo real');
 
-bulletList([
-  'VENDAS HOJE — Total de vendas realizadas no dia',
-  'FATURAMENTO — Valor total faturado no periodo selecionado',
-  'TRANSACOES — Quantidade de vendas + ordens de servico',
-  'TICKET MEDIO — Valor medio por transacao confirmada',
-  'LOJA LIDER — Unidade com maior faturamento no periodo',
-  'ALERTAS — Itens com estoque abaixo do minimo',
+addImg('02-dashboard.jpg', 'Dashboard principal com KPIs, gráfico de movimentação e seletor de período');
+
+h1('O que é o Dashboard?');
+body('O Dashboard é a primeira tela após o login. Ele exibe os principais indicadores de desempenho da sua rede ou unidade — sempre filtrados conforme o seu perfil de acesso. Administradores veem dados de toda a rede; gerentes e vendedores veem apenas a sua loja.');
+
+h2('Indicadores exibidos (KPIs)');
+bullet([
+  'Vendas Hoje – Total de vendas registradas no dia atual',
+  'Faturamento – Valor total faturado no período selecionado',
+  'Transações – Quantidade de vendas + ordens de serviço somadas',
+  'Ticket Médio – Valor médio por transação confirmada',
+  'Loja Líder – Unidade com maior faturamento no período',
+  'Alertas – Produtos com estoque abaixo do nível mínimo',
 ]);
 
-sectionHeader('Filtros de Periodo');
-bodyText('Use os botoes de periodo no topo para filtrar os dados:');
-bulletList([
-  'Hoje — Dados apenas do dia atual',
-  '7 dias — Ultima semana',
-  '30 dias — Ultimo mes corrido',
-  'Mes atual — Do dia 1 ate hoje',
-  'Periodo — Escolha um intervalo personalizado de datas',
+h2('Filtros de período');
+body('Use os botões no topo para mudar o intervalo analisado:');
+bullet([
+  'Hoje – Apenas o dia atual',
+  '7 dias – Os últimos sete dias',
+  '30 dias – Os últimos trinta dias corridos',
+  'Mês atual – Do dia 1 até hoje',
+  'Período – Escolha manualmente a data de início e fim',
 ]);
 
-sectionHeader('Seletor de Loja (Topbar)');
-bodyText('No canto superior direito ha um seletor de loja. Administradores podem alternar entre "Visao Consolidada" (todos os CNPJs) ou selecionar uma loja especifica para ver os dados apenas daquela unidade.');
+h2('Seletor de loja (canto superior direito)');
+body('Administradores podem alternar entre "Visão Consolidada" (todos os CNPJs juntos) e uma loja específica. Ao selecionar uma loja, o Dashboard passa a exibir apenas os dados daquela unidade.');
 
-infoBox('O grafico de Movimentacao de Vendas mostra a evolucao diaria no periodo selecionado. Vendas e Ordens de Servico sao exibidas em barras separadas.', GREEN);
+note('O gráfico de Movimentação de Vendas mostra a evolução diária do período. Vendas e Ordens de Serviço aparecem em barras separadas para facilitar a análise.', GREEN);
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 3 — LOJAS E GRUPOS
-// ────────────────────────────────────────────────────────────────────────────
-newSection('3. Rede de Franquias', 'Gestao de Grupos e Lojas');
+// ─── CAP 3 — LOJAS E GRUPOS ────────────────────────────────────────────────────
 
-addScreenshot('14-lojas.jpg', 'Figura 3 — Pagina de Lojas com visao em cards e indicadores de status');
+dividerPage(3, 'Rede de Franquias', 'Gerenciamento de grupos e lojas');
 
-sectionHeader('Estrutura da Rede');
-bodyText('O sistema organiza a rede de franquias em dois niveis:');
-bulletList([
-  'GRUPO — Representa uma franqueada (ex: "Tecle Motos"). Cada grupo pode ter multiplas lojas.',
-  'LOJA — Unidade fisica de atendimento, vinculada a um grupo e com CNPJ proprio.',
+addImg('14-lojas.jpg', 'Tela de Lojas com cards por unidade, status e indicadores de CNPJ');
+
+h1('Estrutura da rede');
+body('A rede está organizada em dois níveis hierárquicos: Grupos (franqueados) e Lojas (unidades físicas). Essa estrutura permite que cada franqueado gerencie suas próprias lojas de forma independente, enquanto o administrador da TM Imports tem visão consolidada de toda a rede.');
+
+bullet([
+  'Grupo – Representa uma empresa franqueada (ex.: "Tecle Motos"). Um grupo pode ter várias lojas.',
+  'Loja – Unidade física de atendimento ao cliente, vinculada a um grupo e com CNPJ próprio.',
 ]);
 
-sectionHeader('Como Cadastrar uma Nova Loja');
-stepBox(1, 'Acesse Rede de Franquias > Lojas', 'No menu lateral, clique em "Rede de Franquias" e depois em "Lojas".');
-stepBox(2, 'Clique em "+ Nova Loja"', 'O botao laranja no canto superior direito abre o formulario de cadastro.');
-stepBox(3, 'Preencha os dados', 'Nome fantasia, CNPJ, endereco, grupo de pertencimento e informacoes de contato.');
-stepBox(4, 'Salve', 'Clique em "Salvar". A loja ficara ativa imediatamente.');
+h2('Como cadastrar uma nova loja');
+step(1, 'Acesse Rede de Franquias > Lojas', 'No menu lateral, clique em "Rede de Franquias" e depois em "Lojas".');
+step(2, 'Clique em "+ Nova Loja"', 'Botão laranja no canto superior direito.');
+step(3, 'Preencha os dados da loja', 'Nome fantasia, CNPJ, grupo ao qual pertence e dados de contato.');
+step(4, 'Salve', 'Clique em "Salvar". A loja estará ativa imediatamente.');
 
-sectionHeader('Detalhes da Loja');
-bodyText('Cada card de loja exibe: nome, CNPJ, grupo, quantidade de usuarios e status (Ativa/Inativa). Clique em "Detalhes" para ver o historico completo e transferencias de estoque.');
+h2('Detalhes de cada loja');
+body('Cada card na listagem exibe: nome fantasia, CNPJ, grupo, número de usuários vinculados e status (Ativa/Inativa). Clique em "Detalhes" para acessar o histórico completo e gerenciar transferências de estoque.');
 
-infoBox('Lojas com CNPJ "Pendente" precisam ter o numero de CNPJ cadastrado para emissao de notas fiscais.', ORANGE);
+note('Lojas marcadas com "CNPJ Pendente" precisam ter o número de CNPJ informado antes de emitir notas fiscais.', ORANGE);
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 4 — PRODUTOS E SERVICOS
-// ────────────────────────────────────────────────────────────────────────────
-newSection('4. Logistica — Produtos e Servicos', 'Catalogo de motos, pecas e servicos');
+// ─── CAP 4 — PRODUTOS E SERVICOS ──────────────────────────────────────────────
 
-addScreenshot('05-produtos.jpg', 'Figura 4 — Lista de produtos com custo medio e preco de venda calculados automaticamente');
+dividerPage(4, 'Catálogo', 'Produtos, motos e serviços');
 
-sectionHeader('Tipos de Produto');
-bulletList([
-  'MOTO — Motocicleta ou scooter eletrico. Gera garantia automatica na venda.',
-  'PECA — Componentes e acessorios. Controle de estoque por quantidade.',
-  'SERVICO — Servicos de manutencao. Exibidos nas Ordens de Servico.',
+addImg('05-produtos.jpg', 'Lista de produtos com custo médio e preço de venda calculados automaticamente pelo sistema');
+
+h1('Tipos de produto');
+body('O catálogo do sistema possui três tipos de item, cada um com comportamentos específicos:');
+
+bullet([
+  'Moto – Motocicleta ou scooter elétrico. Ao ser vendida, gera garantias automaticamente e baixa o estoque por número de chassi.',
+  'Peça – Componentes e acessórios. O controle de estoque é feito por quantidade.',
+  'Serviço – Itens de mão de obra utilizados nas Ordens de Serviço. Não consomem estoque físico.',
 ]);
 
-sectionHeader('Custo Medio Ponderado');
-bodyText('O sistema calcula automaticamente o custo medio de cada produto com base nos Pedidos de Compra confirmados. O preco de venda e calculado aplicando a margem de lucro configurada sobre o custo medio.');
+h2('Custo médio ponderado');
+body('O sistema calcula automaticamente o custo médio de cada produto com base nas entradas confirmadas via Pedidos de Compra. O preço de venda é calculado aplicando a margem de lucro configurada sobre esse custo médio.');
 
-infoBox('Formula: Preco de Venda = Custo Medio x (1 + Margem%). A margem e configurada em Configuracoes > Parametros.', ORANGE);
+note('Fórmula: Preço de Venda = Custo Médio × (1 + Margem%). A margem padrão é definida em Configurações > Parâmetros.', ORANGE);
 
-sectionHeader('Como Cadastrar um Produto');
-stepBox(1, 'Va em Logistica > Produtos', 'No menu lateral, expanda "Logistica" e clique em "Produtos".');
-stepBox(2, 'Clique em "+ Novo Produto"', 'Abre o formulario de cadastro.');
-stepBox(3, 'Preencha Nome, Codigo e Tipo', 'Selecione o tipo (Moto, Peca ou Servico) e informe o codigo interno.');
-stepBox(4, 'Defina a Margem', 'A margem padrao vem das Configuracoes. Voce pode ajustar por produto.');
-stepBox(5, 'Dados Fiscais (opcional)', 'NCM, CFOP, CST/CSOSN, aliquotas de ICMS, IPI, PIS e COFINS.');
+h2('Como cadastrar um produto');
+step(1, 'Acesse Logística > Produtos', 'No menu lateral, expanda "Logística" e clique em "Produtos".');
+step(2, 'Clique em "+ Novo Produto"', 'Abre o formulário de cadastro.');
+step(3, 'Informe nome, código e tipo', 'Selecione o tipo correto (Moto, Peça ou Serviço).');
+step(4, 'Defina a margem de lucro', 'A margem padrão já vem das Configurações, mas pode ser ajustada por produto.');
+step(5, 'Dados fiscais (opcional)', 'NCM, CFOP, CST/CSOSN e alíquotas de ICMS, IPI, PIS e COFINS.');
 
-sectionHeader('Importacao em Planilha');
-bodyText('Para importar multiplos produtos de uma vez, clique em "Importar Planilha" e siga o modelo de XLSX disponivel para download. O sistema vincula automaticamente os produtos ao estoque de cada loja.');
+h2('Importação em planilha');
+body('Para cadastrar vários produtos de uma vez, clique em "Importar Planilha" e siga o modelo XLSX disponível para download. O sistema vincula os produtos ao estoque de cada loja automaticamente.');
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 5 — ESTOQUE E PEDIDOS
-// ────────────────────────────────────────────────────────────────────────────
-newSection('5. Estoque e Pedidos de Compra', 'Controle de inventario e entrada de mercadoria');
+// ─── CAP 5 — ESTOQUE E PEDIDOS ────────────────────────────────────────────────
 
-addScreenshot('06-estoque.jpg', 'Figura 5 — Estoque consolidado com visao por empresa, custo e valor de venda');
+dividerPage(5, 'Estoque e Pedidos de Compra', 'Controle de inventário e entrada de mercadorias');
 
-sectionHeader('Visao Gerencial do Estoque');
-bodyText('A pagina de Estoque oferece duas visualizacoes:');
-bulletList([
-  'GERENCIAL — Agrupado por modelo, mostrando custo medio e quantidade total por empresa.',
-  'UNITARIA — Por chassi/unidade individual, permitindo rastrear cada moto ou peca.',
+addImg('06-estoque.jpg', 'Estoque consolidado com visão por empresa, custo total e valor de venda');
+addImg('15-pedidos-compra.jpg', 'Pedidos de Compra com indicadores de status: Pendentes, Aprovados e Confirmados');
+
+h1('Visualizações do estoque');
+body('A página de Estoque oferece duas formas de visualização:');
+bullet([
+  'Gerencial – Agrupado por modelo, mostrando custo médio e quantidade total por empresa.',
+  'Unitária – Por número de chassi/série, permitindo rastrear cada moto ou peça individualmente.',
 ]);
+body('Administradores veem o estoque de todas as lojas (visão consolidada). Gerentes e vendedores veem apenas o estoque da sua loja.');
 
-bodyText('Administradores veem o estoque consolidado de todas as lojas. Gerentes e vendedores veem apenas o estoque da sua loja.');
+h2('Como funciona o Pedido de Compra');
+body('Toda entrada de mercadoria no estoque deve ser registrada por meio de um Pedido de Compra. O fluxo é:');
+step(1, 'Criar o pedido', 'Informe o fornecedor, os produtos, as quantidades e os valores unitários de compra.');
+step(2, 'Aprovação pelo gestor', 'O pedido fica com status "Pendente" até que um administrador aprove.');
+step(3, 'Confirmar a entrada', 'Ao confirmar que a mercadoria chegou, o estoque é atualizado e o custo médio recalculado automaticamente.');
+step(4, 'Conta a pagar gerada', 'O sistema cria automaticamente uma Conta a Pagar no módulo Financeiro referente a essa compra.');
 
-addScreenshot('15-pedidos-compra.jpg', 'Figura 6 — Pedidos de Compra com status de aprovacao e confirmacao');
+h2('Auditoria de estoque');
+body('Cada movimentação de estoque é registrada automaticamente com: data, hora, usuário responsável, tipo de operação (entrada, saída ou transferência) e quantidades antes e depois da operação. O histórico completo fica disponível na seção de Auditoria.');
 
-sectionHeader('Pedido de Compra');
-bodyText('Todo entrada de estoque deve ser feita atraves de um Pedido de Compra. O fluxo e:');
-stepBox(1, 'Criar Pedido', 'Informe o fornecedor, produtos, quantidades e valores unitarios de compra.');
-stepBox(2, 'Aprovacao', 'O pedido fica "Pendente" ate um administrador aprovar.');
-stepBox(3, 'Confirmacao de Entrada', 'Ao confirmar a entrada da mercadoria, o estoque e atualizado e o custo medio recalculado automaticamente.');
-stepBox(4, 'Conta a Pagar Gerada', 'O sistema cria automaticamente uma Conta a Pagar no modulo Financeiro com os dados do pedido.');
+// ─── CAP 6 — VENDAS ────────────────────────────────────────────────────────────
 
-sectionHeader('Auditoria de Estoque');
-bodyText('Toda movimentacao de estoque e registrada automaticamente com: data/hora, usuario responsavel, operacao realizada (entrada/saida/transferencia) e quantidades anteriores e posteriores.');
+dividerPage(6, 'Módulo de Vendas', 'Registro e acompanhamento de vendas');
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 6 — VENDAS
-// ────────────────────────────────────────────────────────────────────────────
-newSection('6. Modulo de Vendas', 'Registro e acompanhamento de vendas');
+addImg('03-vendas.jpg', 'Tela de Vendas com listagem e botão para registrar nova venda');
 
-addScreenshot('03-vendas.jpg', 'Figura 7 — Tela de Vendas com lista e botao para nova venda');
+h1('Fluxo completo de uma venda');
+step(1, 'Selecionar o cliente', 'Busque um cliente existente ou cadastre um novo. O CPF/CNPJ é validado automaticamente.');
+step(2, 'Escolher a loja', 'Selecione a loja que está realizando a venda. O estoque disponível é filtrado automaticamente para essa unidade.');
+step(3, 'Adicionar produtos', 'Somente produtos com estoque disponível na loja selecionada aparecem para escolha.');
+step(4, 'Aplicar desconto (opcional)', 'O desconto máximo permitido por tipo de produto é configurável. Gerentes têm o dobro do limite dos vendedores.');
+step(5, 'Definir a forma de pagamento', 'Opções: À Vista, Parcelado, Financiamento ou Consórcio.');
+step(6, 'Confirmar a venda', 'Ao confirmar, o sistema gera automaticamente: Conta a Receber, Garantias (se for moto) e Comissão para o vendedor.');
 
-sectionHeader('Fluxo de uma Venda');
-stepBox(1, 'Selecionar Cliente', 'Busque ou cadastre o cliente. O sistema valida CPF/CNPJ automaticamente.');
-stepBox(2, 'Escolher Loja', 'Selecione a loja que esta realizando a venda. O estoque exibido e filtrado automaticamente.');
-stepBox(3, 'Adicionar Produtos', 'Apenas produtos com estoque disponivel na loja selecionada aparecem para selecao.');
-stepBox(4, 'Aplicar Desconto (opcional)', 'O desconto maximo permitido e configuravel por tipo de produto. Gerentes tem limite dobrado.');
-stepBox(5, 'Forma de Pagamento', 'Selecione: A Vista, Parcelado, Financiamento ou Consorcio.');
-stepBox(6, 'Confirmar a Venda', 'Ao confirmar, o sistema cria automaticamente: Conta a Receber, Garantia (se for moto) e Comissao para o vendedor.');
+h2('Orçamento × Venda');
+body('É possível salvar um atendimento como "Orçamento" para compartilhar com o cliente sem comprometer o estoque. Ao converter o orçamento em "Venda", o estoque é baixado e todos os registros financeiros são criados.');
 
-sectionHeader('Tipo: Orcamento vs Venda');
-bodyText('Voce pode salvar uma venda como ORCAMENTO para enviar ao cliente sem confirmar o estoque. Ao converter para VENDA, o estoque e baixado e os registros financeiros sao gerados.');
+note('Vendas de motos geram automaticamente 4 garantias: Geral (12 meses), Motor (6 meses), Módulo Eletrônico (6 meses) e Bateria (6 meses).', GREEN);
 
-infoBox('Vendas de motos geram automaticamente 4 garantias: Geral (12 meses), Motor (6 meses), Modulo (6 meses) e Bateria (6 meses).', GREEN);
+h2('Confirmação financeira');
+body('Vendas com pagamento a prazo ficam marcadas como "Pendente financeiro" até que o setor financeiro confirme o recebimento. Essa etapa garante que nenhum valor seja contabilizado antes de ser efetivamente recebido.');
 
-sectionHeader('Confirmacao Financeira');
-bodyText('Vendas com pagamento a prazo precisam de confirmacao financeira pelo modulo Financeiro. Ate a confirmacao, a venda fica marcada como "pendente financeiro".');
+// ─── CAP 7 — CLIENTES E FORNECEDORES ──────────────────────────────────────────
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 7 — CLIENTES E FORNECEDORES
-// ────────────────────────────────────────────────────────────────────────────
-newSection('7. Clientes e Fornecedores (CRM)', 'Gestao de relacionamento com clientes e parceiros');
+dividerPage(7, 'Clientes e Fornecedores', 'Gestão de relacionamento (CRM)');
 
-addScreenshot('04-clientes.jpg', 'Figura 8 — Lista de Clientes com busca e botao de novo cliente');
-addScreenshot('13-fornecedores.jpg', 'Figura 9 — CRM de Fornecedores com timeline de interacoes');
+addImg('04-clientes.jpg', 'Tela de Clientes com campo de busca e botão para novo cadastro');
+addImg('13-fornecedores.jpg', 'CRM de Fornecedores com painel lateral de detalhes e histórico de interações');
 
-sectionHeader('Cadastro de Clientes');
-bodyText('O cadastro de cliente e necessario antes de realizar qualquer venda. Campos principais:');
-bulletList([
-  'Nome completo ou razao social',
-  'CPF ou CNPJ (com validacao automatica)',
+h1('Cadastro de clientes');
+body('O cadastro de cliente é obrigatório antes de realizar qualquer venda. Os dados necessários são:');
+bullet([
+  'Nome completo ou razão social',
+  'CPF ou CNPJ (com validação automática do formato)',
   'Telefone e e-mail para contato',
-  'Endereco completo',
-  'Observacoes internas',
+  'Endereço completo',
+  'Observações internas (visíveis apenas para a equipe)',
 ]);
 
-sectionHeader('Historico de Interacoes (CRM)');
-bodyText('Cada cliente e fornecedor possui um historico de interacoes (timeline). Voce pode registrar:');
-bulletList([
-  'Ligacoes e visitas realizadas',
+h2('Histórico de interações (CRM)');
+body('Cada cliente e fornecedor possui uma linha do tempo de interações. Você pode registrar:');
+bullet([
+  'Ligações realizadas e visitas feitas',
   'E-mails enviados',
-  'Negociacoes em andamento',
-  'Follow-ups agendados',
-  'Mensagens WhatsApp disparadas',
+  'Negociações em andamento',
+  'Follow-ups agendados para datas futuras',
+  'Mensagens enviadas via WhatsApp',
 ]);
 
-sectionHeader('Botao WhatsApp');
-bodyText('Na lista de clientes e fornecedores ha um botao de WhatsApp que abre diretamente uma conversa com a mensagem pre-preenchida no aplicativo WhatsApp. Nenhuma integracao de API e necessaria.');
+h2('Botão de WhatsApp');
+body('Na listagem de clientes e fornecedores há um botão de WhatsApp (ícone de balão verde). Ao clicar, o sistema abre o WhatsApp com uma mensagem pré-preenchida para aquele contato — sem necessidade de copiar número ou digitar texto.');
 
-infoBox('SEGURANCA: Clientes com vendas ou ordens de servico vinculadas NAO podem ser excluidos. O sistema avisa e bloqueia a exclusao.', ORANGE);
+note('Segurança: clientes que possuem vendas ou ordens de serviço vinculadas não podem ser excluídos. O sistema exibe um aviso e bloqueia a operação.', ORANGE);
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 8 — ORDENS DE SERVICO
-// ────────────────────────────────────────────────────────────────────────────
-newSection('8. Ordens de Servico', 'Gestao de manutencao e atendimentos tecnicos');
+// ─── CAP 8 — ORDENS DE SERVICO ────────────────────────────────────────────────
 
-addScreenshot('07-os.jpg', 'Figura 10 — Lista de Ordens de Servico com status e botao nova OS');
+dividerPage(8, 'Ordens de Serviço', 'Gerenciamento de manutenção e atendimentos técnicos');
 
-sectionHeader('O que e uma Ordem de Servico?');
-bodyText('Uma Ordem de Servico (OS) registra um atendimento tecnico: revisao, manutencao, garantia ou reparo. Ela e vinculada a um cliente, um veiculo e pode incluir pecas e servicos.');
+addImg('07-os.jpg', 'Tela de Ordens de Serviço com listagem, status e botão para nova OS');
 
-sectionHeader('Fluxo da OS');
-stepBox(1, 'Criar OS', 'Informe o cliente, descricao do veiculo (modelo, ano, placa ou chassi) e os servicos a executar.');
-stepBox(2, 'Adicionar Itens', 'Selecione os servicos (com valor configurado) e as pecas necessarias do estoque.');
-stepBox(3, 'Em Andamento', 'O tecnico responsavel atualiza o status conforme avanca no servico.');
-stepBox(4, 'Confirmar OS', 'Ao confirmar, o sistema gera automaticamente uma Conta a Receber e a comissao do tecnico.');
+h1('O que é uma Ordem de Serviço?');
+body('A Ordem de Serviço (OS) registra um atendimento técnico: revisão, manutenção preventiva, garantia ou reparo. Ela é vinculada a um cliente e a uma descrição do veículo, podendo incluir peças e serviços com valores calculados em tempo real.');
 
-sectionHeader('Status da OS');
-bulletList([
-  'ABERTA — Aguardando inicio do atendimento',
-  'EM ANDAMENTO — Tecnico trabalhando na moto',
-  'AGUARDANDO PECAS — Peca em falta ou pedido em transito',
-  'CONCLUIDA — Servico finalizado, aguardando retirada',
-  'CANCELADA — OS encerrada sem execucao',
+h2('Fluxo da Ordem de Serviço');
+step(1, 'Criar a OS', 'Informe o cliente, a descrição do veículo (modelo, placa ou chassi) e os serviços a executar.');
+step(2, 'Adicionar itens', 'Selecione os serviços (com seus valores configurados) e as peças necessárias do estoque.');
+step(3, 'Execução', 'O técnico responsável atualiza o status à medida que avança no serviço.');
+step(4, 'Confirmar a OS', 'Ao confirmar a conclusão, o sistema gera automaticamente a Conta a Receber e a comissão do técnico.');
+
+h2('Status possíveis da OS');
+bullet([
+  'Aberta – Aguardando início do atendimento',
+  'Em Andamento – Técnico executando o serviço',
+  'Aguardando Peças – Peça em falta ou pedido de compra em trânsito',
+  'Concluída – Serviço finalizado, aguardando retirada pelo cliente',
+  'Cancelada – OS encerrada sem execução',
 ]);
 
-bodyText('O relatorio da OS inclui o detalhamento de todos os servicos e pecas utilizados, com os valores individuais e o total.');
+note('O relatório da OS inclui o detalhamento de todos os serviços e peças utilizadas, com valores individuais e total geral.', BLUE);
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 9 — GARANTIAS E COMISSOES
-// ────────────────────────────────────────────────────────────────────────────
-newSection('9. Garantias e Comissoes', 'Controle de garantias e remuneracao variavel');
+// ─── CAP 9 — GARANTIAS E COMISSOES ────────────────────────────────────────────
 
-addScreenshot('16-garantias.jpg', 'Figura 11 — Modulo de Garantias com status e datas de vencimento');
-addScreenshot('18-comissoes.jpg', 'Figura 12 — Modulo de Comissoes com filtros por mes, colaborador e status');
+dividerPage(9, 'Garantias e Comissões', 'Controle automático de garantias e remuneração variável');
 
-sectionHeader('Garantias — Como Funciona');
-bodyText('Ao confirmar uma venda de MOTO, o sistema cria automaticamente 4 registros de garantia:');
-bulletList([
-  'Garantia Geral — 12 meses a partir da data da venda',
-  'Garantia do Motor — 6 meses',
-  'Garantia do Modulo (eletronico) — 6 meses',
-  'Garantia da Bateria — 6 meses',
+addImg('16-garantias.jpg', 'Módulo de Garantias com indicadores de status e datas de vencimento');
+addImg('18-comissoes.jpg', 'Módulo de Comissões com filtros por mês, colaborador, tipo e status de pagamento');
+
+h1('Como funcionam as garantias');
+body('Ao confirmar a venda de uma moto, o sistema cria automaticamente quatro registros de garantia vinculados ao cliente e ao chassi do veículo:');
+bullet([
+  'Garantia Geral – 12 meses a partir da data da venda',
+  'Garantia do Motor – 6 meses',
+  'Garantia do Módulo Eletrônico – 6 meses',
+  'Garantia da Bateria – 6 meses',
 ]);
 
-bodyText('As garantias ficam vinculadas ao cliente e ao numero de chassi/serie da moto. E possivel gerar garantias retroativas para vendas ja realizadas atraves do painel de Garantias.');
+h2('Garantias retroativas');
+body('Para vendas já realizadas que não geraram garantias automaticamente, acesse o módulo de Garantias e utilize a opção "Gerar Garantias Retroativas". O sistema reprocessa a criação dos quatro registros para essa venda.');
 
-sectionHeader('Alertas de Vencimento');
-bodyText('O Dashboard exibe alertas de garantias proximas ao vencimento (em 5 dias). O sistema permite filtrar por: Total, Ativas, Vencendo em 5 dias e Expiradas.');
+h2('Alertas de vencimento');
+body('O Dashboard exibe alertas quando garantias estão próximas do vencimento (em 5 dias ou menos). O módulo de Garantias permite filtrar por: Total, Ativas, Vencendo em 5 dias e Expiradas.');
 
-sectionHeader('Comissoes — Como Funciona');
-bodyText('O sistema calcula automaticamente as comissoes de vendedores e tecnicos com base nas configuracoes globais:');
-bulletList([
-  'Comissao do Vendedor sobre Moto — percentual configuravel (padrao 1%)',
-  'Comissao do Tecnico — percentual sobre OS concluidas (padrao 25%)',
-  'Periodo de comissao — Mensal ou Semanal',
+h2('Como funcionam as comissões');
+body('O sistema calcula as comissões automaticamente com base nas regras globais configuradas em Configurações > Parâmetros:');
+bullet([
+  'Comissão do Vendedor sobre Moto – percentual aplicado ao valor de venda',
+  'Comissão do Técnico – percentual sobre o valor total da OS concluída',
+  'Período – Mensal ou Semanal, conforme configuração',
 ]);
 
-bodyText('Os gerentes podem marcar comissoes como pagas. O filtro permite visualizar por mes, colaborador, tipo (venda/OS) e status (pendente/pago).');
+body('Os gestores podem marcar comissões como pagas. Os filtros disponíveis são: mês de referência, colaborador, tipo (venda ou OS) e status (pendente ou pago).');
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 10 — FINANCEIRO
-// ────────────────────────────────────────────────────────────────────────────
-newSection('10. Financeiro — Hub Completo', 'Gestao financeira integrada da rede');
+// ─── CAP 10 — FINANCEIRO ──────────────────────────────────────────────────────
 
-addScreenshot('08-financeiro.jpg', 'Figura 13 — Hub Financeiro com abas: Visao Geral, Por CNPJ, A Pagar, A Receber, Compras, Fiscal, Conciliacao, Fornecedores');
+dividerPage(10, 'Financeiro', 'Hub completo de gestão financeira');
 
-sectionHeader('Visao Geral Financeira');
-bodyText('A tela inicial do Financeiro exibe o SALDO LIQUIDO = Total a Receber (em aberto) menos Total a Pagar (em aberto). As secoes abaixo detalham:');
-bulletList([
-  'Contas a Pagar — Em aberto, Vencidas, Vencendo em 7 dias, Pagas este mes',
-  'Contas a Receber — Em aberto, Vencidas, Vencendo em 7 dias, Recebidas este mes',
+addImg('08-financeiro.jpg', 'Hub Financeiro com abas: Visão Geral, Por CNPJ, A Pagar, A Receber, Compras, Fiscal, Conciliação e Fornecedores');
+
+h1('Visão geral financeira');
+body('A tela inicial do Financeiro exibe o Saldo Líquido: diferença entre o total a receber e o total a pagar em aberto. Logo abaixo, dois grupos de indicadores detalham cada lado:');
+bullet([
+  'Contas a Pagar – Em aberto, Vencidas, Vencendo em 7 dias e Pagas neste mês',
+  'Contas a Receber – Em aberto, Vencidas, Vencendo em 7 dias e Recebidas neste mês',
 ]);
 
-sectionHeader('Abas do Modulo Financeiro');
-bulletList([
-  'Visao Geral — KPIs consolidados do grupo/rede',
-  'Por CNPJ — Dashboard financeiro separado por empresa/loja',
-  'A Pagar — Lista de contas a pagar com parcelas e datas de vencimento',
-  'A Receber — Contas a receber geradas automaticamente pelas vendas e OS',
-  'Compras — Pedidos de compra e contas a pagar de origem COMPRA',
-  'Fiscal — Notas fiscais de entrada e saida',
-  'Conciliacao — Reconciliacao bancaria com importacao de OFX',
-  'Fornecedores — CRM de fornecedores com historico',
+h2('Abas do módulo financeiro');
+bullet([
+  'Visão Geral – KPIs consolidados de todo o grupo ou rede',
+  'Por CNPJ – Dashboard financeiro individual por loja/empresa',
+  'A Pagar – Lista de contas a pagar com parcelas e datas de vencimento',
+  'A Receber – Contas geradas automaticamente pelas vendas e OS confirmadas',
+  'Compras – Pedidos de compra e as contas a pagar deles originadas',
+  'Fiscal – Controle de notas fiscais de entrada e saída',
+  'Conciliação – Reconciliação bancária com suporte a importação de OFX',
+  'Fornecedores – CRM de parceiros comerciais com histórico de interações',
 ]);
 
-sectionHeader('Contas a Pagar');
-bodyText('As contas a pagar sao criadas de duas formas:');
-bulletList([
-  'AUTOMATICA — Ao confirmar um Pedido de Compra (origem COMPRA)',
-  'MANUAL — Avulsa, para despesas diversas (origem AVULSA)',
+h2('Contas a pagar');
+body('As contas a pagar são criadas de duas formas:');
+bullet([
+  'Automática – Ao confirmar um Pedido de Compra (identificadas como "origem: COMPRA")',
+  'Manual – Avulsas, para despesas diversas não vinculadas a compras de estoque',
 ]);
-bodyText('Cada conta pode ter multiplas parcelas. O pagamento de cada parcela e registrado individualmente, gerando o Historico de Pagamentos.');
+body('Cada conta pode ter múltiplas parcelas. O pagamento de cada parcela é registrado individualmente, compondo o histórico financeiro completo.');
 
-sectionHeader('Contas a Receber');
-bodyText('Geradas automaticamente ao confirmar uma Venda ou Ordem de Servico. O sistema identifica a forma de pagamento e cria as parcelas correspondentes. Pagamentos recebidos sao registrados individualmente.');
+h2('Contas a receber');
+body('Criadas automaticamente ao confirmar uma Venda ou Ordem de Serviço. O sistema identifica a forma de pagamento e cria as parcelas correspondentes. Recebimentos são registrados individualmente e o status de cada parcela é atualizado em tempo real.');
 
-sectionHeader('Conciliacao Bancaria');
-bodyText('Importe extratos bancarios em formato OFX. O sistema analisa automaticamente os lancamentos e sugere correspondencias com os pagamentos e recebimentos registrados no ERP. A conciliacao pode ser feita manualmente ou de forma automatica pelo sistema.');
+h2('Conciliação bancária');
+body('Importe extratos bancários no formato OFX (arquivo exportado do seu banco). O sistema analisa os lançamentos e sugere correspondências com pagamentos e recebimentos já registrados no ERP. A conciliação pode ser feita manualmente item a item ou automaticamente pelo sistema.');
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 11 — NOTAS FISCAIS
-// ────────────────────────────────────────────────────────────────────────────
-newSection('11. Notas Fiscais', 'Controle fiscal de entradas e saidas');
+// ─── CAP 11 — NOTAS FISCAIS ───────────────────────────────────────────────────
 
-addScreenshot('19-notas-fiscais.jpg', 'Figura 14 — Modulo de Notas Fiscais com filtros por tipo e status');
+dividerPage(11, 'Notas Fiscais', 'Controle fiscal de entradas e saídas');
 
-sectionHeader('Tipos de Nota Fiscal');
-bulletList([
-  'ENTRADA — NF de compra recebida de fornecedores (importacao de mercadoria)',
-  'SAIDA — NF emitida para clientes nas vendas',
-]);
+addImg('19-notas-fiscais.jpg', 'Módulo de Notas Fiscais com filtros por tipo (Entrada/Saída) e status');
 
-sectionHeader('Campos Fiscais dos Produtos');
-bodyText('Cada produto pode ter configurados seus dados fiscais:');
-bulletList([
-  'NCM — Nomenclatura Comum do Mercosul',
-  'CFOP — Codigo Fiscal de Operacoes e Prestacoes',
-  'CST/CSOSN — Codigo de Situacao Tributaria',
-  'Aliquotas — ICMS, IPI, PIS e COFINS',
-  'Unidade de Medida — UN, KG, L, M, etc.',
+h1('Tipos de nota fiscal');
+bullet([
+  'Entrada – Nota fiscal recebida de fornecedores ao comprar mercadoria.',
+  'Saída – Nota fiscal emitida para clientes nas vendas realizadas.',
 ]);
 
-bodyText('O modulo de Notas Fiscais serve para registro e controle. Para emissao de NF-e, integre com o seu sistema de emissao fiscal (SEFAZ).');
-
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 12 — RANKING
-// ────────────────────────────────────────────────────────────────────────────
-newSection('12. Ranking de Vendas', 'Desempenho de produtos e servicos');
-
-addScreenshot('17-ranking.jpg', 'Figura 15 — Ranking de produtos e servicos mais vendidos no periodo');
-
-sectionHeader('Como usar o Ranking');
-bodyText('O Ranking exibe os 20 produtos e servicos mais (ou menos) vendidos no periodo selecionado. Use os filtros:');
-bulletList([
-  'Periodo — Ultimos 30, 60 ou 90 dias, ou periodo personalizado',
-  'Ordenacao — Mais vendidos ou Menos vendidos',
-  'Aba Produtos — Ranking de motos e pecas',
-  'Aba Servicos — Ranking de servicos executados',
+h2('Dados fiscais dos produtos');
+body('Cada produto do catálogo pode ter seus dados fiscais configurados. Esses dados são utilizados no preenchimento das notas fiscais:');
+bullet([
+  'NCM – Nomenclatura Comum do Mercosul (código de classificação do produto)',
+  'CFOP – Código Fiscal de Operações e Prestações',
+  'CST / CSOSN – Código de Situação Tributária',
+  'Alíquotas – ICMS, IPI, PIS e COFINS',
+  'Unidade de Medida – UN (unidade), KG, L, M, entre outras',
 ]);
 
-bodyText('Os cards no topo mostram o PRODUTO MAIS VENDIDO, PRODUTO MENOS VENDIDO, SERVICO MAIS EXECUTADO e SERVICO MENOS EXECUTADO do periodo. Util para tomar decisoes de estoque e pricing.');
+note('O módulo fiscal serve para registro e controle interno. Para emissão de NF-e com validade fiscal junto à SEFAZ, utilize o sistema de emissão fiscal integrado da sua contabilidade.', ORANGE);
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 13 — WHATSAPP CRM
-// ────────────────────────────────────────────────────────────────────────────
-newSection('13. WhatsApp CRM', 'Comunicacao em massa e automatica via WhatsApp');
+// ─── CAP 12 — RANKING ─────────────────────────────────────────────────────────
 
-addScreenshot('09-whatsapp.jpg', 'Figura 16 — WhatsApp CRM com abas Disparar, Templates e Historico');
+dividerPage(12, 'Ranking de Vendas', 'Desempenho de produtos e serviços por período');
 
-sectionHeader('O que e o WhatsApp CRM');
-bodyText('O modulo de WhatsApp CRM permite disparar mensagens personalizadas para clientes, fornecedores e vendedores atraves de links wa.me que abrem diretamente o WhatsApp — sem necessidade de API paga ou integracao externa.');
+addImg('17-ranking.jpg', 'Ranking dos produtos e serviços mais e menos vendidos no período selecionado');
 
-sectionHeader('Tipos de Destinatarios');
-bulletList([
-  'Vendedores — Equipe de vendas da rede',
-  'Clientes — Clientes cadastrados com telefone',
-  'Fornecedores — Parceiros comerciais',
-  'Avulso — Qualquer numero nao cadastrado',
+h1('Como usar o Ranking');
+body('O Ranking exibe os 20 produtos e serviços com melhor (ou pior) desempenho no período escolhido. É uma ferramenta essencial para decisões de reposição de estoque e ajuste de preços.');
+
+h2('Filtros disponíveis');
+bullet([
+  'Período – Últimos 30, 60 ou 90 dias, ou intervalo personalizado',
+  'Ordenação – "Mais vendidos" ou "Menos vendidos"',
+  'Aba Produtos – Ranking de motos e peças',
+  'Aba Serviços – Ranking de serviços executados nas OS',
 ]);
 
-sectionHeader('Templates de Mensagem');
-bodyText('O sistema possui 8 templates pre-configurados:');
-bulletList([
-  'MOTIVACIONAL VENDEDOR — Mensagem de incentivo para a equipe',
-  'FOLLOW-UP CLIENTE — Acompanhamento pos-venda',
-  'FOLLOW-UP FORNECEDOR — Contato com parceiros',
-  'COBRANCA — Lembrete de parcela em atraso',
-  'BOAS-VINDAS — Recepcao de novo cliente',
-  'CONFIRMACAO VENDA — Confirmacao de compra',
-  'AVISO GARANTIA — Alerta de garantia proxima ao vencimento',
-  'PERSONALIZADO — Mensagem livre',
+h2('Cards de destaque');
+body('Os quatro cards no topo exibem rapidamente:');
+bullet([
+  'Produto Mais Vendido – Campeão de vendas no período',
+  'Produto Menos Vendido – Item com menor saída (alerta de estoque parado)',
+  'Serviço Mais Executado – O serviço mais requisitado pelos clientes',
+  'Serviço Menos Executado – Serviço pouco solicitado',
 ]);
 
-sectionHeader('Disparo Automatico');
-bodyText('Toda segunda a sexta-feira, as 8h (horario de Brasilia), o sistema envia automaticamente mensagens motivacionais para todos os vendedores ativos que possuem telefone cadastrado.');
+// ─── CAP 13 — WHATSAPP CRM ────────────────────────────────────────────────────
 
-stepBox(1, 'Selecione os destinatarios', 'Marque os contatos que devem receber a mensagem.');
-stepBox(2, 'Escolha um template (opcional)', 'Selecione um template ou escreva uma mensagem personalizada.');
-stepBox(3, 'Clique em "Gerar Links"', 'O sistema cria um link wa.me para cada destinatario selecionado.');
-stepBox(4, 'Abra os links', 'Cada link abre o WhatsApp com a mensagem pre-preenchida. Clique em "Enviar" no WhatsApp.');
+dividerPage(13, 'WhatsApp CRM', 'Comunicação em massa e automatizada');
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 14 — RELATORIOS
-// ────────────────────────────────────────────────────────────────────────────
-newSection('14. Relatorios Automaticos', 'Envio de relatorios por e-mail e disparo manual');
+addImg('09-whatsapp.jpg', 'WhatsApp CRM com abas: Disparar Mensagens, Templates e Histórico de Disparos');
 
-addScreenshot('10-relatorios.jpg', 'Figura 17 — Pagina de Relatorios com configuracao de destinatarios e disparo manual');
+h1('O que é o WhatsApp CRM?');
+body('O módulo de WhatsApp CRM permite enviar mensagens personalizadas para clientes, fornecedores e vendedores por meio de links wa.me — que abrem o WhatsApp diretamente com a mensagem pré-preenchida. Não é necessário contratar API paga nem integração externa.');
 
-sectionHeader('Como Funcionam os Relatorios');
-bodyText('O sistema envia automaticamente relatorios em Excel (XLSX) por e-mail. Existem 3 tipos de relatorio, cada um destinado a um perfil diferente:');
-bulletList([
-  'Relatorio Geral — Para ADMIN_GERAL. Inclui financeiro, comercial, estoque e alertas.',
-  'Relatorio Financeiro — Para ADMIN_FINANCEIRO. Foca em contas a pagar/receber e fluxo de caixa.',
-  'Relatorio Comercial — Para DONO_LOJA, GERENTE e ADMIN_REDE. Foca em vendas e desempenho.',
+h2('Tipos de destinatários');
+bullet([
+  'Vendedores – Equipe de vendas da rede',
+  'Clientes – Clientes cadastrados com número de telefone',
+  'Fornecedores – Parceiros comerciais',
+  'Avulso – Qualquer número não cadastrado no sistema',
 ]);
 
-sectionHeader('Agendamento Automatico');
-bulletList([
-  'Semanal — Toda segunda-feira as 7h00 (horario de Brasilia)',
-  'Mensal — Todo dia 1 de cada mes as 7h30 (horario de Brasilia)',
+h2('Templates de mensagem disponíveis');
+body('O sistema possui 8 templates pré-configurados para diferentes situações:');
+bullet([
+  'Motivacional para Vendedor – Incentivo e engajamento da equipe',
+  'Follow-up com Cliente – Acompanhamento pós-venda',
+  'Follow-up com Fornecedor – Contato comercial com parceiros',
+  'Cobrança – Lembrete de parcela em atraso ou próxima do vencimento',
+  'Boas-Vindas – Recepção de novo cliente',
+  'Confirmação de Venda – Confirmação de compra realizada',
+  'Aviso de Garantia – Alerta de garantia próxima ao vencimento',
+  'Personalizado – Mensagem completamente livre',
 ]);
 
-sectionHeader('Disparo Manual');
-bodyText('Voce pode disparar um relatorio a qualquer momento:');
-stepBox(1, 'Selecione o tipo', 'Todos, Geral, Financeiro ou Comercial.');
-stepBox(2, 'Selecione o periodo', 'Semanal (ultimos 7 dias) ou Mensal (ultimo mes).');
-stepBox(3, 'Clique em "Enviar Relatorio"', 'O sistema envia imediatamente para os destinatarios configurados.');
+h2('Como disparar mensagens');
+step(1, 'Selecione os destinatários', 'Escolha a categoria (vendedores, clientes, etc.) e marque os contatos desejados.');
+step(2, 'Escolha um template', 'Selecione um dos templates disponíveis ou escreva uma mensagem personalizada.');
+step(3, 'Clique em "Gerar Links"', 'O sistema cria um link wa.me individual para cada destinatário selecionado.');
+step(4, 'Clique nos links gerados', 'Cada link abre o WhatsApp com a mensagem pré-preenchida. Basta clicar em "Enviar".');
 
-infoBox('Para configurar os destinatarios de cada tipo de relatorio, e necessario configurar o SMTP no servidor (SMTP_USER e SMTP_PASS). Entre em contato com o administrador tecnico.', ORANGE);
+h2('Disparo automático diário');
+body('Toda segunda a sexta-feira, às 8h00 (horário de Brasília), o sistema envia automaticamente mensagens motivacionais para todos os vendedores ativos que possuem número de telefone cadastrado.');
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 15 — CONFIGURACOES
-// ────────────────────────────────────────────────────────────────────────────
-newSection('15. Configuracoes e Usuarios', 'Administracao do sistema');
+// ─── CAP 14 — RELATORIOS ──────────────────────────────────────────────────────
 
-addScreenshot('11-configuracoes.jpg', 'Figura 18 — Configuracoes com parametros de comissao, desconto e margens');
-addScreenshot('12-usuarios.jpg', 'Figura 19 — Gerenciamento de usuarios do sistema');
+dividerPage(14, 'Relatórios Automáticos', 'Relatórios periódicos enviados por e-mail');
 
-sectionHeader('Parametros do Sistema');
-bodyText('A pagina Configuracoes > Parametros permite ajustar as regras de negocio globais:');
+addImg('10-relatorios.jpg', 'Tela de Relatórios com indicadores de destinatários e opção de disparo manual');
 
-bulletList([
-  'Comissao do Vendedor sobre Moto (%) — Percentual aplicado ao valor de venda da moto',
-  'Comissao do Tecnico (%) — Percentual sobre o valor total da OS',
-  'Periodo de Comissao — Mensal ou Semanal',
-  'Habilitar Comissao sobre Pecas — Ativa/desativa comissao em vendas de pecas',
-  'Desconto Max. Moto (%) — Limite de desconto para vendedores em motos',
-  'Desconto Max. Peca (%) — Limite de desconto em pecas',
-  'Desconto Max. Servico (%) — Limite de desconto em servicos',
-  'Desconto Max. OS (%) — Limite de desconto em ordens de servico',
-  'Margem Lucro Moto (%) — Margem aplicada sobre o custo para calcular preco',
-  'Margem Lucro Peca (%) — Idem para pecas',
+h1('Como funcionam os relatórios automáticos');
+body('O sistema envia relatórios em formato Excel (XLSX) por e-mail automaticamente em dois momentos: toda segunda-feira (relatório semanal) e no dia 1 de cada mês (relatório mensal). Existem três tipos, cada um direcionado a um perfil diferente:');
+bullet([
+  'Relatório Geral – Para o Administrador Geral. Inclui financeiro, comercial, estoque e alertas da rede completa.',
+  'Relatório Financeiro – Para o Administrador Financeiro. Foca em contas a pagar/receber e fluxo de caixa.',
+  'Relatório Comercial – Para Dono de Loja, Gerente e Admin de Rede. Foca em vendas e desempenho por loja.',
 ]);
 
-infoBox('ATENCAO: Gerentes tem o DOBRO do limite de desconto configurado. Ex: se o limite e 10%, o gerente pode dar ate 20%.', ORANGE);
-
-sectionHeader('Botao "Recalcular Precos dos Produtos"');
-bodyText('Ao alterar a margem de lucro, clique neste botao para atualizar o preco de venda de todos os produtos cadastrados com base no novo percentual. Esta operacao nao afeta vendas ja realizadas.');
-
-sectionHeader('Historico de Alteracoes');
-bodyText('Clique em "Ver Historico" para ver todas as alteracoes de configuracao: data/hora, usuario, parametro alterado, valor anterior e valor novo.');
-
-sectionHeader('Gestao de Usuarios');
-stepBox(1, 'Acesse Configuracoes > Usuarios', 'Lista todos os usuarios do sistema com perfil, loja e status.');
-stepBox(2, 'Clique em "+ Novo Usuario"', 'Preencha nome, e-mail, perfil e (quando aplicavel) a loja ou grupo.');
-stepBox(3, 'Defina o Perfil', 'Selecione o papel do usuario (veja Cap. 16 para detalhes).');
-stepBox(4, 'Senha Temporaria', 'O sistema define uma senha temporaria. O usuario sera forcado a troca-la no primeiro acesso.');
-
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 16 — PERFIS RBAC
-// ────────────────────────────────────────────────────────────────────────────
-newSection('16. Perfis de Acesso (RBAC)', 'Controle granular de permissoes por papel');
-
-sectionHeader('Os 7 Perfis do Sistema');
-roleTable([
-  ['Administrador Geral', 'ADMIN_GERAL', 'Acesso total ao sistema, sem vinculo com loja/grupo'],
-  ['Administrador Financeiro', 'ADMIN_FINANCEIRO', 'Comercial + Financeiro completo, sem vinculo com loja'],
-  ['Admin de Rede', 'ADMIN_REDE', 'Gestao de toda a rede de franquias, vinculado a um grupo'],
-  ['Dono da Loja', 'DONO_LOJA', 'Gestao completa de todas as lojas do seu grupo'],
-  ['Gerente de Loja', 'GERENTE_LOJA', 'Gestao operacional de uma loja especifica'],
-  ['Vendedor', 'VENDEDOR', 'Clientes, Vendas, OS, Garantias, Comissoes da sua loja'],
-  ['Tecnico', 'TECNICO', 'Dashboard Tecnico, Estoque, OS e Garantias da sua loja'],
+h2('Agendamento automático');
+bullet([
+  'Semanal – Toda segunda-feira às 7h00 (horário de Brasília)',
+  'Mensal – Todo dia 1 de cada mês às 7h30 (horário de Brasília)',
 ]);
 
-sectionHeader('O que cada perfil ve no menu');
-bodyText('ADMIN_GERAL e ADMIN_FINANCEIRO — Sem vinculo com loja: veem dados de toda a rede.');
-bodyText('ADMIN_REDE e DONO_LOJA — Vinculados a um Grupo: veem todos os dados das lojas do grupo.');
-bodyText('GERENTE_LOJA e VENDEDOR — Vinculados a uma Loja: veem apenas os dados daquela unidade.');
-bodyText('TECNICO — Menu reduzido: Dashboard, Estoque, Ordens de Servico, Garantias e Comissoes.');
+h2('Disparo manual (envio imediato)');
+body('Você pode enviar um relatório a qualquer momento, sem aguardar o agendamento automático:');
+step(1, 'Selecione o tipo de relatório', 'Todos, Geral, Financeiro ou Comercial.');
+step(2, 'Selecione o período', 'Semanal (últimos 7 dias) ou Mensal (último mês completo).');
+step(3, 'Clique em "Enviar Relatório"', 'O sistema dispara imediatamente para os destinatários configurados.');
 
-infoBox('O ADMIN_GERAL (admin@teclemotos.com) nunca tem lojaId nem grupoId. E o superusuario da plataforma e ve todos os dados consolidados.', ORANGE);
+note('Para que o envio de e-mail funcione, as configurações de SMTP (servidor de e-mail) devem estar ativas no servidor. Consulte o administrador técnico do sistema.', ORANGE);
 
-sectionHeader('Permissoes por Modulo');
-bulletList([
-  'Configuracoes do Sistema — Apenas ADMIN_GERAL',
-  'Grupos e Lojas — ADMIN_GERAL e ADMIN_REDE',
-  'Usuarios — ADMIN_GERAL, DONO_LOJA e GERENTE_LOJA (limitado a sua loja)',
-  'Produtos — ADMIN_GERAL, ADMIN_REDE e DONO_LOJA',
-  'Estoque (gerencial) — ADMIN_GERAL, ADMIN_REDE, DONO_LOJA e GERENTE_LOJA',
-  'Financeiro completo — ADMIN_GERAL e ADMIN_FINANCEIRO',
-  'Relatorios — ADMIN_GERAL e ADMIN_FINANCEIRO',
-  'WhatsApp CRM — Todos exceto TECNICO e VENDEDOR',
+// ─── CAP 15 — CONFIGURACOES ───────────────────────────────────────────────────
+
+dividerPage(15, 'Configurações e Usuários', 'Administração e parâmetros do sistema');
+
+addImg('11-configuracoes.jpg', 'Configurações do Sistema: parâmetros de comissão, desconto máximo e margens de lucro');
+addImg('12-usuarios.jpg', 'Gerenciamento de Usuários com perfis e vínculos de loja');
+
+h1('Parâmetros do sistema');
+body('A aba "Parâmetros" em Configurações permite ajustar as regras de negócio globais que afetam toda a rede:');
+bullet([
+  'Comissão do Vendedor sobre Moto (%) – Percentual aplicado ao valor de venda da moto',
+  'Comissão do Técnico (%) – Percentual sobre o valor total da OS concluída',
+  'Período de Comissão – Mensal ou Semanal',
+  'Habilitar Comissão sobre Peças – Ativa ou desativa comissão em vendas de peças',
+  'Desconto Máximo Moto / Peça / Serviço / OS (%) – Limites de desconto por tipo de produto',
+  'Margem de Lucro Moto / Peça (%) – Percentual aplicado ao custo médio para calcular o preço',
 ]);
 
-// ────────────────────────────────────────────────────────────────────────────
-// CAP 17 — FAQ
-// ────────────────────────────────────────────────────────────────────────────
-newSection('17. Perguntas Frequentes (FAQ)', 'Resolucao rapida de duvidas comuns');
+note('Atenção: Gerentes têm o dobro do limite de desconto configurado. Por exemplo, se o limite for 10%, o gerente pode conceder até 20%.', ORANGE);
+
+h2('Botão "Recalcular Preços dos Produtos"');
+body('Ao alterar a margem de lucro, clique neste botão para atualizar o preço de venda de todos os produtos cadastrados. A operação não afeta vendas já realizadas — apenas os valores exibidos para novas vendas.');
+
+h2('Histórico de alterações');
+body('Clique em "Ver Histórico" para consultar todas as mudanças de parâmetros, incluindo: data, hora, usuário responsável, parâmetro alterado, valor anterior e novo valor. Isso garante rastreabilidade total das decisões.');
+
+h2('Gerenciamento de usuários');
+step(1, 'Acesse Configurações > Usuários', 'Lista todos os usuários com perfil, loja vinculada e status (Ativo/Inativo).');
+step(2, 'Clique em "+ Novo Usuário"', 'Preencha nome, e-mail e selecione o perfil de acesso.');
+step(3, 'Vincule à loja ou grupo', 'Conforme o perfil escolhido, selecione a loja ou grupo correspondente.');
+step(4, 'Senha temporária', 'O sistema define uma senha inicial. O usuário será obrigado a alterá-la no primeiro acesso.');
+
+// ─── CAP 16 — PERFIS RBAC ─────────────────────────────────────────────────────
+
+dividerPage(16, 'Perfis de Acesso', 'Controle de permissões por função (RBAC)');
+
+h1('Os 7 perfis do sistema');
+body('O sistema possui sete perfis distintos, cada um com permissões específicas. A tabela abaixo resume o nome, a sigla e o escopo de acesso de cada perfil:');
+
+doc.moveDown(0.4);
+// header
+doc.rect(LM, doc.y, PW, 22).fill(ZINC800);
+doc.fontSize(9).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('Perfil',    LM + 4,  doc.y + 6, { width: 150, lineBreak: false });
+doc.fontSize(9).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('Sigla',     LM + 158, doc.y + 6, { width: 90,  lineBreak: false });
+doc.fontSize(9).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('Escopo de Acesso', LM + 252, doc.y + 6, { width: PW - 258 });
+doc.y += 22;
+
+const roles = [
+  ['Administrador Geral',      'ADMIN_GERAL',       'Acesso total. Sem vínculo com loja ou grupo.'],
+  ['Administrador Financeiro', 'ADMIN_FINANCEIRO',  'Acesso a Comercial + Financeiro completo.'],
+  ['Admin de Rede',            'ADMIN_REDE',        'Gerencia a rede de franquias de um grupo.'],
+  ['Dono da Loja',             'DONO_LOJA',         'Gestão completa de todas as lojas do seu grupo.'],
+  ['Gerente de Loja',          'GERENTE_LOJA',      'Gestão operacional de uma loja específica.'],
+  ['Vendedor',                 'VENDEDOR',          'Clientes, Vendas, OS, Garantias e Comissões da sua loja.'],
+  ['Técnico',                  'TECNICO',           'Dashboard, Estoque, OS e Garantias da sua loja.'],
+];
+roles.forEach((r, i) => roleRow(r[0], r[1], r[2], i % 2 === 0));
+doc.moveDown(0.8);
+
+h2('O que cada perfil vê no menu');
+bullet([
+  'ADMIN_GERAL e ADMIN_FINANCEIRO – Sem vínculo com loja: enxergam dados de toda a rede.',
+  'ADMIN_REDE e DONO_LOJA – Vinculados a um Grupo: veem todas as lojas do seu grupo.',
+  'GERENTE_LOJA e VENDEDOR – Vinculados a uma Loja: veem apenas os dados daquela unidade.',
+  'TÉCNICO – Menu simplificado: Dashboard, Estoque, Ordens de Serviço, Garantias e Comissões.',
+]);
+
+h2('Permissões por módulo');
+bullet([
+  'Configurações do Sistema – Somente ADMIN_GERAL',
+  'Grupos e Lojas – ADMIN_GERAL e ADMIN_REDE',
+  'Usuários – ADMIN_GERAL, DONO_LOJA e GERENTE_LOJA (limitado à sua loja)',
+  'Produtos e Catálogo – ADMIN_GERAL, ADMIN_REDE e DONO_LOJA',
+  'Estoque gerencial – ADMIN_GERAL, ADMIN_REDE, DONO_LOJA e GERENTE_LOJA',
+  'Financeiro completo – ADMIN_GERAL e ADMIN_FINANCEIRO',
+  'Relatórios automáticos – ADMIN_GERAL e ADMIN_FINANCEIRO',
+  'WhatsApp CRM – Todos os perfis, exceto TÉCNICO',
+]);
+
+note('O ADMIN_GERAL (admin@teclemotos.com) é o superusuário da plataforma. Ele nunca tem vínculo com loja ou grupo e sempre vê os dados de toda a rede de forma consolidada.', ORANGE);
+
+// ─── CAP 17 — FAQ ─────────────────────────────────────────────────────────────
+
+dividerPage(17, 'Perguntas Frequentes', 'Respostas rápidas para as dúvidas mais comuns');
+
+h1('FAQ – Dúvidas frequentes');
 
 const faqs = [
-  ['Esqueci minha senha. Como recuperar?',
-   'Entre em contato com o administrador do sistema (ADMIN_GERAL ou GERENTE da sua loja). Ele pode redefinir sua senha e voce recebera uma senha temporaria para o proximo acesso.'],
-  ['A garantia nao foi gerada apos uma venda de moto. O que fazer?',
-   'Acesse Vendas, selecione a venda e clique em "Gerar Garantias Retroativas". O sistema reprocessa a geracao das 4 garantias para aquela venda.'],
+  ['Esqueci minha senha. O que fazer?',
+   'Entre em contato com o administrador do sistema ou com o gerente da sua loja. Ele pode redefinir a sua senha pelo módulo de Usuários. Você receberá uma senha temporária e será obrigado a criar uma nova no próximo acesso.'],
+  ['A garantia não foi gerada após a venda de uma moto.',
+   'Acesse o módulo de Garantias e utilize a opção "Gerar Garantias Retroativas". O sistema reprocessa a criação das quatro garantias para a venda selecionada.'],
   ['Como transferir estoque entre lojas do mesmo grupo?',
-   'Acesse Estoque, selecione a loja de origem, clique em "Transferir" no item desejado e informe a loja de destino e quantidade. Apenas lojas do mesmo grupo podem trocar estoque.'],
-  ['A conta a receber nao foi gerada apos confirmar uma venda.',
-   'Acesse Financeiro > A Receber > "Gerar Retroativas". O sistema reprocessa as contas para vendas que nao tiveram o registro gerado.'],
-  ['Como faço para que os relatorios cheguem por e-mail?',
-   'Confirme com o administrador tecnico que as variaveis SMTP_USER e SMTP_PASS estao configuradas no servidor. Sem isso, o envio de e-mail nao funciona.'],
-  ['O dashboard esta mostrando dados zerados. E normal?',
-   'Sim, se o sistema for recentemente implantado e nao houver vendas ou OS registradas, todos os KPIs aparecem zerados. Isso e esperado.'],
-  ['Como ver o extrato de estoque por chassi (unitario)?',
-   'Acesse Estoque e procure a secao "Visao Unitaria" ou "Por Chassi". Voce pode buscar por numero de chassi, modelo ou loja.'],
-  ['Posso excluir um cliente que ja tem venda registrada?',
-   'Nao. O sistema bloqueia a exclusao de clientes com vendas, OS ou outras dependencias vinculadas. Para "inativar" um cliente, use o campo de observacoes.'],
+   'Acesse Estoque, selecione a loja de origem, clique em "Transferir" no item desejado e informe a loja de destino e a quantidade a transferir. Somente lojas do mesmo grupo podem realizar transferências entre si.'],
+  ['A Conta a Receber não foi gerada após confirmar uma venda.',
+   'Acesse Financeiro > A Receber e utilize "Gerar Contas Retroativas". O sistema reprocessa a criação das contas para vendas que não tiveram o registro financeiro gerado.'],
+  ['Os relatórios por e-mail não estão chegando.',
+   'Confirme com o administrador técnico que as configurações de servidor de e-mail (SMTP) estão ativas. Sem isso, o envio automático e manual de e-mails não funciona.'],
+  ['O dashboard está mostrando valores zerados. É normal?',
+   'Sim. Se o sistema foi implantado recentemente e ainda não há vendas ou OS registradas, todos os KPIs aparecerão zerados. Os indicadores são preenchidos à medida que as operações são lançadas.'],
+  ['Como rastrear uma moto específica pelo número de chassi?',
+   'Acesse Estoque e selecione a visualização "Unitária" (ou "Por Chassi"). Utilize o campo de busca para localizar o chassi desejado e ver o histórico completo de movimentação daquela unidade.'],
+  ['Posso excluir um cliente que já realizou uma compra?',
+   'Não. O sistema bloqueia a exclusão de clientes que possuem vendas, OS ou outros registros vinculados. Para desativar um cadastro, utilize o campo de observações internas ou entre em contato com o administrador.'],
+  ['Como adicionar um novo usuário ao sistema?',
+   'Acesse Configurações > Usuários e clique em "+ Novo Usuário". Preencha nome, e-mail e selecione o perfil adequado. O usuário receberá uma senha temporária e deverá alterá-la no primeiro acesso.'],
+  ['Por que alguns produtos não aparecem na seleção durante uma venda?',
+   'A seleção de produtos é filtrada pelo estoque da loja escolhida para a venda. Somente produtos com quantidade disponível naquela loja são exibidos. Verifique se o produto tem estoque na loja correta.'],
 ];
 
-faqs.forEach(([q, a]) => {
-  const y = doc.y;
-  if (y > doc.page.height - 150) { doc.addPage(); doc.y = 50; }
-  doc.rect(50, doc.y, pageW(), 18).fill('#1e293b');
-  doc.rect(50, doc.y, 4, 18).fill('#3b82f6');
-  doc.fontSize(9).fillColor(WHITE).font('Helvetica-Bold').text(`P: ${q}`, 60, doc.y + 4, { width: pageW() - 20 });
-  doc.y += 22;
-  doc.fontSize(9).fillColor('#d4d4d8').font('Helvetica').text(`R: ${a}`, 54, doc.y, { width: pageW() - 10, lineGap: 2 });
-  doc.moveDown(0.8);
+faqs.forEach((faq) => {
+  ensureSpace(65);
+  const sy = doc.y;
+  // pergunta
+  doc.rect(LM, sy, PW, 20).fill('#1e293b');
+  doc.rect(LM, sy, 4, 20).fill(BLUE);
+  doc.fontSize(9).font('Helvetica-Bold').fillColor(WHITE)
+     .text('P: ' + faq[0], LM + 10, sy + 5, { width: PW - 16 });
+  doc.y = sy + 24;
+  // resposta
+  doc.fontSize(9).font('Helvetica').fillColor(ZINC300)
+     .text('R: ' + faq[1], LM + 6, doc.y, { width: PW - 10, lineGap: 2 });
+  doc.moveDown(0.9);
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// PAGINA FINAL
-// ────────────────────────────────────────────────────────────────────────────
+// ─── PÁGINA FINAL ─────────────────────────────────────────────────────────────
+
 doc.addPage();
 doc.rect(0, 0, doc.page.width, doc.page.height).fill('#09090b');
-doc.rect(0, 0, doc.page.width, 8).fill(ORANGE);
-doc.y = 200;
-doc.fontSize(28).fillColor(WHITE).font('Helvetica-Bold').text('TM Imports', { align: 'center' });
-doc.fontSize(16).fillColor(ORANGE).text('Tecle Motos', { align: 'center' });
-doc.moveDown(1);
-doc.rect(150, doc.y, pageW() - 100, 2).fill(ORANGE);
-doc.moveDown(1.5);
-doc.fontSize(13).fillColor('#a1a1aa').font('Helvetica')
-   .text('Sistema Integrado de Gestao Multi-Empresa', { align: 'center' });
-doc.moveDown(0.5);
-doc.fontSize(10).fillColor(GRAY)
-   .text('Manual do Sistema — Versao 1.0', { align: 'center' });
-doc.moveDown(3);
-doc.fontSize(10).fillColor(GRAY)
-   .text('Para suporte tecnico, entre em contato com o administrador da plataforma.', { align: 'center' });
-doc.moveDown(0.5);
-doc.fontSize(10).fillColor(ORANGE)
-   .text('admin@teclemotos.com', { align: 'center' });
+doc.rect(0, 0, doc.page.width, 10).fill(ORANGE);
+doc.rect(0, doc.page.height - 10, doc.page.width, 10).fill(ORANGE);
 
-// Numeros de pagina
+const midY = doc.page.height / 2 - 70;
+doc.fontSize(30).font('Helvetica-Bold').fillColor(WHITE)
+   .text('TM Imports', 0, midY, { align: 'center', width: doc.page.width });
+doc.fontSize(18).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('Tecle Motos', 0, midY + 38, { align: 'center', width: doc.page.width });
+doc.rect(120, midY + 68, doc.page.width - 240, 2).fill(ORANGE);
+doc.fontSize(11).font('Helvetica').fillColor(ZINC400)
+   .text('Sistema Integrado de Gestão Multi-Empresa', 0, midY + 80, { align: 'center', width: doc.page.width });
+doc.moveDown(3);
+doc.fontSize(10).font('Helvetica').fillColor(ZINC400)
+   .text('Dúvidas ou suporte técnico:', 0, midY + 120, { align: 'center', width: doc.page.width });
+doc.fontSize(12).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('admin@teclemotos.com', 0, midY + 136, { align: 'center', width: doc.page.width });
+
+// ─── NÚMEROS DE PÁGINA ────────────────────────────────────────────────────────
+
 const range = doc.bufferedPageRange();
-for (let i = range.start; i < range.start + range.count; i++) {
+// page 0 = capa (sem número), page 1 = sumário (sem número), page 2+ = conteúdo
+for (let i = range.start + 2; i < range.start + range.count - 1; i++) {
   doc.switchToPage(i);
-  if (i > 0) {
-    doc.fontSize(8).fillColor(GRAY)
-       .text(`Pagina ${i} de ${range.count - 1} — TM Imports / Tecle Motos`, 50, doc.page.height - 35, { align: 'center', width: pageW() });
-  }
+  const pageNum = i - 1; // página 1 começa na index 2
+  doc.fontSize(8).font('Helvetica').fillColor(ZINC400)
+     .text(
+       `Página ${pageNum}  ·  Manual TM Imports / Tecle Motos`,
+       LM, doc.page.height - 38,
+       { align: 'center', width: PW }
+     );
 }
 
 doc.end();
-console.log('PDF gerado em:', OUTPUT);
+console.log('PDF gerado com sucesso:', OUTPUT);
