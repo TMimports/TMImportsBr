@@ -10,6 +10,7 @@ interface Usuario {
   email: string;
   role: string;
   ativo: boolean;
+  telefone?: string | null;
   loja?: { nomeFantasia: string };
 }
 

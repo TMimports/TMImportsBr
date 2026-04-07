@@ -132,13 +132,13 @@ function CustomTooltip({ active, payload, label }: any) {
         <div key={p.name} className="flex items-center gap-2 mb-0.5">
           <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
           <span className="text-zinc-300">{p.name === 'vendas' ? 'Vendas' : p.name === 'os' ? 'OS' : p.name}:</span>
-          <span className="text-white font-semibold">{fmtCurrency(p.value)}</span>
+          <span className="text-white font-semibold">{fmtCurrency(Number(p.value))}</span>
         </div>
       ))}
       {payload.length > 1 && (
         <div className="border-t border-zinc-700 mt-1.5 pt-1.5">
           <span className="text-zinc-400">Total: </span>
-          <span className="text-orange-400 font-bold">{fmtCurrency(payload.reduce((s: number, p: any) => s + p.value, 0))}</span>
+          <span className="text-orange-400 font-bold">{fmtCurrency(payload.reduce((s: number, p: any) => s + Number(p.value), 0))}</span>
         </div>
       )}
     </div>
@@ -150,7 +150,7 @@ function BarTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl text-xs">
       <p className="text-zinc-300 font-semibold mb-1">{label}</p>
-      <p className="text-orange-400 font-bold">{fmtCurrency(payload[0]?.value || 0)}</p>
+      <p className="text-orange-400 font-bold">{fmtCurrency(Number(payload[0]?.value) || 0)}</p>
     </div>
   );
 }
@@ -898,7 +898,7 @@ function TrendChart({ data, label, color = '#f97316' }: {
               return (
                 <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-xl">
                   <p className="text-zinc-400 mb-1">{lbl}</p>
-                  <p className="font-bold" style={{ color }}>{fmtCurrency(payload[0]?.value || 0)}</p>
+                  <p className="font-bold" style={{ color }}>{fmtCurrency(Number(payload[0]?.value) || 0)}</p>
                 </div>
               );
             }} />
