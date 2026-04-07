@@ -343,8 +343,11 @@ export function Lojas() {
     try {
       const data = await apiFetch('/lojas', {}, token!);
       setLojas(Array.isArray(data) ? data : []);
-    } catch { setLojas([]); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      console.error('Erro ao carregar lojas:', e);
+      setLojas([]);
+      flash(e.message || 'Erro ao carregar lojas', 'erro');
+    } finally { setLoading(false); }
   };
 
   const loadGrupos = async () => {
@@ -354,7 +357,11 @@ export function Lojas() {
     } catch { setGrupos([]); }
   };
 
-  useEffect(() => { loadLojas(); loadGrupos(); }, []);
+  useEffect(() => {
+    if (!token) return;
+    loadLojas();
+    loadGrupos();
+  }, [token]);
 
   const handleBuscarCNPJ = async () => {
     const cnpj = form.cnpj.replace(/\D/g, '');
