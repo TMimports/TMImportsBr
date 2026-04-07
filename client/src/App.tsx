@@ -29,6 +29,7 @@ import { NotasFiscais } from './pages/NotasFiscais';
 import { DashboardEmpresa } from './pages/DashboardEmpresa';
 import { FinanceiroHub } from './pages/FinanceiroHub';
 import { ConciliacaoBancaria } from './pages/ConciliacaoBancaria';
+import { Relatorios } from './pages/Relatorios';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -103,6 +104,8 @@ function AppContent() {
         return <Configuracoes />;
       case 'utilidades':
         return <Utilidades />;
+      case 'relatorios':
+        return <Relatorios />;
       default:
         return (
           <div className="card">

@@ -44,6 +44,7 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Dashboard por CNPJ: GET /api/dashboard/empresa/:lojaId returns full per-store KPIs (vendas, estoque, financeiro, fiscal, atividade recente)
 - New pages: Fornecedores.tsx (CRM with timeline), NotasFiscais.tsx (fiscal control), DashboardEmpresa.tsx (per-CNPJ KPIs)
 - New backend routes: /api/fornecedores, /api/crm (interações/follow-ups), /api/notas-fiscais, /api/dashboard/empresa/:id
+- Automated report system: role-based email reports (GERAL→ADMIN_GERAL, FINANCEIRO→ADMIN_FINANCEIRO, COMERCIAL→DONO_LOJA/GERENTE/ADMIN_REDE) with XLSX attachment, HTML email, alerts & suggestions. Scheduled via node-cron (weekly Mon 07:00, monthly day-1 07:30 BRT). Gmail SMTP via SMTP_USER/SMTP_PASS secrets. Manual dispatch from Relatorios.tsx page. Backend: /api/relatorios (destinatarios, disparar, testar-email)
 
 **Business Model:**
 - **Grupo** = A franchisee/owner entity that can contain multiple stores

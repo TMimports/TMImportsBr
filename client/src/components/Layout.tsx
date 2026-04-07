@@ -64,6 +64,8 @@ const CONFIG_GROUP = group('config-group', 'Configurações', '⚙️', [
   { id: 'configuracoes', label: 'Configurações', icon: '🔩' },
 ]);
 
+const RELATORIOS_ITEM = item('relatorios', 'Relatórios', '📈');
+
 const menuItems: Record<string, NavEntry[]> = {
   ADMIN_GERAL: [
     item('dashboard',  'Dashboard', '📊'),
@@ -71,6 +73,7 @@ const menuItems: Record<string, NavEntry[]> = {
     LOGISTICA_GROUP,
     VENDAS_GROUP(),
     FIN_ITEM,
+    RELATORIOS_ITEM,
     CONFIG_GROUP,
   ],
   ADMIN_FINANCEIRO: [
@@ -78,11 +81,13 @@ const menuItems: Record<string, NavEntry[]> = {
     item('estoque',   'Estoque',   '📋'),
     FIN_ITEM,
     item('comissoes', 'Comissões', '💸'),
+    RELATORIOS_ITEM,
   ],
   ADMIN_REDE: [
     item('dashboard', 'Dashboard', '📊'),
     item('usuarios',  'Usuários',  '👥'),
     item('lojas',     'Lojas',     '🏪'),
+    RELATORIOS_ITEM,
   ],
   DONO_LOJA: [
     item('dashboard', 'Dashboard', '📊'),
@@ -90,6 +95,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
     FIN_ITEM,
+    RELATORIOS_ITEM,
     CONFIG_GROUP,
   ],
   GERENTE_LOJA: [
@@ -97,6 +103,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
     FIN_ITEM,
+    RELATORIOS_ITEM,
   ],
   VENDEDOR: [
     item('dashboard', 'Dashboard', '📊'),

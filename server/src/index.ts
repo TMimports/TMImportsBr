@@ -33,6 +33,8 @@ import fornecedoresRoutes from './routes/fornecedores.js';
 import crmRoutes from './routes/crm.js';
 import notasFiscaisRoutes from './routes/notas-fiscais.js';
 import conciliacaoBancariaRoutes from './routes/conciliacao-bancaria.js';
+import relatoriosRoutes from './routes/relatorios.js';
+import { iniciarScheduler } from './services/scheduler.js';
 
 export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : []
@@ -115,6 +117,7 @@ app.use('/api/fornecedores', fornecedoresRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/notas-fiscais', notasFiscaisRoutes);
 app.use('/api/conciliacao-bancaria', conciliacaoBancariaRoutes);
+app.use('/api/relatorios', relatoriosRoutes);
 
 app.get('/api/debug-build', (req, res) => {
   const fs = require('fs');
@@ -207,4 +210,5 @@ async function initializeDatabase() {
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Servidor ${isDev ? 'DEV' : 'PROD'} rodando em http://0.0.0.0:${PORT}`);
   await initializeDatabase();
+  iniciarScheduler();
 });
