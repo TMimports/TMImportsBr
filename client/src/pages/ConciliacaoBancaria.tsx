@@ -115,7 +115,7 @@ function ModalConta({ lojas, onSave, onClose }: {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-xs text-zinc-400 mb-1">Agência *</label>
             <input value={form.agencia} onChange={e => setForm(p => ({ ...p, agencia: e.target.value }))}

@@ -51,59 +51,65 @@ function ensureSpace(neededPx) {
 }
 
 function h1(text) {
-  ensureSpace(30);
-  doc.fontSize(15).font('Helvetica-Bold').fillColor(WHITE).text(text, LM, doc.y, { width: PW });
+  ensureSpace(35);
+  doc.fontSize(17).font('Helvetica-Bold').fillColor(WHITE).text(text, LM, doc.y, { width: PW });
   doc.moveDown(0.15);
   doc.rect(LM, doc.y, PW, 2).fill(ORANGE);
-  doc.moveDown(0.6);
+  doc.moveDown(0.7);
 }
 
 function h2(text) {
-  ensureSpace(24);
-  doc.rect(LM, doc.y, 3, 14).fill(ORANGE);
-  doc.fontSize(11).font('Helvetica-Bold').fillColor(WHITE)
-     .text(text, LM + 8, doc.y + 1, { width: PW - 8 });
-  doc.moveDown(0.5);
+  ensureSpace(28);
+  doc.rect(LM, doc.y, 3, 16).fill(ORANGE);
+  doc.fontSize(13).font('Helvetica-Bold').fillColor(WHITE)
+     .text(text, LM + 10, doc.y + 1, { width: PW - 10 });
+  doc.moveDown(0.55);
 }
 
 function body(text) {
-  doc.fontSize(9.5).font('Helvetica').fillColor(ZINC300)
-     .text(text, LM, doc.y, { width: PW, lineGap: 3, align: 'justify' });
-  doc.moveDown(0.35);
+  doc.fontSize(11).font('Helvetica').fillColor(ZINC300)
+     .text(text, LM, doc.y, { width: PW, lineGap: 4, align: 'justify' });
+  doc.moveDown(0.45);
 }
 
 function bullet(items) {
   items.forEach(item => {
-    ensureSpace(16);
-    doc.fontSize(9.5).font('Helvetica').fillColor(ZINC300)
-       .text('\u2022  ' + item, LM + 8, doc.y, { width: PW - 8, lineGap: 2 });
+    ensureSpace(18);
+    doc.fontSize(11).font('Helvetica').fillColor(ZINC300)
+       .text('\u2022  ' + item, LM + 8, doc.y, { width: PW - 8, lineGap: 3 });
   });
-  doc.moveDown(0.4);
+  doc.moveDown(0.5);
 }
 
 function note(text, color) {
   const c = color || ORANGE;
-  ensureSpace(32);
+  ensureSpace(40);
   const sy = doc.y;
-  doc.rect(LM, sy, PW, 28).fill(ZINC900).stroke(c);
-  doc.rect(LM, sy, 4, 28).fill(c);
-  doc.fontSize(9).font('Helvetica').fillColor(ZINC300)
-     .text(text, LM + 12, sy + 9, { width: PW - 20 });
-  doc.y = sy + 35;
+  // measure text height first
+  const th = doc.heightOfString(text, { width: PW - 24, fontSize: 10.5 });
+  const boxH = Math.max(38, th + 20);
+  doc.rect(LM, sy, PW, boxH).fill(ZINC900).stroke(c);
+  doc.rect(LM, sy, 4, boxH).fill(c);
+  doc.fontSize(10.5).font('Helvetica').fillColor(ZINC300)
+     .text(text, LM + 14, sy + 10, { width: PW - 22, lineGap: 3 });
+  doc.y = sy + boxH + 8;
 }
 
 function step(n, title, desc) {
-  ensureSpace(54);
+  ensureSpace(62);
   const sy = doc.y;
-  doc.rect(LM, sy, PW, 46).fill(ZINC900).stroke(ZINC800);
-  doc.circle(LM + 20, sy + 23, 13).fill(ORANGE);
+  // measure desc height
+  const dh = doc.heightOfString(desc, { width: PW - 58, fontSize: 10.5 });
+  const boxH = Math.max(54, dh + 32);
+  doc.rect(LM, sy, PW, boxH).fill(ZINC900).stroke(ZINC800);
+  doc.circle(LM + 22, sy + boxH / 2, 14).fill(ORANGE);
+  doc.fontSize(12).font('Helvetica-Bold').fillColor(WHITE)
+     .text(String(n), LM + 22 - (n > 9 ? 7 : 5), sy + boxH / 2 - 8);
   doc.fontSize(11).font('Helvetica-Bold').fillColor(WHITE)
-     .text(String(n), LM + 20 - (n > 9 ? 6 : 4), sy + 16);
-  doc.fontSize(10).font('Helvetica-Bold').fillColor(WHITE)
-     .text(title, LM + 42, sy + 10, { width: PW - 50 });
-  doc.fontSize(9).font('Helvetica').fillColor(ZINC400)
-     .text(desc, LM + 42, sy + 24, { width: PW - 50 });
-  doc.y = sy + 54;
+     .text(title, LM + 46, sy + 10, { width: PW - 54 });
+  doc.fontSize(10.5).font('Helvetica').fillColor(ZINC400)
+     .text(desc, LM + 46, sy + 26, { width: PW - 54, lineGap: 3 });
+  doc.y = sy + boxH + 6;
 }
 
 function addImg(file, caption) {
@@ -148,13 +154,13 @@ function dividerPage(number, title, subtitle) {
 }
 
 function roleRow(perfil, sigla, acesso, alt) {
-  ensureSpace(22);
+  ensureSpace(26);
   const sy = doc.y;
-  doc.rect(LM, sy, PW, 20).fill(alt ? '#1c1c1e' : ZINC900);
-  doc.fontSize(9).font('Helvetica-Bold').fillColor(WHITE).text(perfil, LM + 4, sy + 5, { width: 150 });
-  doc.fontSize(9).font('Helvetica').fillColor(ORANGE).text(sigla, LM + 158, sy + 5, { width: 90 });
-  doc.fontSize(9).font('Helvetica').fillColor(ZINC300).text(acesso, LM + 252, sy + 5, { width: PW - 250 });
-  doc.y = sy + 22;
+  doc.rect(LM, sy, PW, 24).fill(alt ? '#1c1c1e' : ZINC900);
+  doc.fontSize(10).font('Helvetica-Bold').fillColor(WHITE).text(perfil, LM + 4, sy + 6, { width: 155 });
+  doc.fontSize(10).font('Helvetica').fillColor(ORANGE).text(sigla, LM + 163, sy + 6, { width: 90 });
+  doc.fontSize(10).font('Helvetica').fillColor(ZINC300).text(acesso, LM + 257, sy + 6, { width: PW - 255 });
+  doc.y = sy + 26;
 }
 
 // ─── CAPA ─────────────────────────────────────────────────────────────────────
@@ -686,14 +692,14 @@ body('O sistema possui sete perfis distintos, cada um com permissões específic
 
 doc.moveDown(0.4);
 // header
-doc.rect(LM, doc.y, PW, 22).fill(ZINC800);
-doc.fontSize(9).font('Helvetica-Bold').fillColor(ORANGE)
-   .text('Perfil',    LM + 4,  doc.y + 6, { width: 150, lineBreak: false });
-doc.fontSize(9).font('Helvetica-Bold').fillColor(ORANGE)
-   .text('Sigla',     LM + 158, doc.y + 6, { width: 90,  lineBreak: false });
-doc.fontSize(9).font('Helvetica-Bold').fillColor(ORANGE)
-   .text('Escopo de Acesso', LM + 252, doc.y + 6, { width: PW - 258 });
-doc.y += 22;
+doc.rect(LM, doc.y, PW, 26).fill(ZINC800);
+doc.fontSize(10).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('Perfil',    LM + 4,  doc.y + 7, { width: 155, lineBreak: false });
+doc.fontSize(10).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('Sigla',     LM + 163, doc.y + 7, { width: 90,  lineBreak: false });
+doc.fontSize(10).font('Helvetica-Bold').fillColor(ORANGE)
+   .text('Escopo de Acesso', LM + 257, doc.y + 7, { width: PW - 260 });
+doc.y += 26;
 
 const roles = [
   ['Administrador Geral',      'ADMIN_GERAL',       'Acesso total. Sem vínculo com loja ou grupo.'],
@@ -759,18 +765,20 @@ const faqs = [
 ];
 
 faqs.forEach((faq) => {
-  ensureSpace(65);
+  const pHeight = doc.heightOfString('P: ' + faq[0], { width: PW - 20, fontSize: 11 });
+  const pBox = Math.max(28, pHeight + 14);
+  ensureSpace(pBox + 60);
   const sy = doc.y;
   // pergunta
-  doc.rect(LM, sy, PW, 20).fill('#1e293b');
-  doc.rect(LM, sy, 4, 20).fill(BLUE);
-  doc.fontSize(9).font('Helvetica-Bold').fillColor(WHITE)
-     .text('P: ' + faq[0], LM + 10, sy + 5, { width: PW - 16 });
-  doc.y = sy + 24;
+  doc.rect(LM, sy, PW, pBox).fill('#1e293b');
+  doc.rect(LM, sy, 4, pBox).fill(BLUE);
+  doc.fontSize(11).font('Helvetica-Bold').fillColor(WHITE)
+     .text('P: ' + faq[0], LM + 12, sy + 7, { width: PW - 18 });
+  doc.y = sy + pBox + 4;
   // resposta
-  doc.fontSize(9).font('Helvetica').fillColor(ZINC300)
-     .text('R: ' + faq[1], LM + 6, doc.y, { width: PW - 10, lineGap: 2 });
-  doc.moveDown(0.9);
+  doc.fontSize(11).font('Helvetica').fillColor(ZINC300)
+     .text('R: ' + faq[1], LM + 8, doc.y, { width: PW - 12, lineGap: 3 });
+  doc.moveDown(1);
 });
 
 // ─── PÁGINA FINAL ─────────────────────────────────────────────────────────────

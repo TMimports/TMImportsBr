@@ -204,7 +204,7 @@ export function Fornecedores() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                 {selected.cnpj && <div><span className="text-zinc-400">CNPJ:</span> <span className="text-white">{selected.cnpj}</span></div>}
                 {selected.email && <div><span className="text-zinc-400">E-mail:</span> <span className="text-white">{selected.email}</span></div>}
                 {selected.telefone && <div><span className="text-zinc-400">Tel:</span> <span className="text-white">{selected.telefone}</span></div>}

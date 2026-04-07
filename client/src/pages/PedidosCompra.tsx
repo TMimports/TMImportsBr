@@ -130,23 +130,25 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
             <div className="space-y-2">
               {itens.map((it, i) => (
                 <div key={i} className="bg-[#09090b] border border-[#27272a] rounded-lg p-3">
-                  <div className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-5">
-                      <Select label={i === 0 ? "Produto" : undefined}
+                  <div className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:items-end">
+                    <div className="sm:col-span-5">
+                      <Select label="Produto"
                         value={it.produtoId} onChange={e => updateItem(i, 'produtoId', e.target.value)}>
                         <option value="">Selecione...</option>
                         {produtos.map(p => <option key={p.id} value={p.id}>[{p.tipo}] {p.nome}</option>)}
                       </Select>
                     </div>
-                    <div className="col-span-2">
-                      <Input label={i === 0 ? "Qtd" : undefined} type="number" min="1"
-                        value={it.quantidade} onChange={e => updateItem(i, 'quantidade', e.target.value)} />
+                    <div className="flex gap-2 sm:contents">
+                      <div className="flex-1 sm:col-span-2">
+                        <Input label="Qtd" type="number" min="1"
+                          value={it.quantidade} onChange={e => updateItem(i, 'quantidade', e.target.value)} />
+                      </div>
+                      <div className="flex-1 sm:col-span-3">
+                        <Input label="Custo Unit. (R$)" type="number" step="0.01"
+                          value={it.valorUnitario} onChange={e => updateItem(i, 'valorUnitario', e.target.value)} />
+                      </div>
                     </div>
-                    <div className="col-span-3">
-                      <Input label={i === 0 ? "Custo Unit. (R$)" : undefined} type="number" step="0.01"
-                        value={it.valorUnitario} onChange={e => updateItem(i, 'valorUnitario', e.target.value)} />
-                    </div>
-                    <div className="col-span-2 flex items-end gap-2 pb-1">
+                    <div className="sm:col-span-2 flex items-center justify-between sm:justify-start sm:items-end gap-2 sm:pb-1">
                       <span className="text-xs text-zinc-400 whitespace-nowrap">
                         {fmtBRL((Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0))}
                       </span>

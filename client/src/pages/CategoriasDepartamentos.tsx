@@ -134,8 +134,8 @@ function SecaoCategorias() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="card overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="text-left text-gray-400 border-b border-zinc-800">
               <th className="pb-3 pr-4 font-medium">Nome</th>
@@ -275,8 +275,8 @@ function SecaoDepartamentos() {
         </Button>
       </div>
 
-      <div className="card overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="card overflow-x-auto">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="text-left text-gray-400 border-b border-zinc-800">
               <th className="pb-3 pr-4 font-medium">Nome</th>

@@ -326,7 +326,7 @@ export function Produtos() {
             return p && p.custo > 0 ? (
               <div className="bg-zinc-800 rounded-lg p-3 space-y-2">
                 <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Valores atuais (via Pedido de Compra)</p>
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   <div>
                     <p className="text-zinc-500 text-xs">Custo médio</p>
                     <p className="text-zinc-200 font-semibold">{fmtBRL(p.custo)}</p>

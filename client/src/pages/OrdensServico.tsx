@@ -790,7 +790,8 @@ export function OrdensServico() {
               </div>
             </div>
 
-            <table className="w-full mb-4">
+            <div className="overflow-x-auto mb-4">
+            <table className="w-full min-w-[380px]">
               <thead>
                 <tr className="border-b border-zinc-700">
                   <th className="text-left p-2 text-gray-400 text-sm">Item</th>
@@ -810,6 +811,7 @@ export function OrdensServico() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             <div className="text-right text-lg font-bold border-t border-zinc-700 pt-4">
               <span className="text-gray-400">Total: </span>

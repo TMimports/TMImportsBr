@@ -269,8 +269,8 @@ export function NotasFiscais() {
       {loading ? (
         <div className="text-zinc-400 text-center py-12">Carregando...</div>
       ) : (
-        <div className="bg-zinc-900 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-zinc-900 rounded-xl overflow-x-auto">
+          <table className="w-full min-w-[650px] text-sm">
             <thead>
               <tr className="border-b border-zinc-800">
                 <th className="text-left p-4 text-zinc-400 font-medium">Tipo</th>
@@ -362,7 +362,7 @@ export function NotasFiscais() {
               <div><span className="text-zinc-400">Destinatário:</span> <span className="text-white">{selected.destinatarioNome ?? '—'}</span></div>
               <div><span className="text-zinc-400">CNPJ Dest.:</span> <span className="text-white">{selected.destinatarioCnpj ?? '—'}</span></div>
             </div>
-            <div className="border-t border-zinc-800 pt-3 grid grid-cols-3 gap-3 text-sm">
+            <div className="border-t border-zinc-800 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div className="bg-zinc-800 rounded p-3 text-center">
                 <div className="text-zinc-400 text-xs">Valor Total</div>
                 <div className="text-white font-bold">{fmt(Number(selected.valorTotal))}</div>
