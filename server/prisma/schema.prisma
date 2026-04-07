@@ -80,10 +80,12 @@ model User {
   logs                     LogAuditoria[]
   logsConfiguracao         LogConfiguracao[]
   logsEstoque              LogEstoque[]
-  pedidosCompraConfirmados PedidoCompra[]     @relation("PedidoConfirmadoPor")
-  grupo                    Grupo?             @relation(fields: [grupoId], references: [id])
-  loja                     Loja?              @relation(fields: [lojaId], references: [id])
-  vendas                   Venda[]            @relation("VendaVendedor")
+  pedidosCompraConfirmados  PedidoCompra[]     @relation("PedidoConfirmadoPor")
+  transferenciasSolicitadas Transferencia[]    @relation("TransferenciaSolicitadaPor")
+  transferenciasAprovadas   Transferencia[]    @relation("TransferenciaAprovadaPor")
+  grupo                     Grupo?             @relation(fields: [grupoId], references: [id])
+  loja                      Loja?              @relation(fields: [lojaId], references: [id])
+  vendas                    Venda[]            @relation("VendaVendedor")
 }
 
 model Produto {
@@ -178,8 +180,10 @@ model Transferencia {
   aprovadoPor   Int?
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
-  lojaDestino   Loja                @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
-  lojaOrigem    Loja                @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
+  lojaDestino       Loja  @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
+  lojaOrigem        Loja  @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
+  solicitadoPorUser User  @relation("TransferenciaSolicitadaPor", fields: [solicitadoPor], references: [id])
+  aprovadoPorUser   User? @relation("TransferenciaAprovadaPor", fields: [aprovadoPor], references: [id])
 }
 
 model Cliente {

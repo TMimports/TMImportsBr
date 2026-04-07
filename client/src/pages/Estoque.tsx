@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
@@ -10,7 +10,7 @@ import { SectionHeader } from '../components/ui/SectionHeader';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Loja { id: number; nomeFantasia: string; razaoSocial: string; cnpj: string; }
+interface Loja { id: number; nomeFantasia: string; razaoSocial: string; cnpj: string; endereco?: string | null; }
 
 interface EmpresaConsolidada {
   lojaId: number; cnpj: string; razaoSocial: string; nomeFantasia: string;
@@ -54,6 +54,18 @@ interface EmpresaDetalhes {
   logsRecentes: LogEstoque[];
 }
 
+interface Transferencia {
+  id: number;
+  status: 'SOLICITADA' | 'APROVADA' | 'REJEITADA' | 'CONCLUIDA';
+  quantidade: number;
+  createdAt: string;
+  lojaOrigem: { id: number; nomeFantasia: string; };
+  lojaDestino: { id: number; nomeFantasia: string; };
+  produto: { id: number; nome: string; tipo: string; };
+  solicitadoPorUser: { id: number; nome: string; };
+  aprovadoPorUser?: { id: number; nome: string; } | null;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -70,8 +82,16 @@ const STATUS_UNIDADE: Record<string, string> = {
   RESERVADA: 'bg-yellow-500/20 text-yellow-400',
   TRANSFERIDA: 'bg-blue-500/20 text-blue-400',
 };
+const STATUS_TRANSFERENCIA: Record<string, { label: string; cls: string }> = {
+  SOLICITADA: { label: 'Aguardando', cls: 'bg-yellow-500/20 text-yellow-400' },
+  APROVADA:   { label: 'Aprovada',   cls: 'bg-green-500/20 text-green-400' },
+  REJEITADA:  { label: 'Rejeitada',  cls: 'bg-red-500/20 text-red-400' },
+  CONCLUIDA:  { label: 'Concluída',  cls: 'bg-blue-500/20 text-blue-400' },
+};
 
-// ─── Subcomponents ────────────────────────────────────────────────────────────
+const LOJA_IMPORTACAO_ID = 4;
+
+// ─── KpiBlock ─────────────────────────────────────────────────────────────────
 
 function KpiBlock({ label, value, sub, color }: { label: string; value: React.ReactNode; sub?: string; color?: string }) {
   return (
@@ -82,6 +102,93 @@ function KpiBlock({ label, value, sub, color }: { label: string; value: React.Re
     </Card>
   );
 }
+
+// ─── Modal de Solicitação de Transferência ────────────────────────────────────
+
+function ModalSolicitacao({
+  unidade, lojaOrigemId, lojaDestinoId, lojaOrigemNome, lojaDestinoNome, onClose, onSuccess
+}: {
+  unidade: ItemUnitario;
+  lojaOrigemId: number;
+  lojaDestinoId: number;
+  lojaOrigemNome: string;
+  lojaDestinoNome: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
+
+  async function solicitar() {
+    setLoading(true);
+    setErro('');
+    try {
+      await api.post('/transferencias', {
+        produtoId: unidade.produtoId,
+        lojaOrigemId,
+        lojaDestinoId,
+        quantidade: 1,
+      });
+      onSuccess();
+      onClose();
+    } catch (e: any) {
+      setErro(e?.message || 'Erro ao solicitar transferência');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md p-6 shadow-2xl">
+        <h2 className="text-lg font-bold text-white mb-4">Solicitar Transferência</h2>
+
+        <div className="space-y-3 mb-6 text-sm">
+          <div className="bg-zinc-900 rounded-lg p-3 space-y-2">
+            <p className="text-zinc-400">Modelo</p>
+            <p className="text-white font-medium">{unidade.modeloNome}</p>
+          </div>
+          <div className="bg-zinc-900 rounded-lg p-3 space-y-2">
+            <p className="text-zinc-400">Chassi</p>
+            <p className="text-white font-mono text-xs">{unidade.chassi}</p>
+          </div>
+          {unidade.cor && (
+            <div className="bg-zinc-900 rounded-lg p-3">
+              <p className="text-zinc-400">Cor</p>
+              <p className="text-white">{unidade.cor}</p>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <div className="flex-1 bg-zinc-900 rounded-lg p-3">
+              <p className="text-zinc-400 text-xs mb-1">De</p>
+              <p className="text-orange-400 font-medium">{lojaOrigemNome}</p>
+            </div>
+            <div className="flex items-center text-zinc-500">→</div>
+            <div className="flex-1 bg-zinc-900 rounded-lg p-3">
+              <p className="text-zinc-400 text-xs mb-1">Para</p>
+              <p className="text-green-400 font-medium">{lojaDestinoNome}</p>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs text-zinc-500 mb-4">
+          A solicitação ficará pendente até ser aprovada ou rejeitada pelo Financeiro.
+        </p>
+
+        {erro && <p className="text-red-400 text-sm mb-3">{erro}</p>}
+
+        <div className="flex gap-3">
+          <Button variant="ghost" onClick={onClose} className="flex-1">Cancelar</Button>
+          <Button variant="primary" onClick={solicitar} disabled={loading} className="flex-1">
+            {loading ? 'Enviando...' : 'Confirmar Solicitação'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TabGerencial ─────────────────────────────────────────────────────────────
 
 function TabGerencial({ itens, busca }: { itens: ItemGerencial[]; busca: string }) {
   const filtrados = useMemo(() => {
@@ -155,7 +262,15 @@ function TabGerencial({ itens, busca }: { itens: ItemGerencial[]; busca: string 
   );
 }
 
-function TabUnitaria({ itens, busca }: { itens: ItemUnitario[]; busca: string }) {
+// ─── TabUnitaria ──────────────────────────────────────────────────────────────
+
+function TabUnitaria({
+  itens, busca, onSolicitar
+}: {
+  itens: ItemUnitario[];
+  busca: string;
+  onSolicitar?: (u: ItemUnitario) => void;
+}) {
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase();
     return q ? itens.filter(i =>
@@ -164,46 +279,66 @@ function TabUnitaria({ itens, busca }: { itens: ItemUnitario[]; busca: string })
     ) : itens;
   }, [itens, busca]);
 
+  const disponíveis = filtrados.filter(u => u.status === 'ESTOQUE');
+  const outros = filtrados.filter(u => u.status !== 'ESTOQUE');
+  const lista = onSolicitar ? disponíveis : filtrados;
+
   return (
     <div className="overflow-x-auto">
-      {filtrados.length === 0
-        ? <div className="text-center py-12 text-zinc-500">Nenhuma unidade encontrada</div>
-        : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
-                <th className="text-left p-3 font-medium">Chassi</th>
-                <th className="text-left p-3 font-medium">Modelo</th>
-                <th className="text-left p-3 font-medium">Cód. Motor</th>
-                <th className="text-left p-3 font-medium">Cor</th>
-                <th className="text-left p-3 font-medium">Ano</th>
-                <th className="text-left p-3 font-medium">Status</th>
-                <th className="text-left p-3 font-medium">Cadastrado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.map(u => (
-                <tr key={u.id} className="border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors">
-                  <td className="p-3 font-mono text-zinc-200 text-xs">{u.chassi}</td>
-                  <td className="p-3 text-white">{u.modeloNome}</td>
-                  <td className="p-3 font-mono text-zinc-400 text-xs">{u.codigoMotor || '—'}</td>
-                  <td className="p-3 text-zinc-300">{u.cor || '—'}</td>
-                  <td className="p-3 text-zinc-300">{u.ano || '—'}</td>
-                  <td className="p-3">
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_UNIDADE[u.status] || 'bg-zinc-700 text-zinc-300'}`}>
-                      {u.status}
-                    </span>
+      {onSolicitar && disponíveis.length === 0 && (
+        <div className="text-center py-12 text-zinc-500">Nenhuma unidade disponível nesta loja</div>
+      )}
+      {lista.length === 0 && !onSolicitar && (
+        <div className="text-center py-12 text-zinc-500">Nenhuma unidade encontrada</div>
+      )}
+      {lista.length > 0 && (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
+              <th className="text-left p-3 font-medium">Chassi</th>
+              <th className="text-left p-3 font-medium">Modelo</th>
+              <th className="text-left p-3 font-medium">Cód. Motor</th>
+              <th className="text-left p-3 font-medium">Cor</th>
+              <th className="text-left p-3 font-medium">Ano</th>
+              <th className="text-left p-3 font-medium">Status</th>
+              <th className="text-left p-3 font-medium">Cadastrado</th>
+              {onSolicitar && <th className="text-center p-3 font-medium">Ação</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {lista.map(u => (
+              <tr key={u.id} className="border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors">
+                <td className="p-3 font-mono text-zinc-200 text-xs">{u.chassi}</td>
+                <td className="p-3 text-white">{u.modeloNome}</td>
+                <td className="p-3 font-mono text-zinc-400 text-xs">{u.codigoMotor || '—'}</td>
+                <td className="p-3 text-zinc-300">{u.cor || '—'}</td>
+                <td className="p-3 text-zinc-300">{u.ano || '—'}</td>
+                <td className="p-3">
+                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_UNIDADE[u.status] || 'bg-zinc-700 text-zinc-300'}`}>
+                    {u.status}
+                  </span>
+                </td>
+                <td className="p-3 text-zinc-400 text-xs">{fmtDate(u.createdAt)}</td>
+                {onSolicitar && (
+                  <td className="p-3 text-center">
+                    <button
+                      onClick={() => onSolicitar(u)}
+                      className="text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 px-3 py-1 rounded-lg font-medium transition-colors"
+                    >
+                      Solicitar
+                    </button>
                   </td>
-                  <td className="p-3 text-zinc-400 text-xs">{fmtDate(u.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      }
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
+
+// ─── TabMovimentacao ──────────────────────────────────────────────────────────
 
 function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
   const TIPO_COR: Record<string, string> = {
@@ -253,11 +388,141 @@ function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
   );
 }
 
+// ─── TabSolicitacoes ──────────────────────────────────────────────────────────
+
+function TabSolicitacoes({
+  isAprovador, lojaId, refreshKey
+}: {
+  isAprovador: boolean;
+  lojaId: number | null;
+  refreshKey: number;
+}) {
+  const [items, setItems] = useState<Transferencia[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [acao, setAcao] = useState<number | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get<Transferencia[]>('/transferencias')
+      .then(d => setItems(Array.isArray(d) ? d : []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [refreshKey]);
+
+  async function aprovar(id: number) {
+    setAcao(id);
+    try {
+      await api.put(`/transferencias/${id}/aprovar`, {});
+      setItems(prev => prev.map(t => t.id === id ? { ...t, status: 'APROVADA' } : t));
+    } catch {}
+    setAcao(null);
+  }
+
+  async function rejeitar(id: number) {
+    setAcao(id);
+    try {
+      await api.put(`/transferencias/${id}/rejeitar`, {});
+      setItems(prev => prev.map(t => t.id === id ? { ...t, status: 'REJEITADA' } : t));
+    } catch {}
+    setAcao(null);
+  }
+
+  if (loading) return <div className="py-10 text-center text-zinc-400 text-sm">Carregando solicitações...</div>;
+  if (!items.length) return <div className="py-10 text-center text-zinc-500 text-sm">Nenhuma solicitação de transferência</div>;
+
+  const pendentes = items.filter(t => t.status === 'SOLICITADA');
+  const historico = items.filter(t => t.status !== 'SOLICITADA');
+
+  return (
+    <div className="space-y-6">
+      {isAprovador && pendentes.length > 0 && (
+        <div>
+          <p className="text-sm font-semibold text-yellow-400 mb-3 flex items-center gap-2">
+            ⏳ Aguardando Aprovação ({pendentes.length})
+          </p>
+          <div className="space-y-2">
+            {pendentes.map(t => (
+              <div key={t.id} className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium text-sm">{t.produto?.nome}</p>
+                  <p className="text-zinc-400 text-xs mt-0.5">
+                    De: <span className="text-orange-400">{t.lojaOrigem?.nomeFantasia}</span>
+                    {' → '}
+                    Para: <span className="text-green-400">{t.lojaDestino?.nomeFantasia}</span>
+                  </p>
+                  <p className="text-zinc-500 text-xs mt-0.5">
+                    Solicitado por: {t.solicitadoPorUser?.nome} — {fmtDate(t.createdAt)}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => rejeitar(t.id)}
+                    disabled={acao === t.id}
+                    className="text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    Rejeitar
+                  </button>
+                  <button
+                    onClick={() => aprovar(t.id)}
+                    disabled={acao === t.id}
+                    className="text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30 px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    Aprovar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!isAprovador && pendentes.length === 0 && historico.length === 0 && (
+        <div className="text-center py-8 text-zinc-500 text-sm">Nenhuma solicitação feita ainda</div>
+      )}
+
+      {historico.length > 0 && (
+        <div>
+          <p className="text-sm font-semibold text-zinc-400 mb-3">Histórico</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
+                  <th className="text-left p-3">Produto</th>
+                  <th className="text-left p-3">Origem</th>
+                  <th className="text-left p-3">Destino</th>
+                  <th className="text-left p-3">Solicitado por</th>
+                  <th className="text-left p-3">Data</th>
+                  <th className="text-left p-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historico.map(t => {
+                  const st = STATUS_TRANSFERENCIA[t.status] || { label: t.status, cls: '' };
+                  return (
+                    <tr key={t.id} className="border-b border-[#27272a] hover:bg-zinc-800/20">
+                      <td className="p-3 text-white">{t.produto?.nome}</td>
+                      <td className="p-3 text-zinc-300 text-xs">{t.lojaOrigem?.nomeFantasia}</td>
+                      <td className="p-3 text-zinc-300 text-xs">{t.lojaDestino?.nomeFantasia}</td>
+                      <td className="p-3 text-zinc-400 text-xs">{t.solicitadoPorUser?.nome}</td>
+                      <td className="p-3 text-zinc-400 text-xs">{fmtDate(t.createdAt)}</td>
+                      <td className="p-3">
+                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${st.cls}`}>{st.label}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── View Consolidada (Admin) ─────────────────────────────────────────────────
 
-function ViewConsolidada({ onSelectEmpresa }: {
-  onSelectEmpresa: (lojaId: number) => void;
-}) {
+function ViewConsolidada({ onSelectEmpresa }: { onSelectEmpresa: (lojaId: number) => void; }) {
   const [data, setData] = useState<ConsolidadoResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -354,19 +619,33 @@ function ViewConsolidada({ onSelectEmpresa }: {
   );
 }
 
-// ─── View por Empresa (Loja selecionada) ─────────────────────────────────────
+// ─── View por Empresa ─────────────────────────────────────────────────────────
 
-type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao';
+type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes';
 
-function ViewEmpresa({ lojaId, onBack }: { lojaId: number; onBack?: () => void; }) {
+function ViewEmpresa({
+  lojaId, minhaLojaId, isAprovador, onBack, refreshSolicitacoes, onSolicitacaoFeita
+}: {
+  lojaId: number;
+  minhaLojaId: number | null;
+  isAprovador: boolean;
+  onBack?: () => void;
+  refreshSolicitacoes: number;
+  onSolicitacaoFeita: () => void;
+}) {
   const [data, setData] = useState<EmpresaDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<EmpresaTab>('gerencial');
   const [busca, setBusca] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState('');
+  const [modalUnidade, setModalUnidade] = useState<ItemUnitario | null>(null);
+
+  const isOutraLoja = minhaLojaId !== null && lojaId !== minhaLojaId;
 
   useEffect(() => {
     setLoading(true);
+    setAba('gerencial');
+    setBusca('');
     api.get<EmpresaDetalhes>(`/estoque/empresa/${lojaId}`)
       .then(d => setData(d && d.empresa ? d : null))
       .catch(() => setData(null))
@@ -383,23 +662,50 @@ function ViewEmpresa({ lojaId, onBack }: { lojaId: number; onBack?: () => void; 
     ? data.gerencial.filter(i => i.tipo === tipoFiltro)
     : data.gerencial;
 
-  const TABS: { id: EmpresaTab; label: string; count?: number }[] = [
-    { id: 'gerencial', label: 'Gerencial (por Modelo)', count: gerencialFiltrado.length },
-    { id: 'unitaria', label: 'Unitária (por Chassi)', count: data.unitaria.length },
+  const pendentesCount = isAprovador ? undefined : undefined;
+
+  const TABS: { id: EmpresaTab; label: string; count?: number; highlight?: boolean }[] = [
+    { id: 'gerencial', label: 'Gerencial', count: gerencialFiltrado.length },
+    { id: 'unitaria', label: isOutraLoja ? 'Unidades Disponíveis' : 'Unitária (Chassi)', count: data.unitaria.filter(u => isOutraLoja ? u.status === 'ESTOQUE' : true).length },
     { id: 'movimentacao', label: 'Movimentação', count: data.logsRecentes.length },
+    { id: 'solicitacoes', label: isAprovador ? 'Solicitações' : 'Minhas Solicitações', highlight: isAprovador },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header da empresa */}
-      <div className="flex items-start gap-4">
+      {modalUnidade && minhaLojaId && (
+        <ModalSolicitacao
+          unidade={modalUnidade}
+          lojaOrigemId={lojaId}
+          lojaDestinoId={minhaLojaId}
+          lojaOrigemNome={e.nomeFantasia}
+          lojaDestinoNome="Minha Loja"
+          onClose={() => setModalUnidade(null)}
+          onSuccess={onSolicitacaoFeita}
+        />
+      )}
+
+      {/* Header */}
+      <div className="flex items-start gap-4 flex-wrap">
         {onBack && (
-          <button onClick={onBack} className="mt-1 text-zinc-400 hover:text-white transition-colors">
+          <button onClick={onBack} className="mt-1 text-zinc-400 hover:text-white transition-colors text-sm">
             ← Voltar
           </button>
         )}
-        <div className="flex-1">
-          <h2 className="text-xl font-bold text-white">{e.nomeFantasia}</h2>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-xl font-bold text-white">{e.nomeFantasia}</h2>
+            {lojaId === LOJA_IMPORTACAO_ID && (
+              <span className="text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full font-medium">
+                🏭 Estoque Central
+              </span>
+            )}
+            {isOutraLoja && lojaId !== LOJA_IMPORTACAO_ID && (
+              <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium">
+                📍 Outra Loja
+              </span>
+            )}
+          </div>
           <p className="text-sm text-zinc-400">{e.razaoSocial} — <span className="font-mono">{e.cnpj}</span></p>
           <p className="text-xs text-zinc-500 mt-0.5">Grupo: {e.grupoNome}</p>
         </div>
@@ -408,36 +714,47 @@ function ViewEmpresa({ lojaId, onBack }: { lojaId: number; onBack?: () => void; 
             ⚠ {t.alertasBaixoEstoque} alerta{t.alertasBaixoEstoque > 1 ? 's' : ''} de estoque baixo
           </div>
         )}
-        {t.pedidosPendentes > 0 && (
-          <div className="bg-blue-500/10 border border-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-sm">
-            📦 {t.pedidosPendentes} pedido{t.pedidosPendentes > 1 ? 's' : ''} pendente{t.pedidosPendentes > 1 ? 's' : ''}
-          </div>
-        )}
       </div>
+
+      {/* Aviso de outra loja */}
+      {isOutraLoja && (
+        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 text-sm">
+          <p className="text-orange-400 font-medium mb-1">
+            {lojaId === LOJA_IMPORTACAO_ID ? '🏭 Estoque Central (TM Importação)' : '📍 Consultando estoque de outra loja'}
+          </p>
+          <p className="text-zinc-400">
+            Você pode solicitar a transferência de unidades disponíveis para sua loja.
+            A solicitação será analisada pelo Financeiro.
+          </p>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        <KpiBlock label="Motos em Estoque" value={t.totalMotos} color="text-orange-400" />
-        <KpiBlock label="Peças em Estoque" value={t.totalPecas} color="text-blue-400" />
+        <KpiBlock label="Motos" value={t.totalMotos} color="text-orange-400" />
+        <KpiBlock label="Peças" value={t.totalPecas} color="text-blue-400" />
         <KpiBlock label="Custo Total (CM)" value={fmtBRL(t.valorTotalCusto)} color="text-zinc-200" />
-        <KpiBlock label="Valor Venda Total" value={fmtBRL(t.valorTotalVenda)} color="text-green-400"
+        <KpiBlock label="Valor Venda" value={fmtBRL(t.valorTotalVenda)} color="text-green-400"
           sub={`Margem: ${t.valorTotalCusto > 0 ? ((t.valorTotalVenda / t.valorTotalCusto - 1) * 100).toFixed(1) + '%' : '—'}`} />
-        <KpiBlock label="Unidades (Total)" value={t.unidadesTotal}
+        <KpiBlock label="Unidades" value={t.unidadesTotal}
           sub={`${t.unidadesEmEstoque} em estoque · ${t.unidadesVendidas} vendidas`} />
         <KpiBlock label="Sem Giro" value={t.semGiro} color={t.semGiro > 0 ? 'text-red-400' : 'text-zinc-400'} />
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-4 border-b border-[#27272a]">
+      <div className="flex items-center gap-1 border-b border-[#27272a] overflow-x-auto">
         {TABS.map(tab => (
           <button key={tab.id}
             onClick={() => { setAba(tab.id); setBusca(''); }}
-            className={`pb-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`pb-3 px-1 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
               aba === tab.id
                 ? 'border-orange-500 text-orange-400'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}>
             {tab.label}
+            {tab.highlight && (
+              <span className="ml-1.5 text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">!</span>
+            )}
             {tab.count !== undefined && (
               <span className="ml-2 text-xs bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">{tab.count}</span>
             )}
@@ -445,25 +762,40 @@ function ViewEmpresa({ lojaId, onBack }: { lojaId: number; onBack?: () => void; 
         ))}
       </div>
 
-      {/* Filtros contextuais */}
-      <div className="flex gap-3">
-        <Input value={busca} onChange={e => setBusca(e.target.value)}
-          placeholder={aba === 'unitaria' ? 'Buscar por chassi, modelo, cor...' : 'Buscar produto...'}
-          className="flex-1" />
-        {aba === 'gerencial' && (
-          <Select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)} className="w-36">
-            <option value="">Todos</option>
-            <option value="MOTO">Motos</option>
-            <option value="PECA">Peças</option>
-          </Select>
-        )}
-      </div>
+      {/* Filtros */}
+      {aba !== 'movimentacao' && aba !== 'solicitacoes' && (
+        <div className="flex gap-3">
+          <Input value={busca} onChange={e => setBusca(e.target.value)}
+            placeholder={aba === 'unitaria' ? 'Buscar por chassi, modelo, cor...' : 'Buscar produto...'}
+            className="flex-1" />
+          {aba === 'gerencial' && (
+            <Select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)} className="w-36">
+              <option value="">Todos</option>
+              <option value="MOTO">Motos</option>
+              <option value="PECA">Peças</option>
+            </Select>
+          )}
+        </div>
+      )}
 
-      {/* Conteúdo da tab */}
+      {/* Conteúdo */}
       <Card>
         {aba === 'gerencial' && <TabGerencial itens={gerencialFiltrado} busca={busca} />}
-        {aba === 'unitaria' && <TabUnitaria itens={data.unitaria} busca={busca} />}
+        {aba === 'unitaria' && (
+          <TabUnitaria
+            itens={data.unitaria}
+            busca={busca}
+            onSolicitar={isOutraLoja ? (u) => setModalUnidade(u) : undefined}
+          />
+        )}
         {aba === 'movimentacao' && <TabMovimentacao logs={data.logsRecentes} />}
+        {aba === 'solicitacoes' && (
+          <TabSolicitacoes
+            isAprovador={isAprovador}
+            lojaId={lojaId}
+            refreshKey={refreshSolicitacoes}
+          />
+        )}
       </Card>
     </div>
   );
@@ -471,25 +803,43 @@ function ViewEmpresa({ lojaId, onBack }: { lojaId: number; onBack?: () => void; 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+// Ordem de proximidade por bairro para Rio de Janeiro (simplificada)
+// Quanto menor o índice, mais central/próximo da TM Importação
+const LOJA_ORDER: Record<number, number> = {
+  4: 0,   // TM Importação — sempre primeiro
+  1: 1,   // Centro
+  8: 2,   // Copacabana
+  7: 3,   // Botafogo
+  6: 4,   // Barra
+  2: 5,   // Recreio
+  9: 6,   // Vila Isabel
+  11: 7,  // Bangu
+  5: 8,   // Campo Grande
+  12: 9,  // Paciência
+  10: 10, // Nilopólis
+  3: 11,  // Itaipuaçu
+};
+
 export function Estoque() {
   const { user } = useAuth();
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [lojaId, setLojaId] = useState<number | null>(null);
   const [loadingLojas, setLoadingLojas] = useState(true);
+  const [refreshSolicitacoes, setRefreshSolicitacoes] = useState(0);
 
   const role = user?.role || '';
   const isAdmin = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
-  // null = consolidado (só para admins); number = empresa específica
+  const isAprovador = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
+  const minhaLojaId = user?.lojaId ?? null;
   const showConsolidado = isAdmin && lojaId === null;
 
   useEffect(() => {
     api.get<Loja[]>('/lojas')
       .then(lista => {
         setLojas(lista);
-        // Sempre seleciona a loja do usuário ou a primeira da lista
         if (user?.lojaId) {
           setLojaId(user.lojaId);
-        } else if (lista.length > 0) {
+        } else if (!isAdmin && lista.length > 0) {
           setLojaId(lista[0].id);
         }
       })
@@ -497,16 +847,48 @@ export function Estoque() {
       .finally(() => setLoadingLojas(false));
   }, []);
 
+  const lojasSorted = useMemo(() => {
+    if (!lojas.length) return [];
+    // Para não-admin: mostra a loja do usuário primeiro, depois Importação, depois as outras
+    if (!isAdmin && minhaLojaId) {
+      const minhaLoja = lojas.find(l => l.id === minhaLojaId);
+      const importacao = lojas.find(l => l.id === LOJA_IMPORTACAO_ID && l.id !== minhaLojaId);
+      const outras = lojas
+        .filter(l => l.id !== minhaLojaId && l.id !== LOJA_IMPORTACAO_ID)
+        .sort((a, b) => (LOJA_ORDER[a.id] ?? 99) - (LOJA_ORDER[b.id] ?? 99));
+      return [
+        ...(minhaLoja ? [minhaLoja] : []),
+        ...(importacao ? [importacao] : []),
+        ...outras,
+      ];
+    }
+    return [...lojas].sort((a, b) => (LOJA_ORDER[a.id] ?? 99) - (LOJA_ORDER[b.id] ?? 99));
+  }, [lojas, isAdmin, minhaLojaId]);
+
   if (loadingLojas) return <div className="p-12 text-center text-zinc-400">Carregando...</div>;
+
+  function getLojaNome(id: number | null) {
+    if (!id) return '';
+    const l = lojas.find(x => x.id === id);
+    if (!l) return '';
+    if (id === minhaLojaId) return `🏠 ${l.nomeFantasia} (Minha Loja)`;
+    if (id === LOJA_IMPORTACAO_ID) return `🏭 ${l.nomeFantasia} (Estoque Central)`;
+    return `🏪 ${l.nomeFantasia}`;
+  }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <SectionHeader
           title="Estoque"
-          subtitle={showConsolidado
-            ? 'Visão consolidada — todas as empresas'
-            : 'Gerencial por modelo e unitária por chassi'
+          subtitle={
+            showConsolidado
+              ? 'Visão consolidada — todas as empresas'
+              : lojaId === minhaLojaId
+                ? 'Estoque da sua loja'
+                : lojaId === LOJA_IMPORTACAO_ID
+                  ? 'Estoque Central — TM Importação'
+                  : 'Consultando outra loja'
           }
         />
 
@@ -517,9 +899,14 @@ export function Estoque() {
             onChange={e => setLojaId(e.target.value ? Number(e.target.value) : null)}
           >
             {isAdmin && <option value="">📊 Todas as Empresas (Consolidado)</option>}
-            {lojas.map(l => (
+            {lojasSorted.map(l => (
               <option key={l.id} value={l.id}>
-                🏪 {l.nomeFantasia}{l.cnpj ? ` — ${l.cnpj}` : ''}
+                {l.id === minhaLojaId
+                  ? `🏠 ${l.nomeFantasia} (Minha Loja)`
+                  : l.id === LOJA_IMPORTACAO_ID
+                    ? `🏭 ${l.nomeFantasia} — Estoque Central`
+                    : `🏪 ${l.nomeFantasia}`
+                }
               </option>
             ))}
           </Select>
@@ -532,7 +919,11 @@ export function Estoque() {
       ) : lojaId ? (
         <ViewEmpresa
           lojaId={lojaId}
+          minhaLojaId={minhaLojaId}
+          isAprovador={isAprovador}
           onBack={isAdmin ? () => setLojaId(null) : undefined}
+          refreshSolicitacoes={refreshSolicitacoes}
+          onSolicitacaoFeita={() => setRefreshSolicitacoes(k => k + 1)}
         />
       ) : (
         <div className="text-center py-12 text-zinc-500">

@@ -359,13 +359,8 @@ router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
 
     const role = req.user!.role;
 
-    // Autorização multi-tenant
-    if (!['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role)) {
-      if (req.user!.lojaId && req.user!.lojaId !== lojaId) {
-        const loja = await prisma.loja.findFirst({ where: { id: lojaId, grupoId: req.user!.grupoId ?? -1 } });
-        if (!loja) return res.status(403).json({ error: 'Acesso negado' });
-      }
-    }
+    // Qualquer usuário autenticado pode consultar estoque de qualquer loja (para busca e solicitação de transferência)
+    // Restrições de escrita são controladas nas rotas de criação/edição
 
     const loja = await prisma.loja.findUnique({
       where: { id: lojaId },
