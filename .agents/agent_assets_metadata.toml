@@ -12,3 +12,9 @@ id = "CS9U3D2GpO92FDypo0HIH"
 uri = "file://Manual_TM_Imports_ERP_v3.pdf"
 type = "pdf"
 title = "Manual ERP v3 — Screenshots novos + Fontes maiores"
+
+[[outputs]]
+id = "5GqBs6XoNbsPYoiDbeoON"
+uri = "file://Manual_TM_Imports_ERP_v4.pdf"
+type = "pdf"
+title = "Manual ERP v4 — Estoque corrigido com vista completa dos KPIs"
