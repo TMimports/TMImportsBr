@@ -227,7 +227,7 @@ export function Clientes() {
       )}
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Cliente' : 'Novo Cliente'}>
-        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Nome *</label>
             <input
@@ -248,7 +248,7 @@ export function Clientes() {
               placeholder="000.000.000-00 ou 00.000.000/0000-00"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Telefone</label>
               <input

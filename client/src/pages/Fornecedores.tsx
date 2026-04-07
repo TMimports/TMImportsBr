@@ -107,7 +107,7 @@ export function Fornecedores() {
   );
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Fornecedores</h1>
@@ -253,7 +253,7 @@ export function Fornecedores() {
               <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white">✕</button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="text-zinc-400 text-sm">Razão Social *</label>
                 <input value={form.razaoSocial ?? ''} onChange={e => setForm(p => ({ ...p, razaoSocial: e.target.value }))}

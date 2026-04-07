@@ -62,7 +62,7 @@ function VisaoGeral() {
   const saldo = data.saldoLiquido ?? 0;
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-4 md:p-6 space-y-8">
       {/* Saldo líquido destaque */}
       <div className={`rounded-2xl p-8 flex flex-col items-center text-center ${
         saldo >= 0 ? 'bg-green-900/30 border border-green-700/40' : 'bg-red-900/30 border border-red-700/40'

@@ -97,7 +97,7 @@ function ModalConta({ lojas, onSave, onClose }: {
           </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-zinc-400 mb-1">Banco *</label>
             <select value={form.banco} onChange={e => setForm(p => ({ ...p, banco: e.target.value }))}
@@ -195,7 +195,7 @@ function ModalLancamento({ contas, contaPreSelecionada, onSave, onClose }: {
           </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-zinc-400 mb-1">Data *</label>
             <input type="date" value={form.data} onChange={e => setForm(p => ({ ...p, data: e.target.value }))}
@@ -555,7 +555,7 @@ export function ConciliacaoBancaria() {
   const canEdit = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA'].includes(role);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

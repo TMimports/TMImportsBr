@@ -309,7 +309,7 @@ export function Usuarios() {
               <div className="border-t border-zinc-700 pt-4 mt-4">
                 <h3 className="text-lg font-semibold text-white mb-3">Dados Pessoais</h3>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">CPF</label>
                   <input
@@ -335,7 +335,7 @@ export function Usuarios() {
               <div className="border-t border-zinc-700 pt-4 mt-4">
                 <h3 className="text-lg font-semibold text-white mb-3">Dados Bancarios</h3>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Banco</label>
                   <input
@@ -358,7 +358,7 @@ export function Usuarios() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="label">Agencia</label>
                   <input

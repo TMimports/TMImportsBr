@@ -402,8 +402,8 @@ export function ContasReceber() {
         onClose={() => { setModalOpen(false); setEditando(null); }}
         title={editando ? 'Editar Conta a Receber' : 'Nova Conta a Receber'}
       >
-        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
               label="Loja *"
               value={form.lojaId}
@@ -437,7 +437,7 @@ export function ContasReceber() {
             placeholder="Ex: Mensalidade contrato X"
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Valor Total *"
               type="number"
@@ -455,7 +455,7 @@ export function ContasReceber() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Nº de Parcelas"
               type="number"

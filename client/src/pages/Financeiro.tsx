@@ -438,8 +438,8 @@ export function Financeiro() {
         onClose={() => { setModalOpen(false); setEditando(null); }}
         title={editando ? 'Editar Conta a Pagar' : 'Nova Despesa Avulsa'}
       >
-        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
               label="Loja *"
               value={form.lojaId}
@@ -457,7 +457,7 @@ export function Financeiro() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select
               label="Departamento"
               value={form.departamentoId}
@@ -480,7 +480,7 @@ export function Financeiro() {
             placeholder="Ex: Aluguel outubro/2025"
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Fornecedor / Credor"
               value={form.fornecedor}
@@ -495,7 +495,7 @@ export function Financeiro() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Valor Total *"
               type="number"
@@ -513,7 +513,7 @@ export function Financeiro() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="Nº de Parcelas"
               type="number"

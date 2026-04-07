@@ -451,7 +451,7 @@ export function OrdensServico() {
       )}
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Nova Ordem de Servico">
-        <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Tipo *</label>
             <div className="flex gap-4">

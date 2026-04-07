@@ -101,10 +101,10 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
           <h2 className="text-lg font-bold text-white">Novo Pedido de Compra</h2>
           <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">×</button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-4">
           {erro && <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-lg text-sm">{erro}</div>}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select label="Empresa / Loja *"
               value={form.lojaId} onChange={e => setForm(p => ({ ...p, lojaId: e.target.value }))}>
               <option value="">Selecione a loja...</option>
@@ -113,7 +113,7 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
             <Input label="Fornecedor *" value={form.fornecedor}
               onChange={e => setForm(p => ({ ...p, fornecedor: e.target.value }))} placeholder="Nome do fornecedor" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input label="Número do Pedido" value={form.numero}
               onChange={e => setForm(p => ({ ...p, numero: e.target.value }))} placeholder="Nº do pedido/NF" />
             <Input label="Previsão de Entrega" type="date" value={form.previsaoEntrega}
@@ -202,8 +202,8 @@ function DetalhesPedido({ pedido, onClose, onAction, role }: {
             <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">×</button>
           </div>
         </div>
-        <div className="p-6 space-y-5">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="p-4 sm:p-6 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div><span className="text-zinc-400">Fornecedor</span><p className="text-white font-medium mt-0.5">{pedido.fornecedor}</p></div>
             <div><span className="text-zinc-400">Número</span><p className="text-white font-medium mt-0.5">{pedido.numero || '—'}</p></div>
             <div><span className="text-zinc-400">Previsão de Entrega</span><p className="text-white font-medium mt-0.5">{fmtDate(pedido.previsaoEntrega)}</p></div>
@@ -317,7 +317,7 @@ export function PedidosCompra() {
   const role = user?.role || '';
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <SectionHeader
         title="Pedidos de Compra"
         subtitle="Gestão de ordens de entrada de mercadoria com custo médio ponderado"

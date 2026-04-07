@@ -179,7 +179,7 @@ function ModalForm({
               <input value={form.bairro} onChange={e => setForm(p => ({ ...p, bairro: e.target.value }))}
                 className={inp} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className={lbl}>Cidade</label>
                 <input value={form.cidade} onChange={e => setForm(p => ({ ...p, cidade: e.target.value }))}
@@ -428,7 +428,7 @@ export function Lojas() {
   const ativas = lojas.filter(l => l.ativo).length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Alertas */}
       {sucesso && (
         <div className="fixed top-4 right-4 z-50 bg-green-500/15 border border-green-500/40 text-green-400 px-4 py-3 rounded-xl text-sm shadow-lg">

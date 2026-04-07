@@ -205,7 +205,7 @@ export function NotasFiscais() {
   const totalSaida = notas.filter(n => n.tipo === 'SAIDA').reduce((s, n) => s + Number(n.valorTotal), 0);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Notas Fiscais</h1>
@@ -344,7 +344,7 @@ export function NotasFiscais() {
               <h2 className="text-lg font-bold text-white">NF-e #{selected.numero ?? selected.id}</h2>
               <button onClick={() => setSelected(null)} className="text-zinc-400 hover:text-white">✕</button>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div><span className="text-zinc-400">Tipo:</span> <span className="text-white">{selected.tipo}</span></div>
               <div><span className="text-zinc-400">Status:</span>
                 <span className={`ml-1 px-2 py-0.5 rounded text-xs ${STATUS_COLOR[selected.status]}`}>{selected.status}</span>
@@ -401,7 +401,7 @@ export function NotasFiscais() {
               <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-white">✕</button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
                 <label className="text-zinc-400">Tipo *</label>
                 <select value={form.tipo} onChange={e => setForm(p => ({ ...p, tipo: e.target.value as any }))}

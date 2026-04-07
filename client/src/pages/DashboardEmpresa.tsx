@@ -220,7 +220,7 @@ export function DashboardEmpresa({ lojaId: lojaIdProp }: DashboardEmpresaProps =
           {/* Fiscal */}
           <div>
             <h2 className="text-sm font-semibold text-zinc-400 mb-3 uppercase tracking-wider">Fiscal (Mês)</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-zinc-900 rounded-xl p-5">
                 <div className="text-zinc-400 text-xs mb-1">NF Entradas</div>
                 <div className="text-2xl font-bold text-green-400">{fmt(data.fiscal.notasEntrada.total)}</div>
