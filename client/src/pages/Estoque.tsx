@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
@@ -71,11 +71,6 @@ interface Transferencia {
 const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('pt-BR');
 
-const TIPO_BADGE: Record<string, string> = {
-  MOTO: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  PECA: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  SERVICO: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-};
 const STATUS_UNIDADE: Record<string, string> = {
   ESTOQUE: 'bg-green-500/20 text-green-400',
   VENDIDA: 'bg-zinc-500/20 text-zinc-400',
@@ -280,7 +275,6 @@ function TabUnitaria({
   }, [itens, busca]);
 
   const disponíveis = filtrados.filter(u => u.status === 'ESTOQUE');
-  const outros = filtrados.filter(u => u.status !== 'ESTOQUE');
   const lista = onSolicitar ? disponíveis : filtrados;
 
   return (
@@ -391,7 +385,7 @@ function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
 // ─── TabSolicitacoes ──────────────────────────────────────────────────────────
 
 function TabSolicitacoes({
-  isAprovador, lojaId, refreshKey
+  isAprovador, lojaId: _lojaId, refreshKey
 }: {
   isAprovador: boolean;
   lojaId: number | null;
@@ -662,8 +656,6 @@ function ViewEmpresa({
     ? data.gerencial.filter(i => i.tipo === tipoFiltro)
     : data.gerencial;
 
-  const pendentesCount = isAprovador ? undefined : undefined;
-
   const TABS: { id: EmpresaTab; label: string; count?: number; highlight?: boolean }[] = [
     { id: 'gerencial', label: 'Gerencial', count: gerencialFiltrado.length },
     { id: 'unitaria', label: isOutraLoja ? 'Unidades Disponíveis' : 'Unitária (Chassi)', count: data.unitaria.filter(u => isOutraLoja ? u.status === 'ESTOQUE' : true).length },
@@ -866,15 +858,6 @@ export function Estoque() {
   }, [lojas, isAdmin, minhaLojaId]);
 
   if (loadingLojas) return <div className="p-12 text-center text-zinc-400">Carregando...</div>;
-
-  function getLojaNome(id: number | null) {
-    if (!id) return '';
-    const l = lojas.find(x => x.id === id);
-    if (!l) return '';
-    if (id === minhaLojaId) return `🏠 ${l.nomeFantasia} (Minha Loja)`;
-    if (id === LOJA_IMPORTACAO_ID) return `🏭 ${l.nomeFantasia} (Estoque Central)`;
-    return `🏪 ${l.nomeFantasia}`;
-  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">

@@ -273,8 +273,6 @@ export function Financeiro() {
     return origemOk && mesOk && catOk;
   });
 
-  const contasPagando = contasEmPagamento => contasEmPagamento !== null;
-
   return (
     <div className="space-y-6">
       {/* Header */}
