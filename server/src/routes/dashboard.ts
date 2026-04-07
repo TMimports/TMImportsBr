@@ -958,15 +958,21 @@ router.get('/tecnico', async (req: AuthRequest, res) => {
     inicio30.setDate(inicio30.getDate() - 29);
     inicio30.setHours(0, 0, 0, 0);
 
+    const osWhere = lojaId
+      ? { lojaId, deletedAt: null }
+      : { deletedAt: null };
+    const osWhereMes = { ...osWhere, createdAt: { gte: inicioMes } };
+    const osWhere30  = { ...osWhere, createdAt: { gte: inicio30 } };
+
     const [osMes, osPorStatus, comissoesTotal, comissoesPagas, ultimasOS, osTrend] = await Promise.all([
       prisma.ordemServico.aggregate({
-        where: { tecnicoId: userId, createdAt: { gte: inicioMes } },
+        where: osWhereMes,
         _sum: { valorTotal: true },
         _count: { id: true },
       }),
       prisma.ordemServico.groupBy({
         by: ['status'],
-        where: { tecnicoId: userId, createdAt: { gte: inicioMes } },
+        where: osWhereMes,
         _count: { id: true },
         _sum: { valorTotal: true },
       }),
@@ -979,17 +985,17 @@ router.get('/tecnico', async (req: AuthRequest, res) => {
         _sum: { valor: true },
       }),
       prisma.ordemServico.findMany({
-        where: { tecnicoId: userId },
+        where: osWhere,
         orderBy: { createdAt: 'desc' },
         take: 5,
         select: {
           id: true, valorTotal: true, createdAt: true, status: true,
+          motoDescricao: true,
           cliente: { select: { nome: true } },
-          veiculo: { select: { modelo: true } },
         },
       }),
       prisma.ordemServico.findMany({
-        where: { tecnicoId: userId, createdAt: { gte: inicio30 } },
+        where: osWhere30,
         select: { valorTotal: true, createdAt: true, status: true },
         orderBy: { createdAt: 'asc' },
       }),
@@ -1035,7 +1041,7 @@ router.get('/tecnico', async (req: AuthRequest, res) => {
         valor: Number(os.valorTotal ?? 0),
         status: os.status,
         cliente: os.cliente?.nome || 'Cliente não informado',
-        veiculo: os.veiculo?.modelo || '—',
+        veiculo: os.motoDescricao || '—',
         data: os.createdAt,
       })),
     });
