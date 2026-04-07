@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell
+  Tooltip, ResponsiveContainer, Cell, RadialBarChart, RadialBar,
 } from 'recharts';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -781,78 +781,557 @@ function AdminDashboard({ onNavigate, lojaId }: DashboardProps) {
   );
 }
 
-// ─── User Dashboard ────────────────────────────────────────────────────────────
+// ─── Loading Spinner ──────────────────────────────────────────────────────────
 
-function UserDashboard({ onNavigate }: DashboardProps) {
+function LoadingSpinner() {
+  return (
+    <div className="flex flex-col items-center justify-center h-64 gap-3">
+      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <p className="text-zinc-500 text-sm">Carregando dashboard...</p>
+    </div>
+  );
+}
+
+// ─── Comissão Card ────────────────────────────────────────────────────────────
+
+function ComissaoCard({ total, pagas, pendentes }: { total: number; pagas: number; pendentes: number }) {
+  const pct = total > 0 ? Math.round((pagas / total) * 100) : 0;
+  const radialData = [
+    { name: 'Pago', value: pagas, fill: '#22c55e' },
+    { name: 'Pendente', value: pendentes > 0 ? pendentes : 0.001, fill: '#f97316' },
+  ];
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <SectionTitle icon="💎" title="Comissões do Mês" />
+      <div className="flex items-center gap-4">
+        <div className="w-[120px] h-[120px] flex-shrink-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart cx="50%" cy="50%" innerRadius="55%" outerRadius="90%" data={radialData} startAngle={90} endAngle={-270}>
+              <RadialBar dataKey="value" cornerRadius={4} />
+            </RadialBarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex-1 space-y-3">
+          <div>
+            <p className="text-xs text-zinc-500">Total</p>
+            <p className="text-xl font-bold text-zinc-100">{fmtCurrencyShort(total)}</p>
+          </div>
+          <div className="flex gap-4">
+            <div>
+              <p className="text-xs text-zinc-500 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Pago</p>
+              <p className="text-sm font-semibold text-green-400">{fmtCurrencyShort(pagas)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />Pendente</p>
+              <p className="text-sm font-semibold text-orange-400">{fmtCurrencyShort(pendentes)}</p>
+            </div>
+          </div>
+          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+            <div className="h-full bg-green-500 rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="text-xs text-zinc-500">{pct}% já recebido</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Trend Area Chart ─────────────────────────────────────────────────────────
+
+function TrendChart({ data, label, color = '#f97316' }: {
+  data: { label: string; total: number }[];
+  label: string;
+  color?: string;
+}) {
+  const hasData = data.some(d => d.total > 0);
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <SectionTitle icon="📈" title={label} sub="últimos 30 dias" />
+      {hasData ? (
+        <ResponsiveContainer width="100%" height={180}>
+          <AreaChart data={data} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+            <defs>
+              <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#52525b' }} tickLine={false} axisLine={false} interval={4} />
+            <YAxis tick={{ fontSize: 10, fill: '#52525b' }} tickLine={false} axisLine={false} tickFormatter={v => fmtCurrencyShort(v)} width={55} />
+            <Tooltip content={({ active, payload, label: lbl }) => {
+              if (!active || !payload?.length) return null;
+              return (
+                <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-xl">
+                  <p className="text-zinc-400 mb-1">{lbl}</p>
+                  <p className="font-bold" style={{ color }}>{fmtCurrency(payload[0]?.value || 0)}</p>
+                </div>
+              );
+            }} />
+            <Area type="monotone" dataKey="total" stroke={color} strokeWidth={2} fill="url(#trendGrad)" dot={false} activeDot={{ r: 4, fill: color }} />
+          </AreaChart>
+        </ResponsiveContainer>
+      ) : (
+        <div className="h-[180px] flex items-center justify-center">
+          <p className="text-zinc-600 text-sm">Nenhum dado nos últimos 30 dias</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Dual Trend Chart (Vendas + OS) ──────────────────────────────────────────
+
+function DualTrendChart({ data }: {
+  data: { label: string; vendas: number; os: number; total: number }[];
+}) {
+  const hasData = data.some(d => d.total > 0);
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+      <SectionTitle icon="📊" title="Movimentação da Loja" sub="últimos 30 dias" />
+      {hasData ? (
+        <>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={data} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+              <defs>
+                <linearGradient id="dualV" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="dualO" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#52525b' }} tickLine={false} axisLine={false} interval={4} />
+              <YAxis tick={{ fontSize: 10, fill: '#52525b' }} tickLine={false} axisLine={false} tickFormatter={v => fmtCurrencyShort(v)} width={55} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="vendas" name="vendas" stroke="#f97316" strokeWidth={2} fill="url(#dualV)" dot={false} activeDot={{ r: 4, fill: '#f97316' }} />
+              <Area type="monotone" dataKey="os" name="os" stroke="#3b82f6" strokeWidth={2} fill="url(#dualO)" dot={false} activeDot={{ r: 4, fill: '#3b82f6' }} />
+            </AreaChart>
+          </ResponsiveContainer>
+          <div className="flex items-center gap-4 mt-2">
+            <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-orange-500 rounded-full" /><span className="text-xs text-zinc-500">Vendas</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-0.5 bg-blue-500 rounded-full" /><span className="text-xs text-zinc-500">OS</span></div>
+          </div>
+        </>
+      ) : (
+        <div className="h-[200px] flex items-center justify-center">
+          <p className="text-zinc-600 text-sm">Nenhum dado nos últimos 30 dias</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Atalhos rápidos ──────────────────────────────────────────────────────────
+
+function QuickActions({ actions, onNavigate }: {
+  actions: { icon: string; label: string; page: string; desc: string }[];
+  onNavigate: (p: string) => void;
+}) {
+  return (
+    <div className={`grid gap-3 grid-cols-${Math.min(actions.length, 3)}`}>
+      {actions.map(({ icon, label, page, desc }) => (
+        <button
+          key={page}
+          onClick={() => onNavigate(page)}
+          className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-left hover:border-orange-500/40 hover:bg-zinc-800/50 transition-all group"
+        >
+          <span className="text-2xl block mb-2">{icon}</span>
+          <p className="font-semibold text-zinc-200 text-sm group-hover:text-orange-400 transition-colors">{label}</p>
+          <p className="text-xs text-zinc-500 mt-0.5">{desc}</p>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Dashboard VENDEDOR ────────────────────────────────────────────────────────
+
+interface VendedorData {
+  vendasMes: { total: number; quantidade: number };
+  comissoes: { total: number; pagas: number; pendentes: number };
+  tendenciaDiaria: { label: string; total: number }[];
+  topProdutos: { nome: string; tipo: string; qtd: number; fat: number }[];
+  ultimasVendas: { id: number; valor: number; cliente: string; data: string }[];
+  configuracoes: { comissaoMoto: number; comissaoServico: number };
+}
+
+function VendedorDashboard({ onNavigate }: DashboardProps) {
   const { user } = useAuth();
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [data, setData] = useState<VendedorData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const navigateTo = (page: string) => {
-    if (onNavigate) onNavigate(page);
-    else window.dispatchEvent(new CustomEvent('navigate', { detail: page }));
-  };
+  const navigateTo = (p: string) => { if (onNavigate) onNavigate(p); else window.dispatchEvent(new CustomEvent('navigate', { detail: p })); };
 
   useEffect(() => {
-    api.get<DashboardData>('/dashboard').then(setData).finally(() => setLoading(false));
+    api.get<VendedorData>('/dashboard/vendedor').then(setData).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingSpinner />;
 
-  const v = data?.vendasMes;
-  const o = data?.osMes;
-  const alertas = data?.alertasEstoque || 0;
-  const contasHoje = data?.contasVencer?.hoje || 0;
+  const ticketMedio = (data?.vendasMes.quantidade || 0) > 0
+    ? (data?.vendasMes.total || 0) / (data?.vendasMes.quantidade || 1)
+    : 0;
+  const maxFat = Math.max(...(data?.topProdutos.map(p => p.fat) || [1]), 1);
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-zinc-100">Dashboard</h1>
-        <p className="text-sm text-zinc-500">Bem-vindo, <span className="text-zinc-300">{user?.nome}</span></p>
+        <h1 className="text-xl font-bold text-zinc-100">Meu Painel</h1>
+        <p className="text-sm text-zinc-500">Olá, <span className="text-orange-400 font-medium">{user?.nome}</span> · Vendedor</p>
       </div>
 
-      {contasHoje > 0 && (
-        <div
-          onClick={() => navigateTo('financeiro')}
-          className="bg-red-950/40 border border-red-500/30 rounded-xl p-3 flex items-center gap-3 cursor-pointer hover:border-red-500/50 transition-colors"
-        >
-          <span className="text-xl">🚨</span>
-          <div>
-            <p className="font-semibold text-red-400 text-sm">{contasHoje} conta{contasHoje > 1 ? 's' : ''} vencendo hoje</p>
-            <p className="text-xs text-zinc-500">Clique para acessar o financeiro</p>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KpiBig icon="💰" label="Vendas do mês" value={fmtCurrencyShort(data?.vendasMes.total || 0)} sub={`${data?.vendasMes.quantidade || 0} venda${(data?.vendasMes.quantidade || 0) !== 1 ? 's' : ''}`} accent />
+        <KpiBig icon="🏷️" label="Ticket médio" value={fmtCurrencyShort(ticketMedio)} sub="por venda" />
+        <KpiBig icon="💎" label="Comissão total" value={fmtCurrencyShort(data?.comissoes.total || 0)} sub="no mês" />
+        <KpiBig icon="⏳" label="Comissão pendente" value={fmtCurrencyShort(data?.comissoes.pendentes || 0)} sub="a receber" />
+      </div>
+
+      {/* Gráfico de tendência */}
+      <TrendChart data={data?.tendenciaDiaria || []} label="Minhas Vendas" color="#f97316" />
+
+      {/* Comissões + Top Produtos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ComissaoCard
+          total={data?.comissoes.total || 0}
+          pagas={data?.comissoes.pagas || 0}
+          pendentes={data?.comissoes.pendentes || 0}
+        />
+
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <SectionTitle icon="📦" title="Produtos que Mais Vendi" sub="neste mês" />
+          {(data?.topProdutos.length || 0) === 0 ? (
+            <div className="h-[140px] flex items-center justify-center">
+              <p className="text-zinc-600 text-sm">Nenhum produto vendido este mês</p>
+            </div>
+          ) : (
+            <div className="space-y-3 mt-2">
+              {data?.topProdutos.map((p, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-sm w-5 text-center flex-shrink-0">
+                    {i < 3 ? MEDAL_ICON[i] : <span className="text-zinc-600 text-xs font-bold">{i + 1}</span>}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <p className="text-xs text-zinc-300 truncate pr-2">{p.nome}</p>
+                      <span className="text-xs font-bold text-zinc-200 flex-shrink-0">{p.qtd}x</span>
+                    </div>
+                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(p.fat / maxFat) * 100}%`, background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    </div>
+                  </div>
+                  <span className="text-xs text-zinc-500 flex-shrink-0 w-16 text-right">{fmtCurrencyShort(p.fat)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Últimas vendas + Atalhos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <SectionTitle icon="🧾" title="Últimas Vendas" />
+          {(data?.ultimasVendas.length || 0) === 0 ? (
+            <p className="text-zinc-600 text-sm py-4 text-center">Nenhuma venda registrada ainda</p>
+          ) : (
+            <div className="space-y-2">
+              {data?.ultimasVendas.map(v => (
+                <div key={v.id} className="flex items-center justify-between py-2 border-b border-zinc-800/60 last:border-0">
+                  <div>
+                    <p className="text-xs font-medium text-zinc-200">{v.cliente}</p>
+                    <p className="text-xs text-zinc-500">{new Date(v.data).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <p className="text-sm font-bold text-orange-400">{fmtCurrencyShort(v.valor)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <QuickActions
+            onNavigate={navigateTo}
+            actions={[
+              { icon: '💼', label: 'Nova Venda', page: 'vendas', desc: 'Registrar uma venda' },
+              { icon: '👥', label: 'Clientes', page: 'clientes', desc: 'Ver e cadastrar clientes' },
+              { icon: '📦', label: 'Estoque', page: 'estoque', desc: 'Consultar disponibilidade' },
+            ]}
+          />
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <p className="text-xs text-zinc-500 mb-2">Taxas de comissão configuradas</p>
+            <div className="flex gap-4">
+              <div>
+                <p className="text-xs text-zinc-600">Motos</p>
+                <p className="text-base font-bold text-orange-400">{data?.configuracoes.comissaoMoto || 0}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-zinc-600">Serviços</p>
+                <p className="text-base font-bold text-blue-400">{data?.configuracoes.comissaoServico || 0}%</p>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KpiBig icon="💰" label="Vendas do mês" value={fmtCurrencyShort(v?.total || 0)} sub={`${v?.quantidade || 0} vendas`} accent />
-        <KpiBig icon="🔧" label="OS do mês" value={fmtCurrencyShort(o?.total || 0)} sub={`${o?.quantidade || 0} ordens`} />
-        <KpiBig icon="⚠️" label="Estoque baixo" value={String(alertas)} sub="produtos" onClick={() => navigateTo('estoque')} />
-        <KpiBig icon="💵" label="Saldo caixa" value={fmtCurrencyShort(data?.fluxoCaixa?.saldo || 0)} sub="entradas - saídas" />
+// ─── Dashboard TECNICO ─────────────────────────────────────────────────────────
+
+const STATUS_OS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  ORCAMENTO:   { label: 'Orçamento',   color: '#a855f7', bg: 'bg-purple-500/10 text-purple-400' },
+  APROVADA:    { label: 'Aprovada',    color: '#3b82f6', bg: 'bg-blue-500/10 text-blue-400' },
+  EM_EXECUCAO: { label: 'Executando',  color: '#f97316', bg: 'bg-orange-500/10 text-orange-400' },
+  CONCLUIDA:   { label: 'Concluída',   color: '#22c55e', bg: 'bg-green-500/10 text-green-400' },
+  CANCELADA:   { label: 'Cancelada',   color: '#ef4444', bg: 'bg-red-500/10 text-red-400' },
+  AGUARDANDO_PECA: { label: 'Aguard. Peça', color: '#eab308', bg: 'bg-yellow-500/10 text-yellow-400' },
+};
+
+interface TecnicoData {
+  osMes: { total: number; quantidade: number };
+  osPorStatus: { status: string; count: number; total: number }[];
+  comissoes: { total: number; pagas: number; pendentes: number };
+  tendenciaDiaria: { label: string; total: number }[];
+  ultimasOS: { id: number; valor: number; status: string; cliente: string; veiculo: string; data: string }[];
+}
+
+function TecnicoDashboard({ onNavigate }: DashboardProps) {
+  const { user } = useAuth();
+  const [data, setData] = useState<TecnicoData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigateTo = (p: string) => { if (onNavigate) onNavigate(p); else window.dispatchEvent(new CustomEvent('navigate', { detail: p })); };
+
+  useEffect(() => {
+    api.get<TecnicoData>('/dashboard/tecnico').then(setData).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <LoadingSpinner />;
+
+  const totalOS = data?.osMes.quantidade || 0;
+  const ticketMedio = totalOS > 0 ? (data?.osMes.total || 0) / totalOS : 0;
+  const barData = (data?.osPorStatus || []).map(s => ({
+    label: STATUS_OS_CONFIG[s.status]?.label || s.status,
+    count: s.count,
+    fill: STATUS_OS_CONFIG[s.status]?.color || '#71717a',
+  }));
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-zinc-100">Meu Painel</h1>
+        <p className="text-sm text-zinc-500">Olá, <span className="text-blue-400 font-medium">{user?.nome}</span> · Técnico</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          { icon: '📦', label: 'Acessar Estoque', page: 'estoque', desc: 'Gerencie produtos e estoque' },
-          { icon: '💼', label: 'Registrar Venda', page: 'vendas', desc: 'Iniciar nova venda' },
-          { icon: '🔧', label: 'Nova Ordem de Serviço', page: 'os', desc: 'Abrir nova OS' },
-        ].map(({ icon, label, page, desc }) => (
-          <button
-            key={page}
-            onClick={() => navigateTo(page)}
-            className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-left hover:border-orange-500/40 hover:bg-zinc-800/50 transition-all group"
-          >
-            <span className="text-2xl block mb-2">{icon}</span>
-            <p className="font-semibold text-zinc-200 text-sm group-hover:text-orange-400 transition-colors">{label}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">{desc}</p>
-          </button>
-        ))}
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KpiBig icon="🔧" label="OS do mês" value={String(totalOS)} sub={`${fmtCurrencyShort(data?.osMes.total || 0)} em serviços`} accent />
+        <KpiBig icon="🎯" label="Ticket médio" value={fmtCurrencyShort(ticketMedio)} sub="por OS" />
+        <KpiBig icon="💎" label="Comissão total" value={fmtCurrencyShort(data?.comissoes.total || 0)} sub="no mês" />
+        <KpiBig icon="⏳" label="Comissão pendente" value={fmtCurrencyShort(data?.comissoes.pendentes || 0)} sub="a receber" />
+      </div>
+
+      {/* Gráfico de tendência */}
+      <TrendChart data={data?.tendenciaDiaria || []} label="Minhas OS" color="#3b82f6" />
+
+      {/* OS por status + Comissões */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <SectionTitle icon="📋" title="OS por Status" sub="este mês" />
+          {barData.length === 0 ? (
+            <div className="h-[160px] flex items-center justify-center">
+              <p className="text-zinc-600 text-sm">Nenhuma OS este mês</p>
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={barData} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="label" tick={{ fontSize: 11, fill: '#a1a1aa' }} tickLine={false} axisLine={false} width={80} />
+                  <Tooltip
+                    content={({ active, payload, label: lbl }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs shadow-xl">
+                          <p className="text-zinc-300 font-semibold">{lbl}</p>
+                          <p className="text-orange-400 font-bold">{payload[0]?.value} OS</p>
+                        </div>
+                      );
+                    }}
+                    cursor={{ fill: '#27272a' }}
+                  />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={18}>
+                    {barData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {barData.map((b, i) => (
+                  <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
+                    <span className="inline-block w-2 h-2 rounded-full mr-1" style={{ background: b.fill }} />
+                    {b.label}: {b.count}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <ComissaoCard
+          total={data?.comissoes.total || 0}
+          pagas={data?.comissoes.pagas || 0}
+          pendentes={data?.comissoes.pendentes || 0}
+        />
+      </div>
+
+      {/* Últimas OS + Atalhos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <SectionTitle icon="🛠️" title="Últimas OS" />
+          {(data?.ultimasOS.length || 0) === 0 ? (
+            <p className="text-zinc-600 text-sm py-4 text-center">Nenhuma OS registrada</p>
+          ) : (
+            <div className="space-y-2">
+              {data?.ultimasOS.map(os => {
+                const cfg = STATUS_OS_CONFIG[os.status] || { label: os.status, bg: 'bg-zinc-800 text-zinc-400' };
+                return (
+                  <div key={os.id} className="flex items-center justify-between py-2 border-b border-zinc-800/60 last:border-0 gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-zinc-200 truncate">{os.cliente}</p>
+                      <p className="text-xs text-zinc-500 truncate">{os.veiculo} · {new Date(os.data).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-blue-400">{fmtCurrencyShort(os.valor)}</p>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${cfg.bg}`}>{cfg.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <QuickActions
+          onNavigate={navigateTo}
+          actions={[
+            { icon: '🔧', label: 'Minhas OS', page: 'os', desc: 'Visualizar ordens de serviço' },
+            { icon: '🛡️', label: 'Garantias', page: 'garantias', desc: 'Atender chamados de garantia' },
+            { icon: '📦', label: 'Estoque', page: 'estoque', desc: 'Consultar peças disponíveis' },
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard GERENTE_LOJA ───────────────────────────────────────────────────
+
+interface GerenteData {
+  vendasMes: { total: number; quantidade: number };
+  osMes: { total: number; quantidade: number };
+  estoqueBaixo: number;
+  comissoesMes: number;
+  faturamentoMes: number;
+  tendenciaDiaria: { label: string; vendas: number; os: number; total: number }[];
+  rankingVendedores: { id: number; nome: string; totalVendas: number; qtdVendas: number }[];
+}
+
+function GerenteDashboard({ onNavigate }: DashboardProps) {
+  const { user } = useAuth();
+  const [data, setData] = useState<GerenteData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigateTo = (p: string) => { if (onNavigate) onNavigate(p); else window.dispatchEvent(new CustomEvent('navigate', { detail: p })); };
+
+  useEffect(() => {
+    api.get<GerenteData>('/dashboard/gerente').then(setData).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <LoadingSpinner />;
+
+  const totalTransacoes = (data?.vendasMes.quantidade || 0) + (data?.osMes.quantidade || 0);
+  const ticketMedio = totalTransacoes > 0 ? (data?.faturamentoMes || 0) / totalTransacoes : 0;
+  const maxVend = Math.max(...(data?.rankingVendedores.map(v => v.totalVendas) || [1]), 1);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-zinc-100">Painel da Loja</h1>
+        <p className="text-sm text-zinc-500">Gerente <span className="text-green-400 font-medium">{user?.nome}</span></p>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+        <KpiBig icon="💰" label="Vendas do mês" value={fmtCurrencyShort(data?.vendasMes.total || 0)} sub={`${data?.vendasMes.quantidade || 0} vendas`} accent />
+        <KpiBig icon="🔧" label="OS do mês" value={fmtCurrencyShort(data?.osMes.total || 0)} sub={`${data?.osMes.quantidade || 0} ordens`} />
+        <KpiBig icon="📈" label="Faturamento" value={fmtCurrencyShort(data?.faturamentoMes || 0)} sub="vendas + OS" />
+        <KpiBig icon="🎯" label="Ticket médio" value={fmtCurrencyShort(ticketMedio)} sub="por transação" />
+        <KpiBig icon="⚠️" label="Estoque baixo" value={String(data?.estoqueBaixo || 0)} sub="itens" onClick={() => navigateTo('estoque')} />
+      </div>
+
+      {/* Gráfico de tendência dupla */}
+      <DualTrendChart data={data?.tendenciaDiaria || []} />
+
+      {/* Ranking vendedores + Atalhos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span>🏆</span>
+              <h2 className="text-sm font-semibold text-zinc-200">Ranking de Vendedores</h2>
+            </div>
+            <span className="text-xs text-zinc-500">{data?.rankingVendedores.length || 0} vendedores</span>
+          </div>
+          {(data?.rankingVendedores.length || 0) === 0 ? (
+            <div className="py-10 text-center text-zinc-600 text-sm">Nenhum vendedor ativo nesta loja</div>
+          ) : (
+            <div className="px-4 py-3 space-y-3">
+              {data?.rankingVendedores.map((v, i) => (
+                <div key={v.id} className="flex items-center gap-3">
+                  <div className="w-7 text-center flex-shrink-0">
+                    {i < 3 ? <span className="text-lg">{MEDAL_ICON[i]}</span> : <span className="text-xs text-zinc-600 font-bold">{i + 1}</span>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-semibold text-zinc-200 truncate">{v.nome}</p>
+                      <p className={`text-xs font-bold flex-shrink-0 ml-2 ${i === 0 ? 'text-orange-400' : 'text-zinc-300'}`}>{fmtCurrencyShort(v.totalVendas)}</p>
+                    </div>
+                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${(v.totalVendas / maxVend) * 100}%`, background: i === 0 ? '#f97316' : i === 1 ? '#a1a1aa' : '#52525b' }}
+                      />
+                    </div>
+                    <p className="text-xs text-zinc-600 mt-0.5">{v.qtdVendas} venda{v.qtdVendas !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <p className="text-xs text-zinc-500 mb-1">Comissões geradas no mês</p>
+            <p className="text-2xl font-bold text-yellow-400">{fmtCurrencyShort(data?.comissoesMes || 0)}</p>
+            <p className="text-xs text-zinc-600 mt-1">total da equipe</p>
+          </div>
+          <QuickActions
+            onNavigate={navigateTo}
+            actions={[
+              { icon: '💼', label: 'Vendas', page: 'vendas', desc: 'Gerenciar vendas da loja' },
+              { icon: '🔧', label: 'OS', page: 'os', desc: 'Ordens de serviço' },
+              { icon: '📦', label: 'Estoque', page: 'estoque', desc: 'Controle de estoque' },
+            ]}
+          />
+        </div>
       </div>
     </div>
   );
@@ -863,10 +1342,21 @@ function UserDashboard({ onNavigate }: DashboardProps) {
 export function Dashboard({ onNavigate }: DashboardProps) {
   const { user } = useAuth();
   const { selectedLojaId } = useLojaContext();
-  const isAdmin = ['ADMIN_GERAL', 'ADMIN_REDE', 'ADMIN_FINANCEIRO', 'DONO_LOJA'].includes(user?.role || '');
 
-  if (isAdmin) {
+  const role = user?.role || '';
+
+  if (['ADMIN_GERAL', 'ADMIN_REDE', 'ADMIN_FINANCEIRO', 'DONO_LOJA'].includes(role)) {
     return <AdminDashboard onNavigate={onNavigate} lojaId={selectedLojaId || undefined} />;
   }
-  return <UserDashboard onNavigate={onNavigate} />;
+  if (role === 'VENDEDOR') {
+    return <VendedorDashboard onNavigate={onNavigate} />;
+  }
+  if (role === 'TECNICO') {
+    return <TecnicoDashboard onNavigate={onNavigate} />;
+  }
+  if (role === 'GERENTE_LOJA') {
+    return <GerenteDashboard onNavigate={onNavigate} />;
+  }
+  // fallback
+  return <VendedorDashboard onNavigate={onNavigate} />;
 }

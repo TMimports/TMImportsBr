@@ -761,5 +761,305 @@ router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
   }
 });
 
+// ─── Dashboard VENDEDOR ───────────────────────────────────────────────────────
+router.get('/vendedor', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const lojaId = req.user!.lojaId;
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+    // Últimos 30 dias para tendência
+    const inicio30 = new Date(hoje);
+    inicio30.setDate(inicio30.getDate() - 29);
+    inicio30.setHours(0, 0, 0, 0);
+
+    const [vendasMes, comissoesTotal, comissoesPagas, ultimasVendas, vendasTrend] = await Promise.all([
+      prisma.venda.aggregate({
+        where: { vendedorId: userId, tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicioMes } },
+        _sum: { valorTotal: true },
+        _count: { id: true },
+      }),
+      prisma.comissao.aggregate({
+        where: { usuarioId: userId, createdAt: { gte: inicioMes } },
+        _sum: { valor: true },
+      }),
+      prisma.comissao.aggregate({
+        where: { usuarioId: userId, pago: true, createdAt: { gte: inicioMes } },
+        _sum: { valor: true },
+      }),
+      prisma.venda.findMany({
+        where: { vendedorId: userId, tipo: 'VENDA', deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, valorTotal: true, createdAt: true, cliente: { select: { nome: true } } },
+      }),
+      prisma.venda.findMany({
+        where: { vendedorId: userId, tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicio30 } },
+        select: { valorTotal: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+
+    // Tendência diária (30 dias)
+    const trendMap: Record<string, number> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(inicio30);
+      d.setDate(d.getDate() + i);
+      trendMap[d.toISOString().slice(0, 10)] = 0;
+    }
+    for (const v of vendasTrend) {
+      const key = v.createdAt.toISOString().slice(0, 10);
+      if (trendMap[key] !== undefined) trendMap[key] += Number(v.valorTotal);
+    }
+    const tendenciaDiaria = Object.entries(trendMap).map(([date, total]) => ({
+      label: date.slice(5), // MM-DD
+      total,
+    }));
+
+    // Top produtos vendidos pelo vendedor
+    const itensVendidos = await prisma.itemVenda.findMany({
+      where: { venda: { vendedorId: userId, tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicioMes } } },
+      include: { produto: { select: { nome: true, tipo: true } } },
+    });
+    const prodMap: Record<string, { nome: string; tipo: string; qtd: number; fat: number }> = {};
+    for (const item of itensVendidos) {
+      const k = String(item.produtoId);
+      if (!prodMap[k]) prodMap[k] = { nome: item.produto.nome, tipo: item.produto.tipo, qtd: 0, fat: 0 };
+      prodMap[k].qtd += item.quantidade;
+      prodMap[k].fat += Number(item.valorUnitario) * item.quantidade;
+    }
+    const topProdutos = Object.values(prodMap).sort((a, b) => b.fat - a.fat).slice(0, 5);
+
+    // Metas (configurações da loja)
+    let metaMotoPerc = 0, metaComissaoPerc = 0;
+    if (lojaId) {
+      const conf = await prisma.configuracoes.findFirst({ where: { lojaId } });
+      if (conf) {
+        metaMotoPerc = Number(conf.comissaoMoto);
+        metaComissaoPerc = Number(conf.comissaoServico);
+      }
+    }
+
+    const totalComissoes = Number(comissoesTotal._sum.valor ?? 0);
+    const comissoesPagasVal = Number(comissoesPagas._sum.valor ?? 0);
+
+    res.json({
+      vendasMes: {
+        total: Number(vendasMes._sum.valorTotal ?? 0),
+        quantidade: vendasMes._count.id,
+      },
+      comissoes: {
+        total: totalComissoes,
+        pagas: comissoesPagasVal,
+        pendentes: totalComissoes - comissoesPagasVal,
+      },
+      tendenciaDiaria,
+      topProdutos,
+      ultimasVendas: ultimasVendas.map(v => ({
+        id: v.id,
+        valor: Number(v.valorTotal),
+        cliente: v.cliente?.nome || 'Cliente não informado',
+        data: v.createdAt,
+      })),
+      configuracoes: { comissaoMoto: metaMotoPerc, comissaoServico: metaComissaoPerc },
+    });
+  } catch (error) {
+    console.error('Erro em dashboard/vendedor:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// ─── Dashboard TECNICO ────────────────────────────────────────────────────────
+router.get('/tecnico', async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.id;
+    const lojaId = req.user!.lojaId;
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const inicio30 = new Date(hoje);
+    inicio30.setDate(inicio30.getDate() - 29);
+    inicio30.setHours(0, 0, 0, 0);
+
+    const [osMes, osPorStatus, comissoesTotal, comissoesPagas, ultimasOS, osTrend] = await Promise.all([
+      prisma.ordemServico.aggregate({
+        where: { tecnicoId: userId, createdAt: { gte: inicioMes } },
+        _sum: { valorTotal: true },
+        _count: { id: true },
+      }),
+      prisma.ordemServico.groupBy({
+        by: ['status'],
+        where: { tecnicoId: userId, createdAt: { gte: inicioMes } },
+        _count: { id: true },
+        _sum: { valorTotal: true },
+      }),
+      prisma.comissao.aggregate({
+        where: { usuarioId: userId, createdAt: { gte: inicioMes } },
+        _sum: { valor: true },
+      }),
+      prisma.comissao.aggregate({
+        where: { usuarioId: userId, pago: true, createdAt: { gte: inicioMes } },
+        _sum: { valor: true },
+      }),
+      prisma.ordemServico.findMany({
+        where: { tecnicoId: userId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true, valorTotal: true, createdAt: true, status: true,
+          cliente: { select: { nome: true } },
+          veiculo: { select: { modelo: true } },
+        },
+      }),
+      prisma.ordemServico.findMany({
+        where: { tecnicoId: userId, createdAt: { gte: inicio30 } },
+        select: { valorTotal: true, createdAt: true, status: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ]);
+
+    // Tendência diária
+    const trendMap: Record<string, number> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(inicio30);
+      d.setDate(d.getDate() + i);
+      trendMap[d.toISOString().slice(0, 10)] = 0;
+    }
+    for (const os of osTrend) {
+      const key = os.createdAt.toISOString().slice(0, 10);
+      if (trendMap[key] !== undefined) trendMap[key] += Number(os.valorTotal ?? 0);
+    }
+    const tendenciaDiaria = Object.entries(trendMap).map(([date, total]) => ({
+      label: date.slice(5),
+      total,
+    }));
+
+    const totalComissoes = Number(comissoesTotal._sum.valor ?? 0);
+    const comissoesPagasVal = Number(comissoesPagas._sum.valor ?? 0);
+
+    res.json({
+      osMes: {
+        total: Number(osMes._sum.valorTotal ?? 0),
+        quantidade: osMes._count.id,
+      },
+      osPorStatus: osPorStatus.map(s => ({
+        status: s.status,
+        count: s._count.id,
+        total: Number(s._sum.valorTotal ?? 0),
+      })),
+      comissoes: {
+        total: totalComissoes,
+        pagas: comissoesPagasVal,
+        pendentes: totalComissoes - comissoesPagasVal,
+      },
+      tendenciaDiaria,
+      ultimasOS: ultimasOS.map(os => ({
+        id: os.id,
+        valor: Number(os.valorTotal ?? 0),
+        status: os.status,
+        cliente: os.cliente?.nome || 'Cliente não informado',
+        veiculo: os.veiculo?.modelo || '—',
+        data: os.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Erro em dashboard/tecnico:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// ─── Dashboard GERENTE_LOJA ───────────────────────────────────────────────────
+router.get('/gerente', async (req: AuthRequest, res) => {
+  try {
+    const lojaId = req.user!.lojaId;
+    if (!lojaId) return res.status(400).json({ error: 'Gerente sem loja vinculada' });
+
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const inicio30 = new Date(hoje);
+    inicio30.setDate(inicio30.getDate() - 29);
+    inicio30.setHours(0, 0, 0, 0);
+
+    const [vendasMes, osMes, estoqueBaixo, comissoesMes, vendedoresPerf, osTrend, vendasTrend] = await Promise.all([
+      prisma.venda.aggregate({
+        where: { lojaId, tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicioMes } },
+        _sum: { valorTotal: true },
+        _count: { id: true },
+      }),
+      prisma.ordemServico.aggregate({
+        where: { lojaId, createdAt: { gte: inicioMes } },
+        _sum: { valorTotal: true },
+        _count: { id: true },
+      }),
+      prisma.estoque.count({ where: { lojaId, quantidade: { lte: 2 } } }),
+      prisma.comissao.aggregate({
+        where: { usuario: { lojaId }, createdAt: { gte: inicioMes } },
+        _sum: { valor: true },
+      }),
+      prisma.user.findMany({
+        where: { lojaId, role: 'VENDEDOR', ativo: true },
+        select: {
+          id: true, nome: true,
+          vendas: {
+            where: { tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicioMes } },
+            select: { valorTotal: true },
+          },
+        },
+      }),
+      prisma.ordemServico.findMany({
+        where: { lojaId, createdAt: { gte: inicio30 } },
+        select: { valorTotal: true, createdAt: true },
+      }),
+      prisma.venda.findMany({
+        where: { lojaId, tipo: 'VENDA', deletedAt: null, createdAt: { gte: inicio30 } },
+        select: { valorTotal: true, createdAt: true },
+      }),
+    ]);
+
+    // Tendência diária
+    const trendMap: Record<string, { vendas: number; os: number }> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(inicio30);
+      d.setDate(d.getDate() + i);
+      trendMap[d.toISOString().slice(0, 10)] = { vendas: 0, os: 0 };
+    }
+    for (const v of vendasTrend) {
+      const key = v.createdAt.toISOString().slice(0, 10);
+      if (trendMap[key]) trendMap[key].vendas += Number(v.valorTotal);
+    }
+    for (const os of osTrend) {
+      const key = os.createdAt.toISOString().slice(0, 10);
+      if (trendMap[key]) trendMap[key].os += Number(os.valorTotal ?? 0);
+    }
+    const tendenciaDiaria = Object.entries(trendMap).map(([date, vals]) => ({
+      label: date.slice(5),
+      vendas: vals.vendas,
+      os: vals.os,
+      total: vals.vendas + vals.os,
+    }));
+
+    // Ranking de vendedores
+    const rankingVendedores = vendedoresPerf.map(v => ({
+      id: v.id,
+      nome: v.nome,
+      totalVendas: v.vendas.reduce((s: number, vv: any) => s + Number(vv.valorTotal), 0),
+      qtdVendas: v.vendas.length,
+    })).sort((a, b) => b.totalVendas - a.totalVendas);
+
+    res.json({
+      vendasMes: { total: Number(vendasMes._sum.valorTotal ?? 0), quantidade: vendasMes._count.id },
+      osMes: { total: Number(osMes._sum.valorTotal ?? 0), quantidade: osMes._count.id },
+      estoqueBaixo,
+      comissoesMes: Number(comissoesMes._sum.valor ?? 0),
+      faturamentoMes: Number(vendasMes._sum.valorTotal ?? 0) + Number(osMes._sum.valorTotal ?? 0),
+      tendenciaDiaria,
+      rankingVendedores,
+    });
+  } catch (error) {
+    console.error('Erro em dashboard/gerente:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 export default router;
 
