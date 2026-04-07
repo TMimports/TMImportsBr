@@ -174,7 +174,7 @@ if (!isDev) {
   });
 }
 
-const PORT = isDev ? 3001 : 5000;
+const PORT = process.env.PORT ? Number(process.env.PORT) : (isDev ? 3001 : 5000);
 
 async function initializeDatabase() {
   const bcrypt = await import('bcryptjs');
