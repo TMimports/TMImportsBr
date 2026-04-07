@@ -27,6 +27,14 @@ const doc = new PDFDocument({
 
 doc.pipe(fs.createWriteStream(OUTPUT));
 
+// Garante fundo escuro em TODAS as páginas automaticamente
+doc.on('pageAdded', () => {
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill('#09090b');
+  doc.y = 55;
+});
+// Aplica na primeira página também
+doc.rect(0, 0, doc.page.width, doc.page.height).fill('#09090b');
+
 const PW = doc.page.width - 110;   // printable width
 const PH = doc.page.height - 110;  // printable height
 const LM = 55;                      // left margin
