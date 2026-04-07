@@ -124,15 +124,25 @@ function dividerPage(number, title, subtitle) {
   doc.addPage();
   doc.rect(0, 0, doc.page.width, doc.page.height).fill('#09090b');
   doc.rect(0, 0, 8, doc.page.height).fill(ORANGE);
-  // centered content
-  const cy = doc.page.height / 2 - 60;
-  doc.fontSize(60).font('Helvetica-Bold').fillColor(ORANGE).opacity(0.15)
-     .text(String(number), 0, cy - 30, { align: 'center', width: doc.page.width });
-  doc.opacity(1);
-  doc.fontSize(24).font('Helvetica-Bold').fillColor(WHITE)
-     .text(title, 50, cy + 10, { align: 'center', width: doc.page.width - 100 });
+
+  const cy = doc.page.height / 2;
+
+  // "CAPÍTULO N" — pequena etiqueta laranja bem acima do título
+  doc.fontSize(10).font('Helvetica-Bold').fillColor(ORANGE)
+     .text('CAPÍTULO ' + number, 0, cy - 68, { align: 'center', width: doc.page.width });
+
+  // linha separadora
+  const lw = 60;
+  doc.rect((doc.page.width - lw) / 2, cy - 50, lw, 2).fill(ORANGE);
+
+  // título
+  doc.fontSize(28).font('Helvetica-Bold').fillColor(WHITE)
+     .text(title, 50, cy - 40, { align: 'center', width: doc.page.width - 100 });
+
+  // subtítulo
   doc.fontSize(12).font('Helvetica').fillColor(ZINC400)
-     .text(subtitle, 50, cy + 44, { align: 'center', width: doc.page.width - 100 });
+     .text(subtitle, 50, cy + 4, { align: 'center', width: doc.page.width - 100 });
+
   doc.addPage();
   doc.y = 55;
 }
@@ -605,7 +615,7 @@ step(3, 'Clique em "Gerar Links"', 'O sistema cria um link wa.me individual para
 step(4, 'Clique nos links gerados', 'Cada link abre o WhatsApp com a mensagem pré-preenchida. Basta clicar em "Enviar".');
 
 h2('Disparo automático diário');
-body('Toda segunda a sexta-feira, às 8h00 (horário de Brasília), o sistema envia automaticamente mensagens motivacionais para todos os vendedores ativos que possuem número de telefone cadastrado.');
+body('De segunda a sexta-feira, às 8h00 (horário de Brasília), o sistema envia automaticamente mensagens motivacionais para todos os vendedores ativos que possuem número de telefone cadastrado.');
 
 // ─── CAP 14 — RELATORIOS ──────────────────────────────────────────────────────
 
