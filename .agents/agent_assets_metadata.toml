@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "pCwuG0oSJo50zaHdTbSf2"
+uri = "file://Manual_TM_Imports_ERP.pdf"
+type = "pdf"
+title = "Manual do Sistema ERP — TM Imports / Tecle Motos"
