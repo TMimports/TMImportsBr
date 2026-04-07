@@ -32,7 +32,7 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-900 p-4">
       <div className="card w-full max-w-md">
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="Tecle Motos" className="w-32 h-32 mx-auto mb-4" />
+          <img src="/logo-tm.png" alt="TM Imports" className="w-48 h-48 mx-auto mb-1 object-contain" />
           <p className="text-gray-400">Sistema Integrado de Gestão</p>
         </div>
 

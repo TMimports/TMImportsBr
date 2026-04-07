@@ -5,16 +5,19 @@ import { sendEmail } from './email.js';
 export type TipoRelatorio = 'FINANCEIRO' | 'COMERCIAL' | 'GERAL';
 export type PeriodoRelatorio = 'SEMANAL' | 'MENSAL';
 
-const ROLES_FINANCEIRO = ['ADMIN_FINANCEIRO'];
-const ROLES_COMERCIAL = ['ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'];
-const ROLES_GERAL = ['ADMIN_GERAL'];
+// Mapeamento exato: cada role recebe UM tipo de relatório
+// ADMIN_GERAL  = Diretores e sócios → Relatório Geral (visão completa)
+// ADMIN_FINANCEIRO = Diretor Financeiro → Relatório Financeiro
+// ADMIN_REDE   = Diretor Comercial → Relatório Comercial
+const ROLE_RELATORIO_MAP: Record<string, TipoRelatorio> = {
+  ADMIN_GERAL:       'GERAL',
+  ADMIN_FINANCEIRO:  'FINANCEIRO',
+  ADMIN_REDE:        'COMERCIAL',
+};
 
 export function tipoRelatorioParaRole(role: string): TipoRelatorio[] {
-  const tipos: TipoRelatorio[] = [];
-  if (ROLES_GERAL.includes(role)) tipos.push('GERAL');
-  if (ROLES_FINANCEIRO.includes(role)) tipos.push('FINANCEIRO');
-  if (ROLES_COMERCIAL.includes(role)) tipos.push('COMERCIAL');
-  return tipos;
+  const tipo = ROLE_RELATORIO_MAP[role];
+  return tipo ? [tipo] : [];
 }
 
 async function coletarDadosFinanceiros(inicio: Date, fim: Date, lojaId?: number) {
@@ -506,38 +509,42 @@ export async function gerarEEnviarRelatorio(tipo: TipoRelatorio, periodo: Period
 }
 
 export async function dispararRelatoriosPorRole(periodo: PeriodoRelatorio) {
+  // Apenas os roles corporativos recebem relatórios:
+  // ADMIN_GERAL → Geral | ADMIN_FINANCEIRO → Financeiro | ADMIN_REDE → Comercial
+  const rolesDestinatarios = Object.keys(ROLE_RELATORIO_MAP);
+
   const usuarios = await prisma.user.findMany({
-    where: { ativo: true },
+    where: { ativo: true, role: { in: rolesDestinatarios } },
     select: { id: true, nome: true, email: true, role: true, lojaId: true }
   });
 
-  const financeiro: typeof usuarios = [];
-  const comercial: typeof usuarios = [];
-  const geral: typeof usuarios = [];
+  // Agrupar por tipo de relatório
+  const grupos: Record<TipoRelatorio, typeof usuarios> = {
+    GERAL: [],
+    FINANCEIRO: [],
+    COMERCIAL: []
+  };
 
   for (const u of usuarios) {
-    if (ROLES_GERAL.includes(u.role)) geral.push(u);
-    else if (ROLES_FINANCEIRO.includes(u.role)) financeiro.push(u);
-    else if (ROLES_COMERCIAL.includes(u.role)) comercial.push(u);
+    const tipo = ROLE_RELATORIO_MAP[u.role];
+    if (tipo) grupos[tipo].push(u);
   }
 
   const resultados: any[] = [];
 
-  if (geral.length > 0) {
-    const r = await gerarEEnviarRelatorio('GERAL', periodo, geral.map(u => ({ nome: u.nome, email: u.email, lojaId: u.lojaId || undefined })));
-    resultados.push({ tipo: 'GERAL', resultados: r });
+  for (const tipo of (['GERAL', 'FINANCEIRO', 'COMERCIAL'] as TipoRelatorio[])) {
+    const dest = grupos[tipo];
+    if (dest.length > 0) {
+      const r = await gerarEEnviarRelatorio(tipo, periodo, dest.map(u => ({
+        nome: u.nome,
+        email: u.email,
+        lojaId: u.lojaId || undefined
+      })));
+      resultados.push({ tipo, resultados: r });
+    }
   }
 
-  if (financeiro.length > 0) {
-    const r = await gerarEEnviarRelatorio('FINANCEIRO', periodo, financeiro.map(u => ({ nome: u.nome, email: u.email })));
-    resultados.push({ tipo: 'FINANCEIRO', resultados: r });
-  }
-
-  if (comercial.length > 0) {
-    const r = await gerarEEnviarRelatorio('COMERCIAL', periodo, comercial.map(u => ({ nome: u.nome, email: u.email, lojaId: u.lojaId || undefined })));
-    resultados.push({ tipo: 'COMERCIAL', resultados: r });
-  }
-
-  console.log(`[RELATORIO] Despacho ${periodo} concluído. Total destinatários: ${geral.length + financeiro.length + comercial.length}`);
+  const total = Object.values(grupos).reduce((a, g) => a + g.length, 0);
+  console.log(`[RELATORIO] Despacho ${periodo} concluído. Total destinatários: ${total}`);
   return resultados;
 }

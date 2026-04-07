@@ -12,11 +12,9 @@ interface Destinatario {
 }
 
 const roleLabels: Record<string, string> = {
-  ADMIN_GERAL: 'Administrador Geral',
-  ADMIN_FINANCEIRO: 'Admin Financeiro',
-  ADMIN_REDE: 'Admin de Rede',
-  DONO_LOJA: 'Dono da Loja',
-  GERENTE_LOJA: 'Gerente da Loja',
+  ADMIN_GERAL:      'Diretor / Sócio',
+  ADMIN_FINANCEIRO: 'Diretor Financeiro',
+  ADMIN_REDE:       'Diretor Comercial',
 };
 
 const tipoLabels: Record<string, { label: string; cor: string; desc: string }> = {
@@ -116,17 +114,17 @@ export function Relatorios() {
         <div className="card p-4 text-center">
           <div className="text-3xl font-bold text-orange-400">{geralCount}</div>
           <div className="text-sm text-gray-400 mt-1">Recebem Rel. Geral</div>
-          <div className="text-xs text-gray-500 mt-1">Diretores / Admin Geral</div>
+          <div className="text-xs text-gray-500 mt-1">Diretores e Sócios (Admin Geral)</div>
         </div>
         <div className="card p-4 text-center">
           <div className="text-3xl font-bold text-green-400">{financeirosCount}</div>
           <div className="text-sm text-gray-400 mt-1">Recebem Rel. Financeiro</div>
-          <div className="text-xs text-gray-500 mt-1">Admin Financeiro</div>
+          <div className="text-xs text-gray-500 mt-1">Diretor Financeiro</div>
         </div>
         <div className="card p-4 text-center">
           <div className="text-3xl font-bold text-blue-400">{comercialCount}</div>
           <div className="text-sm text-gray-400 mt-1">Recebem Rel. Comercial</div>
-          <div className="text-xs text-gray-500 mt-1">Donos / Gerentes / Admin Rede</div>
+          <div className="text-xs text-gray-500 mt-1">Diretor Comercial (Admin Rede)</div>
         </div>
       </div>
 
@@ -190,7 +188,8 @@ export function Relatorios() {
       <div className="card p-4 md:p-6">
         <h2 className="text-lg font-semibold text-white mb-1">👥 Destinatários Cadastrados</h2>
         <p className="text-sm text-gray-400 mb-4">
-          O relatório enviado é determinado pelo perfil de cada usuário. Para adicionar alguém, cadastre o usuário com o perfil correto em <strong className="text-white">Configurações → Usuários</strong>.
+          Cada perfil recebe o relatório correspondente à sua função. Para incluir alguém, cadastre o usuário com o perfil correto em <strong className="text-white">Configurações → Usuários</strong>.
+          <br /><span className="text-xs mt-1 block">Admin Geral = Rel. Geral &nbsp;·&nbsp; Admin Rede = Rel. Comercial &nbsp;·&nbsp; Admin Financeiro = Rel. Financeiro</span>
         </p>
 
         {loading ? (

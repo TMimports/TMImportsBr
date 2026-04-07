@@ -131,10 +131,17 @@ function groupContainsPage(g: NavGroup, page: string) {
 
 const ROLES_CAN_SELECT_LOJA = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA'];
 
+const ADMIN_ROLES = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
+
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, logout } = useAuth();
   const { lojas, selectedLojaId, selectedLoja, setSelectedLojaId, loadingLojas } = useLojaContext();
   const canSelectLoja = user?.role ? ROLES_CAN_SELECT_LOJA.includes(user.role) : false;
+
+  const isTMImportsView = !selectedLojaId && ADMIN_ROLES.includes(user?.role || '');
+  const logoSrc  = isTMImportsView ? '/logo-tm.png' : '/logo.png';
+  const logoAlt  = isTMImportsView ? 'TM Imports'  : 'Tecle Motos';
+  const brandName = isTMImportsView ? 'TM Imports' : 'Tecle Motos';
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [menuOpen, setMenuOpen]     = useState(false);
   const [collapsed, setCollapsed]   = useState(() => {
@@ -328,10 +335,10 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         {/* Header */}
         <div className="h-14 px-3 border-b border-zinc-800 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.png" alt="Tecle Motos" className="w-8 h-8 shrink-0" />
+            <img src={logoSrc} alt={logoAlt} className="w-8 h-8 shrink-0 object-contain" />
             {!collapsed && (
               <div className="min-w-0 hidden md:block">
-                <p className="text-sm font-semibold text-white leading-tight truncate">Tecle Motos</p>
+                <p className="text-sm font-semibold text-white leading-tight truncate">{brandName}</p>
                 <p className="text-[10px] text-orange-500 leading-tight">Sistema ERP</p>
               </div>
             )}
@@ -449,8 +456,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="Tecle Motos" className="w-8 h-8" />
-              <span className="text-sm font-semibold text-white">Tecle Motos</span>
+              <img src={logoSrc} alt={logoAlt} className="w-8 h-8 object-contain" />
+              <span className="text-sm font-semibold text-white">{brandName}</span>
             </div>
           )}
           <div className="w-10" />
@@ -459,7 +466,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         {/* Desktop topbar */}
         <header className="hidden md:flex h-12 bg-zinc-900/80 backdrop-blur border-b border-zinc-800 px-5 items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <span>Tecle Motos</span>
+            <img src={logoSrc} alt={logoAlt} className="w-5 h-5 object-contain opacity-80" />
+            <span>{brandName}</span>
             {selectedLoja && (
               <>
                 <span className="text-zinc-700">›</span>

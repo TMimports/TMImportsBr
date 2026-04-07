@@ -9,14 +9,12 @@ router.use(verifyToken);
 
 router.get('/destinatarios', async (req: AuthRequest, res) => {
   try {
-    const ROLES_GERAL = ['ADMIN_GERAL'];
-    const ROLES_FINANCEIRO = ['ADMIN_FINANCEIRO'];
-    const ROLES_COMERCIAL = ['ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'];
+    const rolesComRelatorio = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
 
     const usuarios = await prisma.user.findMany({
       where: {
         ativo: true,
-        role: { in: [...ROLES_GERAL, ...ROLES_FINANCEIRO, ...ROLES_COMERCIAL] }
+        role: { in: rolesComRelatorio }
       },
       select: {
         id: true, nome: true, email: true, role: true,
@@ -57,9 +55,9 @@ router.post('/disparar', async (req: AuthRequest, res) => {
       }
 
       const ROLES_MAP: Record<TipoRelatorio, string[]> = {
-        GERAL: ['ADMIN_GERAL'],
-        FINANCEIRO: ['ADMIN_FINANCEIRO'],
-        COMERCIAL: ['ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA']
+        GERAL:       ['ADMIN_GERAL'],
+        FINANCEIRO:  ['ADMIN_FINANCEIRO'],
+        COMERCIAL:   ['ADMIN_REDE']
       };
 
       const usuarios = await prisma.user.findMany({
