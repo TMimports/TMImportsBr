@@ -58,6 +58,9 @@ const LOGISTICA_GROUP = group('logistica-group', 'Logística', '📦', [
 // Financeiro é agora um único portal
 const FIN_ITEM = item('financeiro-hub', 'Financeiro', '💵');
 
+// WhatsApp CRM
+const WHATSAPP_ITEM = item('whatsapp-crm', 'WhatsApp CRM', '💬');
+
 // Configurações — Usuários incluído dentro
 const CONFIG_GROUP = group('config-group', 'Configurações', '⚙️', [
   { id: 'usuarios',      label: 'Usuários',      icon: '👥' },
@@ -93,6 +96,7 @@ const menuItems: Record<string, NavEntry[]> = {
     LOGISTICA_GROUP,
     VENDAS_GROUP(),
     FIN_ITEM,
+    WHATSAPP_ITEM,
     RELATORIOS_ITEM,
     CONFIG_GROUP,
   ],
@@ -102,12 +106,14 @@ const menuItems: Record<string, NavEntry[]> = {
     COMERCIAL_FIN_GROUP,
     FIN_ITEM,
     item('comissoes', 'Comissões', '💸'),
+    WHATSAPP_ITEM,
     RELATORIOS_ITEM,
   ],
   ADMIN_REDE: [
     item('dashboard', 'Dashboard', '📊'),
     item('usuarios',  'Usuários',  '👥'),
     item('lojas',     'Lojas',     '🏪'),
+    WHATSAPP_ITEM,
     RELATORIOS_ITEM,
   ],
   DONO_LOJA: [
@@ -116,6 +122,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
     FIN_ITEM,
+    WHATSAPP_ITEM,
     RELATORIOS_ITEM,
     CONFIG_GROUP,
   ],
@@ -124,6 +131,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
     FIN_ITEM,
+    WHATSAPP_ITEM,
     RELATORIOS_ITEM,
   ],
   VENDEDOR: [

@@ -86,6 +86,8 @@ model User {
   grupo                     Grupo?             @relation(fields: [grupoId], references: [id])
   loja                      Loja?              @relation(fields: [lojaId], references: [id])
   vendas                    Venda[]            @relation("VendaVendedor")
+  disparosEnviados          DisparoWhatsApp[]  @relation("DisparoOperador")
+  disparosRecebidos         DisparoWhatsApp[]  @relation("DisparoVendedor")
 }
 
 model Produto {
@@ -204,10 +206,11 @@ model Cliente {
   createdBy     Int?
   lojaId        Int?
   loja          Loja?          @relation(fields: [lojaId], references: [id])
-  garantias     Garantia[]
-  interacoesCRM InteracaoCRM[]
-  ordensServico OrdemServico[]
-  vendas        Venda[]
+  garantias        Garantia[]
+  interacoesCRM    InteracaoCRM[]
+  ordensServico    OrdemServico[]
+  vendas           Venda[]
+  disparosWhatsApp DisparoWhatsApp[]
 }
 
 model Venda {
@@ -635,10 +638,11 @@ model Fornecedor {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   createdBy    Int?
-  contasPagar  ContaPagar[]
-  loja         Loja             @relation(fields: [lojaId], references: [id])
-  interacoes   InteracaoCRM[]
-  notasFiscais NotaFiscal[]
+  contasPagar      ContaPagar[]
+  loja             Loja             @relation(fields: [lojaId], references: [id])
+  interacoes       InteracaoCRM[]
+  notasFiscais     NotaFiscal[]
+  disparosWhatsApp DisparoWhatsApp[]
 }
 
 model InteracaoCRM {
@@ -920,4 +924,63 @@ enum TipoMovimentoEstoque {
   PERDA
   AVARIA
   RESERVA
+}
+
+// ─── WhatsApp CRM ─────────────────────────────────────────────────────────────
+
+model TemplateWhatsApp {
+  id        Int              @id @default(autoincrement())
+  nome      String
+  contexto  ContextoWhatsApp
+  mensagem  String           @db.Text
+  ativo     Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  disparos  DisparoWhatsApp[]
+}
+
+model DisparoWhatsApp {
+  id                   Int               @id @default(autoincrement())
+  templateId           Int?
+  destinatario         String
+  numero               String
+  mensagem             String            @db.Text
+  status               StatusDisparo     @default(PENDENTE)
+  tipo                 TipoDisparo       @default(MANUAL)
+  contexto             ContextoWhatsApp?
+  operadorId           Int?
+  destinatarioUserId   Int?
+  clienteId            Int?
+  fornecedorId         Int?
+  createdAt            DateTime          @default(now())
+  enviadoAt            DateTime?
+  template             TemplateWhatsApp? @relation(fields: [templateId], references: [id])
+  operador             User?             @relation("DisparoOperador", fields: [operadorId], references: [id])
+  destinatarioUser     User?             @relation("DisparoVendedor", fields: [destinatarioUserId], references: [id])
+  cliente              Cliente?          @relation(fields: [clienteId], references: [id])
+  fornecedor           Fornecedor?       @relation(fields: [fornecedorId], references: [id])
+}
+
+enum ContextoWhatsApp {
+  MOTIVACIONAL_VENDEDOR
+  FOLLOWUP_CLIENTE
+  FOLLOWUP_FORNECEDOR
+  COBRANCA
+  BOAS_VINDAS
+  CONFIRMACAO_VENDA
+  AVISO_GARANTIA
+  PERSONALIZADO
+}
+
+enum StatusDisparo {
+  PENDENTE
+  ABERTO
+  ENVIADO
+  FALHA
+}
+
+enum TipoDisparo {
+  MANUAL
+  AUTOMATICO
+  CRON
 }

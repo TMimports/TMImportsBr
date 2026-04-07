@@ -285,6 +285,18 @@ export function Usuarios() {
                       <span className={`badge ${usuario.ativo ? 'badge-success' : 'badge-danger'}`}>
                         {usuario.ativo ? 'Ativo' : 'Inativo'}
                       </span>
+                      {usuario.role === 'VENDEDOR' && usuario.telefone && (
+                        <a
+                          href={`https://wa.me/55${usuario.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Bom dia, ${usuario.nome.split(' ')[0]}! 🚀 Nova semana, novas oportunidades! Vamos com tudo hoje! 💪 — Equipe TM Imports`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm"
+                          style={{ backgroundColor: '#16a34a', color: 'white' }}
+                          title="Enviar motivação por WhatsApp"
+                        >
+                          💬
+                        </a>
+                      )}
                       <button onClick={() => handleEditar(usuario)} className="btn btn-sm btn-secondary">
                         Editar
                       </button>

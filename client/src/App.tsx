@@ -30,6 +30,7 @@ import { DashboardEmpresa } from './pages/DashboardEmpresa';
 import { FinanceiroHub } from './pages/FinanceiroHub';
 import { ConciliacaoBancaria } from './pages/ConciliacaoBancaria';
 import { Relatorios } from './pages/Relatorios';
+import { WhatsAppCRM } from './pages/WhatsAppCRM';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -106,6 +107,8 @@ function AppContent() {
         return <Utilidades />;
       case 'relatorios':
         return <Relatorios />;
+      case 'whatsapp-crm':
+        return <WhatsAppCRM />;
       default:
         return (
           <div className="card">

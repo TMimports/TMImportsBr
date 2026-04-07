@@ -181,6 +181,18 @@ export function Fornecedores() {
                   {selected.nomeFantasia && <p className="text-zinc-400 text-sm">{selected.nomeFantasia}</p>}
                 </div>
                 <div className="flex gap-2">
+                  {(selected.celular || selected.telefone) && (
+                    <a
+                      href={`https://wa.me/55${(selected.celular || selected.telefone || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${(selected.nomeFantasia || selected.razaoSocial).split(' ')[0]}! Passando da TM Imports para reforçar nossa parceria. Podemos conversar? 🤝`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1 rounded text-sm font-medium text-white flex items-center gap-1"
+                      style={{ backgroundColor: '#16a34a' }}
+                      title="Enviar WhatsApp"
+                    >
+                      💬 WhatsApp
+                    </a>
+                  )}
                   <button
                     onClick={() => { setForm(selected); setShowModal(true); }}
                     className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1 rounded text-sm"

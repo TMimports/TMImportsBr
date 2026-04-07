@@ -34,6 +34,7 @@ import crmRoutes from './routes/crm.js';
 import notasFiscaisRoutes from './routes/notas-fiscais.js';
 import conciliacaoBancariaRoutes from './routes/conciliacao-bancaria.js';
 import relatoriosRoutes from './routes/relatorios.js';
+import whatsappRoutes from './routes/whatsapp.js';
 import { iniciarScheduler } from './services/scheduler.js';
 
 export const prisma = new PrismaClient({
@@ -115,6 +116,7 @@ app.use('/api/categorias-financeiras', categoriasFinanceirasRoutes);
 app.use('/api/departamentos', departamentosRoutes);
 app.use('/api/fornecedores', fornecedoresRoutes);
 app.use('/api/crm', crmRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/notas-fiscais', notasFiscaisRoutes);
 app.use('/api/conciliacao-bancaria', conciliacaoBancariaRoutes);
 app.use('/api/relatorios', relatoriosRoutes);

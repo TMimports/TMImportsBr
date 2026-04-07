@@ -197,6 +197,18 @@ export function Clientes() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-white truncate">{cliente.nome}</h3>
                     <div className="flex gap-2">
+                      {cliente.telefone && (
+                        <a
+                          href={`https://wa.me/55${cliente.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${cliente.nome.split(' ')[0]}! Tudo bem? Passando da Tecle Motos para verificar se podemos ajudá-lo. 😊`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm"
+                          style={{ backgroundColor: '#16a34a', color: 'white' }}
+                          title="Enviar WhatsApp"
+                        >
+                          💬
+                        </a>
+                      )}
                       <button onClick={() => handleEditar(cliente)} className="btn btn-sm btn-secondary">
                         Editar
                       </button>
