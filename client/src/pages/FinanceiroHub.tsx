@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 import { Financeiro } from './Financeiro';
 import { ContasReceber } from './ContasReceber';
 import { CategoriasDepartamentos } from './CategoriasDepartamentos';
@@ -42,15 +43,13 @@ function KpiCard({ label, value, sub, color = 'text-white', icon }: {
 }
 
 function VisaoGeral() {
-  const { token } = useAuth();
   const [data, setData] = useState<DashFinanceiro | null>(null);
   const [loading, setLoading] = useState(true);
-  const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
-    fetch('/api/financeiro/dashboard', { headers })
-      .then(r => r.json())
+    api.get<DashFinanceiro>('/financeiro/dashboard')
       .then(setData)
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
 

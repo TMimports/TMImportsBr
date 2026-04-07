@@ -1,13 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { SectionHeader } from '../components/ui/SectionHeader';
-
-const API = '/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -256,17 +255,17 @@ function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
 
 // ─── View Consolidada (Admin) ─────────────────────────────────────────────────
 
-function ViewConsolidada({ token, onSelectEmpresa }: {
-  token: string; onSelectEmpresa: (lojaId: number) => void;
+function ViewConsolidada({ onSelectEmpresa }: {
+  onSelectEmpresa: (lojaId: number) => void;
 }) {
   const [data, setData] = useState<ConsolidadoResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
 
   useEffect(() => {
-    fetch(`${API}/estoque/consolidado`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
+    api.get<ConsolidadoResponse>('/estoque/consolidado')
       .then(d => setData(d && d.totais ? d : null))
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
 
@@ -359,7 +358,7 @@ function ViewConsolidada({ token, onSelectEmpresa }: {
 
 type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao';
 
-function ViewEmpresa({ lojaId, token, onBack }: { lojaId: number; token: string; onBack?: () => void; }) {
+function ViewEmpresa({ lojaId, onBack }: { lojaId: number; onBack?: () => void; }) {
   const [data, setData] = useState<EmpresaDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<EmpresaTab>('gerencial');
@@ -368,9 +367,9 @@ function ViewEmpresa({ lojaId, token, onBack }: { lojaId: number; token: string;
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API}/estoque/empresa/${lojaId}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
+    api.get<EmpresaDetalhes>(`/estoque/empresa/${lojaId}`)
       .then(d => setData(d && d.empresa ? d : null))
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [lojaId]);
 
@@ -473,7 +472,7 @@ function ViewEmpresa({ lojaId, token, onBack }: { lojaId: number; token: string;
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function Estoque() {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [lojaId, setLojaId] = useState<number | null>(null);
   const [loadingLojas, setLoadingLojas] = useState(true);
@@ -484,24 +483,18 @@ export function Estoque() {
   const showConsolidado = isAdmin && lojaId === null;
 
   useEffect(() => {
-    const carregarLojas = async () => {
-      try {
-        const r = await fetch(`${API}/lojas`, { headers: { Authorization: `Bearer ${token}` } });
-        if (r.ok) {
-          const data = await r.json();
-          const lista: Loja[] = Array.isArray(data) ? data : [];
-          setLojas(lista);
-          // Sempre seleciona a loja do usuário ou a primeira da lista
-          // Admins também começam com a primeira loja (não a visão consolidada)
-          if (user?.lojaId) {
-            setLojaId(user.lojaId);
-          } else if (lista.length > 0) {
-            setLojaId(lista[0].id);
-          }
+    api.get<Loja[]>('/lojas')
+      .then(lista => {
+        setLojas(lista);
+        // Sempre seleciona a loja do usuário ou a primeira da lista
+        if (user?.lojaId) {
+          setLojaId(user.lojaId);
+        } else if (lista.length > 0) {
+          setLojaId(lista[0].id);
         }
-      } finally { setLoadingLojas(false); }
-    };
-    carregarLojas();
+      })
+      .catch(() => setLojas([]))
+      .finally(() => setLoadingLojas(false));
   }, []);
 
   if (loadingLojas) return <div className="p-12 text-center text-zinc-400">Carregando...</div>;
@@ -535,11 +528,10 @@ export function Estoque() {
 
       {/* Conteúdo */}
       {showConsolidado ? (
-        <ViewConsolidada token={token!} onSelectEmpresa={setLojaId} />
+        <ViewConsolidada onSelectEmpresa={setLojaId} />
       ) : lojaId ? (
         <ViewEmpresa
           lojaId={lojaId}
-          token={token!}
           onBack={isAdmin ? () => setLojaId(null) : undefined}
         />
       ) : (

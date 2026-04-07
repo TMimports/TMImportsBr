@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
 interface Fornecedor {
   id: number;
@@ -43,7 +44,7 @@ const CLASSE_LABEL: Record<string, string> = {
 };
 
 export function Fornecedores() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
@@ -55,38 +56,37 @@ export function Fornecedores() {
   const [form, setForm] = useState<Partial<Fornecedor>>({});
   const [interForm, setInterForm] = useState({ tipo: 'OBSERVACAO', titulo: '', descricao: '', resultado: '', proximoContato: '' });
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-
   useEffect(() => { loadFornecedores(); loadLojas(); }, []);
 
   async function loadFornecedores() {
     setLoading(true);
     try {
-      const r = await fetch('/api/fornecedores', { headers });
-      const d = await r.json();
+      const d = await api.get<any>('/fornecedores');
       setFornecedores(Array.isArray(d) ? d : []);
-    } finally { setLoading(false); }
+    } catch { setFornecedores([]); } finally { setLoading(false); }
   }
 
   async function loadLojas() {
     try {
-      const r = await fetch('/api/lojas', { headers });
-      const data = await r.json();
+      const data = await api.get<any>('/lojas');
       setLojas(Array.isArray(data) ? data : data.lojas ?? []);
     } catch {}
   }
 
   async function openDetail(f: Fornecedor) {
     setSelected(f);
-    const r = await fetch(`/api/crm/interacoes?fornecedorId=${f.id}`, { headers });
-    const d = await r.json();
-    setInteracoes(Array.isArray(d) ? d : []);
+    try {
+      const d = await api.get<any>(`/crm/interacoes?fornecedorId=${f.id}`);
+      setInteracoes(Array.isArray(d) ? d : []);
+    } catch { setInteracoes([]); }
   }
 
   async function saveFornecedor() {
-    const method = form.id ? 'PUT' : 'POST';
-    const url = form.id ? `/api/fornecedores/${form.id}` : '/api/fornecedores';
-    await fetch(url, { method, headers, body: JSON.stringify(form) });
+    if (form.id) {
+      await api.put(`/fornecedores/${form.id}`, form);
+    } else {
+      await api.post('/fornecedores', form);
+    }
     setShowModal(false);
     setForm({});
     loadFornecedores();
@@ -94,10 +94,7 @@ export function Fornecedores() {
 
   async function saveInteracao() {
     if (!selected) return;
-    await fetch('/api/crm/interacoes', {
-      method: 'POST', headers,
-      body: JSON.stringify({ ...interForm, fornecedorId: selected.id }),
-    });
+    await api.post('/crm/interacoes', { ...interForm, fornecedorId: selected.id });
     setShowInteracao(false);
     setInterForm({ tipo: 'OBSERVACAO', titulo: '', descricao: '', resultado: '', proximoContato: '' });
     openDetail(selected);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 import { SectionHeader } from '../components/ui/SectionHeader';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -7,7 +8,6 @@ import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 
-const API = '/api';
 
 interface Produto { id: number; nome: string; tipo: string; codigo: string; custo?: number; }
 interface Item { produtoId: number; produto?: Produto; quantidade: number; valorUnitario: number; valorTotal: number; }
@@ -259,7 +259,7 @@ function DetalhesPedido({ pedido, onClose, onAction, role }: {
 }
 
 export function PedidosCompra() {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -270,41 +270,35 @@ export function PedidosCompra() {
   const [detalhesPedido, setDetalhesPedido] = useState<PedidoCompra | null>(null);
   const [erro, setErro] = useState('');
 
-  const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-
   const load = async () => {
     setLoading(true);
     try {
       const params = statusFiltro ? `?status=${statusFiltro}` : '';
-      const [rP, rL, rProd] = await Promise.all([
-        fetch(`${API}/pedidos-compra${params}`, { headers }),
-        fetch(`${API}/lojas`, { headers }),
-        fetch(`${API}/produtos`, { headers }),
+      const [pData, lData, prodData] = await Promise.all([
+        api.get<any>(`/pedidos-compra${params}`),
+        api.get<any>('/lojas'),
+        api.get<any>('/produtos'),
       ]);
-      if (rP.ok) { const d = await rP.json(); setPedidos(Array.isArray(d) ? d : []); }
-      if (rL.ok) { const d = await rL.json(); setLojas(Array.isArray(d) ? d : d.lojas ?? []); }
-      if (rProd.ok) {
-        const p = await rProd.json();
-        setProdutos(Array.isArray(p) ? p : p.data || []);
-      }
+      setPedidos(Array.isArray(pData) ? pData : []);
+      setLojas(Array.isArray(lData) ? lData : lData.lojas ?? []);
+      setProdutos(Array.isArray(prodData) ? prodData : prodData.data || []);
     } catch { /* ignore */ } finally { setLoading(false); }
   };
 
   useEffect(() => { load(); }, [statusFiltro]);
 
   const handleSave = async (data: any) => {
-    const r = await fetch(`${API}/pedidos-compra`, { method: 'POST', headers, body: JSON.stringify(data) });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error || 'Erro ao criar pedido');
+    await api.post('/pedidos-compra', data);
     setShowModal(false);
     load();
   };
 
   const handleAction = async (id: number, acao: string) => {
-    const r = await fetch(`${API}/pedidos-compra/${id}/${acao}`, { method: 'POST', headers });
-    if (!r.ok) { const j = await r.json(); setErro(j.error || 'Erro na operação'); return; }
-    setDetalhesPedido(null);
-    load();
+    try {
+      await api.post(`/pedidos-compra/${id}/${acao}`, {});
+      setDetalhesPedido(null);
+      load();
+    } catch (e: any) { setErro(e.message || 'Erro na operação'); }
   };
 
   const pedidosFiltrados = pedidos.filter(p => {

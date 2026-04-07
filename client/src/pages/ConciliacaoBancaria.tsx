@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
-const API = '/api/conciliacao-bancaria';
 
 const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const fmtDate = (s: string | Date) => new Date(s).toLocaleDateString('pt-BR');
@@ -332,16 +332,14 @@ function ModalOFX({ contas, contaPreSelecionada, onImport, onClose }: {
 
 // ── Modal: Conciliar ──────────────────────────────────────────────────────────
 
-function ModalConciliar({ lancamento, token, onConciliar, onClose }: {
+function ModalConciliar({ lancamento, onConciliar, onClose }: {
   lancamento: Lancamento;
-  token: string;
   onConciliar: (lancamentoId: number, data: { pagamentoId?: number; recebimentoId?: number }) => Promise<void>;
   onClose: () => void;
 }) {
   const [candidatos, setCandidatos] = useState<Candidato>({ pagamentos: [], recebimentos: [] });
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
-  const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
     const params = new URLSearchParams({
@@ -350,8 +348,7 @@ function ModalConciliar({ lancamento, token, onConciliar, onClose }: {
       data: new Date(lancamento.data).toISOString().slice(0, 10),
       valor: String(lancamento.valor),
     });
-    fetch(`${API}/candidatos?${params}`, { headers })
-      .then(r => r.json())
+    api.get<Candidato>(`/conciliacao-bancaria/candidatos?${params}`)
       .then(d => setCandidatos(d && typeof d === 'object' ? d : { pagamentos: [], recebimentos: [] }))
       .catch(() => setCandidatos({ pagamentos: [], recebimentos: [] }))
       .finally(() => setLoading(false));
@@ -443,8 +440,7 @@ function ModalConciliar({ lancamento, token, onConciliar, onClose }: {
 // ── Página Principal ──────────────────────────────────────────────────────────
 
 export function ConciliacaoBancaria() {
-  const { token, user } = useAuth();
-  const headers = { Authorization: `Bearer ${token}` };
+  const { user } = useAuth();
   const role = user?.role ?? '';
 
   const [contas, setContas] = useState<ContaBancaria[]>([]);
@@ -470,16 +466,13 @@ export function ConciliacaoBancaria() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [rC, rL, rR] = await Promise.all([
-        fetch(`${API}/contas`, { headers }),
-        fetch(`/api/lojas`, { headers }),
-        fetch(`${API}/resumo`, { headers }),
+      const [cData, lData, rData] = await Promise.all([
+        api.get<ContaBancaria[]>('/conciliacao-bancaria/contas'),
+        api.get<any>('/lojas'),
+        api.get<any>('/conciliacao-bancaria/resumo'),
       ]);
-      const cData = await rC.json();
       setContas(Array.isArray(cData) ? cData : []);
-      const lData = await rL.json();
       setLojas(Array.isArray(lData) ? lData : lData.lojas ?? []);
-      const rData = await rR.json();
       if (rData && typeof rData === 'object' && !rData.error) setResumo(rData);
     } catch { /* silent */ }
     setLoading(false);
@@ -494,8 +487,7 @@ export function ConciliacaoBancaria() {
     if (filtroTipo) params.set('tipo', filtroTipo);
 
     try {
-      const r = await fetch(`${API}/lancamentos?${params}`, { headers });
-      const d = await r.json();
+      const d = await api.get<Lancamento[]>(`/conciliacao-bancaria/lancamentos?${params}`);
       setLancamentos(Array.isArray(d) ? d : []);
     } catch { setLancamentos([]); }
   }
@@ -507,11 +499,7 @@ export function ConciliacaoBancaria() {
 
   async function saveConta(data: any) {
     try {
-      const r = await fetch(`${API}/contas`, {
-        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!r.ok) throw new Error((await r.json()).error);
+      await api.post('/conciliacao-bancaria/contas', data);
       setShowModalConta(false);
       flash('ok', 'Conta bancária cadastrada com sucesso!');
       await loadAll();
@@ -520,11 +508,7 @@ export function ConciliacaoBancaria() {
 
   async function saveLancamento(data: any) {
     try {
-      const r = await fetch(`${API}/lancamentos`, {
-        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!r.ok) throw new Error((await r.json()).error);
+      await api.post('/conciliacao-bancaria/lancamentos', data);
       setShowModalLancamento(false);
       flash('ok', 'Lançamento criado!');
       await loadAll();
@@ -532,23 +516,14 @@ export function ConciliacaoBancaria() {
   }
 
   async function importarOFX(contaId: number, ofxContent: string) {
-    const r = await fetch(`${API}/contas/${contaId}/importar-ofx`, {
-      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ofxContent }),
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error);
+    const d = await api.post<any>(`/conciliacao-bancaria/contas/${contaId}/importar-ofx`, { ofxContent });
     await loadAll();
     return { importados: d.importados, duplicados: d.duplicados, total: d.total };
   }
 
   async function conciliar(lancamentoId: number, data: { pagamentoId?: number; recebimentoId?: number }) {
     try {
-      const r = await fetch(`${API}/lancamentos/${lancamentoId}/conciliar`, {
-        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!r.ok) throw new Error((await r.json()).error);
+      await api.post(`/conciliacao-bancaria/lancamentos/${lancamentoId}/conciliar`, data);
       setModalConciliar(null);
       flash('ok', 'Lançamento conciliado!');
       await loadLancamentos();
@@ -558,11 +533,7 @@ export function ConciliacaoBancaria() {
   async function desconciliar(lancamentoId: number) {
     if (!confirm('Desvincular este lançamento?')) return;
     try {
-      const r = await fetch(`${API}/lancamentos/${lancamentoId}/desconciliar`, {
-        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      if (!r.ok) throw new Error((await r.json()).error);
+      await api.post(`/conciliacao-bancaria/lancamentos/${lancamentoId}/desconciliar`, {});
       flash('ok', 'Lançamento desvinculado');
       await loadLancamentos();
     } catch (e: any) { flash('erro', e.message || 'Erro'); }
@@ -571,8 +542,7 @@ export function ConciliacaoBancaria() {
   async function excluirLancamento(id: number) {
     if (!confirm('Excluir este lançamento?')) return;
     try {
-      const r = await fetch(`${API}/lancamentos/${id}`, { method: 'DELETE', headers });
-      if (!r.ok) throw new Error((await r.json()).error);
+      await api.delete(`/conciliacao-bancaria/lancamentos/${id}`);
       flash('ok', 'Lançamento excluído');
       await loadLancamentos();
     } catch (e: any) { flash('erro', e.message || 'Erro'); }
@@ -830,7 +800,6 @@ export function ConciliacaoBancaria() {
       {modalConciliar && (
         <ModalConciliar
           lancamento={modalConciliar}
-          token={token ?? ''}
           onConciliar={conciliar}
           onClose={() => setModalConciliar(null)}
         />

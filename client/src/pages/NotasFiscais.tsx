@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
 interface NotaFiscal {
   id: number;
@@ -139,7 +140,7 @@ function imprimirNF(nf: NotaFiscal) {
 }
 
 export function NotasFiscais() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [notas, setNotas] = useState<NotaFiscal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState('');
@@ -153,8 +154,6 @@ export function NotasFiscais() {
     tipo: 'ENTRADA', status: 'PENDENTE', valorTotal: 0, itens: [],
   });
 
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-
   useEffect(() => { loadNotas(); loadLojas(); loadFornecedores(); }, []);
   useEffect(() => { loadNotas(); }, [filtroTipo, filtroStatus, filtroMes]);
 
@@ -165,33 +164,32 @@ export function NotasFiscais() {
       if (filtroTipo) params.set('tipo', filtroTipo);
       if (filtroStatus) params.set('status', filtroStatus);
       if (filtroMes) params.set('mes', filtroMes);
-      const r = await fetch(`/api/notas-fiscais?${params}`, { headers });
-      const data = await r.json();
+      const data = await api.get<any>(`/notas-fiscais?${params}`);
       setNotas(Array.isArray(data) ? data : []);
     } catch { setNotas([]); } finally { setLoading(false); }
   }
 
   async function loadLojas() {
     try {
-      const r = await fetch('/api/lojas', { headers });
-      const data = await r.json();
+      const data = await api.get<any>('/lojas');
       setLojas(Array.isArray(data) ? data : data.lojas ?? []);
     } catch { setLojas([]); }
   }
 
   async function loadFornecedores() {
     try {
-      const r = await fetch('/api/fornecedores', { headers });
-      const data = await r.json();
+      const data = await api.get<any>('/fornecedores');
       setFornecedores(Array.isArray(data) ? data : data.data ?? []);
     } catch { setFornecedores([]); }
   }
 
   async function saveNota() {
-    const method = form.id ? 'PUT' : 'POST';
-    const url = form.id ? `/api/notas-fiscais/${form.id}` : '/api/notas-fiscais';
     const { itens, ...body } = form;
-    await fetch(url, { method, headers, body: JSON.stringify({ ...body, itens }) });
+    if (form.id) {
+      await api.put(`/notas-fiscais/${form.id}`, { ...body, itens });
+    } else {
+      await api.post('/notas-fiscais', { ...body, itens });
+    }
     setShowModal(false);
     setForm({ tipo: 'ENTRADA', status: 'PENDENTE', valorTotal: 0, itens: [] });
     loadNotas();
@@ -199,7 +197,7 @@ export function NotasFiscais() {
 
   async function cancelarNota(id: number) {
     if (!confirm('Cancelar esta nota fiscal?')) return;
-    await fetch(`/api/notas-fiscais/${id}`, { method: 'DELETE', headers });
+    await api.delete(`/notas-fiscais/${id}`);
     loadNotas();
   }
 
