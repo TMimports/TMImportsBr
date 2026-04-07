@@ -60,6 +60,10 @@ args = "NODE_ENV=development npx tsx watch server/src/index.ts"
 localPort = 3001
 externalPort = 3001
 
+[[ports]]
+localPort = 5000
+externalPort = 80
+
 [userenv]
 
 [userenv.shared]
