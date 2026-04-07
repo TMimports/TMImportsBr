@@ -28,6 +28,7 @@ import { Fornecedores } from './pages/Fornecedores';
 import { NotasFiscais } from './pages/NotasFiscais';
 import { DashboardEmpresa } from './pages/DashboardEmpresa';
 import { FinanceiroHub } from './pages/FinanceiroHub';
+import { FinanceiroEmpresa } from './pages/FinanceiroEmpresa';
 import { ConciliacaoBancaria } from './pages/ConciliacaoBancaria';
 import { Relatorios } from './pages/Relatorios';
 import { WhatsAppCRM } from './pages/WhatsAppCRM';
@@ -101,6 +102,8 @@ function AppContent() {
         return <NotasFiscais />;
       case 'dashboard-empresa':
         return <DashboardEmpresa />;
+      case 'financeiro-empresa':
+        return <FinanceiroEmpresa />;
       case 'configuracoes':
         return <Configuracoes />;
       case 'utilidades':

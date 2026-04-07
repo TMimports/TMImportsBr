@@ -329,6 +329,23 @@ body('Cada card na listagem exibe: nome fantasia, CNPJ, grupo, número de usuár
 
 note('Lojas marcadas com "CNPJ Pendente" precisam ter o número de CNPJ informado antes de emitir notas fiscais.', ORANGE);
 
+h2('Financeiro por Loja');
+body('Além do dashboard operacional individual (KPIs de vendas, estoque e serviços), o administrador TM Imports dispõe de uma área financeira dedicada a cada unidade. Acesse em Rede de Franquias > Financeiro por Loja.');
+
+bullet([
+  'Selecione qualquer loja cadastrada para ver os dados financeiros exclusivos daquela unidade',
+  'Aba Visão Geral – Saldo Líquido, KPIs de A Pagar e A Receber com destaque para contas vencidas e a vencer em 7 dias',
+  'Aba A Pagar – Lista completa de contas a pagar filtradas pela loja selecionada, com opções Pendentes / Pagas / Todos',
+  'Aba A Receber – Contas a receber geradas pelas vendas e OS da loja, com filtro de status e busca por cliente ou descrição',
+]);
+
+step(1, 'Acesse Rede de Franquias > Financeiro por Loja', 'Disponível no menu lateral, dentro do grupo "Rede de Franquias", apenas para Administrador Geral.');
+step(2, 'Selecione a loja', 'Clique no botão com o nome da unidade desejada. As abas carregam automaticamente os dados financeiros daquela loja.');
+step(3, 'Navegue pelas abas', 'Use as abas Visão Geral, A Pagar e A Receber para acessar cada área financeira da loja selecionada.');
+step(4, 'Filtre e busque', 'Nas abas A Pagar e A Receber, use os filtros de status (Pendentes / Pagas / Todos) e a barra de busca para localizar registros específicos.');
+
+note('O Financeiro por Loja é somente-leitura para diagnóstico e supervisão. Para lançar ou baixar contas, utilize o módulo Financeiro principal.', ORANGE);
+
 // ─── CAP 4 — PRODUTOS E SERVICOS ──────────────────────────────────────────────
 
 dividerPage(4, 'Catálogo', 'Produtos, motos e serviços');
@@ -520,6 +537,8 @@ bullet([
   'Conciliação – Reconciliação bancária com suporte a importação de OFX',
   'Fornecedores – CRM de parceiros comerciais com histórico de interações',
 ]);
+
+note('Para uma visão financeira dedicada e filtrada por unidade específica da rede, o Administrador Geral dispõe também do módulo Financeiro por Loja, acessível em Rede de Franquias > Financeiro por Loja. Ele exibe Saldo Líquido, contas a pagar e a receber filtrados pela loja selecionada.', ORANGE);
 
 h2('Contas a pagar');
 body('As contas a pagar são criadas de duas formas:');

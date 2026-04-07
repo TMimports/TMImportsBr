@@ -71,8 +71,9 @@ const RELATORIOS_ITEM = item('relatorios', 'Relatórios', '📈');
 
 // Grupo de rede (franquias) — apenas ADMIN_GERAL
 const REDE_GROUP = group('rede-group', 'Rede de Franquias', '🏢', [
-  { id: 'grupos', label: 'Grupos / Franquias', icon: '🏢' },
-  { id: 'lojas',  label: 'Lojas',              icon: '🏪' },
+  { id: 'grupos',              label: 'Grupos / Franquias',  icon: '🏢' },
+  { id: 'lojas',               label: 'Lojas',               icon: '🏪' },
+  { id: 'financeiro-empresa',  label: 'Financeiro por Loja', icon: '💰' },
 ]);
 
 // Grupo comercial para ADMIN_FINANCEIRO (acesso de leitura ao contexto de vendas)

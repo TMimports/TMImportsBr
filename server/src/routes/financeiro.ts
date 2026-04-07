@@ -64,6 +64,12 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
     const fimHoje = new Date(); fimHoje.setHours(23, 59, 59, 999);
     const em7dias = new Date(); em7dias.setDate(em7dias.getDate() + 7); em7dias.setHours(23, 59, 59, 999);
 
+    // ADMIN_GERAL pode filtrar por loja específica via query param
+    const { lojaId: queryLojaId } = req.query;
+    if (queryLojaId && !tw.lojaId && !tw.loja) {
+      (tw as any).lojaId = Number(queryLojaId);
+    }
+
     const baseCP: any = { ...tw, deletedAt: null };
     const baseCR: any = { ...tw, deletedAt: null };
 
@@ -114,6 +120,8 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
 router.get('/contas-receber/resumo', async (req: AuthRequest, res) => {
   try {
     const tw = tenantWhere(req);
+    const { lojaId: queryLojaId } = req.query;
+    if (queryLojaId && !tw.lojaId && !tw.loja) (tw as any).lojaId = Number(queryLojaId);
     const where: any = { ...tw, deletedAt: null };
     const [aberto, recebido] = await Promise.all([
       prisma.contaReceber.aggregate({ where: { ...where, pago: false }, _sum: { valor: true } }),
@@ -131,9 +139,11 @@ router.get('/contas-receber/resumo', async (req: AuthRequest, res) => {
 router.get('/contas-receber', async (req: AuthRequest, res) => {
   try {
     const tw = tenantWhere(req);
-    const { status, origem } = req.query;
+    const { status, origem, lojaId: queryLojaId } = req.query;
 
     const where: any = { ...tw, deletedAt: null };
+    // ADMIN_GERAL pode filtrar por loja específica
+    if (queryLojaId && !tw.lojaId && !tw.loja) where.lojaId = Number(queryLojaId);
     if (status === 'pendentes') where.pago = false;
     if (status === 'recebidas') where.pago = true;
 
@@ -441,6 +451,8 @@ router.delete('/contas-receber/:id', async (req: AuthRequest, res) => {
 router.get('/contas-pagar/resumo', async (req: AuthRequest, res) => {
   try {
     const tw = tenantWhere(req);
+    const { lojaId: queryLojaId } = req.query;
+    if (queryLojaId && !tw.lojaId && !tw.loja) (tw as any).lojaId = Number(queryLojaId);
     const where: any = { ...tw, deletedAt: null };
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const em7dias = new Date(); em7dias.setDate(em7dias.getDate() + 7); em7dias.setHours(23, 59, 59, 999);
@@ -493,9 +505,11 @@ router.get('/contas-pagar/alertas', async (req: AuthRequest, res) => {
 router.get('/contas-pagar', async (req: AuthRequest, res) => {
   try {
     const tw = tenantWhere(req);
-    const { due, status, origem, categoriaId, departamentoId } = req.query;
+    const { due, status, origem, categoriaId, departamentoId, lojaId: queryLojaId } = req.query;
 
     const where: any = { ...tw, deletedAt: null };
+    // ADMIN_GERAL pode filtrar por loja específica
+    if (queryLojaId && !tw.lojaId && !tw.loja) where.lojaId = Number(queryLojaId);
     if (status === 'pendentes') where.pago = false;
     if (status === 'pagas') where.pago = true;
     if (origem) where.origem = origem;
