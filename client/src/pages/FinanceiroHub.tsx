@@ -121,12 +121,23 @@ const STORE_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-
 
 // ── Hub principal ──────────────────────────────────────────────────────────────
 
-export function FinanceiroHub({ initialTab }: { initialTab?: TabId } = {}) {
+export function FinanceiroHub({ initialTab }: { initialTab?: TabId }) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'visao-geral');
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Atualiza a aba ativa quando o item da barra lateral muda e scrolla até ela
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+      setTimeout(() => {
+        const el = tabBarRef.current?.querySelector(`[data-tab="${initialTab}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }, 60);
+    }
+  }, [initialTab]);
 
   const role = user?.role ?? '';
   const allowedTabs: TabId[] =
