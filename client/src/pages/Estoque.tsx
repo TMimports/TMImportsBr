@@ -426,9 +426,15 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
 
                           {/* Quantidade */}
                           {item.produto.tipo === 'MOTO' ? (
-                            <p className="text-xs text-zinc-400 mb-3 bg-zinc-800 rounded-lg px-3 py-2">
-                              Para transferir uma moto específica, clique em <strong className="text-white">Ver</strong> e use a aba <strong className="text-white">Unidades Disponíveis</strong>.
-                            </p>
+                            <div className="mb-3">
+                              <p className="text-xs text-zinc-400 mb-2">Motos são transferidas por chassi. Selecione a unidade desejada:</p>
+                              <button
+                                onClick={() => onVerLoja(loja.lojaId)}
+                                className="flex items-center gap-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/30 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                              >
+                                📋 Ver Unidades Disponíveis nesta loja
+                              </button>
+                            </div>
                           ) : (
                             <div className="flex items-center gap-3 mb-4">
                               <p className="text-xs text-zinc-400">Qtd:</p>
@@ -475,13 +481,14 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
 
 // ─── TabGerencial ─────────────────────────────────────────────────────────────
 
-function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido }: {
+function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido, onVerUnitaria }: {
   itens: ItemGerencial[];
   busca: string;
   lojas: Loja[];
   lojaId: number;
   minhaLojaId: number | null;
   onTransferido?: () => void;
+  onVerUnitaria?: (nome: string) => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDestinoId, setExpandedDestinoId] = useState<number | ''>('');
@@ -584,19 +591,33 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido 
                       </td>
                       {podeTransferir && (
                         <td className="p-3 text-center">
-                          <button
-                            onClick={() => toggleExpand(it.produtoId, it.quantidade)}
-                            className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
-                              isExp
-                                ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
-                                : it.quantidade === 0
-                                  ? 'opacity-40 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
-                                  : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
-                            }`}
-                            disabled={it.quantidade === 0 && !isExp}
-                          >
-                            {isExp ? '✕' : '↔'}
-                          </button>
+                          {it.tipo === 'MOTO' ? (
+                            <button
+                              onClick={() => onVerUnitaria?.(it.nome)}
+                              disabled={it.quantidade === 0}
+                              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                                it.quantidade === 0
+                                  ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                  : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
+                              }`}
+                            >
+                              📋 Ver Unidades
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => toggleExpand(it.produtoId, it.quantidade)}
+                              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                                isExp
+                                  ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                                  : it.quantidade === 0
+                                    ? 'opacity-40 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                    : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
+                              }`}
+                              disabled={it.quantidade === 0 && !isExp}
+                            >
+                              {isExp ? '✕' : '↔'}
+                            </button>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -635,35 +656,27 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido 
                               </div>
 
                               {/* Quantidade */}
-                              {it.tipo === 'MOTO' ? (
-                                <p className="text-xs text-zinc-400 bg-zinc-800 rounded-lg px-3 py-2 max-w-xs">
-                                  Para transferir motos individualmente, use a aba <strong className="text-white">Unitária</strong>.
-                                </p>
-                              ) : (
-                                <div>
-                                  <p className="text-xs text-zinc-500 mb-1">Quantidade</p>
-                                  <div className="flex items-center gap-2">
-                                    <button onClick={() => setExpandedQtd(q => Math.max(1, q - 1))} className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-bold hover:bg-zinc-600 text-sm">−</button>
-                                    <span className="text-white font-bold w-8 text-center">{expandedQtd}</span>
-                                    <button onClick={() => setExpandedQtd(q => Math.min(it.quantidade, q + 1))} className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-bold hover:bg-zinc-600 text-sm">+</button>
-                                    <span className="text-zinc-500 text-xs">máx {it.quantidade}</span>
-                                  </div>
+                              <div>
+                                <p className="text-xs text-zinc-500 mb-1">Quantidade</p>
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => setExpandedQtd(q => Math.max(1, q - 1))} className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-bold hover:bg-zinc-600 text-sm">−</button>
+                                  <span className="text-white font-bold w-8 text-center">{expandedQtd}</span>
+                                  <button onClick={() => setExpandedQtd(q => Math.min(it.quantidade, q + 1))} className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-bold hover:bg-zinc-600 text-sm">+</button>
+                                  <span className="text-zinc-500 text-xs">máx {it.quantidade}</span>
                                 </div>
-                              )}
+                              </div>
 
                               {/* Confirmar */}
-                              {it.tipo !== 'MOTO' && (
-                                <div className="flex flex-col gap-1">
-                                  {expandedErro && <p className="text-red-400 text-xs">{expandedErro}</p>}
-                                  <button
-                                    onClick={() => executarTransfer(it.produtoId, it.tipo)}
-                                    disabled={expandedLoading || !expandedDestinoId}
-                                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap"
-                                  >
-                                    {expandedLoading ? 'Enviando...' : 'Confirmar Transferência'}
-                                  </button>
-                                </div>
-                              )}
+                              <div className="flex flex-col gap-1">
+                                {expandedErro && <p className="text-red-400 text-xs">{expandedErro}</p>}
+                                <button
+                                  onClick={() => executarTransfer(it.produtoId, it.tipo)}
+                                  disabled={expandedLoading || !expandedDestinoId}
+                                  className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                                >
+                                  {expandedLoading ? 'Enviando...' : 'Confirmar Transferência'}
+                                </button>
+                              </div>
                             </div>
                           )}
                         </td>
@@ -1325,6 +1338,7 @@ function ViewEmpresa({
             lojaId={lojaId}
             minhaLojaId={minhaLojaId}
             onTransferido={onSolicitacaoFeita}
+            onVerUnitaria={(nome) => { setBusca(nome); setAba('unitaria'); }}
           />
         )}
         {aba === 'unitaria' && (
