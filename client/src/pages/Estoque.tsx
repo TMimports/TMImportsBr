@@ -1059,12 +1059,13 @@ export function Estoque() {
   const [loadingLojas, setLoadingLojas] = useState(true);
   const [refreshSolicitacoes, setRefreshSolicitacoes] = useState(0);
   const [modoBusca, setModoBusca] = useState(false);
+  const [modoTransferencias, setModoTransferencias] = useState(false);
 
   const role = user?.role || '';
   const isAdmin = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
   const isAprovador = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
   const minhaLojaId = user?.lojaId ?? null;
-  const showConsolidado = isAdmin && lojaId === null && !modoBusca;
+  const showConsolidado = isAdmin && lojaId === null && !modoBusca && !modoTransferencias;
 
   useEffect(() => {
     api.get<Loja[]>('/lojas?todos=true')
@@ -1103,6 +1104,17 @@ export function Estoque() {
   function handleVerLoja(id: number) {
     setLojaId(id);
     setModoBusca(false);
+    setModoTransferencias(false);
+  }
+
+  function toggleBusca() {
+    setModoBusca(b => !b);
+    setModoTransferencias(false);
+  }
+
+  function toggleTransferencias() {
+    setModoTransferencias(b => !b);
+    setModoBusca(false);
   }
 
   return (
@@ -1111,22 +1123,37 @@ export function Estoque() {
         <SectionHeader
           title="Estoque"
           subtitle={
-            modoBusca
-              ? 'Buscar produto em toda a rede'
-              : showConsolidado
-                ? 'Visão consolidada — todas as empresas'
-                : lojaId === minhaLojaId
-                  ? 'Estoque da sua loja'
-                  : lojaId === LOJA_IMPORTACAO_ID
-                    ? 'Estoque Central — TM Importação'
-                    : 'Consultando outra loja'
+            modoTransferencias
+              ? isAprovador ? 'Solicitações de transferência da rede' : 'Minhas solicitações de transferência'
+              : modoBusca
+                ? 'Buscar produto em toda a rede'
+                : showConsolidado
+                  ? 'Visão consolidada — todas as empresas'
+                  : lojaId === minhaLojaId
+                    ? 'Estoque da sua loja'
+                    : lojaId === LOJA_IMPORTACAO_ID
+                      ? 'Estoque Central — TM Importação'
+                      : 'Consultando outra loja'
           }
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Botão de Transferências */}
+          <button
+            onClick={toggleTransferencias}
+            title="Ver solicitações de transferência de estoque"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              modoTransferencias
+                ? 'bg-purple-500 text-white border-purple-500'
+                : 'bg-[#18181b] text-zinc-300 border-[#27272a] hover:border-purple-400 hover:text-purple-400'
+            }`}
+          >
+            🔄 <span className="hidden sm:inline">Transferências</span>
+          </button>
+
           {/* Botão de busca cross-rede */}
           <button
-            onClick={() => setModoBusca(b => !b)}
+            onClick={toggleBusca}
             title="Buscar produto em toda a rede"
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
               modoBusca
@@ -1137,8 +1164,8 @@ export function Estoque() {
             🔍 <span className="hidden sm:inline">Buscar na Rede</span>
           </button>
 
-          {/* Seletor de empresa (oculto no modo busca) */}
-          {!modoBusca && (
+          {/* Seletor de empresa (oculto no modo busca e transferências) */}
+          {!modoBusca && !modoTransferencias && (
             <div className="min-w-64">
               <Select
                 value={lojaId ?? ''}
@@ -1162,7 +1189,15 @@ export function Estoque() {
       </div>
 
       {/* Conteúdo */}
-      {modoBusca ? (
+      {modoTransferencias ? (
+        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-6">
+          <TabSolicitacoes
+            isAprovador={isAprovador}
+            lojaId={minhaLojaId}
+            refreshKey={refreshSolicitacoes}
+          />
+        </div>
+      ) : modoBusca ? (
         <BuscadorRede
           minhaLojaId={minhaLojaId}
           onVerLoja={handleVerLoja}
