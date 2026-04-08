@@ -50,7 +50,7 @@ router.post('/', requireAdminGeral, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Tipo inválido. Use MOTO, PECA ou SERVICO' });
     }
 
-    const produto = await prisma.produto.create({
+    const produtoCriado = await prisma.produto.create({
       data: {
         nome,
         tipo,
@@ -60,6 +60,14 @@ router.post('/', requireAdminGeral, async (req: AuthRequest, res) => {
         preco: 0,
         createdBy: req.user!.id
       }
+    });
+
+    // Atribui código sequencial padronizado baseado no tipo e ID
+    const prefixoTipo: Record<string, string> = { MOTO: 'MOT', PECA: 'PEC', SERVICO: 'SRV' };
+    const codigoProduto = `TM${prefixoTipo[tipo] || 'PRD'}${produtoCriado.id.toString().padStart(5, '0')}`;
+    const produto = await prisma.produto.update({
+      where: { id: produtoCriado.id },
+      data: { codigo: codigoProduto }
     });
 
     res.status(201).json(produto);
@@ -93,6 +101,28 @@ router.put('/:id', requireAdminGeral, async (req: AuthRequest, res) => {
     res.json(produto);
   } catch (error) {
     console.error('Erro ao atualizar produto:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /api/produtos/normalizar-codigos — corrige codigos com cuid para formato TM{tipo}XXXXX
+router.post('/normalizar-codigos', requireAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const prefixoTipo: Record<string, string> = { MOTO: 'MOT', PECA: 'PEC', SERVICO: 'SRV' };
+    const todos = await prisma.produto.findMany({ orderBy: { id: 'asc' } });
+    const semFormato = todos.filter(p => {
+      const prefixEsperado = `TM${prefixoTipo[p.tipo] || 'PRD'}`;
+      return !p.codigo.startsWith('TM');
+    });
+    let atualizados = 0;
+    for (const p of semFormato) {
+      const novoCodigo = `TM${prefixoTipo[p.tipo] || 'PRD'}${p.id.toString().padStart(5, '0')}`;
+      await prisma.produto.update({ where: { id: p.id }, data: { codigo: novoCodigo } });
+      atualizados++;
+    }
+    res.json({ message: `${atualizados} produtos atualizados`, total: todos.length, atualizados });
+  } catch (error) {
+    console.error('Erro ao normalizar códigos de produto:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

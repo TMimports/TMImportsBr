@@ -41,8 +41,31 @@ export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : []
 });
 
-prisma.$connect().then(() => {
+prisma.$connect().then(async () => {
   console.log('Prisma conectado ao banco de dados');
+
+  // Normaliza números de OS existentes (cuid → OS-XXXXX)
+  try {
+    const todasOS = await prisma.ordemServico.findMany({ select: { id: true, numero: true }, orderBy: { id: 'asc' } });
+    const semFormatoOS = todasOS.filter(os => !os.numero.startsWith('OS-'));
+    for (const os of semFormatoOS) {
+      await prisma.ordemServico.update({ where: { id: os.id }, data: { numero: `OS-${os.id.toString().padStart(5, '0')}` } });
+    }
+    if (semFormatoOS.length > 0) console.log(`[Init] ${semFormatoOS.length} OS normalizadas para formato sequencial`);
+  } catch (e) { console.error('[Init] Erro ao normalizar OS:', e); }
+
+  // Normaliza códigos de produto existentes (cuid → TM{tipo}XXXXX)
+  try {
+    const prefixoTipo: Record<string, string> = { MOTO: 'MOT', PECA: 'PEC', SERVICO: 'SRV' };
+    const todosProdutos = await prisma.produto.findMany({ select: { id: true, codigo: true, tipo: true }, orderBy: { id: 'asc' } });
+    const semFormatoProd = todosProdutos.filter(p => !p.codigo.startsWith('TM'));
+    for (const p of semFormatoProd) {
+      const novoCodigo = `TM${prefixoTipo[p.tipo] || 'PRD'}${p.id.toString().padStart(5, '0')}`;
+      await prisma.produto.update({ where: { id: p.id }, data: { codigo: novoCodigo } });
+    }
+    if (semFormatoProd.length > 0) console.log(`[Init] ${semFormatoProd.length} produtos normalizados para formato sequencial`);
+  } catch (e) { console.error('[Init] Erro ao normalizar produtos:', e); }
+
 }).catch((e: Error) => {
   console.error('Erro ao conectar Prisma:', e.message);
 });

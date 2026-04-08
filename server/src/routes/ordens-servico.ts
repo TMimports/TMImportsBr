@@ -252,7 +252,7 @@ router.post('/', async (req: AuthRequest, res) => {
     const tipoOS = tipo || 'OS';
     const status = tipoOS === 'ORCAMENTO' ? 'ORCAMENTO' : 'EM_EXECUCAO';
 
-    const os = await prisma.ordemServico.create({
+    const osCreated = await prisma.ordemServico.create({
       data: {
         clienteId: Number(clienteId),
         unidadeFisicaId: unidadeFisicaId ? Number(unidadeFisicaId) : null,
@@ -274,6 +274,11 @@ router.post('/', async (req: AuthRequest, res) => {
         loja: true 
       }
     });
+
+    // Atribui número sequencial baseado no ID
+    const numeroOS = `OS-${osCreated.id.toString().padStart(5, '0')}`;
+    await prisma.ordemServico.update({ where: { id: osCreated.id }, data: { numero: numeroOS } });
+    const os = { ...osCreated, numero: numeroOS };
 
     if (tipoOS !== 'ORCAMENTO' && itensProcessados.some(i => i.produtoId)) {
       const resultadoBaixa = await InventoryService.processarBaixaOS(
@@ -487,6 +492,24 @@ router.delete('/:id', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), a
     res.json({ message: 'OS excluída' });
   } catch (error) {
     console.error('Erro ao excluir OS:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /api/ordens-servico/normalizar-numeros — corrige numeros com cuid para formato OS-XXXXX
+router.post('/normalizar-numeros', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
+  try {
+    const todas = await prisma.ordemServico.findMany({ orderBy: { id: 'asc' } });
+    const semFormato = todas.filter(os => !os.numero.startsWith('OS-'));
+    let atualizadas = 0;
+    for (const os of semFormato) {
+      const novoNumero = `OS-${os.id.toString().padStart(5, '0')}`;
+      await prisma.ordemServico.update({ where: { id: os.id }, data: { numero: novoNumero } });
+      atualizadas++;
+    }
+    res.json({ message: `${atualizadas} OS atualizadas`, total: todas.length, atualizadas });
+  } catch (error) {
+    console.error('Erro ao normalizar números de OS:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
