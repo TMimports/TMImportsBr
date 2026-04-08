@@ -90,10 +90,10 @@ const LOJA_IMPORTACAO_ID = 4;
 
 function KpiBlock({ label, value, sub, color }: { label: string; value: React.ReactNode; sub?: string; color?: string }) {
   return (
-    <Card className="p-4">
-      <p className="text-xs text-zinc-400 mb-1">{label}</p>
-      <p className={`text-xl font-bold ${color || 'text-white'}`}>{value}</p>
-      {sub && <p className="text-xs text-zinc-500 mt-0.5">{sub}</p>}
+    <Card className="p-3 sm:p-4 min-w-0">
+      <p className="text-xs text-zinc-400 mb-1 truncate">{label}</p>
+      <p className={`text-base sm:text-xl font-bold truncate ${color || 'text-white'}`}>{value}</p>
+      {sub && <p className="text-xs text-zinc-500 mt-0.5 truncate">{sub}</p>}
     </Card>
   );
 }
@@ -199,11 +199,12 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
   const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
   const [loading, setLoading] = useState(false);
   const [buscou, setBuscou] = useState(false);
-  const [modalTransfer, setModalTransfer] = useState<{ produto: ResultadoBusca['produto']; loja: ResultadoBusca['lojas'][0] } | null>(null);
-  const [qtdTransfer, setQtdTransfer] = useState(1);
-  const [loadingTransfer, setLoadingTransfer] = useState(false);
-  const [erroTransfer, setErroTransfer] = useState('');
-  const [adminDestinoLojaId, setAdminDestinoLojaId] = useState<number | ''>('');
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [expandedDestinoId, setExpandedDestinoId] = useState<number | ''>('');
+  const [expandedQtd, setExpandedQtd] = useState(1);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [expandedErro, setExpandedErro] = useState('');
+  const [expandedSucesso, setExpandedSucesso] = useState(false);
 
   const isAdmin = minhaLojaId === null;
 
@@ -214,7 +215,6 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
       setBuscou(false);
       try {
         const r = await api.get<ResultadoBusca[]>(`/estoque/buscar-rede?q=${encodeURIComponent(query)}`);
-        // Sort lojas by proximity (LOJA_ORDER)
         const sorted = r.map(item => ({
           ...item,
           lojas: [...item.lojas].sort((a, b) => (LOJA_ORDER[a.lojaId] ?? 99) - (LOJA_ORDER[b.lojaId] ?? 99))
@@ -230,29 +230,38 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
     return () => clearTimeout(t);
   }, [query]);
 
-  async function confirmarTransfer() {
-    const destino = isAdmin ? Number(adminDestinoLojaId) : minhaLojaId;
-    if (!modalTransfer || !destino) return;
-    setLoadingTransfer(true);
-    setErroTransfer('');
-    try {
-      await api.post('/transferencias', {
-        produtoId: modalTransfer.produto.id,
-        lojaOrigemId: modalTransfer.loja.lojaId,
-        lojaDestinoId: destino,
-        quantidade: qtdTransfer,
-      });
-      setModalTransfer(null);
-    } catch (e: any) {
-      setErroTransfer(e?.message || 'Erro ao solicitar transferência');
-    } finally {
-      setLoadingTransfer(false);
+  function toggleExpand(key: string) {
+    if (expandedKey === key) {
+      setExpandedKey(null);
+    } else {
+      setExpandedKey(key);
+      setExpandedDestinoId('');
+      setExpandedQtd(1);
+      setExpandedErro('');
+      setExpandedSucesso(false);
     }
   }
 
-  const destinoNome = isAdmin
-    ? lojas.find(l => l.id === Number(adminDestinoLojaId))?.nomeFantasia || null
-    : minhaLojaId ? lojas.find(l => l.id === minhaLojaId)?.nomeFantasia || 'Minha Loja' : null;
+  async function executarTransfer(produtoId: number, lojaOrigemId: number) {
+    const destino = isAdmin ? Number(expandedDestinoId) : minhaLojaId;
+    if (!destino) return;
+    setExpandedLoading(true);
+    setExpandedErro('');
+    try {
+      await api.post('/transferencias', {
+        produtoId,
+        lojaOrigemId,
+        lojaDestinoId: destino,
+        quantidade: expandedQtd,
+      });
+      setExpandedSucesso(true);
+      setTimeout(() => { setExpandedKey(null); setExpandedSucesso(false); }, 1500);
+    } catch (e: any) {
+      setExpandedErro(e?.message || 'Erro ao solicitar transferência');
+    } finally {
+      setExpandedLoading(false);
+    }
+  }
 
   const TIPO_BADGE: Record<string, string> = {
     MOTO: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
@@ -320,9 +329,14 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
               const isMinhaLoja = loja.lojaId === minhaLojaId;
               const isCentral = loja.lojaId === LOJA_IMPORTACAO_ID;
               const podeSolicitar = isAdmin ? true : (!isMinhaLoja);
+              const rowKey = `${item.produto.id}-${loja.lojaId}`;
+              const isExpanded = expandedKey === rowKey;
+              const destinoNome = isAdmin
+                ? lojas.find(l => l.id === Number(expandedDestinoId))?.nomeFantasia || null
+                : minhaLojaId ? lojas.find(l => l.id === minhaLojaId)?.nomeFantasia || 'Minha Loja' : null;
               return (
-                <div key={loja.lojaId} className="px-3 sm:px-4 py-3">
-                  <div className="flex items-center gap-2 sm:gap-3">
+                <div key={loja.lojaId}>
+                  <div className="px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3">
                     {/* Rank de proximidade */}
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                       idx === 0 ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-zinc-300'
@@ -359,19 +373,95 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
                       </button>
                       {podeSolicitar && (
                         <button
-                          onClick={() => {
-                            setModalTransfer({ produto: item.produto, loja });
-                            setQtdTransfer(1);
-                            setErroTransfer('');
-                            setAdminDestinoLojaId('');
-                          }}
-                          className="text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 px-2 py-1.5 sm:px-2.5 rounded-lg font-medium transition-colors whitespace-nowrap"
+                          onClick={() => toggleExpand(rowKey)}
+                          className={`text-xs px-2 py-1.5 sm:px-2.5 rounded-lg font-medium transition-colors whitespace-nowrap border ${
+                            isExpanded
+                              ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                              : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
+                          }`}
                         >
-                          {isAdmin ? '↔ Mover' : 'Solicitar'}
+                          {isExpanded ? '✕ Fechar' : isAdmin ? '↔ Mover' : 'Solicitar'}
                         </button>
                       )}
                     </div>
                   </div>
+
+                  {/* Painel inline de transferência */}
+                  {isExpanded && (
+                    <div className="mx-3 sm:mx-4 mb-3 bg-zinc-900 border border-[#27272a] rounded-xl p-4">
+                      {expandedSucesso ? (
+                        <div className="flex items-center gap-2 text-green-400 font-medium text-sm py-1">
+                          <span className="text-lg">✓</span> Solicitação criada com sucesso!
+                        </div>
+                      ) : (
+                        <>
+                          {/* Origem → Destino */}
+                          <div className="flex items-center gap-2 mb-4 text-sm flex-wrap">
+                            <div className="flex-1 min-w-[120px]">
+                              <p className="text-xs text-zinc-500 mb-0.5">De</p>
+                              <p className="text-orange-400 font-medium">{loja.nomeFantasia}</p>
+                              <p className="text-zinc-500 text-xs">{loja.quantidade} em estoque</p>
+                            </div>
+                            <span className="text-zinc-500 text-xl">→</span>
+                            <div className="flex-1 min-w-[120px]">
+                              <p className="text-xs text-zinc-500 mb-0.5">Para</p>
+                              {isAdmin ? (
+                                <select
+                                  value={expandedDestinoId}
+                                  onChange={e => setExpandedDestinoId(e.target.value ? Number(e.target.value) : '')}
+                                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+                                >
+                                  <option value="">Selecione a loja...</option>
+                                  {lojas
+                                    .filter(l => l.id !== loja.lojaId)
+                                    .map(l => (
+                                      <option key={l.id} value={l.id} className="bg-zinc-800">{l.nomeFantasia}</option>
+                                    ))}
+                                </select>
+                              ) : (
+                                <p className="text-green-400 font-medium">{destinoNome || 'Minha Loja'}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quantidade */}
+                          {item.produto.tipo === 'MOTO' ? (
+                            <p className="text-xs text-zinc-400 mb-3 bg-zinc-800 rounded-lg px-3 py-2">
+                              Para transferir uma moto específica, clique em <strong className="text-white">Ver</strong> e use a aba <strong className="text-white">Unidades Disponíveis</strong>.
+                            </p>
+                          ) : (
+                            <div className="flex items-center gap-3 mb-4">
+                              <p className="text-xs text-zinc-400">Qtd:</p>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setExpandedQtd(q => Math.max(1, q - 1))}
+                                  className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-bold hover:bg-zinc-600 text-sm"
+                                >−</button>
+                                <span className="text-white font-bold w-8 text-center">{expandedQtd}</span>
+                                <button
+                                  onClick={() => setExpandedQtd(q => Math.min(loja.quantidade, q + 1))}
+                                  className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-bold hover:bg-zinc-600 text-sm"
+                                >+</button>
+                              </div>
+                              <p className="text-xs text-zinc-500">máx. {loja.quantidade}</p>
+                            </div>
+                          )}
+
+                          {expandedErro && <p className="text-red-400 text-xs mb-3">{expandedErro}</p>}
+
+                          {item.produto.tipo !== 'MOTO' && (
+                            <button
+                              onClick={() => executarTransfer(item.produto.id, loja.lojaId)}
+                              disabled={expandedLoading || (isAdmin && !expandedDestinoId)}
+                              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium py-2 rounded-lg transition-colors"
+                            >
+                              {expandedLoading ? 'Enviando...' : isAdmin ? 'Criar Solicitação' : 'Confirmar Solicitação'}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -379,89 +469,6 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
         </Card>
       ))}
 
-      {/* Modal de transferência por produto */}
-      {modalTransfer && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
-          <div className="bg-[#18181b] border border-[#27272a] rounded-t-2xl sm:rounded-xl w-full sm:max-w-md p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
-            <h2 className="text-lg font-bold text-white mb-4">
-              {isAdmin ? 'Criar Solicitação de Transferência' : 'Solicitar Transferência'}
-            </h2>
-            <div className="space-y-3 mb-5 text-sm">
-              <div className="bg-zinc-900 rounded-lg p-3">
-                <p className="text-zinc-400 text-xs mb-0.5">Produto</p>
-                <p className="text-white font-medium">{modalTransfer.produto.nome}</p>
-                <p className="text-zinc-500 font-mono text-xs">{modalTransfer.produto.codigo}</p>
-              </div>
-              <div className="flex gap-2">
-                <div className="flex-1 bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-400 text-xs mb-1">De (Origem)</p>
-                  <p className="text-orange-400 font-medium text-xs sm:text-sm">{modalTransfer.loja.nomeFantasia}</p>
-                  <p className="text-zinc-500 text-xs">{modalTransfer.loja.quantidade} em estoque</p>
-                </div>
-                <div className="flex items-center text-zinc-500 text-lg">→</div>
-                <div className="flex-1 bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-400 text-xs mb-1">Para (Destino)</p>
-                  {isAdmin ? (
-                    <select
-                      value={adminDestinoLojaId}
-                      onChange={e => setAdminDestinoLojaId(e.target.value ? Number(e.target.value) : '')}
-                      className="w-full bg-transparent text-green-400 font-medium text-xs focus:outline-none"
-                    >
-                      <option value="">Selecione...</option>
-                      {lojas
-                        .filter(l => l.id !== modalTransfer.loja.lojaId)
-                        .map(l => (
-                          <option key={l.id} value={l.id} className="bg-zinc-800 text-white">{l.nomeFantasia}</option>
-                        ))}
-                    </select>
-                  ) : (
-                    <p className="text-green-400 font-medium text-xs sm:text-sm">{destinoNome || 'Minha Loja'}</p>
-                  )}
-                </div>
-              </div>
-              <div className="bg-zinc-900 rounded-lg p-3">
-                <p className="text-zinc-400 text-xs mb-1">
-                  Quantidade{modalTransfer.produto.tipo === 'MOTO' ? '' : ''}
-                </p>
-                {modalTransfer.produto.tipo === 'MOTO' ? (
-                  <p className="text-zinc-300 text-xs">
-                    Para solicitar uma moto específica, clique em "Ver" e selecione a unidade pela aba Unidades Disponíveis.
-                  </p>
-                ) : (
-                  <div className="flex items-center gap-3 mt-1">
-                    <button onClick={() => setQtdTransfer(q => Math.max(1, q - 1))} className="w-8 h-8 rounded bg-zinc-700 text-white font-bold hover:bg-zinc-600">−</button>
-                    <span className="text-white font-bold text-lg w-8 text-center">{qtdTransfer}</span>
-                    <button onClick={() => setQtdTransfer(q => Math.min(modalTransfer.loja.quantidade, q + 1))} className="w-8 h-8 rounded bg-zinc-700 text-white font-bold hover:bg-zinc-600">+</button>
-                    <span className="text-zinc-500 text-xs">máx. {modalTransfer.loja.quantidade}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            {isAdmin && (
-              <p className="text-xs text-blue-400 mb-3">
-                Como administrador, você pode criar solicitações de transferência entre quaisquer lojas.
-              </p>
-            )}
-            {!isAdmin && (
-              <p className="text-xs text-zinc-500 mb-4">A solicitação ficará pendente até aprovação do Financeiro.</p>
-            )}
-            {erroTransfer && <p className="text-red-400 text-sm mb-3">{erroTransfer}</p>}
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={() => setModalTransfer(null)} className="flex-1">Cancelar</Button>
-              {modalTransfer.produto.tipo !== 'MOTO' && (
-                <Button
-                  variant="primary"
-                  onClick={confirmarTransfer}
-                  disabled={loadingTransfer || (isAdmin && !adminDestinoLojaId)}
-                  className="flex-1"
-                >
-                  {loadingTransfer ? 'Enviando...' : isAdmin ? 'Criar Solicitação' : 'Confirmar'}
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1009,7 +1016,7 @@ function ViewEmpresa({
       )}
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiBlock label="Motos" value={t.totalMotos} color="text-orange-400" />
         <KpiBlock label="Peças" value={t.totalPecas} color="text-blue-400" />
         <KpiBlock label="Custo Total (CM)" value={fmtBRL(t.valorTotalCusto)} color="text-zinc-200" />
