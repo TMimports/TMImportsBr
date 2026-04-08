@@ -160,8 +160,17 @@ router.post('/:id/confirmar', requireRole(...ROLES_COMPRA), async (req: AuthRequ
           where: { produtoId_lojaId: { produtoId: item.produtoId, lojaId } },
         });
 
+        // Buscar produto antecipado para usar custo global como fallback do custo médio anterior
+        const produto = await tx.produto.findUnique({
+          where: { id: item.produtoId },
+          select: { tipo: true, percentualLucro: true, custo: true }
+        });
+
         const qtdAnterior = estoqueAtual?.quantidade ?? 0;
-        const custoMedioAnterior = Number(estoqueAtual?.custoMedio ?? item.valorUnitario);
+        // Fallback correto: usa custo global do produto, não o novo custo da compra
+        const custoMedioAnterior = (estoqueAtual?.custoMedio != null && Number(estoqueAtual.custoMedio) > 0)
+          ? Number(estoqueAtual.custoMedio)
+          : (produto?.custo ? Number(produto.custo) : 0);
         const custoNovo = Number(item.valorUnitario);
         const qtdNova = item.quantidade;
         const qtdTotal = qtdAnterior + qtdNova;
@@ -190,10 +199,6 @@ router.post('/:id/confirmar', requireRole(...ROLES_COMPRA), async (req: AuthRequ
         }
 
         // 2. Propaga custo médio ao catálogo do produto e recalcula preço de venda
-        const produto = await tx.produto.findUnique({
-          where: { id: item.produtoId },
-          select: { tipo: true, percentualLucro: true }
-        });
         if (produto) {
           const margem = produto.tipo === 'MOTO' ? margemMoto : margemPeca;
           const percentualLucroFinal = produto.percentualLucro && Number(produto.percentualLucro) > 0

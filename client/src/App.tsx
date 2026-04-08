@@ -94,6 +94,22 @@ function AppContent() {
         return <CategoriasDepartamentos />;
       case 'financeiro-hub':
         return <FinanceiroHub />;
+      case 'fin-visao-geral':
+        return <FinanceiroHub initialTab="visao-geral" />;
+      case 'fin-contas-pagar':
+        return <FinanceiroHub initialTab="contas-pagar" />;
+      case 'fin-contas-receber':
+        return <FinanceiroHub initialTab="contas-receber" />;
+      case 'fin-compras':
+        return <FinanceiroHub initialTab="pedidos-compra" />;
+      case 'fin-fiscal':
+        return <FinanceiroHub initialTab="notas-fiscais" />;
+      case 'fin-conciliacao':
+        return <FinanceiroHub initialTab="conciliacao-bancaria" />;
+      case 'fin-fornecedores':
+        return <FinanceiroHub initialTab="fornecedores" />;
+      case 'fin-categorias':
+        return <FinanceiroHub initialTab="plano-contas" />;
       case 'conciliacao-bancaria':
         return <ConciliacaoBancaria />;
       case 'fornecedores':

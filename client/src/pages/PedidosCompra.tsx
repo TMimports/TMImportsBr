@@ -27,6 +27,7 @@ interface PedidoCompra {
   createdAt: string;
 }
 interface Loja { id: number; nomeFantasia: string; cnpj: string; }
+interface Fornecedor { id: number; razaoSocial: string; nomeFantasia?: string; cnpj?: string; cpf?: string; }
 
 const STATUS_LABEL: Record<string, string> = {
   PENDENTE: 'Pendente', APROVADO: 'Aprovado', CONFIRMADO: 'Confirmado', CANCELADO: 'Cancelado'
@@ -45,13 +46,36 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
   const { user } = useAuth();
   const [form, setForm] = useState({
     lojaId: user?.lojaId ? String(user.lojaId) : '',
-    fornecedor: '', numero: '', previsaoEntrega: '', observacoes: '',
+    previsaoEntrega: '', observacoes: '',
   });
   const [itens, setItens] = useState<Array<{ produtoId: string; quantidade: string; valorUnitario: string; }>>([
     { produtoId: '', quantidade: '1', valorUnitario: '' }
   ]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
+
+  // Fornecedor search state
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [fornecedorSelecionado, setFornecedorSelecionado] = useState<Fornecedor | null>(null);
+  const [buscaFornecedor, setBuscaFornecedor] = useState('');
+  const [showFornecedorDropdown, setShowFornecedorDropdown] = useState(false);
+
+  useEffect(() => {
+    api.get<Fornecedor[]>('/fornecedores').then(data => setFornecedores(Array.isArray(data) ? data : [])).catch(() => {});
+  }, []);
+
+  const fornecedoresFiltrados = fornecedores.filter(f => {
+    const q = buscaFornecedor.toLowerCase();
+    return f.razaoSocial.toLowerCase().includes(q) ||
+      (f.nomeFantasia ?? '').toLowerCase().includes(q) ||
+      (f.cnpj ?? '').includes(q);
+  }).slice(0, 10);
+
+  const selecionarFornecedor = (f: Fornecedor) => {
+    setFornecedorSelecionado(f);
+    setBuscaFornecedor(f.nomeFantasia || f.razaoSocial);
+    setShowFornecedorDropdown(false);
+  };
 
   const addItem = () => setItens(p => [...p, { produtoId: '', quantidade: '1', valorUnitario: '' }]);
   const removeItem = (i: number) => setItens(p => p.filter((_, idx) => idx !== i));
@@ -73,7 +97,8 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
   }, 0);
 
   const handleSubmit = async () => {
-    if (!form.lojaId || !form.fornecedor.trim()) { setErro('Loja e fornecedor são obrigatórios'); return; }
+    if (!form.lojaId) { setErro('Selecione a loja'); return; }
+    if (!fornecedorSelecionado) { setErro('Selecione um fornecedor cadastrado'); return; }
     for (const it of itens) {
       if (!it.produtoId || !it.quantidade || !it.valorUnitario) { setErro('Preencha todos os itens corretamente'); return; }
     }
@@ -81,8 +106,7 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
     try {
       await onSave({
         lojaId: Number(form.lojaId),
-        fornecedor: form.fornecedor.trim(),
-        numero: form.numero || undefined,
+        fornecedor: fornecedorSelecionado.nomeFantasia || fornecedorSelecionado.razaoSocial,
         previsaoEntrega: form.previsaoEntrega || undefined,
         observacoes: form.observacoes || undefined,
         itens: itens.map(it => ({
@@ -110,17 +134,51 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
               <option value="">Selecione a loja...</option>
               {lojas.map(l => <option key={l.id} value={l.id}>{l.nomeFantasia} — {l.cnpj}</option>)}
             </Select>
-            <Input label="Fornecedor *" value={form.fornecedor}
-              onChange={e => setForm(p => ({ ...p, fornecedor: e.target.value }))} placeholder="Nome do fornecedor" />
+
+            {/* Fornecedor — busca com dropdown */}
+            <div className="relative">
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Fornecedor *</label>
+              <div className={`flex items-center gap-2 bg-[#09090b] border rounded-lg px-3 h-10 ${fornecedorSelecionado ? 'border-green-500/50' : 'border-[#27272a]'}`}>
+                <input
+                  type="text"
+                  className="flex-1 bg-transparent text-sm text-white outline-none placeholder-zinc-500"
+                  placeholder="Buscar fornecedor..."
+                  value={buscaFornecedor}
+                  onChange={e => {
+                    setBuscaFornecedor(e.target.value);
+                    setFornecedorSelecionado(null);
+                    setShowFornecedorDropdown(true);
+                  }}
+                  onFocus={() => setShowFornecedorDropdown(true)}
+                  onKeyDown={e => { if (e.key === 'Escape') setShowFornecedorDropdown(false); }}
+                />
+                {fornecedorSelecionado && <span className="text-green-500 text-xs">✓</span>}
+              </div>
+              {showFornecedorDropdown && buscaFornecedor.length >= 1 && (
+                <div className="absolute z-20 top-full mt-1 w-full bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl max-h-52 overflow-y-auto">
+                  {fornecedoresFiltrados.length === 0
+                    ? <div className="px-3 py-2 text-xs text-zinc-500">Nenhum fornecedor encontrado. Cadastre-o primeiro.</div>
+                    : fornecedoresFiltrados.map(f => (
+                      <button key={f.id} type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-zinc-700/60 transition-colors"
+                        onMouseDown={() => selecionarFornecedor(f)}>
+                        <div className="text-sm text-white">{f.nomeFantasia || f.razaoSocial}</div>
+                        {f.nomeFantasia && <div className="text-xs text-zinc-400">{f.razaoSocial}</div>}
+                        {(f.cnpj || f.cpf) && <div className="text-xs text-zinc-500">{f.cnpj || f.cpf}</div>}
+                      </button>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Número do Pedido" value={form.numero}
-              onChange={e => setForm(p => ({ ...p, numero: e.target.value }))} placeholder="Nº do pedido/NF" />
             <Input label="Previsão de Entrega" type="date" value={form.previsaoEntrega}
               onChange={e => setForm(p => ({ ...p, previsaoEntrega: e.target.value }))} />
+            <Input label="Observações" value={form.observacoes}
+              onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))} placeholder="Observações opcionais" />
           </div>
-          <Input label="Observações" value={form.observacoes}
-            onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))} placeholder="Observações opcionais" />
 
           <div>
             <div className="flex items-center justify-between mb-3">

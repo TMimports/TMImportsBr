@@ -587,6 +587,7 @@ function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
               <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
                 <th className="text-left p-3 font-medium">Data</th>
                 <th className="text-left p-3 font-medium">Tipo</th>
+                <th className="text-left p-3 font-medium">ID Mov.</th>
                 <th className="text-left p-3 font-medium">Produto</th>
                 <th className="text-right p-3 font-medium">Qtd</th>
                 <th className="text-right p-3 font-medium">Anterior</th>
@@ -600,6 +601,9 @@ function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
                   <td className="p-3 text-zinc-400 text-xs">{fmtDate(l.createdAt)}</td>
                   <td className="p-3">
                     <span className={`text-xs font-medium ${TIPO_COR[l.tipo] || 'text-zinc-300'}`}>{l.tipo}</span>
+                  </td>
+                  <td className="p-3 text-zinc-500 text-xs font-mono">
+                    {l.origemId ? `#${l.origemId}` : `mov:${l.id}`}
                   </td>
                   <td className="p-3 text-zinc-200">{l.produto?.nome || '—'}</td>
                   <td className={`p-3 text-right font-bold ${l.quantidade > 0 ? 'text-green-400' : 'text-red-400'}`}>

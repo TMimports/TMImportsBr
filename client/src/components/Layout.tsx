@@ -55,8 +55,17 @@ const LOGISTICA_GROUP = group('logistica-group', 'Logística', '📦', [
   { id: 'estoque',   label: 'Estoque',   icon: '📋' },
 ]);
 
-// Financeiro é agora um único portal
-const FIN_ITEM = item('financeiro-hub', 'Financeiro', '💵');
+// Financeiro — grupo com sub-itens na barra lateral
+const FIN_GROUP = group('fin-group', 'Financeiro', '💵', [
+  { id: 'fin-visao-geral',    label: 'Visão Geral',   icon: '📊' },
+  { id: 'fin-contas-pagar',   label: 'A Pagar',        icon: '📤' },
+  { id: 'fin-contas-receber', label: 'A Receber',      icon: '📥' },
+  { id: 'fin-compras',        label: 'Compras',        icon: '🛒' },
+  { id: 'fin-fiscal',         label: 'Fiscal',         icon: '🧾' },
+  { id: 'fin-conciliacao',    label: 'Conciliação',    icon: '🏦' },
+  { id: 'fin-fornecedores',   label: 'Fornecedores',   icon: '🤝' },
+  { id: 'fin-categorias',     label: 'Categorias',     icon: '🏷' },
+]);
 
 // WhatsApp CRM
 const WHATSAPP_ITEM = item('whatsapp-crm', 'WhatsApp CRM', '💬');
@@ -96,7 +105,7 @@ const menuItems: Record<string, NavEntry[]> = {
     REDE_GROUP,
     LOGISTICA_GROUP,
     VENDAS_GROUP(),
-    FIN_ITEM,
+    FIN_GROUP,
     WHATSAPP_ITEM,
     RELATORIOS_ITEM,
     CONFIG_GROUP,
@@ -105,7 +114,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',   'Estoque',   '📋'),
     COMERCIAL_FIN_GROUP,
-    FIN_ITEM,
+    FIN_GROUP,
     item('comissoes', 'Comissões', '💸'),
     WHATSAPP_ITEM,
     RELATORIOS_ITEM,
@@ -122,7 +131,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('lojas',     'Lojas',     '🏪'),
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
-    FIN_ITEM,
+    FIN_GROUP,
     WHATSAPP_ITEM,
     RELATORIOS_ITEM,
     CONFIG_GROUP,
@@ -131,7 +140,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',   'Estoque',   '📋'),
     VENDAS_GROUP(),
-    FIN_ITEM,
+    FIN_GROUP,
     WHATSAPP_ITEM,
     RELATORIOS_ITEM,
   ],

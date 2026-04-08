@@ -121,9 +121,9 @@ const STORE_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-
 
 // ── Hub principal ──────────────────────────────────────────────────────────────
 
-export function FinanceiroHub() {
+export function FinanceiroHub({ initialTab }: { initialTab?: TabId } = {}) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('visao-geral');
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'visao-geral');
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
