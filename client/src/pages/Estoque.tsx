@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Fragment } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
@@ -475,14 +475,65 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
 
 // ─── TabGerencial ─────────────────────────────────────────────────────────────
 
-function TabGerencial({ itens, busca }: { itens: ItemGerencial[]; busca: string }) {
+function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido }: {
+  itens: ItemGerencial[];
+  busca: string;
+  lojas: Loja[];
+  lojaId: number;
+  minhaLojaId: number | null;
+  onTransferido?: () => void;
+}) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedDestinoId, setExpandedDestinoId] = useState<number | ''>('');
+  const [expandedQtd, setExpandedQtd] = useState(1);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [expandedErro, setExpandedErro] = useState('');
+  const [expandedSucesso, setExpandedSucesso] = useState(false);
+
+  const isAdmin = minhaLojaId === null;
+  const podeTransferir = isAdmin || lojaId === minhaLojaId;
+  const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
+
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase();
     return q ? itens.filter(i => i.nome.toLowerCase().includes(q) || i.codigo.toLowerCase().includes(q)) : itens;
   }, [itens, busca]);
 
+  function toggleExpand(produtoId: number, maxQtd: number) {
+    if (expandedId === produtoId) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(produtoId);
+      setExpandedDestinoId('');
+      setExpandedQtd(Math.max(1, Math.min(1, maxQtd)));
+      setExpandedErro('');
+      setExpandedSucesso(false);
+    }
+  }
+
+  async function executarTransfer(produtoId: number, tipo: string) {
+    if (!expandedDestinoId) return;
+    setExpandedLoading(true);
+    setExpandedErro('');
+    try {
+      await api.post('/transferencias', {
+        produtoId,
+        lojaOrigemId: lojaId,
+        lojaDestinoId: Number(expandedDestinoId),
+        quantidade: expandedQtd,
+      });
+      setExpandedSucesso(true);
+      setTimeout(() => { setExpandedId(null); setExpandedSucesso(false); onTransferido?.(); }, 1500);
+    } catch (e: any) {
+      setExpandedErro(e?.message || 'Erro ao criar transferência');
+    } finally {
+      setExpandedLoading(false);
+    }
+  }
+
   const motos = filtrados.filter(i => i.tipo === 'MOTO');
   const pecas = filtrados.filter(i => i.tipo === 'PECA');
+  const colSpan = podeTransferir ? 8 : 7;
 
   function GrupoTipo({ titulo, lista }: { titulo: string; lista: ItemGerencial[] }) {
     if (!lista.length) return null;
@@ -490,45 +541,137 @@ function TabGerencial({ itens, busca }: { itens: ItemGerencial[]; busca: string 
       <div className="mb-6">
         <h3 className="text-sm font-semibold text-zinc-400 mb-3 uppercase tracking-wide">{titulo}</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[600px]">
             <thead>
               <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
                 <th className="text-left p-3 font-medium">Produto</th>
                 <th className="text-right p-3 font-medium">Qtd</th>
-                <th className="text-right p-3 font-medium">Custo Médio</th>
-                <th className="text-right p-3 font-medium">Preço Venda</th>
-                <th className="text-right p-3 font-medium">Valor (CM)</th>
-                <th className="text-right p-3 font-medium">Valor (PV)</th>
+                <th className="text-right p-3 font-medium hidden md:table-cell">Custo Médio</th>
+                <th className="text-right p-3 font-medium hidden md:table-cell">Preço Venda</th>
+                <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (CM)</th>
+                <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (PV)</th>
                 <th className="text-left p-3 font-medium">Status</th>
+                {podeTransferir && <th className="text-center p-3 font-medium">Ação</th>}
               </tr>
             </thead>
             <tbody>
-              {lista.map(it => (
-                <tr key={it.id} className="border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors">
-                  <td className="p-3">
-                    <p className="text-white font-medium">{it.nome}</p>
-                    <p className="text-xs text-zinc-500 font-mono">{it.codigo}</p>
-                  </td>
-                  <td className="p-3 text-right">
-                    <span className={`font-bold text-base ${it.semEstoque ? 'text-red-400' : it.alerta ? 'text-yellow-400' : 'text-green-400'}`}>
-                      {it.quantidade}
-                    </span>
-                    <p className="text-xs text-zinc-500">mín {it.estoqueMinimo}</p>
-                  </td>
-                  <td className="p-3 text-right text-zinc-200">{fmtBRL(it.custoMedio)}</td>
-                  <td className="p-3 text-right text-zinc-200">{fmtBRL(it.precoVenda)}</td>
-                  <td className="p-3 text-right font-medium text-zinc-100">{fmtBRL(it.valorTotalCusto)}</td>
-                  <td className="p-3 text-right font-medium text-orange-400">{fmtBRL(it.valorTotalPreco)}</td>
-                  <td className="p-3">
-                    {it.semEstoque
-                      ? <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">Zerado</span>
-                      : it.alerta
-                        ? <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/30">Alerta</span>
-                        : <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30">OK</span>
-                    }
-                  </td>
-                </tr>
-              ))}
+              {lista.map(it => {
+                const isExp = expandedId === it.produtoId;
+                return (
+                  <Fragment key={it.id}>
+                    <tr className={`border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors ${isExp ? 'bg-zinc-800/20' : ''}`}>
+                      <td className="p-3">
+                        <p className="text-white font-medium">{it.nome}</p>
+                        <p className="text-xs text-zinc-500 font-mono">{it.codigo}</p>
+                      </td>
+                      <td className="p-3 text-right">
+                        <span className={`font-bold text-base ${it.semEstoque ? 'text-red-400' : it.alerta ? 'text-yellow-400' : 'text-green-400'}`}>
+                          {it.quantidade}
+                        </span>
+                        <p className="text-xs text-zinc-500">mín {it.estoqueMinimo}</p>
+                      </td>
+                      <td className="p-3 text-right text-zinc-200 hidden md:table-cell">{fmtBRL(it.custoMedio)}</td>
+                      <td className="p-3 text-right text-zinc-200 hidden md:table-cell">{fmtBRL(it.precoVenda)}</td>
+                      <td className="p-3 text-right font-medium text-zinc-100 hidden lg:table-cell">{fmtBRL(it.valorTotalCusto)}</td>
+                      <td className="p-3 text-right font-medium text-orange-400 hidden lg:table-cell">{fmtBRL(it.valorTotalPreco)}</td>
+                      <td className="p-3">
+                        {it.semEstoque
+                          ? <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded border border-red-500/30">Zerado</span>
+                          : it.alerta
+                            ? <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/30">Alerta</span>
+                            : <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30">OK</span>
+                        }
+                      </td>
+                      {podeTransferir && (
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => toggleExpand(it.produtoId, it.quantidade)}
+                            className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                              isExp
+                                ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                                : it.quantidade === 0
+                                  ? 'opacity-40 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                  : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
+                            }`}
+                            disabled={it.quantidade === 0 && !isExp}
+                          >
+                            {isExp ? '✕' : '↔'}
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+
+                    {/* Painel inline de transferência */}
+                    {isExp && (
+                      <tr key={`exp-${it.id}`} className="border-b border-[#27272a]">
+                        <td colSpan={colSpan} className="px-4 py-3 bg-zinc-900/60">
+                          {expandedSucesso ? (
+                            <div className="flex items-center gap-2 text-green-400 font-medium text-sm py-1">
+                              <span className="text-lg">✓</span> Solicitação criada com sucesso!
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap items-end gap-4">
+                              {/* De → Para */}
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <div>
+                                  <p className="text-xs text-zinc-500 mb-0.5">De</p>
+                                  <p className="text-orange-400 font-medium text-sm">{lojaAtualNome}</p>
+                                  <p className="text-zinc-500 text-xs">{it.quantidade} em estoque</p>
+                                </div>
+                                <span className="text-zinc-500 text-xl mb-1">→</span>
+                                <div>
+                                  <p className="text-xs text-zinc-500 mb-0.5">Para</p>
+                                  <select
+                                    value={expandedDestinoId}
+                                    onChange={e => setExpandedDestinoId(e.target.value ? Number(e.target.value) : '')}
+                                    className="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500 min-w-[160px]"
+                                  >
+                                    <option value="">Selecione a loja...</option>
+                                    {lojas.filter(l => l.id !== lojaId).map(l => (
+                                      <option key={l.id} value={l.id} className="bg-zinc-800">{l.nomeFantasia}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Quantidade */}
+                              {it.tipo === 'MOTO' ? (
+                                <p className="text-xs text-zinc-400 bg-zinc-800 rounded-lg px-3 py-2 max-w-xs">
+                                  Para transferir motos individualmente, use a aba <strong className="text-white">Unitária</strong>.
+                                </p>
+                              ) : (
+                                <div>
+                                  <p className="text-xs text-zinc-500 mb-1">Quantidade</p>
+                                  <div className="flex items-center gap-2">
+                                    <button onClick={() => setExpandedQtd(q => Math.max(1, q - 1))} className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-bold hover:bg-zinc-600 text-sm">−</button>
+                                    <span className="text-white font-bold w-8 text-center">{expandedQtd}</span>
+                                    <button onClick={() => setExpandedQtd(q => Math.min(it.quantidade, q + 1))} className="w-7 h-7 rounded-lg bg-zinc-700 text-white font-bold hover:bg-zinc-600 text-sm">+</button>
+                                    <span className="text-zinc-500 text-xs">máx {it.quantidade}</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Confirmar */}
+                              {it.tipo !== 'MOTO' && (
+                                <div className="flex flex-col gap-1">
+                                  {expandedErro && <p className="text-red-400 text-xs">{expandedErro}</p>}
+                                  <button
+                                    onClick={() => executarTransfer(it.produtoId, it.tipo)}
+                                    disabled={expandedLoading || !expandedDestinoId}
+                                    className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                                  >
+                                    {expandedLoading ? 'Enviando...' : 'Confirmar Transferência'}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -912,7 +1055,7 @@ function ViewConsolidada({ onSelectEmpresa }: { onSelectEmpresa: (lojaId: number
 type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes';
 
 function ViewEmpresa({
-  lojaId, minhaLojaId, isAprovador, onBack, refreshSolicitacoes, onSolicitacaoFeita
+  lojaId, minhaLojaId, isAprovador, onBack, refreshSolicitacoes, onSolicitacaoFeita, lojas
 }: {
   lojaId: number;
   minhaLojaId: number | null;
@@ -920,6 +1063,7 @@ function ViewEmpresa({
   onBack?: () => void;
   refreshSolicitacoes: number;
   onSolicitacaoFeita: () => void;
+  lojas: Loja[];
 }) {
   const [data, setData] = useState<EmpresaDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1066,7 +1210,16 @@ function ViewEmpresa({
 
       {/* Conteúdo */}
       <Card>
-        {aba === 'gerencial' && <TabGerencial itens={gerencialFiltrado} busca={busca} />}
+        {aba === 'gerencial' && (
+          <TabGerencial
+            itens={gerencialFiltrado}
+            busca={busca}
+            lojas={lojas}
+            lojaId={lojaId}
+            minhaLojaId={minhaLojaId}
+            onTransferido={onSolicitacaoFeita}
+          />
+        )}
         {aba === 'unitaria' && (
           <TabUnitaria
             itens={data.unitaria}
@@ -1264,6 +1417,7 @@ export function Estoque() {
           lojaId={lojaId}
           minhaLojaId={minhaLojaId}
           isAprovador={isAprovador}
+          lojas={lojasSorted}
           onBack={isAdmin ? () => setLojaId(null) : undefined}
           refreshSolicitacoes={refreshSolicitacoes}
           onSolicitacaoFeita={() => setRefreshSolicitacoes(k => k + 1)}
