@@ -693,12 +693,26 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido 
 // ─── TabUnitaria ──────────────────────────────────────────────────────────────
 
 function TabUnitaria({
-  itens, busca, onSolicitar
+  itens, busca, lojas, lojaId, minhaLojaId, onTransferido
 }: {
   itens: ItemUnitario[];
   busca: string;
-  onSolicitar?: (u: ItemUnitario) => void;
+  lojas: Loja[];
+  lojaId: number;
+  minhaLojaId: number | null;
+  onTransferido?: () => void;
 }) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedDestinoId, setExpandedDestinoId] = useState<number | ''>('');
+  const [expandedLoading, setExpandedLoading] = useState(false);
+  const [expandedErro, setExpandedErro] = useState('');
+  const [expandedSucesso, setExpandedSucesso] = useState(false);
+
+  const isAdmin = minhaLojaId === null;
+  const isOutraLoja = !isAdmin && lojaId !== minhaLojaId;
+  const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
+  const minhaLojaNome = lojas.find(l => l.id === minhaLojaId)?.nomeFantasia || 'Minha Loja';
+
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase();
     return q ? itens.filter(i =>
@@ -707,60 +721,167 @@ function TabUnitaria({
     ) : itens;
   }, [itens, busca]);
 
-  const disponíveis = filtrados.filter(u => u.status === 'ESTOQUE');
-  const lista = onSolicitar ? disponíveis : filtrados;
+  // Quando vendo outra loja: mostrar só disponíveis; na própria: mostrar tudo
+  const lista = isOutraLoja ? filtrados.filter(u => u.status === 'ESTOQUE') : filtrados;
+
+  function toggleExpand(id: number, destinoFixo?: number) {
+    if (expandedId === id) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(id);
+      setExpandedDestinoId(destinoFixo ?? '');
+      setExpandedErro('');
+      setExpandedSucesso(false);
+    }
+  }
+
+  async function executarTransfer(unidade: ItemUnitario) {
+    const destino = isOutraLoja ? minhaLojaId : Number(expandedDestinoId);
+    if (!destino) return;
+    setExpandedLoading(true);
+    setExpandedErro('');
+    try {
+      await api.post('/transferencias', {
+        produtoId: unidade.produtoId,
+        lojaOrigemId: lojaId,
+        lojaDestinoId: destino,
+        quantidade: 1,
+      });
+      setExpandedSucesso(true);
+      setTimeout(() => { setExpandedId(null); setExpandedSucesso(false); onTransferido?.(); }, 1500);
+    } catch (e: any) {
+      setExpandedErro(e?.message || 'Erro ao solicitar transferência');
+    } finally {
+      setExpandedLoading(false);
+    }
+  }
+
+  if (isOutraLoja && lista.length === 0) {
+    return <div className="text-center py-12 text-zinc-500">Nenhuma unidade disponível nesta loja</div>;
+  }
+  if (lista.length === 0) {
+    return <div className="text-center py-12 text-zinc-500">Nenhuma unidade encontrada</div>;
+  }
 
   return (
     <div className="overflow-x-auto">
-      {onSolicitar && disponíveis.length === 0 && (
-        <div className="text-center py-12 text-zinc-500">Nenhuma unidade disponível nesta loja</div>
-      )}
-      {lista.length === 0 && !onSolicitar && (
-        <div className="text-center py-12 text-zinc-500">Nenhuma unidade encontrada</div>
-      )}
-      {lista.length > 0 && (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
-              <th className="text-left p-3 font-medium">Chassi</th>
-              <th className="text-left p-3 font-medium">Modelo</th>
-              <th className="text-left p-3 font-medium">Cód. Motor</th>
-              <th className="text-left p-3 font-medium">Cor</th>
-              <th className="text-left p-3 font-medium">Ano</th>
-              <th className="text-left p-3 font-medium">Status</th>
-              <th className="text-left p-3 font-medium">Cadastrado</th>
-              {onSolicitar && <th className="text-center p-3 font-medium">Ação</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {lista.map(u => (
-              <tr key={u.id} className="border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors">
-                <td className="p-3 font-mono text-zinc-200 text-xs">{u.chassi}</td>
-                <td className="p-3 text-white">{u.modeloNome}</td>
-                <td className="p-3 font-mono text-zinc-400 text-xs">{u.codigoMotor || '—'}</td>
-                <td className="p-3 text-zinc-300">{u.cor || '—'}</td>
-                <td className="p-3 text-zinc-300">{u.ano || '—'}</td>
-                <td className="p-3">
-                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_UNIDADE[u.status] || 'bg-zinc-700 text-zinc-300'}`}>
-                    {u.status}
-                  </span>
-                </td>
-                <td className="p-3 text-zinc-400 text-xs">{fmtDate(u.createdAt)}</td>
-                {onSolicitar && (
+      <table className="w-full text-sm min-w-[640px]">
+        <thead>
+          <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
+            <th className="text-left p-3 font-medium">Chassi</th>
+            <th className="text-left p-3 font-medium">Modelo</th>
+            <th className="text-left p-3 font-medium hidden md:table-cell">Cód. Motor</th>
+            <th className="text-left p-3 font-medium">Cor</th>
+            <th className="text-left p-3 font-medium hidden sm:table-cell">Ano</th>
+            <th className="text-left p-3 font-medium">Status</th>
+            <th className="text-center p-3 font-medium">Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lista.map(u => {
+            const isExp = expandedId === u.id;
+            const podeAcionar = u.status === 'ESTOQUE';
+            return (
+              <Fragment key={u.id}>
+                <tr className={`border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors ${isExp ? 'bg-zinc-800/20' : ''}`}>
+                  <td className="p-3 font-mono text-zinc-200 text-xs">{u.chassi}</td>
+                  <td className="p-3 text-white font-medium">{u.modeloNome}</td>
+                  <td className="p-3 font-mono text-zinc-400 text-xs hidden md:table-cell">{u.codigoMotor || '—'}</td>
+                  <td className="p-3 text-zinc-300">{u.cor || '—'}</td>
+                  <td className="p-3 text-zinc-300 hidden sm:table-cell">{u.ano || '—'}</td>
+                  <td className="p-3">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_UNIDADE[u.status] || 'bg-zinc-700 text-zinc-300'}`}>
+                      {u.status}
+                    </span>
+                  </td>
                   <td className="p-3 text-center">
                     <button
-                      onClick={() => onSolicitar(u)}
-                      className="text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 px-3 py-1 rounded-lg font-medium transition-colors"
+                      onClick={() => podeAcionar && toggleExpand(u.id, isOutraLoja ? (minhaLojaId ?? undefined) : undefined)}
+                      disabled={!podeAcionar}
+                      className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                        !podeAcionar
+                          ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                          : isExp
+                            ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                            : isOutraLoja
+                              ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
+                              : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
+                      }`}
                     >
-                      Solicitar
+                      {isExp ? '✕' : isOutraLoja ? 'Solicitar' : '↔ Transferir'}
                     </button>
                   </td>
+                </tr>
+
+                {/* Painel inline */}
+                {isExp && (
+                  <tr className="border-b border-[#27272a]">
+                    <td colSpan={7} className="px-4 py-3 bg-zinc-900/60">
+                      {expandedSucesso ? (
+                        <div className="flex items-center gap-2 text-green-400 font-medium text-sm">
+                          <span className="text-lg">✓</span>
+                          {isOutraLoja ? 'Solicitação enviada! Aguardando aprovação.' : 'Transferência solicitada com sucesso!'}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-end gap-4">
+                          {/* Info da unidade */}
+                          <div className="bg-zinc-800 rounded-lg px-3 py-2 text-sm">
+                            <p className="text-zinc-400 text-xs mb-0.5">Unidade</p>
+                            <p className="text-white font-medium">{u.modeloNome}</p>
+                            <p className="text-zinc-500 font-mono text-xs">{u.chassi}{u.cor ? ` · ${u.cor}` : ''}</p>
+                          </div>
+
+                          {/* De → Para */}
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div>
+                              <p className="text-xs text-zinc-500 mb-0.5">De</p>
+                              <p className="text-orange-400 font-medium text-sm">{lojaAtualNome}</p>
+                            </div>
+                            <span className="text-zinc-500 text-xl">→</span>
+                            <div>
+                              <p className="text-xs text-zinc-500 mb-0.5">Para</p>
+                              {isOutraLoja ? (
+                                <p className="text-green-400 font-medium text-sm">{minhaLojaNome}</p>
+                              ) : (
+                                <select
+                                  value={expandedDestinoId}
+                                  onChange={e => setExpandedDestinoId(e.target.value ? Number(e.target.value) : '')}
+                                  className="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500 min-w-[160px]"
+                                >
+                                  <option value="">Selecione a loja...</option>
+                                  {lojas.filter(l => l.id !== lojaId).map(l => (
+                                    <option key={l.id} value={l.id} className="bg-zinc-800">{l.nomeFantasia}</option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Confirmar */}
+                          <div className="flex flex-col gap-1">
+                            {expandedErro && <p className="text-red-400 text-xs">{expandedErro}</p>}
+                            <button
+                              onClick={() => executarTransfer(u)}
+                              disabled={expandedLoading || (!isOutraLoja && !expandedDestinoId)}
+                              className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                            >
+                              {expandedLoading
+                                ? 'Enviando...'
+                                : isOutraLoja
+                                  ? 'Confirmar Solicitação'
+                                  : isAdmin ? 'Criar Solicitação' : 'Solicitar Transferência'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
                 )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -1070,8 +1191,6 @@ function ViewEmpresa({
   const [aba, setAba] = useState<EmpresaTab>('gerencial');
   const [busca, setBusca] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState('');
-  const [modalUnidade, setModalUnidade] = useState<ItemUnitario | null>(null);
-
   const isOutraLoja = minhaLojaId !== null && lojaId !== minhaLojaId;
 
   useEffect(() => {
@@ -1103,18 +1222,6 @@ function ViewEmpresa({
 
   return (
     <div className="space-y-6">
-      {modalUnidade && minhaLojaId && (
-        <ModalSolicitacao
-          unidade={modalUnidade}
-          lojaOrigemId={lojaId}
-          lojaDestinoId={minhaLojaId}
-          lojaOrigemNome={e.nomeFantasia}
-          lojaDestinoNome="Minha Loja"
-          onClose={() => setModalUnidade(null)}
-          onSuccess={onSolicitacaoFeita}
-        />
-      )}
-
       {/* Header */}
       <div className="flex items-start gap-4 flex-wrap">
         {onBack && (
@@ -1224,7 +1331,10 @@ function ViewEmpresa({
           <TabUnitaria
             itens={data.unitaria}
             busca={busca}
-            onSolicitar={isOutraLoja ? (u) => setModalUnidade(u) : undefined}
+            lojas={lojas}
+            lojaId={lojaId}
+            minhaLojaId={minhaLojaId}
+            onTransferido={onSolicitacaoFeita}
           />
         )}
         {aba === 'movimentacao' && <TabMovimentacao logs={data.logsRecentes} />}
