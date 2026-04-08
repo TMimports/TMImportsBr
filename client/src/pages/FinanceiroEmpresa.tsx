@@ -124,7 +124,7 @@ export function FinanceiroEmpresa() {
   // Load lojas
   useEffect(() => {
     api.get<Loja[]>('/lojas').then(r => {
-      setLojas(r.data);
+      setLojas(r);
       setLoadingLojas(false);
     }).catch(() => setLoadingLojas(false));
   }, []);
@@ -145,7 +145,7 @@ export function FinanceiroEmpresa() {
     if (!lojaId) return;
     setLoadingDash(true);
     api.get<DashFin>(`/financeiro/dashboard?lojaId=${lojaId}`)
-      .then(r => setDash(r.data))
+      .then(r => setDash(r))
       .catch(() => setDash(null))
       .finally(() => setLoadingDash(false));
   }
@@ -156,7 +156,7 @@ export function FinanceiroEmpresa() {
     const params = new URLSearchParams({ lojaId: String(lojaId) });
     if (filtroCP !== 'todos') params.set('status', filtroCP);
     api.get<ContaPagar[]>(`/financeiro/contas-pagar?${params}`)
-      .then(r => setContasPagar(r.data))
+      .then(r => setContasPagar(r))
       .catch(() => setContasPagar([]))
       .finally(() => setLoadingCP(false));
   }
@@ -167,7 +167,7 @@ export function FinanceiroEmpresa() {
     const params = new URLSearchParams({ lojaId: String(lojaId) });
     if (filtroCR !== 'todos') params.set('status', filtroCR);
     api.get<ContaReceber[]>(`/financeiro/contas-receber?${params}`)
-      .then(r => setContasReceber(r.data))
+      .then(r => setContasReceber(r))
       .catch(() => setContasReceber([]))
       .finally(() => setLoadingCR(false));
   }
