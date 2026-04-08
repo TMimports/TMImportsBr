@@ -437,17 +437,17 @@ export function PedidosCompra() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
-                  <th className="text-left p-4 font-medium">#</th>
-                  <th className="text-left p-4 font-medium">Empresa</th>
-                  <th className="text-left p-4 font-medium">Fornecedor</th>
-                  <th className="text-left p-4 font-medium">Itens</th>
-                  <th className="text-right p-4 font-medium">Valor Total</th>
-                  <th className="text-left p-4 font-medium">Previsão</th>
-                  <th className="text-left p-4 font-medium">Status</th>
-                  <th className="text-left p-4 font-medium">Criado em</th>
+                  <th className="text-left p-3 sm:p-4 font-medium">#</th>
+                  <th className="text-left p-3 sm:p-4 font-medium">Empresa</th>
+                  <th className="text-left p-3 sm:p-4 font-medium hidden sm:table-cell">Fornecedor</th>
+                  <th className="text-left p-3 sm:p-4 font-medium hidden md:table-cell">Itens</th>
+                  <th className="text-right p-3 sm:p-4 font-medium">Valor Total</th>
+                  <th className="text-left p-3 sm:p-4 font-medium hidden md:table-cell">Previsão</th>
+                  <th className="text-left p-3 sm:p-4 font-medium">Status</th>
+                  <th className="text-left p-3 sm:p-4 font-medium hidden lg:table-cell">Criado em</th>
                 </tr>
               </thead>
               <tbody>
@@ -455,17 +455,18 @@ export function PedidosCompra() {
                   <tr key={p.id}
                     onClick={() => setDetalhesPedido(p)}
                     className="border-b border-[#27272a] hover:bg-zinc-800/40 cursor-pointer transition-colors">
-                    <td className="p-4 text-zinc-400 font-mono">#{p.id}</td>
-                    <td className="p-4">
+                    <td className="p-3 sm:p-4 text-zinc-400 font-mono">#{p.id}</td>
+                    <td className="p-3 sm:p-4">
                       <p className="text-white font-medium">{p.loja.nomeFantasia}</p>
-                      <p className="text-xs text-zinc-500">{p.loja.cnpj}</p>
+                      <p className="text-xs text-zinc-500 hidden sm:block">{p.loja.cnpj}</p>
+                      <p className="text-xs text-zinc-400 sm:hidden">{p.fornecedor}</p>
                     </td>
-                    <td className="p-4 text-zinc-200">{p.fornecedor}</td>
-                    <td className="p-4 text-zinc-400">{p.itens.length} {p.itens.length === 1 ? 'item' : 'itens'}</td>
-                    <td className="p-4 text-right font-semibold text-orange-500">{fmtBRL(Number(p.valorTotal))}</td>
-                    <td className="p-4 text-zinc-400">{fmtDate(p.previsaoEntrega)}</td>
-                    <td className="p-4"><Badge variant={STATUS_COLOR[p.status]}>{STATUS_LABEL[p.status]}</Badge></td>
-                    <td className="p-4 text-zinc-400">{fmtDate(p.createdAt)}</td>
+                    <td className="p-3 sm:p-4 text-zinc-200 hidden sm:table-cell">{p.fornecedor}</td>
+                    <td className="p-3 sm:p-4 text-zinc-400 hidden md:table-cell">{p.itens.length} {p.itens.length === 1 ? 'item' : 'itens'}</td>
+                    <td className="p-3 sm:p-4 text-right font-semibold text-orange-500">{fmtBRL(Number(p.valorTotal))}</td>
+                    <td className="p-3 sm:p-4 text-zinc-400 hidden md:table-cell">{fmtDate(p.previsaoEntrega)}</td>
+                    <td className="p-3 sm:p-4"><Badge variant={STATUS_COLOR[p.status]}>{STATUS_LABEL[p.status]}</Badge></td>
+                    <td className="p-3 sm:p-4 text-zinc-400 hidden lg:table-cell">{fmtDate(p.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>

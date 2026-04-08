@@ -118,6 +118,7 @@ model Produto {
   itensPedidoCompra ItemPedidoCompra[]
   itensVenda        ItemVenda[]
   logsEstoque       LogEstoque[]
+  transferencias    Transferencia[]
   unidades          UnidadeFisica[]
 }
 
@@ -182,10 +183,11 @@ model Transferencia {
   aprovadoPor   Int?
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
-  lojaDestino       Loja  @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
-  lojaOrigem        Loja  @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
-  solicitadoPorUser User  @relation("TransferenciaSolicitadaPor", fields: [solicitadoPor], references: [id])
-  aprovadoPorUser   User? @relation("TransferenciaAprovadaPor", fields: [aprovadoPor], references: [id])
+  lojaDestino       Loja    @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
+  lojaOrigem        Loja    @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
+  produto           Produto @relation(fields: [produtoId], references: [id])
+  solicitadoPorUser User    @relation("TransferenciaSolicitadaPor", fields: [solicitadoPor], references: [id])
+  aprovadoPorUser   User?   @relation("TransferenciaAprovadaPor", fields: [aprovadoPor], references: [id])
 }
 
 model Cliente {

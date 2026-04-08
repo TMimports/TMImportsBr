@@ -690,7 +690,7 @@ export function ConciliacaoBancaria() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-zinc-800">
                 <th className="text-left p-4 text-zinc-400 font-medium">Data</th>

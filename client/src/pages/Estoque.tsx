@@ -190,8 +190,9 @@ interface ResultadoBusca {
   lojas: { lojaId: number; nomeFantasia: string; endereco?: string | null; quantidade: number; }[];
 }
 
-function BuscadorRede({ minhaLojaId, onVerLoja }: {
+function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
   minhaLojaId: number | null;
+  lojas: Loja[];
   onVerLoja: (lojaId: number) => void;
 }) {
   const [query, setQuery] = useState('');
@@ -202,6 +203,9 @@ function BuscadorRede({ minhaLojaId, onVerLoja }: {
   const [qtdTransfer, setQtdTransfer] = useState(1);
   const [loadingTransfer, setLoadingTransfer] = useState(false);
   const [erroTransfer, setErroTransfer] = useState('');
+  const [adminDestinoLojaId, setAdminDestinoLojaId] = useState<number | ''>('');
+
+  const isAdmin = minhaLojaId === null;
 
   useEffect(() => {
     if (query.length < 2) { setResultados([]); setBuscou(false); return; }
@@ -227,14 +231,15 @@ function BuscadorRede({ minhaLojaId, onVerLoja }: {
   }, [query]);
 
   async function confirmarTransfer() {
-    if (!modalTransfer || !minhaLojaId) return;
+    const destino = isAdmin ? Number(adminDestinoLojaId) : minhaLojaId;
+    if (!modalTransfer || !destino) return;
     setLoadingTransfer(true);
     setErroTransfer('');
     try {
       await api.post('/transferencias', {
         produtoId: modalTransfer.produto.id,
         lojaOrigemId: modalTransfer.loja.lojaId,
-        lojaDestinoId: minhaLojaId,
+        lojaDestinoId: destino,
         quantidade: qtdTransfer,
       });
       setModalTransfer(null);
@@ -244,6 +249,10 @@ function BuscadorRede({ minhaLojaId, onVerLoja }: {
       setLoadingTransfer(false);
     }
   }
+
+  const destinoNome = isAdmin
+    ? lojas.find(l => l.id === Number(adminDestinoLojaId))?.nomeFantasia || null
+    : minhaLojaId ? lojas.find(l => l.id === minhaLojaId)?.nomeFantasia || 'Minha Loja' : null;
 
   const TIPO_BADGE: Record<string, string> = {
     MOTO: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
@@ -310,50 +319,58 @@ function BuscadorRede({ minhaLojaId, onVerLoja }: {
             {item.lojas.map((loja, idx) => {
               const isMinhaLoja = loja.lojaId === minhaLojaId;
               const isCentral = loja.lojaId === LOJA_IMPORTACAO_ID;
+              const podeSolicitar = isAdmin ? true : (!isMinhaLoja);
               return (
-                <div key={loja.lojaId} className="px-4 py-3 flex items-center gap-3">
-                  {/* Rank de proximidade */}
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                    idx === 0 ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-zinc-300'
-                  }`}>
-                    {idx + 1}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-white text-sm font-medium">{loja.nomeFantasia}</span>
-                      {isMinhaLoja && <span className="text-xs text-green-400">(sua loja)</span>}
-                      {isCentral && <span className="text-xs text-purple-400">(estoque central)</span>}
+                <div key={loja.lojaId} className="px-3 sm:px-4 py-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {/* Rank de proximidade */}
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                      idx === 0 ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-zinc-300'
+                    }`}>
+                      {idx + 1}
                     </div>
-                    {loja.endereco && (
-                      <p className="text-xs text-zinc-500 truncate mt-0.5">{loja.endereco}</p>
-                    )}
-                  </div>
 
-                  {/* Quantidade */}
-                  <div className="text-center flex-shrink-0">
-                    <p className={`text-base font-bold ${loja.quantidade > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {loja.quantidade}
-                    </p>
-                    <p className="text-xs text-zinc-500">em estoque</p>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-white text-sm font-medium">{loja.nomeFantasia}</span>
+                        {isMinhaLoja && <span className="text-xs text-green-400">(sua loja)</span>}
+                        {isCentral && <span className="text-xs text-purple-400">(central)</span>}
+                      </div>
+                      {loja.endereco && (
+                        <p className="text-xs text-zinc-500 truncate mt-0.5 hidden sm:block">{loja.endereco}</p>
+                      )}
+                    </div>
 
-                  {/* Ações */}
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => onVerLoja(loja.lojaId)}
-                      className="text-xs text-zinc-400 hover:text-white border border-[#27272a] hover:border-zinc-500 px-2.5 py-1.5 rounded-lg transition-colors"
-                    >
-                      Ver
-                    </button>
-                    {minhaLojaId && !isMinhaLoja && (
+                    {/* Quantidade */}
+                    <div className="text-center flex-shrink-0">
+                      <p className={`text-base font-bold ${loja.quantidade > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {loja.quantidade}
+                      </p>
+                      <p className="text-xs text-zinc-500 hidden sm:block">em estoque</p>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="flex gap-1.5 flex-shrink-0">
                       <button
-                        onClick={() => { setModalTransfer({ produto: item.produto, loja }); setQtdTransfer(1); setErroTransfer(''); }}
-                        className="text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 px-2.5 py-1.5 rounded-lg font-medium transition-colors"
+                        onClick={() => onVerLoja(loja.lojaId)}
+                        className="text-xs text-zinc-400 hover:text-white border border-[#27272a] hover:border-zinc-500 px-2 py-1.5 sm:px-2.5 rounded-lg transition-colors"
                       >
-                        Solicitar
+                        Ver
                       </button>
-                    )}
+                      {podeSolicitar && (
+                        <button
+                          onClick={() => {
+                            setModalTransfer({ produto: item.produto, loja });
+                            setQtdTransfer(1);
+                            setErroTransfer('');
+                            setAdminDestinoLojaId('');
+                          }}
+                          className="text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 px-2 py-1.5 sm:px-2.5 rounded-lg font-medium transition-colors whitespace-nowrap"
+                        >
+                          {isAdmin ? '↔ Mover' : 'Solicitar'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -364,9 +381,11 @@ function BuscadorRede({ minhaLojaId, onVerLoja }: {
 
       {/* Modal de transferência por produto */}
       {modalTransfer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md p-6 shadow-2xl">
-            <h2 className="text-lg font-bold text-white mb-4">Solicitar Transferência</h2>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-t-2xl sm:rounded-xl w-full sm:max-w-md p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <h2 className="text-lg font-bold text-white mb-4">
+              {isAdmin ? 'Criar Solicitação de Transferência' : 'Solicitar Transferência'}
+            </h2>
             <div className="space-y-3 mb-5 text-sm">
               <div className="bg-zinc-900 rounded-lg p-3">
                 <p className="text-zinc-400 text-xs mb-0.5">Produto</p>
@@ -375,18 +394,34 @@ function BuscadorRede({ minhaLojaId, onVerLoja }: {
               </div>
               <div className="flex gap-2">
                 <div className="flex-1 bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-400 text-xs mb-1">De</p>
-                  <p className="text-orange-400 font-medium">{modalTransfer.loja.nomeFantasia}</p>
+                  <p className="text-zinc-400 text-xs mb-1">De (Origem)</p>
+                  <p className="text-orange-400 font-medium text-xs sm:text-sm">{modalTransfer.loja.nomeFantasia}</p>
+                  <p className="text-zinc-500 text-xs">{modalTransfer.loja.quantidade} em estoque</p>
                 </div>
-                <div className="flex items-center text-zinc-500">→</div>
+                <div className="flex items-center text-zinc-500 text-lg">→</div>
                 <div className="flex-1 bg-zinc-900 rounded-lg p-3">
-                  <p className="text-zinc-400 text-xs mb-1">Para</p>
-                  <p className="text-green-400 font-medium">Minha Loja</p>
+                  <p className="text-zinc-400 text-xs mb-1">Para (Destino)</p>
+                  {isAdmin ? (
+                    <select
+                      value={adminDestinoLojaId}
+                      onChange={e => setAdminDestinoLojaId(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full bg-transparent text-green-400 font-medium text-xs focus:outline-none"
+                    >
+                      <option value="">Selecione...</option>
+                      {lojas
+                        .filter(l => l.id !== modalTransfer.loja.lojaId)
+                        .map(l => (
+                          <option key={l.id} value={l.id} className="bg-zinc-800 text-white">{l.nomeFantasia}</option>
+                        ))}
+                    </select>
+                  ) : (
+                    <p className="text-green-400 font-medium text-xs sm:text-sm">{destinoNome || 'Minha Loja'}</p>
+                  )}
                 </div>
               </div>
               <div className="bg-zinc-900 rounded-lg p-3">
                 <p className="text-zinc-400 text-xs mb-1">
-                  Quantidade{modalTransfer.produto.tipo === 'MOTO' ? ' (para motos, use o Estoque da loja para selecionar por chassi)' : ''}
+                  Quantidade{modalTransfer.produto.tipo === 'MOTO' ? '' : ''}
                 </p>
                 {modalTransfer.produto.tipo === 'MOTO' ? (
                   <p className="text-zinc-300 text-xs">
@@ -402,13 +437,25 @@ function BuscadorRede({ minhaLojaId, onVerLoja }: {
                 )}
               </div>
             </div>
-            <p className="text-xs text-zinc-500 mb-4">A solicitação ficará pendente até aprovação do Financeiro.</p>
+            {isAdmin && (
+              <p className="text-xs text-blue-400 mb-3">
+                Como administrador, você pode criar solicitações de transferência entre quaisquer lojas.
+              </p>
+            )}
+            {!isAdmin && (
+              <p className="text-xs text-zinc-500 mb-4">A solicitação ficará pendente até aprovação do Financeiro.</p>
+            )}
             {erroTransfer && <p className="text-red-400 text-sm mb-3">{erroTransfer}</p>}
             <div className="flex gap-3">
               <Button variant="ghost" onClick={() => setModalTransfer(null)} className="flex-1">Cancelar</Button>
               {modalTransfer.produto.tipo !== 'MOTO' && (
-                <Button variant="primary" onClick={confirmarTransfer} disabled={loadingTransfer} className="flex-1">
-                  {loadingTransfer ? 'Enviando...' : 'Confirmar'}
+                <Button
+                  variant="primary"
+                  onClick={confirmarTransfer}
+                  disabled={loadingTransfer || (isAdmin && !adminDestinoLojaId)}
+                  className="flex-1"
+                >
+                  {loadingTransfer ? 'Enviando...' : isAdmin ? 'Criar Solicitação' : 'Confirmar'}
                 </Button>
               )}
             </div>
@@ -1200,6 +1247,7 @@ export function Estoque() {
       ) : modoBusca ? (
         <BuscadorRede
           minhaLojaId={minhaLojaId}
+          lojas={lojasSorted}
           onVerLoja={handleVerLoja}
         />
       ) : showConsolidado ? (

@@ -269,13 +269,13 @@ export function Configuracoes() {
         <div className="card">
           <h2 className="text-lg font-semibold text-white mb-4">Historico de Alteracoes</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="text-left text-gray-400 border-b border-zinc-800">
-                  <th className="pb-2">Data</th>
-                  <th className="pb-2">Usuario</th>
-                  <th className="pb-2">Campo</th>
-                  <th className="pb-2">Valor Anterior</th>
+                  <th className="pb-2 pr-3 whitespace-nowrap">Data</th>
+                  <th className="pb-2 pr-3">Usuário</th>
+                  <th className="pb-2 pr-3">Campo</th>
+                  <th className="pb-2 pr-3">Valor Anterior</th>
                   <th className="pb-2">Novo Valor</th>
                 </tr>
               </thead>
