@@ -468,6 +468,52 @@ router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
   }
 });
 
+// ─── BUSCA CROSS-REDE ─────────────────────────────────────────────────────────
+// Qualquer usuário autenticado pode buscar produto em todas as lojas da rede
+router.get('/buscar-rede', async (req: AuthRequest, res) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q || q.length < 2) return res.json([]);
+
+    const estoques = await prisma.estoque.findMany({
+      where: {
+        quantidade: { gt: 0 },
+        loja: { ativo: true },
+        produto: {
+          OR: [
+            { nome: { contains: q, mode: 'insensitive' } },
+            { codigo: { contains: q, mode: 'insensitive' } },
+          ]
+        }
+      },
+      include: {
+        produto: { select: { id: true, nome: true, tipo: true, codigo: true, preco: true } },
+        loja: { select: { id: true, nomeFantasia: true, endereco: true } }
+      },
+      orderBy: { produto: { nome: 'asc' } }
+    });
+
+    // Agrupa por produto
+    const byProduct = new Map<number, { produto: any; lojas: any[] }>();
+    for (const e of estoques) {
+      if (!byProduct.has(e.produtoId)) {
+        byProduct.set(e.produtoId, { produto: e.produto, lojas: [] });
+      }
+      byProduct.get(e.produtoId)!.lojas.push({
+        lojaId: e.lojaId,
+        nomeFantasia: e.loja.nomeFantasia,
+        endereco: e.loja.endereco,
+        quantidade: e.quantidade,
+      });
+    }
+
+    res.json(Array.from(byProduct.values()));
+  } catch (error) {
+    console.error('Erro na busca cross-rede:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // ─── VISÃO CONSOLIDADA (todos os CNPJs) ───────────────────────────────────────
 router.get('/consolidado', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'), async (req: AuthRequest, res) => {
   try {

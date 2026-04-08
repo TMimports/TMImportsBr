@@ -183,6 +183,242 @@ function ModalSolicitacao({
   );
 }
 
+// ─── BuscadorRede ─────────────────────────────────────────────────────────────
+
+interface ResultadoBusca {
+  produto: { id: number; nome: string; tipo: string; codigo: string; preco: number; };
+  lojas: { lojaId: number; nomeFantasia: string; endereco?: string | null; quantidade: number; }[];
+}
+
+function BuscadorRede({ minhaLojaId, onVerLoja }: {
+  minhaLojaId: number | null;
+  onVerLoja: (lojaId: number) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [buscou, setBuscou] = useState(false);
+  const [modalTransfer, setModalTransfer] = useState<{ produto: ResultadoBusca['produto']; loja: ResultadoBusca['lojas'][0] } | null>(null);
+  const [qtdTransfer, setQtdTransfer] = useState(1);
+  const [loadingTransfer, setLoadingTransfer] = useState(false);
+  const [erroTransfer, setErroTransfer] = useState('');
+
+  useEffect(() => {
+    if (query.length < 2) { setResultados([]); setBuscou(false); return; }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      setBuscou(false);
+      try {
+        const r = await api.get<ResultadoBusca[]>(`/estoque/buscar-rede?q=${encodeURIComponent(query)}`);
+        // Sort lojas by proximity (LOJA_ORDER)
+        const sorted = r.map(item => ({
+          ...item,
+          lojas: [...item.lojas].sort((a, b) => (LOJA_ORDER[a.lojaId] ?? 99) - (LOJA_ORDER[b.lojaId] ?? 99))
+        }));
+        setResultados(sorted);
+        setBuscou(true);
+      } catch {
+        setResultados([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  async function confirmarTransfer() {
+    if (!modalTransfer || !minhaLojaId) return;
+    setLoadingTransfer(true);
+    setErroTransfer('');
+    try {
+      await api.post('/transferencias', {
+        produtoId: modalTransfer.produto.id,
+        lojaOrigemId: modalTransfer.loja.lojaId,
+        lojaDestinoId: minhaLojaId,
+        quantidade: qtdTransfer,
+      });
+      setModalTransfer(null);
+    } catch (e: any) {
+      setErroTransfer(e?.message || 'Erro ao solicitar transferência');
+    } finally {
+      setLoadingTransfer(false);
+    }
+  }
+
+  const TIPO_BADGE: Record<string, string> = {
+    MOTO: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    PECA: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    SERVICO: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Campo de busca */}
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-lg select-none">🔍</span>
+        <input
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Busque por nome do produto ou código (ex: Sunra, FR100, bateria...)"
+          className="w-full bg-[#18181b] border border-[#27272a] text-white rounded-lg pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500"
+          autoFocus
+        />
+        {loading && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs animate-pulse">Buscando...</span>
+        )}
+      </div>
+
+      {/* Instrução inicial */}
+      {!buscou && !loading && (
+        <div className="text-center py-10 text-zinc-500">
+          <p className="text-3xl mb-3">🔎</p>
+          <p className="text-sm">Digite ao menos 2 caracteres para buscar em todas as lojas da rede</p>
+          <p className="text-xs mt-1 text-zinc-600">Resultados ordenados da loja mais próxima à mais distante</p>
+        </div>
+      )}
+
+      {/* Sem resultados */}
+      {buscou && resultados.length === 0 && (
+        <div className="text-center py-10 text-zinc-500">
+          <p className="text-3xl mb-3">📦</p>
+          <p className="text-sm">Nenhum produto encontrado com "{query}" em estoque na rede</p>
+        </div>
+      )}
+
+      {/* Resultados */}
+      {resultados.map(item => (
+        <Card key={item.produto.id} className="overflow-hidden">
+          {/* Header do produto */}
+          <div className="px-4 py-3 bg-zinc-900 border-b border-[#27272a] flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-white font-semibold text-sm">{item.produto.nome}</span>
+                <span className={`text-xs px-2 py-0.5 rounded border font-medium ${TIPO_BADGE[item.produto.tipo] || 'bg-zinc-700 text-zinc-300'}`}>
+                  {item.produto.tipo}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 font-mono mt-0.5">Cód: {item.produto.codigo}</p>
+            </div>
+            <p className="text-green-400 font-bold text-sm whitespace-nowrap">
+              {Number(item.produto.preco).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </p>
+          </div>
+
+          {/* Lojas disponíveis */}
+          <div className="divide-y divide-[#27272a]">
+            {item.lojas.map((loja, idx) => {
+              const isMinhaLoja = loja.lojaId === minhaLojaId;
+              const isCentral = loja.lojaId === LOJA_IMPORTACAO_ID;
+              return (
+                <div key={loja.lojaId} className="px-4 py-3 flex items-center gap-3">
+                  {/* Rank de proximidade */}
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    idx === 0 ? 'bg-orange-500 text-white' : 'bg-zinc-700 text-zinc-300'
+                  }`}>
+                    {idx + 1}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-white text-sm font-medium">{loja.nomeFantasia}</span>
+                      {isMinhaLoja && <span className="text-xs text-green-400">(sua loja)</span>}
+                      {isCentral && <span className="text-xs text-purple-400">(estoque central)</span>}
+                    </div>
+                    {loja.endereco && (
+                      <p className="text-xs text-zinc-500 truncate mt-0.5">{loja.endereco}</p>
+                    )}
+                  </div>
+
+                  {/* Quantidade */}
+                  <div className="text-center flex-shrink-0">
+                    <p className={`text-base font-bold ${loja.quantidade > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {loja.quantidade}
+                    </p>
+                    <p className="text-xs text-zinc-500">em estoque</p>
+                  </div>
+
+                  {/* Ações */}
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => onVerLoja(loja.lojaId)}
+                      className="text-xs text-zinc-400 hover:text-white border border-[#27272a] hover:border-zinc-500 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      Ver
+                    </button>
+                    {minhaLojaId && !isMinhaLoja && (
+                      <button
+                        onClick={() => { setModalTransfer({ produto: item.produto, loja }); setQtdTransfer(1); setErroTransfer(''); }}
+                        className="text-xs bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 px-2.5 py-1.5 rounded-lg font-medium transition-colors"
+                      >
+                        Solicitar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ))}
+
+      {/* Modal de transferência por produto */}
+      {modalTransfer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-white mb-4">Solicitar Transferência</h2>
+            <div className="space-y-3 mb-5 text-sm">
+              <div className="bg-zinc-900 rounded-lg p-3">
+                <p className="text-zinc-400 text-xs mb-0.5">Produto</p>
+                <p className="text-white font-medium">{modalTransfer.produto.nome}</p>
+                <p className="text-zinc-500 font-mono text-xs">{modalTransfer.produto.codigo}</p>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1 bg-zinc-900 rounded-lg p-3">
+                  <p className="text-zinc-400 text-xs mb-1">De</p>
+                  <p className="text-orange-400 font-medium">{modalTransfer.loja.nomeFantasia}</p>
+                </div>
+                <div className="flex items-center text-zinc-500">→</div>
+                <div className="flex-1 bg-zinc-900 rounded-lg p-3">
+                  <p className="text-zinc-400 text-xs mb-1">Para</p>
+                  <p className="text-green-400 font-medium">Minha Loja</p>
+                </div>
+              </div>
+              <div className="bg-zinc-900 rounded-lg p-3">
+                <p className="text-zinc-400 text-xs mb-1">
+                  Quantidade{modalTransfer.produto.tipo === 'MOTO' ? ' (para motos, use o Estoque da loja para selecionar por chassi)' : ''}
+                </p>
+                {modalTransfer.produto.tipo === 'MOTO' ? (
+                  <p className="text-zinc-300 text-xs">
+                    Para solicitar uma moto específica, clique em "Ver" e selecione a unidade pela aba Unidades Disponíveis.
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-3 mt-1">
+                    <button onClick={() => setQtdTransfer(q => Math.max(1, q - 1))} className="w-8 h-8 rounded bg-zinc-700 text-white font-bold hover:bg-zinc-600">−</button>
+                    <span className="text-white font-bold text-lg w-8 text-center">{qtdTransfer}</span>
+                    <button onClick={() => setQtdTransfer(q => Math.min(modalTransfer.loja.quantidade, q + 1))} className="w-8 h-8 rounded bg-zinc-700 text-white font-bold hover:bg-zinc-600">+</button>
+                    <span className="text-zinc-500 text-xs">máx. {modalTransfer.loja.quantidade}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-zinc-500 mb-4">A solicitação ficará pendente até aprovação do Financeiro.</p>
+            {erroTransfer && <p className="text-red-400 text-sm mb-3">{erroTransfer}</p>}
+            <div className="flex gap-3">
+              <Button variant="ghost" onClick={() => setModalTransfer(null)} className="flex-1">Cancelar</Button>
+              {modalTransfer.produto.tipo !== 'MOTO' && (
+                <Button variant="primary" onClick={confirmarTransfer} disabled={loadingTransfer} className="flex-1">
+                  {loadingTransfer ? 'Enviando...' : 'Confirmar'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── TabGerencial ─────────────────────────────────────────────────────────────
 
 function TabGerencial({ itens, busca }: { itens: ItemGerencial[]; busca: string }) {
@@ -818,12 +1054,13 @@ export function Estoque() {
   const [lojaId, setLojaId] = useState<number | null>(null);
   const [loadingLojas, setLoadingLojas] = useState(true);
   const [refreshSolicitacoes, setRefreshSolicitacoes] = useState(0);
+  const [modoBusca, setModoBusca] = useState(false);
 
   const role = user?.role || '';
   const isAdmin = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
   const isAprovador = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
   const minhaLojaId = user?.lojaId ?? null;
-  const showConsolidado = isAdmin && lojaId === null;
+  const showConsolidado = isAdmin && lojaId === null && !modoBusca;
 
   useEffect(() => {
     api.get<Loja[]>('/lojas?todos=true')
@@ -859,45 +1096,74 @@ export function Estoque() {
 
   if (loadingLojas) return <div className="p-12 text-center text-zinc-400">Carregando...</div>;
 
+  function handleVerLoja(id: number) {
+    setLojaId(id);
+    setModoBusca(false);
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <SectionHeader
           title="Estoque"
           subtitle={
-            showConsolidado
-              ? 'Visão consolidada — todas as empresas'
-              : lojaId === minhaLojaId
-                ? 'Estoque da sua loja'
-                : lojaId === LOJA_IMPORTACAO_ID
-                  ? 'Estoque Central — TM Importação'
-                  : 'Consultando outra loja'
+            modoBusca
+              ? 'Buscar produto em toda a rede'
+              : showConsolidado
+                ? 'Visão consolidada — todas as empresas'
+                : lojaId === minhaLojaId
+                  ? 'Estoque da sua loja'
+                  : lojaId === LOJA_IMPORTACAO_ID
+                    ? 'Estoque Central — TM Importação'
+                    : 'Consultando outra loja'
           }
         />
 
-        {/* Seletor de empresa */}
-        <div className="min-w-72">
-          <Select
-            value={lojaId ?? ''}
-            onChange={e => setLojaId(e.target.value ? Number(e.target.value) : null)}
+        <div className="flex items-center gap-2">
+          {/* Botão de busca cross-rede */}
+          <button
+            onClick={() => setModoBusca(b => !b)}
+            title="Buscar produto em toda a rede"
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              modoBusca
+                ? 'bg-orange-500 text-white border-orange-500'
+                : 'bg-[#18181b] text-zinc-300 border-[#27272a] hover:border-orange-500 hover:text-orange-400'
+            }`}
           >
-            {isAdmin && <option value="">📊 Todas as Empresas (Consolidado)</option>}
-            {lojasSorted.map(l => (
-              <option key={l.id} value={l.id}>
-                {l.id === minhaLojaId
-                  ? `🏠 ${l.nomeFantasia} (Minha Loja)`
-                  : l.id === LOJA_IMPORTACAO_ID
-                    ? `🏭 ${l.nomeFantasia} — Estoque Central`
-                    : `🏪 ${l.nomeFantasia}`
-                }
-              </option>
-            ))}
-          </Select>
+            🔍 <span className="hidden sm:inline">Buscar na Rede</span>
+          </button>
+
+          {/* Seletor de empresa (oculto no modo busca) */}
+          {!modoBusca && (
+            <div className="min-w-64">
+              <Select
+                value={lojaId ?? ''}
+                onChange={e => setLojaId(e.target.value ? Number(e.target.value) : null)}
+              >
+                {isAdmin && <option value="">📊 Todas as Empresas (Consolidado)</option>}
+                {lojasSorted.map(l => (
+                  <option key={l.id} value={l.id}>
+                    {l.id === minhaLojaId
+                      ? `🏠 ${l.nomeFantasia} (Minha Loja)`
+                      : l.id === LOJA_IMPORTACAO_ID
+                        ? `🏭 ${l.nomeFantasia} — Estoque Central`
+                        : `🏪 ${l.nomeFantasia}`
+                    }
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Conteúdo */}
-      {showConsolidado ? (
+      {modoBusca ? (
+        <BuscadorRede
+          minhaLojaId={minhaLojaId}
+          onVerLoja={handleVerLoja}
+        />
+      ) : showConsolidado ? (
         <ViewConsolidada onSelectEmpresa={setLojaId} />
       ) : lojaId ? (
         <ViewEmpresa

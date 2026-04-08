@@ -843,32 +843,36 @@ doc.fontSize(12).font('Helvetica-Bold').fillColor(ORANGE)
    .text('admin@teclemotos.com', 0, midY + 136, { align: 'center', width: doc.page.width });
 
 // ─── RODAPÉ COM NÚMERO DE PÁGINA ─────────────────────────────────────────────
+// IMPORTANTE: o rodapé fica ABAIXO de maxY() (na margem inferior).
+// doc.rect() não dispara addPage; doc.text() com lineBreak:false também não.
+// Isso garante que o conteúdo da página (que para em maxY) nunca se sobreponha.
 
 const range = doc.bufferedPageRange();
 // page 0 = capa (sem número), page 1 = sumário (sem número), page 2+ = conteúdo
 // última página (página final) também fica sem rodapé
-const totalPages = range.count - 2; // desconsidera capa + página final
+const totalPages = range.count - 2;
 
 for (let i = range.start + 2; i < range.start + range.count - 1; i++) {
   doc.switchToPage(i);
   const pageNum = i - 1; // página 1 começa na index 2
 
-  // Use maxY() - 20 para garantir que fica dentro da área permitida pelo pdfkit
-  const footerY = doc.page.maxY() - 20;
+  // Posiciona o rodapé NA MARGEM INFERIOR (abaixo de maxY = page.height - 55)
+  // Assim o conteúdo da página nunca invade o rodapé
+  const sepY    = doc.page.height - 46;  // linha separadora
+  const textY   = doc.page.height - 38;  // texto do rodapé
 
-  // Linha separadora laranja
-  doc.rect(LM, footerY - 8, PW, 1).fill(ORANGE);
+  // Linha separadora fina laranja
+  doc.rect(LM, sepY, PW, 0.8).fill(ORANGE);
 
-  // Lado esquerdo: marca
+  // Lado esquerdo: "TM Imports · Sistema ERP"
   doc.fontSize(7.5).font('Helvetica-Bold').fillColor(ORANGE)
-     .text('TM Imports', LM, footerY, { lineBreak: false });
+     .text('TM Imports', LM, textY, { lineBreak: false });
   doc.fontSize(7.5).font('Helvetica').fillColor(ZINC400)
-     .text('  ·  Sistema ERP Multi-Empresa', LM + 47, footerY, { lineBreak: false });
+     .text('  ·  Sistema ERP Multi-Empresa', LM + 48, textY, { lineBreak: false });
 
-  // Lado direito: pág. X / Total
-  const pageLabel = `Pág. ${pageNum} / ${totalPages}`;
+  // Lado direito: "Pág. X / Total"
   doc.fontSize(7.5).font('Helvetica-Bold').fillColor(ZINC400)
-     .text(pageLabel, LM, footerY, { width: PW, align: 'right', lineBreak: false });
+     .text(`Pág. ${pageNum} / ${totalPages}`, LM, textY, { width: PW, align: 'right', lineBreak: false });
 }
 
 doc.end();
