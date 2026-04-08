@@ -55,6 +55,13 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
 - Custo médio ponderado fix: weighted average fallback uses produto.custo (global cost) instead of item.valorUnitario (new purchase cost), preventing the bug where buying at a new price would set custo médio = new price regardless of existing stock.
 - PedidosCompra: número do pedido removed from form (auto-assigned by DB id). Fornecedor field replaced with searchable dropdown that fetches /api/fornecedores; validation requires selecting a registered supplier before saving.
 - Estoque TabMovimentacao: added "ID Mov." column showing origemId (#N) or fallback mov:id for traceability.
+- Sequential codes: OS número uses format `OS-00001` (ID-based); Produto código uses `TMMOT00001/TMPEC00001/TMSRV00001` per type. Startup auto-normalization in server/src/index.ts. Retroactive endpoints: POST /api/ordens-servico/normalizar-numeros and POST /api/produtos/normalizar-codigos.
+- KPI card responsiveness: Dashboard grid uses `sm:grid-cols-3 lg:grid-cols-6` with truncate/min-w-0 for mobile.
+- Estoque inline transfer (TabGerencial): Peças (non-moto) show orange "↔" expand button → inline panel with De→Para dropdown + qty controls + confirm button. Motos show blue "📋 Ver Unidades" button that switches directly to Unitária tab with model pre-filtered.
+- Estoque inline transfer (TabUnitaria): Each unit (chassi) with status ESTOQUE shows transfer button. Own store → orange "↔ Transferir" (with destination dropdown). Other store → blue "Solicitar" (destination pre-filled = your store). Inline panel below the row, no modal, auto-closes on success.
+- BuscadorRede (cross-network search): Peças have inline transfer panel. Motos show "📋 Ver Unidades Disponíveis nesta loja" button that navigates to that store's Estoque → Unitária tab.
+- Transfer workflow: POST /api/transferencias (status=SOLICITADA) → PUT /api/transferencias/:id/aprovar (status=APROVADA, ADMIN only) → PUT /api/transferencias/:id/concluir (status=CONCLUIDA, stock actually moves). Rejection: PUT /api/transferencias/:id/rejeitar.
+- `podeTransferir` rule in TabGerencial: isAdmin OR lojaId === minhaLojaId (only see transfer button for own store or as admin). TabUnitaria: shows button for ALL authenticated users (admin with dropdown, own store with dropdown, other store with fixed destination).
 
 **Business Model:**
 - **Grupo** = A franchisee/owner entity that can contain multiple stores
