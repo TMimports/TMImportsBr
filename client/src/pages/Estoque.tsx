@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo, Fragment } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -95,91 +94,6 @@ function KpiBlock({ label, value, sub, color }: { label: string; value: React.Re
       <p className={`text-base sm:text-xl font-bold truncate ${color || 'text-white'}`}>{value}</p>
       {sub && <p className="text-xs text-zinc-500 mt-0.5 truncate">{sub}</p>}
     </Card>
-  );
-}
-
-// ─── Modal de Solicitação de Transferência ────────────────────────────────────
-
-function ModalSolicitacao({
-  unidade, lojaOrigemId, lojaDestinoId, lojaOrigemNome, lojaDestinoNome, onClose, onSuccess
-}: {
-  unidade: ItemUnitario;
-  lojaOrigemId: number;
-  lojaDestinoId: number;
-  lojaOrigemNome: string;
-  lojaDestinoNome: string;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [loading, setLoading] = useState(false);
-  const [erro, setErro] = useState('');
-
-  async function solicitar() {
-    setLoading(true);
-    setErro('');
-    try {
-      await api.post('/transferencias', {
-        produtoId: unidade.produtoId,
-        lojaOrigemId,
-        lojaDestinoId,
-        quantidade: 1,
-      });
-      onSuccess();
-      onClose();
-    } catch (e: any) {
-      setErro(e?.message || 'Erro ao solicitar transferência');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md p-6 shadow-2xl">
-        <h2 className="text-lg font-bold text-white mb-4">Solicitar Transferência</h2>
-
-        <div className="space-y-3 mb-6 text-sm">
-          <div className="bg-zinc-900 rounded-lg p-3 space-y-2">
-            <p className="text-zinc-400">Modelo</p>
-            <p className="text-white font-medium">{unidade.modeloNome}</p>
-          </div>
-          <div className="bg-zinc-900 rounded-lg p-3 space-y-2">
-            <p className="text-zinc-400">Chassi</p>
-            <p className="text-white font-mono text-xs">{unidade.chassi}</p>
-          </div>
-          {unidade.cor && (
-            <div className="bg-zinc-900 rounded-lg p-3">
-              <p className="text-zinc-400">Cor</p>
-              <p className="text-white">{unidade.cor}</p>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <div className="flex-1 bg-zinc-900 rounded-lg p-3">
-              <p className="text-zinc-400 text-xs mb-1">De</p>
-              <p className="text-orange-400 font-medium">{lojaOrigemNome}</p>
-            </div>
-            <div className="flex items-center text-zinc-500">→</div>
-            <div className="flex-1 bg-zinc-900 rounded-lg p-3">
-              <p className="text-zinc-400 text-xs mb-1">Para</p>
-              <p className="text-green-400 font-medium">{lojaDestinoNome}</p>
-            </div>
-          </div>
-        </div>
-
-        <p className="text-xs text-zinc-500 mb-4">
-          A solicitação ficará pendente até ser aprovada ou rejeitada pelo Financeiro.
-        </p>
-
-        {erro && <p className="text-red-400 text-sm mb-3">{erro}</p>}
-
-        <div className="flex gap-3">
-          <Button variant="ghost" onClick={onClose} className="flex-1">Cancelar</Button>
-          <Button variant="primary" onClick={solicitar} disabled={loading} className="flex-1">
-            {loading ? 'Enviando...' : 'Confirmar Solicitação'}
-          </Button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -518,7 +432,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
     }
   }
 
-  async function executarTransfer(produtoId: number, tipo: string) {
+  async function executarTransfer(produtoId: number, _tipo: string) {
     if (!expandedDestinoId) return;
     setExpandedLoading(true);
     setExpandedErro('');
