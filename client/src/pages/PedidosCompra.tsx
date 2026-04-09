@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useLojaContext } from '../contexts/LojaContext';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { SectionHeader } from '../components/ui/SectionHeader';
@@ -419,6 +420,7 @@ function DetalhesPedido({ pedido, onClose, onAction, role }: {
 
 export function PedidosCompra() {
   const { user } = useAuth();
+  const { selectedLojaId } = useLojaContext();
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -429,12 +431,15 @@ export function PedidosCompra() {
   const [detalhesPedido, setDetalhesPedido] = useState<PedidoCompra | null>(null);
   const [erro, setErro] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = statusFiltro ? `?status=${statusFiltro}` : '';
+      const params = new URLSearchParams();
+      if (statusFiltro) params.set('status', statusFiltro);
+      if (selectedLojaId) params.set('lojaId', String(selectedLojaId));
+      const qs = params.toString() ? `?${params}` : '';
       const [pData, lData, prodData] = await Promise.all([
-        api.get<any>(`/pedidos-compra${params}`),
+        api.get<any>(`/pedidos-compra${qs}`),
         api.get<any>('/lojas'),
         api.get<any>('/produtos'),
       ]);
@@ -442,9 +447,9 @@ export function PedidosCompra() {
       setLojas(Array.isArray(lData) ? lData : lData.lojas ?? []);
       setProdutos(Array.isArray(prodData) ? prodData : prodData.data || []);
     } catch { /* ignore */ } finally { setLoading(false); }
-  };
+  }, [statusFiltro, selectedLojaId]);
 
-  useEffect(() => { load(); }, [statusFiltro]);
+  useEffect(() => { load(); }, [load]);
 
   const handleSave = async (data: any) => {
     await api.post('/pedidos-compra', data);

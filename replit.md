@@ -59,3 +59,38 @@ This project is a comprehensive multi-company ERP system for TM Imports and its 
 - **Password Hashing:** `bcryptjs`
 - **Excel/CSV Processing:** `xlsx`
 - **Email/Scheduling:** `node-cron`, `nodemailer` (via SMTP)
+
+## Key Implementation Notes
+
+### Roles & Permissions
+- 7 roles: ADMIN_GERAL, ADMIN_FINANCEIRO, ADMIN_REDE, DONO_LOJA, GERENTE_LOJA, VENDEDOR, TECNICO
+- Admin (admin@teclemotos.com) NEVER has lojaId or grupoId
+- **verCustos**: only `['ADMIN_GERAL','ADMIN_FINANCEIRO','ADMIN_REDE'].includes(role)` can see cost values. All other roles (including DONO_LOJA) cannot see costs.
+
+### Global Loja Filter (LojaContext)
+- `selectedLojaId` from LojaContext auto-filters ALL modules: Estoque, Financeiro, Vendas, PedidosCompra, Garantias
+- Estoque: auto-navigates to ViewEmpresa when selectedLojaId is set; clears to consolidado view when null
+- Backend routes support `?lojaId=X` query param for Vendas (route line ~92) and Garantias (GET /)
+- Financeiro passes `lojaId` to both `/contas-pagar` and `/contas-pagar/resumo`
+- All pages import `useLojaContext` and react to `selectedLojaId` changes
+
+### PedidoCompra Payment Fields
+- Schema: `metodoPagamento String?`, `dataPagamento DateTime?`, `numeroParcelas Int? @default(1)`
+- On confirmation (PUT /:id/confirmar): auto-generates one ContaPagar per installment with monthly intervals
+- Frontend: ModalPedido has "Condições de Pagamento" section; DetalhesPedido shows these fields
+
+### Quick-Create Modals
+- Vendas: "+" button opens inline modal to create Cliente without leaving the sale form
+- PedidosCompra: "+" button opens inline modal to create Fornecedor without leaving the form
+
+### Transfer Workflow
+- POST /transferencias (SOLICITADA) → PUT /:id/aprovar (APROVADA) → PUT /:id/concluir (CONCLUIDA — stock moves)
+- Rejection: PUT /:id/rejeitar
+
+### LOJA_ORDER
+`{4:0, 1:1, 8:2, 7:3, 6:4, 2:5, 9:6, 11:7, 5:8, 12:9, 10:10, 3:11}` — LOJA_IMPORTACAO_ID = 4
+
+### API Patterns
+- AuthContext NEVER exports `token`. Use `api.get/post/put/patch/delete` — api returns data directly, NOT wrapped in `.data`
+- All pages use NAMED exports; App.tsx uses named imports
+- Fornecedor schema: uses `classe: ClasseFornecedor` (PRODUTO/SERVICO/AMBOS), NOT `tipo`

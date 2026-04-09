@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from '../services/api';
+import { useLojaContext } from '../contexts/LojaContext';
 
 interface Garantia {
   id: number;
@@ -24,24 +25,26 @@ interface ClienteGrupo {
 }
 
 export function Garantias() {
+  const { selectedLojaId } = useLojaContext();
   const [garantias, setGarantias] = useState<Garantia[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<'todas' | 'ativas' | 'vencendo' | 'expiradas'>('todas');
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     setLoading(true);
-    api.get<Garantia[]>('/garantias')
+    const url = selectedLojaId ? `/garantias?lojaId=${selectedLojaId}` : '/garantias';
+    api.get<Garantia[]>(url)
       .then(setGarantias)
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
+  }, [selectedLojaId]);
 
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
 
   const calcularDiasRestantes = (dataFim: string): number => {
     const fim = new Date(dataFim);

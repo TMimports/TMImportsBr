@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { Button, Input, Select } from '../components/ui';
+import { useLojaContext } from '../contexts/LojaContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -149,6 +150,7 @@ function ModalPagamento({ conta, onClose, onSuccess }: { conta: ContaPagar; onCl
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function Financeiro() {
+  const { selectedLojaId } = useLojaContext();
   const [aba, setAba] = useState<'dashboard' | 'compras' | 'avulsas'>('avulsas');
   const [contas, setContas] = useState<ContaPagar[]>([]);
   const [resumo, setResumo] = useState<Resumo>({ totalPagar: 0, qtdAberto: 0, totalPago: 0, totalVencido: 0, qtdVencido: 0, totalVencendo7dias: 0, qtdVencendo7dias: 0 });
@@ -173,9 +175,11 @@ export function Financeiro() {
     try {
       const params = new URLSearchParams();
       if (filtroStatus !== 'todas') params.set('status', filtroStatus);
+      if (selectedLojaId) params.set('lojaId', String(selectedLojaId));
+      const resumoParams = selectedLojaId ? `?lojaId=${selectedLojaId}` : '';
       const [contasData, resumoData] = await Promise.all([
         api.get<ContaPagar[]>(`/financeiro/contas-pagar?${params}`),
-        api.get<Resumo>('/financeiro/contas-pagar/resumo')
+        api.get<Resumo>(`/financeiro/contas-pagar/resumo${resumoParams}`)
       ]);
       setContas(contasData);
       setResumo(resumoData);
@@ -184,7 +188,7 @@ export function Financeiro() {
     } finally {
       setLoading(false);
     }
-  }, [filtroStatus]);
+  }, [filtroStatus, selectedLojaId]);
 
   useEffect(() => {
     loadData();

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../contexts/AuthContext';
+import { useLojaContext } from '../contexts/LojaContext';
 import { CustomSelect } from '../components/CustomSelect';
 
 interface VendaItem {
@@ -99,6 +100,7 @@ interface ConfigDescontos {
 
 export function Vendas() {
   const { user } = useAuth();
+  const { selectedLojaId } = useLojaContext();
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -149,9 +151,11 @@ export function Vendas() {
     }
   };
 
-  const loadData = () => {
+  const loadData = (lojaIdOverride?: number | null) => {
+    const filtroLoja = lojaIdOverride !== undefined ? lojaIdOverride : selectedLojaId;
+    const vendasUrl = filtroLoja ? `/vendas?lojaId=${filtroLoja}` : '/vendas';
     Promise.all([
-      api.get<Venda[]>('/vendas'),
+      api.get<Venda[]>(vendasUrl),
       api.get<Cliente[]>('/clientes'),
       api.get<Loja[]>('/lojas'),
       api.get<ConfigDescontos>('/configuracoes/public')
@@ -161,8 +165,9 @@ export function Vendas() {
         setClientes(clientesData);
         setLojas(lojasData);
         if (configData) setConfigDescontos(configData);
-        if (lojasData.length === 1) {
-          const lojaIdStr = String(lojasData[0].id);
+        const preselLoja = filtroLoja ?? (lojasData.length === 1 ? lojasData[0].id : null);
+        if (preselLoja) {
+          const lojaIdStr = String(preselLoja);
           setForm(f => ({ ...f, lojaId: lojaIdStr }));
           loadProdutosLoja(lojaIdStr);
         }
@@ -173,9 +178,9 @@ export function Vendas() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 30000);
+    const interval = setInterval(() => loadData(), 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedLojaId]);
 
   useEffect(() => {
     if (form.lojaId) {

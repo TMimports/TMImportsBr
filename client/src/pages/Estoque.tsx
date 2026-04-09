@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, Fragment } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLojaContext } from '../contexts/LojaContext';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -412,7 +413,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   const [expandedSucesso, setExpandedSucesso] = useState(false);
 
   const { user: userTabG } = useAuth();
-  const verCustos = !['VENDEDOR', 'TECNICO'].includes(userTabG?.role || '');
+  const verCustos = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(userTabG?.role || '');
   const isAdmin = minhaLojaId === null;
   const podeTransferir = isAdmin || lojaId === minhaLojaId;
   const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
@@ -1302,6 +1303,7 @@ const LOJA_ORDER: Record<number, number> = {
 
 export function Estoque() {
   const { user } = useAuth();
+  const { selectedLojaId: ctxLojaId } = useLojaContext();
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [lojaId, setLojaId] = useState<number | null>(null);
   const [loadingLojas, setLoadingLojas] = useState(true);
@@ -1312,7 +1314,7 @@ export function Estoque() {
   const role = user?.role || '';
   const isAdmin = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
   const isAprovador = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
-  const verCustosGlobal = !['VENDEDOR', 'TECNICO'].includes(role);
+  const verCustosGlobal = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(role);
   const minhaLojaId = user?.lojaId ?? null;
   const showConsolidado = isAdmin && lojaId === null && !modoBusca && !modoTransferencias;
 
@@ -1320,7 +1322,9 @@ export function Estoque() {
     api.get<Loja[]>('/lojas?todos=true')
       .then(lista => {
         setLojas(lista);
-        if (user?.lojaId) {
+        if (ctxLojaId) {
+          setLojaId(ctxLojaId);
+        } else if (user?.lojaId) {
           setLojaId(user.lojaId);
         } else if (!isAdmin && lista.length > 0) {
           setLojaId(lista[0].id);
@@ -1329,6 +1333,16 @@ export function Estoque() {
       .catch(() => setLojas([]))
       .finally(() => setLoadingLojas(false));
   }, []);
+
+  useEffect(() => {
+    if (ctxLojaId) {
+      setLojaId(ctxLojaId);
+      setModoBusca(false);
+      setModoTransferencias(false);
+    } else if (isAdmin && !user?.lojaId) {
+      setLojaId(null);
+    }
+  }, [ctxLojaId]);
 
   const lojasSorted = useMemo(() => {
     if (!lojas.length) return [];

@@ -89,10 +89,12 @@ async function criarGarantiasVenda(vendaId: number, clienteId: number, itens: an
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
+    const { lojaId: queryLojaId } = req.query;
 
     const where: any = { deletedAt: null };
     if (filter.lojaId) where.lojaId = filter.lojaId;
-    if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+    else if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+    if (queryLojaId && !filter.lojaId) where.lojaId = Number(queryLojaId);
     const vendas = await prisma.venda.findMany({
       where,
       include: {

@@ -9,12 +9,15 @@ router.use(verifyToken);
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
+    const { lojaId: queryLojaId } = req.query;
     const where: any = {};
 
-    if (filter.lojaId) {
+    const effectiveLojaId = filter.lojaId ?? (queryLojaId && !filter.lojaId ? Number(queryLojaId) : null);
+
+    if (effectiveLojaId) {
       where.OR = [
-        { unidadeFisica: { lojaId: filter.lojaId } },
-        { unidadeFisicaId: null, venda: { lojaId: filter.lojaId } }
+        { unidadeFisica: { lojaId: effectiveLojaId } },
+        { unidadeFisicaId: null, venda: { lojaId: effectiveLojaId } }
       ];
     } else if (filter.grupoId) {
       where.OR = [
