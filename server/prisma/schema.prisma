@@ -477,24 +477,27 @@ model LogConfiguracao {
 }
 
 model PedidoCompra {
-  id              Int                @id @default(autoincrement())
-  lojaId          Int
-  fornecedor      String
-  numero          String?
-  status          StatusPedidoCompra @default(PENDENTE)
-  previsaoEntrega DateTime?
-  observacoes     String?
-  valorTotal      Decimal            @default(0) @db.Decimal(10, 2)
-  confirmedAt     DateTime?
-  confirmedBy     Int?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  createdBy       Int?
-  contasPagar     ContaPagar[]
-  itens           ItemPedidoCompra[]
-  notasFiscais    NotaFiscal[]
-  confirmadoPor   User?              @relation("PedidoConfirmadoPor", fields: [confirmedBy], references: [id])
-  loja            Loja               @relation(fields: [lojaId], references: [id])
+  id               Int                @id @default(autoincrement())
+  lojaId           Int
+  fornecedor       String
+  numero           String?
+  status           StatusPedidoCompra @default(PENDENTE)
+  previsaoEntrega  DateTime?
+  observacoes      String?
+  valorTotal       Decimal            @default(0) @db.Decimal(10, 2)
+  metodoPagamento  String?
+  dataPagamento    DateTime?
+  numeroParcelas   Int?               @default(1)
+  confirmedAt      DateTime?
+  confirmedBy      Int?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  createdBy        Int?
+  contasPagar      ContaPagar[]
+  itens            ItemPedidoCompra[]
+  notasFiscais     NotaFiscal[]
+  confirmadoPor    User?              @relation("PedidoConfirmadoPor", fields: [confirmedBy], references: [id])
+  loja             Loja               @relation(fields: [lojaId], references: [id])
 }
 
 model ItemPedidoCompra {

@@ -463,12 +463,6 @@ export function Financeiro() {
               placeholder="Selecione"
               options={[{ value: '', label: 'Sem departamento' }, ...departamentos.map(d => ({ value: d.id, label: d.nome }))]}
             />
-            <Input
-              label="Centro de Custo"
-              value={form.centroCusto}
-              onChange={e => setForm({ ...form, centroCusto: e.target.value })}
-              placeholder="Opcional"
-            />
           </div>
 
           <Input

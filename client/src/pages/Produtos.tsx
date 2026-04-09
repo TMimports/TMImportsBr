@@ -19,7 +19,8 @@ const initialForm = {
   id: 0,
   nome: '',
   tipo: 'PECA',
-  descricao: ''
+  descricao: '',
+  preco: '',
 };
 
 const TIPO_LABEL: Record<string, string> = {
@@ -62,12 +63,15 @@ export function Produtos() {
     e.preventDefault();
     setSaving(true);
     try {
-      const dados = {
+      const dados: any = {
         nome: form.nome,
         tipo: form.tipo,
         descricao: form.descricao || null
       };
       if (editando && form.id) {
+        if (form.preco !== '' && !isNaN(Number(form.preco))) {
+          dados.preco = Number(form.preco);
+        }
         await api.put(`/produtos/${form.id}`, dados);
       } else {
         await api.post('/produtos', dados);
@@ -88,7 +92,8 @@ export function Produtos() {
       id: produto.id,
       nome: produto.nome,
       tipo: produto.tipo,
-      descricao: produto.descricao || ''
+      descricao: produto.descricao || '',
+      preco: produto.preco > 0 ? String(produto.preco) : '',
     });
     setEditando(true);
     setModalOpen(true);
@@ -320,25 +325,43 @@ export function Produtos() {
             />
           </div>
 
-          {/* Custo atual (somente leitura ao editar) */}
+          {/* Preço de venda manual (somente ao editar) */}
           {editando && (() => {
             const p = produtos.find(x => x.id === form.id);
-            return p && p.custo > 0 ? (
-              <div className="bg-zinc-800 rounded-lg p-3 space-y-2">
-                <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Valores atuais (via Pedido de Compra)</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-zinc-500 text-xs">Custo médio</p>
-                    <p className="text-zinc-200 font-semibold">{fmtBRL(p.custo)}</p>
+            const precoNum = Number(form.preco) || 0;
+            const margem = p && p.custo > 0 && precoNum > 0
+              ? (((precoNum - p.custo) / precoNum) * 100).toFixed(1) + '%'
+              : '—';
+            return (
+              <div className="bg-zinc-800 rounded-lg p-3 space-y-3">
+                <p className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Precificação</p>
+                {p && p.custo > 0 && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <div>
+                      <p className="text-zinc-500 text-xs">Custo médio</p>
+                      <p className="text-zinc-200 font-semibold">{fmtBRL(p.custo)}</p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-500 text-xs">Margem (informativo)</p>
+                      <p className={`font-semibold ${Number(margem) > 0 ? 'text-green-400' : 'text-zinc-400'}`}>{margem}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-zinc-500 text-xs">Preço de venda</p>
-                    <p className="text-green-400 font-semibold">{fmtBRL(p.preco)}</p>
-                  </div>
+                )}
+                <div>
+                  <label className="text-xs text-zinc-400 block mb-1">Preço de Venda (R$) — editável manualmente</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.preco}
+                    onChange={e => setForm({ ...form, preco: e.target.value })}
+                    className="w-full bg-[#09090b] border border-[#27272a] text-white rounded-lg px-3 h-10 text-sm outline-none focus:border-orange-500/50"
+                    placeholder="0,00"
+                  />
                 </div>
-                <p className="text-xs text-zinc-500">Para alterar o custo, registre uma nova entrada via Pedido de Compra.</p>
+                <p className="text-xs text-zinc-500">O custo é definido automaticamente via Pedido de Compra.</p>
               </div>
-            ) : null;
+            );
           })()}
 
           <div className="flex gap-2 justify-end pt-2">

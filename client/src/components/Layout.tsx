@@ -181,6 +181,14 @@ const ADMIN_ROLES = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, logout } = useAuth();
   const { lojas, selectedLojaId, selectedLoja, setSelectedLojaId, loadingLojas } = useLojaContext();
+
+  const handleLojaChange = (newLojaId: number | null) => {
+    if (newLojaId === selectedLojaId) { setSelectorOpen(false); return; }
+    const nomeDest = newLojaId === null ? 'Visão Consolidada' : (lojas.find(l => l.id === newLojaId)?.nomeFantasia || 'outra loja');
+    if (!window.confirm(`Deseja realmente alterar para "${nomeDest}"?`)) return;
+    setSelectedLojaId(newLojaId);
+    setSelectorOpen(false);
+  };
   const canSelectLoja = user?.role ? ROLES_CAN_SELECT_LOJA.includes(user.role) : false;
 
   const isTMImportsView = !selectedLojaId && ADMIN_ROLES.includes(user?.role || '');
@@ -530,7 +538,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               {selectorOpen && (
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl z-50 py-1 min-w-[200px]">
                   <button
-                    onClick={() => { setSelectedLojaId(null); setSelectorOpen(false); }}
+                    onClick={() => handleLojaChange(null)}
                     className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-zinc-700 transition-colors ${!selectedLojaId ? 'text-orange-400 font-semibold' : 'text-zinc-300'}`}
                   >
                     <span>🌐</span> Visão Consolidada
@@ -538,7 +546,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                   {!loadingLojas && lojas.map(loja => (
                     <button
                       key={loja.id}
-                      onClick={() => { setSelectedLojaId(loja.id); setSelectorOpen(false); }}
+                      onClick={() => handleLojaChange(loja.id)}
                       className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 hover:bg-zinc-700 transition-colors ${selectedLojaId === loja.id ? 'text-orange-400 font-semibold' : 'text-zinc-300'}`}
                     >
                       <span>🏪</span>
@@ -594,7 +602,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                   <div className="absolute right-0 top-full mt-1.5 bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl z-50 py-1.5 min-w-[220px]">
                     <p className="px-4 py-1 text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Selecionar unidade</p>
                     <button
-                      onClick={() => { setSelectedLojaId(null); setSelectorOpen(false); }}
+                      onClick={() => handleLojaChange(null)}
                       className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-zinc-700/60 transition-colors ${!selectedLojaId ? 'text-orange-400 font-semibold' : 'text-zinc-300'}`}
                     >
                       <span>🌐</span>
@@ -610,7 +618,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                     ) : lojas.map(loja => (
                       <button
                         key={loja.id}
-                        onClick={() => { setSelectedLojaId(loja.id); setSelectorOpen(false); }}
+                        onClick={() => handleLojaChange(loja.id)}
                         className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2.5 hover:bg-zinc-700/60 transition-colors ${selectedLojaId === loja.id ? 'text-orange-400 font-semibold' : 'text-zinc-300'}`}
                       >
                         <span>🏪</span>

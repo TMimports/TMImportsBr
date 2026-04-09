@@ -113,6 +113,9 @@ export function Vendas() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelVendaId, setCancelVendaId] = useState<number | null>(null);
   const [cancelMotivo, setCancelMotivo] = useState('');
+  const [showQuickCliente, setShowQuickCliente] = useState(false);
+  const [quickCliente, setQuickCliente] = useState({ nome: '', cpfCnpj: '', telefone: '' });
+  const [quickClienteLoading, setQuickClienteLoading] = useState(false);
 
   const [form, setForm] = useState({
     clienteId: '',
@@ -444,6 +447,26 @@ export function Vendas() {
     FINANCIAMENTO: 'Financiamento'
   };
 
+  const criarClienteRapido = async () => {
+    if (!quickCliente.nome.trim()) return;
+    setQuickClienteLoading(true);
+    try {
+      const novo = await api.post<{ id: number; nome: string }>('/clientes', {
+        nome: quickCliente.nome.trim(),
+        cpfCnpj: quickCliente.cpfCnpj || undefined,
+        telefone: quickCliente.telefone || undefined,
+      });
+      setClientes(prev => [...prev, novo]);
+      setForm(f => ({ ...f, clienteId: String(novo.id) }));
+      setShowQuickCliente(false);
+      setQuickCliente({ nome: '', cpfCnpj: '', telefone: '' });
+    } catch (e: any) {
+      alert(e.message || 'Erro ao criar cliente');
+    } finally {
+      setQuickClienteLoading(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64">Carregando...</div>;
   }
@@ -562,13 +585,20 @@ export function Vendas() {
             />
           )}
 
-          <CustomSelect
-            label="Cliente"
-            required
-            value={form.clienteId}
-            onChange={(val) => setForm({ ...form, clienteId: val })}
-            options={clientes.map(c => ({ value: String(c.id), label: c.nome }))}
-          />
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-zinc-400">Cliente *</label>
+              <button type="button" onClick={() => setShowQuickCliente(true)} className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-0.5 font-medium">
+                + Novo Cliente
+              </button>
+            </div>
+            <CustomSelect
+              value={form.clienteId}
+              onChange={(val) => setForm({ ...form, clienteId: val })}
+              options={clientes.map(c => ({ value: String(c.id), label: c.nome }))}
+              required
+            />
+          </div>
 
           <div className="border-t border-zinc-700 pt-4">
             <div className="flex justify-between items-center mb-2">
@@ -1041,6 +1071,37 @@ export function Vendas() {
           </div>
         </div>
       </Modal>
+
+      {showQuickCliente && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setShowQuickCliente(false); }}>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md">
+            <div className="p-5 border-b border-[#27272a] flex items-center justify-between">
+              <h3 className="font-bold text-white">Novo Cliente</h3>
+              <button onClick={() => setShowQuickCliente(false)} className="text-zinc-400 hover:text-white text-xl leading-none">×</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Nome *</label>
+                <input autoFocus type="text" className="w-full bg-[#09090b] border border-[#27272a] text-white rounded-lg px-3 h-10 text-sm outline-none focus:border-orange-500/50" value={quickCliente.nome} onChange={e => setQuickCliente(p => ({ ...p, nome: e.target.value }))} placeholder="Nome completo" onKeyDown={e => e.key === 'Enter' && criarClienteRapido()} />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">CPF / CNPJ</label>
+                <input type="text" className="w-full bg-[#09090b] border border-[#27272a] text-white rounded-lg px-3 h-10 text-sm outline-none focus:border-orange-500/50" value={quickCliente.cpfCnpj} onChange={e => setQuickCliente(p => ({ ...p, cpfCnpj: e.target.value }))} placeholder="Opcional" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Telefone</label>
+                <input type="text" className="w-full bg-[#09090b] border border-[#27272a] text-white rounded-lg px-3 h-10 text-sm outline-none focus:border-orange-500/50" value={quickCliente.telefone} onChange={e => setQuickCliente(p => ({ ...p, telefone: e.target.value }))} placeholder="Opcional" />
+              </div>
+            </div>
+            <div className="p-5 pt-0 flex gap-3 justify-end">
+              <button onClick={() => setShowQuickCliente(false)} className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancelar</button>
+              <button onClick={criarClienteRapido} disabled={!quickCliente.nome.trim() || quickClienteLoading} className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg disabled:opacity-50 font-medium transition-colors">
+                {quickClienteLoading ? 'Salvando...' : 'Salvar Cliente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

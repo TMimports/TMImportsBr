@@ -21,6 +21,9 @@ interface PedidoCompra {
   previsaoEntrega?: string;
   observacoes?: string;
   valorTotal: number;
+  metodoPagamento?: string;
+  dataPagamento?: string;
+  numeroParcelas?: number;
   confirmedAt?: string;
   confirmadoPor?: { id: number; nome: string; };
   itens: Array<Item & { id: number; }>;
@@ -47,12 +50,37 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
   const [form, setForm] = useState({
     lojaId: user?.lojaId ? String(user.lojaId) : '',
     previsaoEntrega: '', observacoes: '',
+    metodoPagamento: '', dataPagamento: '', numeroParcelas: '1',
   });
   const [itens, setItens] = useState<Array<{ produtoId: string; quantidade: string; valorUnitario: string; }>>([
     { produtoId: '', quantidade: '1', valorUnitario: '' }
   ]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
+  const [showQuickFornecedor, setShowQuickFornecedor] = useState(false);
+  const [quickFornecedor, setQuickFornecedor] = useState({ razaoSocial: '', nomeFantasia: '', cnpj: '', telefone: '' });
+  const [quickFornecedorLoading, setQuickFornecedorLoading] = useState(false);
+
+  const criarFornecedorRapido = async () => {
+    if (!quickFornecedor.razaoSocial.trim()) return;
+    setQuickFornecedorLoading(true);
+    try {
+      const novo = await api.post<Fornecedor>('/fornecedores', {
+        razaoSocial: quickFornecedor.razaoSocial.trim(),
+        nomeFantasia: quickFornecedor.nomeFantasia || undefined,
+        cnpj: quickFornecedor.cnpj || undefined,
+        telefone: quickFornecedor.telefone || undefined,
+      });
+      setFornecedores(prev => [...prev, novo]);
+      selecionarFornecedor(novo);
+      setShowQuickFornecedor(false);
+      setQuickFornecedor({ razaoSocial: '', nomeFantasia: '', cnpj: '', telefone: '' });
+    } catch (e: any) {
+      alert(e.message || 'Erro ao criar fornecedor');
+    } finally {
+      setQuickFornecedorLoading(false);
+    }
+  };
 
   // Fornecedor search state
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
@@ -109,6 +137,9 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
         fornecedor: fornecedorSelecionado.nomeFantasia || fornecedorSelecionado.razaoSocial,
         previsaoEntrega: form.previsaoEntrega || undefined,
         observacoes: form.observacoes || undefined,
+        metodoPagamento: form.metodoPagamento || undefined,
+        dataPagamento: form.dataPagamento || undefined,
+        numeroParcelas: form.numeroParcelas ? Number(form.numeroParcelas) : 1,
         itens: itens.map(it => ({
           produtoId: Number(it.produtoId),
           quantidade: Number(it.quantidade),
@@ -137,7 +168,10 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
 
             {/* Fornecedor — busca com dropdown */}
             <div className="relative">
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Fornecedor *</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-zinc-400">Fornecedor *</label>
+                <button type="button" onClick={() => setShowQuickFornecedor(true)} className="text-xs text-orange-400 hover:text-orange-300 font-medium">+ Novo Fornecedor</button>
+              </div>
               <div className={`flex items-center gap-2 bg-[#09090b] border rounded-lg px-3 h-10 ${fornecedorSelecionado ? 'border-green-500/50' : 'border-[#27272a]'}`}>
                 <input
                   type="text"
@@ -178,6 +212,27 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
               onChange={e => setForm(p => ({ ...p, previsaoEntrega: e.target.value }))} />
             <Input label="Observações" value={form.observacoes}
               onChange={e => setForm(p => ({ ...p, observacoes: e.target.value }))} placeholder="Observações opcionais" />
+          </div>
+
+          <div className="border-t border-[#27272a] pt-4">
+            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Condições de Pagamento</p>
+            <p className="text-xs text-zinc-500 mb-3">Será gerado um Contas a Pagar ao confirmar o pedido, com base nas condições abaixo.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Select label="Método de Pagamento" value={form.metodoPagamento}
+                onChange={e => setForm(p => ({ ...p, metodoPagamento: e.target.value }))}>
+                <option value="">Não especificado</option>
+                <option value="DINHEIRO">Dinheiro / À Vista</option>
+                <option value="PIX">PIX</option>
+                <option value="BOLETO">Boleto</option>
+                <option value="CARTAO_CREDITO">Cartão de Crédito</option>
+                <option value="TRANSFERENCIA">Transferência</option>
+                <option value="FINANCIAMENTO">Financiamento</option>
+              </Select>
+              <Input label="Data 1ª Parcela / Vencimento" type="date" value={form.dataPagamento}
+                onChange={e => setForm(p => ({ ...p, dataPagamento: e.target.value }))} />
+              <Input label="Nº de Parcelas" type="number" min="1" max="60" value={form.numeroParcelas}
+                onChange={e => setForm(p => ({ ...p, numeroParcelas: e.target.value }))} placeholder="1" />
+            </div>
           </div>
 
           <div>
@@ -230,6 +285,41 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
           </Button>
         </div>
       </div>
+
+      {showQuickFornecedor && (
+        <div className="fixed inset-0 bg-black/70 z-[70] flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setShowQuickFornecedor(false); }}>
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md">
+            <div className="p-5 border-b border-[#27272a] flex items-center justify-between">
+              <h3 className="font-bold text-white">Novo Fornecedor</h3>
+              <button onClick={() => setShowQuickFornecedor(false)} className="text-zinc-400 hover:text-white text-xl leading-none">×</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Razão Social *</label>
+                <input autoFocus type="text" className="w-full bg-[#09090b] border border-[#27272a] text-white rounded-lg px-3 h-10 text-sm outline-none focus:border-orange-500/50" value={quickFornecedor.razaoSocial} onChange={e => setQuickFornecedor(p => ({ ...p, razaoSocial: e.target.value }))} placeholder="Razão social" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Nome Fantasia</label>
+                <input type="text" className="w-full bg-[#09090b] border border-[#27272a] text-white rounded-lg px-3 h-10 text-sm outline-none focus:border-orange-500/50" value={quickFornecedor.nomeFantasia} onChange={e => setQuickFornecedor(p => ({ ...p, nomeFantasia: e.target.value }))} placeholder="Opcional" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">CNPJ</label>
+                <input type="text" className="w-full bg-[#09090b] border border-[#27272a] text-white rounded-lg px-3 h-10 text-sm outline-none focus:border-orange-500/50" value={quickFornecedor.cnpj} onChange={e => setQuickFornecedor(p => ({ ...p, cnpj: e.target.value }))} placeholder="Opcional" />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-400 block mb-1">Telefone</label>
+                <input type="text" className="w-full bg-[#09090b] border border-[#27272a] text-white rounded-lg px-3 h-10 text-sm outline-none focus:border-orange-500/50" value={quickFornecedor.telefone} onChange={e => setQuickFornecedor(p => ({ ...p, telefone: e.target.value }))} placeholder="Opcional" onKeyDown={e => e.key === 'Enter' && criarFornecedorRapido()} />
+              </div>
+            </div>
+            <div className="p-5 pt-0 flex gap-3 justify-end">
+              <button onClick={() => setShowQuickFornecedor(false)} className="px-4 py-2 text-sm text-zinc-400 hover:text-white transition-colors">Cancelar</button>
+              <button onClick={criarFornecedorRapido} disabled={!quickFornecedor.razaoSocial.trim() || quickFornecedorLoading} className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded-lg disabled:opacity-50 font-medium transition-colors">
+                {quickFornecedorLoading ? 'Salvando...' : 'Salvar Fornecedor'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -268,6 +358,15 @@ function DetalhesPedido({ pedido, onClose, onAction, role }: {
             <div><span className="text-zinc-400">Número</span><p className="text-white font-medium mt-0.5">{pedido.numero || '—'}</p></div>
             <div><span className="text-zinc-400">Previsão de Entrega</span><p className="text-white font-medium mt-0.5">{fmtDate(pedido.previsaoEntrega)}</p></div>
             <div><span className="text-zinc-400">Criado em</span><p className="text-white font-medium mt-0.5">{fmtDate(pedido.createdAt)}</p></div>
+            {pedido.metodoPagamento && (
+              <div><span className="text-zinc-400">Método de Pagamento</span><p className="text-white font-medium mt-0.5">{pedido.metodoPagamento.replace('_', ' ')}</p></div>
+            )}
+            {pedido.dataPagamento && (
+              <div><span className="text-zinc-400">Vencimento / 1ª Parcela</span><p className="text-white font-medium mt-0.5">{fmtDate(pedido.dataPagamento)}</p></div>
+            )}
+            {(pedido.numeroParcelas ?? 1) > 1 && (
+              <div><span className="text-zinc-400">Parcelas</span><p className="text-white font-medium mt-0.5">{pedido.numeroParcelas}×</p></div>
+            )}
             {pedido.confirmadoPor && (
               <div><span className="text-zinc-400">Confirmado por</span><p className="text-white font-medium mt-0.5">{pedido.confirmadoPor.nome} em {fmtDate(pedido.confirmedAt)}</p></div>
             )}

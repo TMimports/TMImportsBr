@@ -66,7 +66,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 // ─── CREATE ───────────────────────────────────────────────────────────────────
 router.post('/', requireRole(...ROLES_COMPRA), async (req: AuthRequest, res) => {
   try {
-    const { lojaId, fornecedor, numero, previsaoEntrega, observacoes, itens } = req.body;
+    const { lojaId, fornecedor, numero, previsaoEntrega, observacoes, itens, metodoPagamento, dataPagamento, numeroParcelas } = req.body;
 
     if (!lojaId || !fornecedor || !itens?.length) {
       return res.status(400).json({ error: 'lojaId, fornecedor e itens são obrigatórios' });
@@ -103,6 +103,9 @@ router.post('/', requireRole(...ROLES_COMPRA), async (req: AuthRequest, res) => 
         previsaoEntrega: previsaoEntrega ? new Date(previsaoEntrega) : null,
         observacoes: observacoes || null,
         valorTotal,
+        metodoPagamento: metodoPagamento || null,
+        dataPagamento: dataPagamento ? new Date(dataPagamento) : null,
+        numeroParcelas: numeroParcelas ? Number(numeroParcelas) : 1,
         createdBy: req.user!.id,
         itens: { create: itensValidados },
       },
@@ -255,27 +258,35 @@ router.post('/:id/confirmar', requireRole(...ROLES_COMPRA), async (req: AuthRequ
     if (!contaExistente) {
       const valorTotal = pedido.itens.reduce((acc, item) => acc + Number(item.valorTotal), 0);
       if (valorTotal > 0) {
-        const vencimento = new Date();
-        vencimento.setDate(vencimento.getDate() + 30); // padrão: 30 dias
-
-        // Buscar categoria "Fornecedores - Peças" ou "Fornecedores - Motos"
         const categoriaFornecedor = await prisma.categoriaFinanceira.findFirst({
           where: { nome: { contains: 'Fornecedores' }, ativo: true }
         });
 
-        await prisma.contaPagar.create({
-          data: {
-            lojaId: pedido.lojaId,
-            origem: 'COMPRA',
-            pedidoCompraId: pedido.id,
-            descricao: `Pedido de Compra #${pedido.numero || pedido.id}`,
-            fornecedor: pedido.fornecedor || null,
-            valor: valorTotal,
-            vencimento,
-            categoriaId: categoriaFornecedor?.id ?? null,
-            createdBy: req.user!.id
-          }
-        });
+        const nParcelas = Number((pedido as any).numeroParcelas) || 1;
+        const valorParcela = valorTotal / nParcelas;
+        const baseDate = (pedido as any).dataPagamento ? new Date((pedido as any).dataPagamento) : new Date();
+        if (!(pedido as any).dataPagamento) baseDate.setDate(baseDate.getDate() + 30);
+
+        for (let i = 0; i < nParcelas; i++) {
+          const vencimento = new Date(baseDate);
+          vencimento.setMonth(vencimento.getMonth() + i);
+          const descricao = nParcelas > 1
+            ? `Pedido de Compra #${pedido.numero || pedido.id} – Parcela ${i + 1}/${nParcelas}`
+            : `Pedido de Compra #${pedido.numero || pedido.id}`;
+          await prisma.contaPagar.create({
+            data: {
+              lojaId: pedido.lojaId,
+              origem: 'COMPRA',
+              pedidoCompraId: pedido.id,
+              descricao,
+              fornecedor: pedido.fornecedor || null,
+              valor: valorParcela,
+              vencimento,
+              categoriaId: categoriaFornecedor?.id ?? null,
+              createdBy: req.user!.id
+            }
+          });
+        }
       }
     }
 

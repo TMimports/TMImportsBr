@@ -411,6 +411,8 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   const [expandedErro, setExpandedErro] = useState('');
   const [expandedSucesso, setExpandedSucesso] = useState(false);
 
+  const { user: userTabG } = useAuth();
+  const verCustos = !['VENDEDOR', 'TECNICO'].includes(userTabG?.role || '');
   const isAdmin = minhaLojaId === null;
   const podeTransferir = isAdmin || lojaId === minhaLojaId;
   const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
@@ -467,9 +469,9 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
               <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
                 <th className="text-left p-3 font-medium">Produto</th>
                 <th className="text-right p-3 font-medium">Qtd</th>
-                <th className="text-right p-3 font-medium hidden md:table-cell">Custo Médio</th>
+                {verCustos && <th className="text-right p-3 font-medium hidden md:table-cell">Custo Médio</th>}
                 <th className="text-right p-3 font-medium hidden md:table-cell">Preço Venda</th>
-                <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (CM)</th>
+                {verCustos && <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (CM)</th>}
                 <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (PV)</th>
                 <th className="text-left p-3 font-medium">Status</th>
                 {podeTransferir && <th className="text-center p-3 font-medium">Ação</th>}
@@ -491,9 +493,9 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
                         </span>
                         <p className="text-xs text-zinc-500">mín {it.estoqueMinimo}</p>
                       </td>
-                      <td className="p-3 text-right text-zinc-200 hidden md:table-cell">{fmtBRL(it.custoMedio)}</td>
+                      {verCustos && <td className="p-3 text-right text-zinc-200 hidden md:table-cell">{fmtBRL(it.custoMedio)}</td>}
                       <td className="p-3 text-right text-zinc-200 hidden md:table-cell">{fmtBRL(it.precoVenda)}</td>
-                      <td className="p-3 text-right font-medium text-zinc-100 hidden lg:table-cell">{fmtBRL(it.valorTotalCusto)}</td>
+                      {verCustos && <td className="p-3 text-right font-medium text-zinc-100 hidden lg:table-cell">{fmtBRL(it.valorTotalCusto)}</td>}
                       <td className="p-3 text-right font-medium text-orange-400 hidden lg:table-cell">{fmtBRL(it.valorTotalPreco)}</td>
                       <td className="p-3">
                         {it.semEstoque
@@ -1103,7 +1105,7 @@ function ViewConsolidada({ onSelectEmpresa }: { onSelectEmpresa: (lojaId: number
 type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes';
 
 function ViewEmpresa({
-  lojaId, minhaLojaId, isAprovador, onBack, refreshSolicitacoes, onSolicitacaoFeita, lojas
+  lojaId, minhaLojaId, isAprovador, onBack, refreshSolicitacoes, onSolicitacaoFeita, lojas, verCustos
 }: {
   lojaId: number;
   minhaLojaId: number | null;
@@ -1112,6 +1114,7 @@ function ViewEmpresa({
   refreshSolicitacoes: number;
   onSolicitacaoFeita: () => void;
   lojas: Loja[];
+  verCustos: boolean;
 }) {
   const [data, setData] = useState<EmpresaDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1197,9 +1200,9 @@ function ViewEmpresa({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiBlock label="Motos" value={t.totalMotos} color="text-orange-400" />
         <KpiBlock label="Peças" value={t.totalPecas} color="text-blue-400" />
-        <KpiBlock label="Custo Total (CM)" value={fmtBRL(t.valorTotalCusto)} color="text-zinc-200" />
+        {verCustos && <KpiBlock label="Custo Total (CM)" value={fmtBRL(t.valorTotalCusto)} color="text-zinc-200" />}
         <KpiBlock label="Valor Venda" value={fmtBRL(t.valorTotalVenda)} color="text-green-400"
-          sub={`Margem: ${t.valorTotalCusto > 0 ? ((t.valorTotalVenda / t.valorTotalCusto - 1) * 100).toFixed(1) + '%' : '—'}`} />
+          sub={verCustos && t.valorTotalCusto > 0 ? `Margem: ${((t.valorTotalVenda / t.valorTotalCusto - 1) * 100).toFixed(1)}%` : undefined} />
         <KpiBlock label="Unidades" value={t.unidadesTotal}
           sub={`${t.unidadesEmEstoque} em estoque · ${t.unidadesVendidas} vendidas`} />
         <KpiBlock label="Sem Giro" value={t.semGiro} color={t.semGiro > 0 ? 'text-red-400' : 'text-zinc-400'} />
@@ -1309,6 +1312,7 @@ export function Estoque() {
   const role = user?.role || '';
   const isAdmin = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
   const isAprovador = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
+  const verCustosGlobal = !['VENDEDOR', 'TECNICO'].includes(role);
   const minhaLojaId = user?.lojaId ?? null;
   const showConsolidado = isAdmin && lojaId === null && !modoBusca && !modoTransferencias;
 
@@ -1459,6 +1463,7 @@ export function Estoque() {
           onBack={isAdmin ? () => setLojaId(null) : undefined}
           refreshSolicitacoes={refreshSolicitacoes}
           onSolicitacaoFeita={() => setRefreshSolicitacoes(k => k + 1)}
+          verCustos={verCustosGlobal}
         />
       ) : (
         <div className="text-center py-12 text-zinc-500">
