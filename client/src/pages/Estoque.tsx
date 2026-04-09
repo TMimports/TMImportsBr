@@ -413,29 +413,12 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [expandedErro, setExpandedErro] = useState('');
   const [expandedSucesso, setExpandedSucesso] = useState(false);
-  const [editPrecoId, setEditPrecoId] = useState<number | null>(null);
-  const [editPrecoVal, setEditPrecoVal] = useState('');
-  const [editPrecoLoading, setEditPrecoLoading] = useState(false);
 
   const { user: userTabG } = useAuth();
   const verCustos = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(userTabG?.role || '');
-  const podeEditarPreco = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userTabG?.role || '');
   const isAdmin = minhaLojaId === null;
   const podeTransferir = isAdmin || lojaId === minhaLojaId;
   const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
-
-  async function salvarPrecoVenda(estoqueId: number) {
-    setEditPrecoLoading(true);
-    try {
-      const val = editPrecoVal.trim() === '' ? null : Number(editPrecoVal.replace(',', '.'));
-      await api.put(`/estoque/${estoqueId}`, { precoVenda: val });
-      setEditPrecoId(null);
-      onTransferido?.();
-    } catch {
-    } finally {
-      setEditPrecoLoading(false);
-    }
-  }
 
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase();
@@ -515,35 +498,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
                       </td>
                       {verCustos && <td className="p-3 text-right text-zinc-200 hidden md:table-cell">{fmtBRL(it.custoMedio)}</td>}
                       <td className="p-3 text-right hidden md:table-cell">
-                        {editPrecoId === it.id ? (
-                          <div className="flex items-center gap-1 justify-end">
-                            <input
-                              type="number"
-                              step="0.01"
-                              className="w-24 bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-sm text-white text-right focus:outline-none focus:border-orange-500"
-                              value={editPrecoVal}
-                              onChange={e => setEditPrecoVal(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter') salvarPrecoVenda(it.id); if (e.key === 'Escape') setEditPrecoId(null); }}
-                              autoFocus
-                            />
-                            <button onClick={() => salvarPrecoVenda(it.id)} disabled={editPrecoLoading} className="text-green-400 hover:text-green-300 text-xs px-1">✓</button>
-                            <button onClick={() => setEditPrecoId(null)} className="text-zinc-500 hover:text-zinc-300 text-xs px-1">✕</button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 justify-end group">
-                            <span className={it.precoVendaLoja !== null ? 'text-orange-400 font-medium' : 'text-zinc-200'}>
-                              {fmtBRL(it.precoVenda)}
-                            </span>
-                            {it.precoVendaLoja !== null && <span className="text-xs text-zinc-500 line-through">{fmtBRL(it.precoVendaBase)}</span>}
-                            {podeEditarPreco && (
-                              <button
-                                onClick={() => { setEditPrecoId(it.id); setEditPrecoVal(it.precoVendaLoja !== null ? String(it.precoVendaLoja) : ''); }}
-                                className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-orange-400 transition-opacity text-xs ml-1"
-                                title="Editar preço desta loja"
-                              >✎</button>
-                            )}
-                          </div>
-                        )}
+                        <span className="text-zinc-200">{fmtBRL(it.precoVenda)}</span>
                       </td>
                       {verCustos && <td className="p-3 text-right font-medium text-zinc-100 hidden lg:table-cell">{fmtBRL(it.valorTotalCusto)}</td>}
                       <td className="p-3 text-right font-medium text-orange-400 hidden lg:table-cell">{fmtBRL(it.valorTotalPreco)}</td>

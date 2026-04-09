@@ -52,12 +52,21 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
     lojaId: user?.lojaId ? String(user.lojaId) : '',
     previsaoEntrega: '', observacoes: '',
     metodoPagamento: '', dataPagamento: '', numeroParcelas: '1',
+    categoriaId: '', departamentoId: '',
   });
   const [itens, setItens] = useState<Array<{ produtoId: string; quantidade: string; valorUnitario: string; }>>([
     { produtoId: '', quantidade: '1', valorUnitario: '' }
   ]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
+  const [categorias, setCategorias] = useState<{ id: number; nome: string }[]>([]);
+  const [departamentos, setDepartamentos] = useState<{ id: number; nome: string }[]>([]);
+
+  useEffect(() => {
+    api.get<{ id: number; nome: string }[]>('/categorias-financeiras').then(d => setCategorias(Array.isArray(d) ? d : [])).catch(() => {});
+    api.get<{ id: number; nome: string }[]>('/departamentos').then(d => setDepartamentos(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+
   const [showQuickFornecedor, setShowQuickFornecedor] = useState(false);
   const [quickFornecedor, setQuickFornecedor] = useState({ razaoSocial: '', nomeFantasia: '', cnpj: '', telefone: '' });
   const [quickFornecedorLoading, setQuickFornecedorLoading] = useState(false);
@@ -71,6 +80,7 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
         nomeFantasia: quickFornecedor.nomeFantasia || undefined,
         cnpj: quickFornecedor.cnpj || undefined,
         telefone: quickFornecedor.telefone || undefined,
+        lojaId: form.lojaId ? Number(form.lojaId) : undefined,
       });
       setFornecedores(prev => [...prev, novo]);
       selecionarFornecedor(novo);
@@ -141,6 +151,8 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
         metodoPagamento: form.metodoPagamento || undefined,
         dataPagamento: form.dataPagamento || undefined,
         numeroParcelas: form.numeroParcelas ? Number(form.numeroParcelas) : 1,
+        categoriaId: form.categoriaId ? Number(form.categoriaId) : undefined,
+        departamentoId: form.departamentoId ? Number(form.departamentoId) : undefined,
         itens: itens.map(it => ({
           produtoId: Number(it.produtoId),
           quantidade: Number(it.quantidade),
@@ -233,6 +245,20 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
                 onChange={e => setForm(p => ({ ...p, dataPagamento: e.target.value }))} />
               <Input label="Nº de Parcelas" type="number" min="1" max="60" value={form.numeroParcelas}
                 onChange={e => setForm(p => ({ ...p, numeroParcelas: e.target.value }))} placeholder="1" />
+            </div>
+          </div>
+
+          <div className="border-t border-[#27272a] pt-4">
+            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Classificação Financeira</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Select label="Categoria" value={form.categoriaId} onChange={e => setForm(p => ({ ...p, categoriaId: e.target.value }))}>
+                <option value="">Sem categoria</option>
+                {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </Select>
+              <Select label="Departamento" value={form.departamentoId} onChange={e => setForm(p => ({ ...p, departamentoId: e.target.value }))}>
+                <option value="">Sem departamento</option>
+                {departamentos.map(d => <option key={d.id} value={d.id}>{d.nome}</option>)}
+              </Select>
             </div>
           </div>
 

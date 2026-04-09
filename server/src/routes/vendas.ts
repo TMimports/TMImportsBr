@@ -44,9 +44,7 @@ async function criarContasReceber(params: {
       data: {
         lojaId, clienteId, vendaId,
         descricao: `Venda #${vendaId} - ${formaPagamento}`,
-        valor: valorTotal, vencimento, createdBy,
-        pago: formaPagamento === 'PIX' || formaPagamento === 'DINHEIRO' || formaPagamento === 'CARTAO_DEBITO',
-        dataPago: (formaPagamento === 'PIX' || formaPagamento === 'DINHEIRO' || formaPagamento === 'CARTAO_DEBITO') ? new Date() : null
+        valor: valorTotal, vencimento, createdBy
       }
     });
   }

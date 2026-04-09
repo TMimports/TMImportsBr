@@ -397,7 +397,7 @@ router.put('/contas-receber/:id/receber', async (req: AuthRequest, res) => {
     });
 
     // Registrar recebimento
-    await prisma.recebimento.create({
+    const recebimento = await prisma.recebimento.create({
       data: {
         lojaId: contaExistente.lojaId,
         contaReceberId: contaExistente.id,
@@ -419,6 +419,21 @@ router.put('/contas-receber/:id/receber', async (req: AuthRequest, res) => {
         referencia: `receber_${conta.id}`
       }
     });
+
+    // Auto-criar lançamento bancário (conciliação)
+    const contaBancariaReceber = await prisma.contaBancaria.findFirst({ where: { lojaId: conta.lojaId } });
+    if (contaBancariaReceber) {
+      await prisma.lancamentoBancario.create({
+        data: {
+          contaBancariaId: contaBancariaReceber.id,
+          data: new Date(),
+          descricao: `Recebimento: ${conta.descricao}`,
+          valor: valorRecebido,
+          tipo: 'CREDITO',
+          recebimentoId: recebimento.id,
+        }
+      });
+    }
 
     res.json(conta);
   } catch (error) {
@@ -716,7 +731,7 @@ router.put('/contas-pagar/:id/pagar', async (req: AuthRequest, res) => {
     });
 
     // Registrar pagamento
-    await prisma.pagamento.create({
+    const pagamento = await prisma.pagamento.create({
       data: {
         lojaId: contaAtual.lojaId,
         contaPagarId: contaAtual.id,
@@ -738,6 +753,21 @@ router.put('/contas-pagar/:id/pagar', async (req: AuthRequest, res) => {
         referencia: `conta_${conta.id}`
       }
     });
+
+    // Auto-criar lançamento bancário (conciliação)
+    const contaBancariaPagar = await prisma.contaBancaria.findFirst({ where: { lojaId: conta.lojaId } });
+    if (contaBancariaPagar) {
+      await prisma.lancamentoBancario.create({
+        data: {
+          contaBancariaId: contaBancariaPagar.id,
+          data: new Date(),
+          descricao: `${conta.descricao || 'Conta a pagar'} #${conta.id}`,
+          valor: valorPago,
+          tipo: 'DEBITO',
+          pagamentoId: pagamento.id,
+        }
+      });
+    }
 
     res.json(conta);
   } catch (error) {

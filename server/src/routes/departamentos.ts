@@ -35,15 +35,12 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'), async (req: AuthRequest, res) => {
   try {
-    const { nome, natureza, descricao } = req.body;
-    if (!nome || !natureza) {
-      return res.status(400).json({ error: 'Nome e natureza são obrigatórios' });
-    }
-    if (!['RECEITA', 'DESPESA', 'AMBOS'].includes(natureza)) {
-      return res.status(400).json({ error: 'Natureza inválida. Use: RECEITA, DESPESA ou AMBOS' });
+    const { nome, descricao } = req.body;
+    if (!nome) {
+      return res.status(400).json({ error: 'Nome é obrigatório' });
     }
     const dep = await prisma.departamento.create({
-      data: { nome, natureza, descricao: descricao || null }
+      data: { nome, natureza: 'AMBOS', descricao: descricao || null }
     });
     res.status(201).json(dep);
   } catch (error) {
@@ -54,18 +51,12 @@ router.post('/', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'), async (req: Aut
 
 router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'), async (req: AuthRequest, res) => {
   try {
-    const { nome, natureza, descricao, ativo } = req.body;
+    const { nome, descricao, ativo } = req.body;
     const existe = await prisma.departamento.findUnique({ where: { id: Number(req.params.id) } });
     if (!existe) return res.status(404).json({ error: 'Departamento não encontrado' });
 
     const data: any = {};
     if (nome !== undefined) data.nome = nome;
-    if (natureza !== undefined) {
-      if (!['RECEITA', 'DESPESA', 'AMBOS'].includes(natureza)) {
-        return res.status(400).json({ error: 'Natureza inválida' });
-      }
-      data.natureza = natureza;
-    }
     if (descricao !== undefined) data.descricao = descricao || null;
     if (ativo !== undefined) data.ativo = Boolean(ativo);
 

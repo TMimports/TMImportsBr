@@ -66,7 +66,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 // ─── CREATE ───────────────────────────────────────────────────────────────────
 router.post('/', requireRole(...ROLES_COMPRA), async (req: AuthRequest, res) => {
   try {
-    const { lojaId, fornecedor, numero, previsaoEntrega, observacoes, itens, metodoPagamento, dataPagamento, numeroParcelas } = req.body;
+    const { lojaId, fornecedor, numero, previsaoEntrega, observacoes, itens, metodoPagamento, dataPagamento, numeroParcelas, categoriaId, departamentoId } = req.body;
 
     if (!lojaId || !fornecedor || !itens?.length) {
       return res.status(400).json({ error: 'lojaId, fornecedor e itens são obrigatórios' });
@@ -106,6 +106,8 @@ router.post('/', requireRole(...ROLES_COMPRA), async (req: AuthRequest, res) => 
         metodoPagamento: metodoPagamento || null,
         dataPagamento: dataPagamento ? new Date(dataPagamento) : null,
         numeroParcelas: numeroParcelas ? Number(numeroParcelas) : 1,
+        categoriaId: categoriaId ? Number(categoriaId) : null,
+        departamentoId: departamentoId ? Number(departamentoId) : null,
         createdBy: req.user!.id,
         itens: { create: itensValidados },
       },

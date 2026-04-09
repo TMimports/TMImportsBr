@@ -206,7 +206,7 @@ function SecaoDepartamentos() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editando, setEditando] = useState<Departamento | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ nome: '', natureza: 'AMBOS', descricao: '' });
+  const [form, setForm] = useState({ nome: '', descricao: '' });
 
   const load = () => {
     setLoading(true);
@@ -229,7 +229,7 @@ function SecaoDepartamentos() {
       }
       setModalOpen(false);
       setEditando(null);
-      setForm({ nome: '', natureza: 'AMBOS', descricao: '' });
+      setForm({ nome: '', descricao: '' });
       load();
     } catch (err: any) {
       alert(err.message);
@@ -240,7 +240,7 @@ function SecaoDepartamentos() {
 
   const handleEditar = (dep: Departamento) => {
     setEditando(dep);
-    setForm({ nome: dep.nome, natureza: dep.natureza, descricao: dep.descricao || '' });
+    setForm({ nome: dep.nome, descricao: dep.descricao || '' });
     setModalOpen(true);
   };
 
@@ -270,7 +270,7 @@ function SecaoDepartamentos() {
           <h2 className="text-lg font-semibold text-white">Departamentos</h2>
           <p className="text-gray-400 text-sm">Centros de responsabilidade para lançamentos financeiros</p>
         </div>
-        <Button variant="primary" size="sm" onClick={() => { setEditando(null); setForm({ nome: '', natureza: 'AMBOS', descricao: '' }); setModalOpen(true); }}>
+        <Button variant="primary" size="sm" onClick={() => { setEditando(null); setForm({ nome: '', descricao: '' }); setModalOpen(true); }}>
           + Departamento
         </Button>
       </div>
@@ -318,14 +318,7 @@ function SecaoDepartamentos() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Departamento' : 'Novo Departamento'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input label="Nome *" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} required placeholder="Ex: Comercial - Motos" />
-          <Select
-            label="Natureza *"
-            value={form.natureza}
-            onChange={e => setForm({ ...form, natureza: e.target.value })}
-            required
-            options={naturezas}
-          />
+          <Input label="Nome *" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} required placeholder="Ex: Comercial, Administrativo..." />
           <Input label="Descrição" value={form.descricao} onChange={e => setForm({ ...form, descricao: e.target.value })} placeholder="Opcional" />
           <div className="flex justify-end gap-3 pt-3">
             <Button variant="ghost" type="button" onClick={() => setModalOpen(false)}>Cancelar</Button>

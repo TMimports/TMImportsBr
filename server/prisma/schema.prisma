@@ -55,39 +55,39 @@ model Loja {
 }
 
 model User {
-  id                       Int                @id @default(autoincrement())
-  nome                     String
-  email                    String             @unique
-  senha                    String
-  role                     Role
-  ativo                    Boolean            @default(true)
-  mustChangePassword       Boolean            @default(false)
-  grupoId                  Int?
-  lojaId                   Int?
-  cpf                      String?
-  telefone                 String?
-  banco                    String?
-  agencia                  String?
-  conta                    String?
-  tipoConta                String?
-  chavePix                 String?
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
-  createdBy                Int?
-  auditoriaEstoque         AuditoriaEstoque[]
-  comissoes                Comissao[]
-  interacoesCRM            InteracaoCRM[]
-  logs                     LogAuditoria[]
-  logsConfiguracao         LogConfiguracao[]
-  logsEstoque              LogEstoque[]
+  id                        Int                @id @default(autoincrement())
+  nome                      String
+  email                     String             @unique
+  senha                     String
+  role                      Role
+  ativo                     Boolean            @default(true)
+  mustChangePassword        Boolean            @default(false)
+  grupoId                   Int?
+  lojaId                    Int?
+  cpf                       String?
+  telefone                  String?
+  banco                     String?
+  agencia                   String?
+  conta                     String?
+  tipoConta                 String?
+  chavePix                  String?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  createdBy                 Int?
+  auditoriaEstoque          AuditoriaEstoque[]
+  comissoes                 Comissao[]
+  disparosRecebidos         DisparoWhatsApp[]  @relation("DisparoVendedor")
+  disparosEnviados          DisparoWhatsApp[]  @relation("DisparoOperador")
+  interacoesCRM             InteracaoCRM[]
+  logs                      LogAuditoria[]
+  logsConfiguracao          LogConfiguracao[]
+  logsEstoque               LogEstoque[]
   pedidosCompraConfirmados  PedidoCompra[]     @relation("PedidoConfirmadoPor")
-  transferenciasSolicitadas Transferencia[]    @relation("TransferenciaSolicitadaPor")
   transferenciasAprovadas   Transferencia[]    @relation("TransferenciaAprovadaPor")
+  transferenciasSolicitadas Transferencia[]    @relation("TransferenciaSolicitadaPor")
   grupo                     Grupo?             @relation(fields: [grupoId], references: [id])
   loja                      Loja?              @relation(fields: [lojaId], references: [id])
   vendas                    Venda[]            @relation("VendaVendedor")
-  disparosEnviados          DisparoWhatsApp[]  @relation("DisparoOperador")
-  disparosRecebidos         DisparoWhatsApp[]  @relation("DisparoVendedor")
 }
 
 model Produto {
@@ -95,6 +95,7 @@ model Produto {
   codigo            String             @unique @default(cuid())
   nome              String
   tipo              TipoProduto
+  descricao         String?
   custo             Decimal            @db.Decimal(10, 2)
   percentualLucro   Decimal            @db.Decimal(5, 2)
   preco             Decimal            @db.Decimal(10, 2)
@@ -136,25 +137,25 @@ model Servico {
 }
 
 model UnidadeFisica {
-  id            Int            @id @default(autoincrement())
-  produtoId     Int
-  cor           String?
-  chassi        String?
-  codigoMotor   String?
-  ano           Int?
-  numeroSerie   String?
-  status        StatusUnidade  @default(ESTOQUE)
-  lojaId        Int
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  createdBy     Int?
+  id             Int             @id @default(autoincrement())
+  produtoId      Int
+  cor            String?
+  chassi         String?
+  codigoMotor    String?
+  ano            Int?
+  numeroSerie    String?
+  status         StatusUnidade   @default(ESTOQUE)
+  lojaId         Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  createdBy      Int?
   garantias      Garantia[]
   itensVenda     ItemVenda[]
   ordensServico  OrdemServico[]
   revisoes       Revisao[]
   transferencias Transferencia[]
-  loja           Loja           @relation(fields: [lojaId], references: [id])
-  produto        Produto        @relation(fields: [produtoId], references: [id])
+  loja           Loja            @relation(fields: [lojaId], references: [id])
+  produto        Produto         @relation(fields: [produtoId], references: [id])
 }
 
 model Estoque {
@@ -175,48 +176,48 @@ model Estoque {
 }
 
 model Transferencia {
-  id              Int                 @id @default(autoincrement())
-  produtoId       Int
-  lojaOrigemId    Int
-  lojaDestinoId   Int
-  quantidade      Int
-  status          StatusTransferencia @default(SOLICITADA)
-  solicitadoPor   Int
-  aprovadoPor     Int?
-  unidadeFisicaId Int?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  lojaDestino       Loja           @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
-  lojaOrigem        Loja           @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
-  produto           Produto        @relation(fields: [produtoId], references: [id])
-  solicitadoPorUser User           @relation("TransferenciaSolicitadaPor", fields: [solicitadoPor], references: [id])
-  aprovadoPorUser   User?          @relation("TransferenciaAprovadaPor", fields: [aprovadoPor], references: [id])
-  unidadeFisica     UnidadeFisica? @relation(fields: [unidadeFisicaId], references: [id])
+  id                Int                 @id @default(autoincrement())
+  produtoId         Int
+  lojaOrigemId      Int
+  lojaDestinoId     Int
+  quantidade        Int
+  status            StatusTransferencia @default(SOLICITADA)
+  solicitadoPor     Int
+  aprovadoPor       Int?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  unidadeFisicaId   Int?
+  aprovadoPorUser   User?               @relation("TransferenciaAprovadaPor", fields: [aprovadoPor], references: [id])
+  lojaDestino       Loja                @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
+  lojaOrigem        Loja                @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
+  produto           Produto             @relation(fields: [produtoId], references: [id])
+  solicitadoPorUser User                @relation("TransferenciaSolicitadaPor", fields: [solicitadoPor], references: [id])
+  unidadeFisica     UnidadeFisica?      @relation(fields: [unidadeFisicaId], references: [id])
 }
 
 model Cliente {
-  id            Int            @id @default(autoincrement())
-  nome          String
-  cpfCnpj       String?
-  telefone      String?
-  email         String?
-  cep           String?
-  logradouro    String?
-  numero        String?
-  complemento   String?
-  bairro        String?
-  cidade        String?
-  estado        String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  createdBy     Int?
-  lojaId        Int?
-  loja          Loja?          @relation(fields: [lojaId], references: [id])
+  id               Int               @id @default(autoincrement())
+  nome             String
+  cpfCnpj          String?
+  telefone         String?
+  email            String?
+  cep              String?
+  logradouro       String?
+  numero           String?
+  complemento      String?
+  bairro           String?
+  cidade           String?
+  estado           String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdBy        Int?
+  lojaId           Int?
+  loja             Loja?             @relation(fields: [lojaId], references: [id])
+  disparosWhatsApp DisparoWhatsApp[]
   garantias        Garantia[]
   interacoesCRM    InteracaoCRM[]
   ordensServico    OrdemServico[]
   vendas           Venda[]
-  disparosWhatsApp DisparoWhatsApp[]
 }
 
 model Venda {
@@ -481,27 +482,31 @@ model LogConfiguracao {
 }
 
 model PedidoCompra {
-  id               Int                @id @default(autoincrement())
-  lojaId           Int
-  fornecedor       String
-  numero           String?
-  status           StatusPedidoCompra @default(PENDENTE)
-  previsaoEntrega  DateTime?
-  observacoes      String?
-  valorTotal       Decimal            @default(0) @db.Decimal(10, 2)
-  metodoPagamento  String?
+  id              Int                @id @default(autoincrement())
+  lojaId          Int
+  fornecedor      String
+  numero          String?
+  status          StatusPedidoCompra @default(PENDENTE)
+  previsaoEntrega DateTime?
+  observacoes     String?
+  valorTotal      Decimal            @default(0) @db.Decimal(10, 2)
+  confirmedAt     DateTime?
+  confirmedBy     Int?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  createdBy       Int?
   dataPagamento    DateTime?
+  metodoPagamento  String?
   numeroParcelas   Int?               @default(1)
-  confirmedAt      DateTime?
-  confirmedBy      Int?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  createdBy        Int?
+  categoriaId      Int?
+  departamentoId   Int?
   contasPagar      ContaPagar[]
   itens            ItemPedidoCompra[]
   notasFiscais     NotaFiscal[]
   confirmadoPor    User?              @relation("PedidoConfirmadoPor", fields: [confirmedBy], references: [id])
   loja             Loja               @relation(fields: [lojaId], references: [id])
+  categoria        CategoriaFinanceira? @relation(fields: [categoriaId], references: [id])
+  departamento     Departamento?        @relation(fields: [departamentoId], references: [id])
 }
 
 model ItemPedidoCompra {
@@ -542,18 +547,20 @@ model CategoriaFinanceira {
   updatedAt     DateTime           @updatedAt
   contasPagar   ContaPagar[]
   contasReceber ContaReceber[]
+  pedidosCompra PedidoCompra[]
 }
 
 model Departamento {
   id            Int                @id @default(autoincrement())
   nome          String
-  natureza      NaturezaFinanceira
+  natureza      NaturezaFinanceira @default(AMBOS)
   descricao     String?
   ativo         Boolean            @default(true)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   contasPagar   ContaPagar[]
   contasReceber ContaReceber[]
+  pedidosCompra PedidoCompra[]
 }
 
 model ParcelaContaPagar {
@@ -623,35 +630,35 @@ model Recebimento {
 }
 
 model Fornecedor {
-  id           Int              @id @default(autoincrement())
-  lojaId       Int
-  cnpj         String?
-  cpf          String?
-  razaoSocial  String
-  nomeFantasia String?
-  classe       ClasseFornecedor @default(PRODUTO)
-  email        String?
-  telefone     String?
-  celular      String?
-  cep          String?
-  logradouro   String?
-  numero       String?
-  complemento  String?
-  bairro       String?
-  cidade       String?
-  estado       String?
-  contato      String?
-  site         String?
-  observacoes  String?
-  ativo        Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  createdBy    Int?
+  id               Int               @id @default(autoincrement())
+  lojaId           Int
+  cnpj             String?
+  cpf              String?
+  razaoSocial      String
+  nomeFantasia     String?
+  classe           ClasseFornecedor  @default(PRODUTO)
+  email            String?
+  telefone         String?
+  celular          String?
+  cep              String?
+  logradouro       String?
+  numero           String?
+  complemento      String?
+  bairro           String?
+  cidade           String?
+  estado           String?
+  contato          String?
+  site             String?
+  observacoes      String?
+  ativo            Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  createdBy        Int?
   contasPagar      ContaPagar[]
-  loja             Loja             @relation(fields: [lojaId], references: [id])
+  disparosWhatsApp DisparoWhatsApp[]
+  loja             Loja              @relation(fields: [lojaId], references: [id])
   interacoes       InteracaoCRM[]
   notasFiscais     NotaFiscal[]
-  disparosWhatsApp DisparoWhatsApp[]
 }
 
 model InteracaoCRM {
@@ -769,6 +776,39 @@ model LancamentoBancario {
   recebimento     Recebimento?           @relation(fields: [recebimentoId], references: [id])
 
   @@unique([contaBancariaId, fitid])
+}
+
+model TemplateWhatsApp {
+  id        Int               @id @default(autoincrement())
+  nome      String
+  contexto  ContextoWhatsApp
+  mensagem  String
+  ativo     Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  disparos  DisparoWhatsApp[]
+}
+
+model DisparoWhatsApp {
+  id                 Int               @id @default(autoincrement())
+  templateId         Int?
+  destinatario       String
+  numero             String
+  mensagem           String
+  status             StatusDisparo     @default(PENDENTE)
+  tipo               TipoDisparo       @default(MANUAL)
+  contexto           ContextoWhatsApp?
+  operadorId         Int?
+  destinatarioUserId Int?
+  clienteId          Int?
+  fornecedorId       Int?
+  createdAt          DateTime          @default(now())
+  enviadoAt          DateTime?
+  cliente            Cliente?          @relation(fields: [clienteId], references: [id])
+  destinatarioUser   User?             @relation("DisparoVendedor", fields: [destinatarioUserId], references: [id])
+  fornecedor         Fornecedor?       @relation(fields: [fornecedorId], references: [id])
+  operador           User?             @relation("DisparoOperador", fields: [operadorId], references: [id])
+  template           TemplateWhatsApp? @relation(fields: [templateId], references: [id])
 }
 
 enum Role {
@@ -933,41 +973,6 @@ enum TipoMovimentoEstoque {
   PERDA
   AVARIA
   RESERVA
-}
-
-// ─── WhatsApp CRM ─────────────────────────────────────────────────────────────
-
-model TemplateWhatsApp {
-  id        Int              @id @default(autoincrement())
-  nome      String
-  contexto  ContextoWhatsApp
-  mensagem  String           @db.Text
-  ativo     Boolean          @default(true)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  disparos  DisparoWhatsApp[]
-}
-
-model DisparoWhatsApp {
-  id                   Int               @id @default(autoincrement())
-  templateId           Int?
-  destinatario         String
-  numero               String
-  mensagem             String            @db.Text
-  status               StatusDisparo     @default(PENDENTE)
-  tipo                 TipoDisparo       @default(MANUAL)
-  contexto             ContextoWhatsApp?
-  operadorId           Int?
-  destinatarioUserId   Int?
-  clienteId            Int?
-  fornecedorId         Int?
-  createdAt            DateTime          @default(now())
-  enviadoAt            DateTime?
-  template             TemplateWhatsApp? @relation(fields: [templateId], references: [id])
-  operador             User?             @relation("DisparoOperador", fields: [operadorId], references: [id])
-  destinatarioUser     User?             @relation("DisparoVendedor", fields: [destinatarioUserId], references: [id])
-  cliente              Cliente?          @relation(fields: [clienteId], references: [id])
-  fornecedor           Fornecedor?       @relation(fields: [fornecedorId], references: [id])
 }
 
 enum ContextoWhatsApp {

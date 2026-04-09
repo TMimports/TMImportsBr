@@ -55,6 +55,15 @@ const LOGISTICA_GROUP = group('logistica-group', 'Logística', '📦', [
   { id: 'estoque',   label: 'Estoque',   icon: '📋' },
 ]);
 
+// Cadastros — registro de entidades base do sistema
+const CADASTROS_GROUP = group('cadastros-group', 'Cadastros', '📝', [
+  { id: 'produtos',        label: 'Produtos',         icon: '🏍️' },
+  { id: 'servicos',        label: 'Serviços',         icon: '🔧' },
+  { id: 'clientes',        label: 'Clientes',         icon: '👤' },
+  { id: 'fin-fornecedores',label: 'Fornecedores',     icon: '🤝' },
+  { id: 'fin-categorias',  label: 'Categ. / Depart.', icon: '🏷' },
+]);
+
 // Financeiro — grupo com sub-itens na barra lateral
 const FIN_GROUP = group('fin-group', 'Financeiro', '💵', [
   { id: 'fin-visao-geral',    label: 'Visão Geral',   icon: '📊' },
@@ -104,6 +113,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('dashboard', 'Dashboard', '📊'),
     REDE_GROUP,
     LOGISTICA_GROUP,
+    CADASTROS_GROUP,
     VENDAS_GROUP(),
     FIN_GROUP,
     WHATSAPP_ITEM,
@@ -113,6 +123,7 @@ const menuItems: Record<string, NavEntry[]> = {
   ADMIN_FINANCEIRO: [
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',   'Estoque',   '📋'),
+    CADASTROS_GROUP,
     COMERCIAL_FIN_GROUP,
     FIN_GROUP,
     item('comissoes', 'Comissões', '💸'),
@@ -130,6 +141,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('dashboard', 'Dashboard', '📊'),
     item('lojas',     'Lojas',     '🏪'),
     item('estoque',   'Estoque',   '📋'),
+    CADASTROS_GROUP,
     VENDAS_GROUP(),
     FIN_GROUP,
     WHATSAPP_ITEM,
@@ -139,6 +151,7 @@ const menuItems: Record<string, NavEntry[]> = {
   GERENTE_LOJA: [
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',   'Estoque',   '📋'),
+    CADASTROS_GROUP,
     VENDAS_GROUP(),
     FIN_GROUP,
     WHATSAPP_ITEM,
