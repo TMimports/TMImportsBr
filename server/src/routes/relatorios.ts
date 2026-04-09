@@ -14,7 +14,7 @@ router.get('/destinatarios', async (req: AuthRequest, res) => {
     const usuarios = await prisma.user.findMany({
       where: {
         ativo: true,
-        role: { in: rolesComRelatorio }
+        role: { in: rolesComRelatorio as any }
       },
       select: {
         id: true, nome: true, email: true, role: true,
@@ -61,7 +61,7 @@ router.post('/disparar', async (req: AuthRequest, res) => {
       };
 
       const usuarios = await prisma.user.findMany({
-        where: { ativo: true, role: { in: ROLES_MAP[tipo] } },
+        where: { ativo: true, role: { in: ROLES_MAP[tipo] as any } },
         select: { nome: true, email: true, lojaId: true }
       });
 

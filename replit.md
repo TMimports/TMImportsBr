@@ -94,3 +94,16 @@ This project is a comprehensive multi-company ERP system for TM Imports and its 
 - AuthContext NEVER exports `token`. Use `api.get/post/put/patch/delete` — api returns data directly, NOT wrapped in `.data`
 - All pages use NAMED exports; App.tsx uses named imports
 - Fornecedor schema: uses `classe: ClasseFornecedor` (PRODUTO/SERVICO/AMBOS), NOT `tipo`
+
+### Audit Notes (2026-04-09)
+- **Venda model**: uses `valorTotal` (NOT `total`). All routes/services fixed to use `valorTotal`.
+- **OrdemServico model**: uses `valorTotal` (NOT `total`).
+- **Configuracao model**: global (NO lojaId). Fields: `comissaoVendedorMoto`, `comissaoTecnico`, etc.
+- **ContaPagar.fornecedor**: plain String? field (NOT a relation). No `fornecedorRel`.
+- **UnidadeFisica**: correct Prisma model name (NOT `unidade`).
+- **Departamento**: natureza field removed from form (defaults to AMBOS). Still in DB/display.
+- **Estoque TabGerencial**: price editing removed. Display only.
+- **PedidosCompra**: fornecedor quick-create now passes lojaId. Form has categoria/departamento fields.
+- **Layout**: CADASTROS_GROUP added for ADMIN_GERAL, ADMIN_FINANCEIRO, DONO_LOJA, GERENTE_LOJA.
+- **Backend TypeScript**: 0 errors confirmed after audit.
+- **Frontend TypeScript**: 0 errors confirmed after audit.

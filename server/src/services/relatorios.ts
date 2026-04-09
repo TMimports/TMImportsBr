@@ -97,15 +97,15 @@ async function coletarDadosComerciais(inicio: Date, fim: Date, lojaId?: number) 
     prisma.venda.groupBy({
       by: ['vendedorId'],
       _count: { id: true },
-      _sum: { total: true },
+      _sum: { valorTotal: true },
       where: whereVenda,
-      orderBy: { _sum: { total: 'desc' } },
+      orderBy: { _sum: { valorTotal: 'desc' } },
       take: 10
     })
   ]);
 
-  const totalVendas = vendas.reduce((acc, v) => acc + Number(v.total || 0), 0);
-  const totalOS = ordensServico.reduce((acc, o) => acc + Number(o.total || 0), 0);
+  const totalVendas = vendas.reduce((acc, v) => acc + Number(v.valorTotal || 0), 0);
+  const totalOS = ordensServico.reduce((acc, o) => acc + Number((o as any).total || (o as any).valorTotal || 0), 0);
 
   const rankingComNome = await Promise.all(
     ranking.map(async (r) => {
@@ -113,8 +113,8 @@ async function coletarDadosComerciais(inicio: Date, fim: Date, lojaId?: number) 
       const user = await prisma.user.findUnique({ where: { id: r.vendedorId }, select: { nome: true } });
       return {
         nome: user?.nome || 'Desconhecido',
-        qtd: r._count.id,
-        total: Number(r._sum.total || 0)
+        qtd: r._count?.id || 0,
+        total: Number(r._sum?.valorTotal || 0)
       };
     })
   );
@@ -123,7 +123,7 @@ async function coletarDadosComerciais(inicio: Date, fim: Date, lojaId?: number) 
     const loja = v.loja?.nomeFantasia || 'Sem loja';
     if (!acc[loja]) acc[loja] = { qtd: 0, total: 0 };
     acc[loja].qtd++;
-    acc[loja].total += Number(v.total || 0);
+    acc[loja].total += Number(v.valorTotal || 0);
     return acc;
   }, {});
 
@@ -137,7 +137,7 @@ async function coletarDadosComerciais(inicio: Date, fim: Date, lojaId?: number) 
     faturamentoTotal: totalVendas + totalOS,
     ranking: rankingComNome.filter(Boolean),
     porLoja,
-    vendas: vendas.slice(0, 20)
+    vendas: (vendas as any[]).slice(0, 20)
   };
 }
 
@@ -151,7 +151,7 @@ async function coletarDadosEstoque(lojaId?: number) {
       where
     }),
     prisma.estoque.count({ where: { ...where, quantidade: { lte: 0 } } }),
-    prisma.unidade.count({ where: { ...where, status: 'ESTOQUE' } })
+    prisma.unidadeFisica.count({ where: { ...where, status: 'ESTOQUE' } })
   ]);
 
   const itensEstoque = await prisma.estoque.findMany({
@@ -427,7 +427,7 @@ function gerarPlanilhaXLSX(tipo: TipoRelatorio, dados: any, periodo: PeriodoRela
           v.cliente?.nome || '-',
           v.vendedor?.nome || '-',
           v.loja?.nomeFantasia || '-',
-          Number(v.total || 0)
+          Number(v.valorTotal || v.total || 0)
         ])
       ]);
     }
@@ -514,7 +514,7 @@ export async function dispararRelatoriosPorRole(periodo: PeriodoRelatorio) {
   const rolesDestinatarios = Object.keys(ROLE_RELATORIO_MAP);
 
   const usuarios = await prisma.user.findMany({
-    where: { ativo: true, role: { in: rolesDestinatarios } },
+    where: { ativo: true, role: { in: rolesDestinatarios as any } },
     select: { id: true, nome: true, email: true, role: true, lojaId: true }
   });
 

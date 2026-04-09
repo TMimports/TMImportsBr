@@ -385,7 +385,7 @@ router.get('/candidatos', async (req: AuthRequest, res) => {
           ...(valorNum ? { valor: { gte: valorNum * 0.9, lte: valorNum * 1.1 } } : {}),
         },
         include: {
-          contaPagar: { select: { descricao: true, fornecedor: { select: { razaoSocial: true } } } },
+          contaPagar: { select: { descricao: true, fornecedor: true } },
           loja: { select: { nomeFantasia: true } },
         },
         orderBy: { dataPagamento: 'desc' },

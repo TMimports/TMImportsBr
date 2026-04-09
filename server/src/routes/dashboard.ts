@@ -868,7 +868,7 @@ router.get('/vendedor', async (req: AuthRequest, res) => {
       const k = String(item.produtoId);
       if (!prodMap[k]) prodMap[k] = { nome: item.produto?.nome || '?', tipo: item.produto?.tipo || '', qtd: 0, fat: 0 };
       prodMap[k].qtd += item.quantidade;
-      prodMap[k].fat += Number(item.valorUnitario ?? item.precoUnitario) * item.quantidade;
+      prodMap[k].fat += Number(item.precoUnitario) * item.quantidade;
     }
     const topProdutos = Object.values(prodMap).sort((a, b) => b.fat - a.fat).slice(0, 5);
 
@@ -910,10 +910,10 @@ router.get('/vendedor', async (req: AuthRequest, res) => {
     // Metas (configurações da loja)
     let metaMotoPerc = 0, metaComissaoPerc = 0;
     if (lojaId) {
-      const conf = await prisma.configuracoes.findFirst({ where: { lojaId } });
+      const conf = await prisma.configuracao.findFirst();
       if (conf) {
-        metaMotoPerc = Number(conf.comissaoMoto);
-        metaComissaoPerc = Number(conf.comissaoServico);
+        metaMotoPerc = Number(conf.comissaoVendedorMoto);
+        metaComissaoPerc = Number(conf.comissaoTecnico);
       }
     }
 
