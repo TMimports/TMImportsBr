@@ -28,6 +28,7 @@ interface ItemGerencial {
   id: number; produtoId: number; nome: string; tipo: string; codigo: string;
   quantidade: number; estoqueMinimo: number; estoqueMaximo: number;
   custoMedio: number; precoVenda: number;
+  precoVendaLoja: number | null; precoVendaBase: number;
   valorTotalCusto: number; valorTotalPreco: number;
   alerta: boolean; semEstoque: boolean;
 }
@@ -64,6 +65,7 @@ interface Transferencia {
   produto: { id: number; nome: string; tipo: string; };
   solicitadoPorUser: { id: number; nome: string; };
   aprovadoPorUser?: { id: number; nome: string; } | null;
+  unidadeFisica?: { id: number; chassi: string | null; cor: string | null; ano: number | null; codigoMotor: string | null; } | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -411,12 +413,29 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [expandedErro, setExpandedErro] = useState('');
   const [expandedSucesso, setExpandedSucesso] = useState(false);
+  const [editPrecoId, setEditPrecoId] = useState<number | null>(null);
+  const [editPrecoVal, setEditPrecoVal] = useState('');
+  const [editPrecoLoading, setEditPrecoLoading] = useState(false);
 
   const { user: userTabG } = useAuth();
   const verCustos = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(userTabG?.role || '');
+  const podeEditarPreco = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userTabG?.role || '');
   const isAdmin = minhaLojaId === null;
   const podeTransferir = isAdmin || lojaId === minhaLojaId;
   const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
+
+  async function salvarPrecoVenda(estoqueId: number) {
+    setEditPrecoLoading(true);
+    try {
+      const val = editPrecoVal.trim() === '' ? null : Number(editPrecoVal.replace(',', '.'));
+      await api.put(`/estoque/${estoqueId}`, { precoVenda: val });
+      setEditPrecoId(null);
+      onTransferido?.();
+    } catch {
+    } finally {
+      setEditPrecoLoading(false);
+    }
+  }
 
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase();
@@ -495,7 +514,37 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
                         <p className="text-xs text-zinc-500">mín {it.estoqueMinimo}</p>
                       </td>
                       {verCustos && <td className="p-3 text-right text-zinc-200 hidden md:table-cell">{fmtBRL(it.custoMedio)}</td>}
-                      <td className="p-3 text-right text-zinc-200 hidden md:table-cell">{fmtBRL(it.precoVenda)}</td>
+                      <td className="p-3 text-right hidden md:table-cell">
+                        {editPrecoId === it.id ? (
+                          <div className="flex items-center gap-1 justify-end">
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-24 bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-sm text-white text-right focus:outline-none focus:border-orange-500"
+                              value={editPrecoVal}
+                              onChange={e => setEditPrecoVal(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') salvarPrecoVenda(it.id); if (e.key === 'Escape') setEditPrecoId(null); }}
+                              autoFocus
+                            />
+                            <button onClick={() => salvarPrecoVenda(it.id)} disabled={editPrecoLoading} className="text-green-400 hover:text-green-300 text-xs px-1">✓</button>
+                            <button onClick={() => setEditPrecoId(null)} className="text-zinc-500 hover:text-zinc-300 text-xs px-1">✕</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 justify-end group">
+                            <span className={it.precoVendaLoja !== null ? 'text-orange-400 font-medium' : 'text-zinc-200'}>
+                              {fmtBRL(it.precoVenda)}
+                            </span>
+                            {it.precoVendaLoja !== null && <span className="text-xs text-zinc-500 line-through">{fmtBRL(it.precoVendaBase)}</span>}
+                            {podeEditarPreco && (
+                              <button
+                                onClick={() => { setEditPrecoId(it.id); setEditPrecoVal(it.precoVendaLoja !== null ? String(it.precoVendaLoja) : ''); }}
+                                className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-orange-400 transition-opacity text-xs ml-1"
+                                title="Editar preço desta loja"
+                              >✎</button>
+                            )}
+                          </div>
+                        )}
+                      </td>
                       {verCustos && <td className="p-3 text-right font-medium text-zinc-100 hidden lg:table-cell">{fmtBRL(it.valorTotalCusto)}</td>}
                       <td className="p-3 text-right font-medium text-orange-400 hidden lg:table-cell">{fmtBRL(it.valorTotalPreco)}</td>
                       <td className="p-3">
@@ -637,11 +686,65 @@ function TabUnitaria({
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [expandedErro, setExpandedErro] = useState('');
   const [expandedSucesso, setExpandedSucesso] = useState(false);
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+  const [loteDestino, setLoteDestino] = useState<number | ''>('');
+  const [loteLoading, setLoteLoading] = useState(false);
+  const [loteErro, setLoteErro] = useState('');
+  const [loteSucesso, setLoteSucesso] = useState(false);
 
   const isAdmin = minhaLojaId === null;
   const isOutraLoja = !isAdmin && lojaId !== minhaLojaId;
   const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
   const minhaLojaNome = lojas.find(l => l.id === minhaLojaId)?.nomeFantasia || 'Minha Loja';
+
+  function toggleSelecionado(id: number) {
+    setSelecionados(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleTodos(lista: ItemUnitario[]) {
+    const disponíveis = lista.filter(u => u.status === 'ESTOQUE');
+    const todosIds = disponíveis.map(u => u.id);
+    const todosSelecionados = todosIds.every(id => selecionados.has(id));
+    setSelecionados(prev => {
+      const next = new Set(prev);
+      if (todosSelecionados) {
+        todosIds.forEach(id => next.delete(id));
+      } else {
+        todosIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  }
+
+  async function executarLote(itens: ItemUnitario[]) {
+    if (!loteDestino || selecionados.size === 0) return;
+    setLoteLoading(true);
+    setLoteErro('');
+    try {
+      const unidadesSelecionadas = itens.filter(u => selecionados.has(u.id));
+      await Promise.all(unidadesSelecionadas.map(u =>
+        api.post('/transferencias', {
+          produtoId: u.produtoId,
+          unidadeFisicaId: u.id,
+          lojaOrigemId: lojaId,
+          lojaDestinoId: Number(loteDestino),
+          quantidade: 1,
+        })
+      ));
+      setLoteSucesso(true);
+      setSelecionados(new Set());
+      setLoteDestino('');
+      setTimeout(() => { setLoteSucesso(false); onTransferido?.(); }, 1800);
+    } catch (e: any) {
+      setLoteErro(e?.message || 'Erro ao solicitar transferências');
+    } finally {
+      setLoteLoading(false);
+    }
+  }
 
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase();
@@ -673,6 +776,7 @@ function TabUnitaria({
     try {
       await api.post('/transferencias', {
         produtoId: unidade.produtoId,
+        unidadeFisicaId: unidade.id,
         lojaOrigemId: lojaId,
         lojaDestinoId: destino,
         quantidade: 1,
@@ -693,11 +797,24 @@ function TabUnitaria({
     return <div className="text-center py-12 text-zinc-500">Nenhuma unidade encontrada</div>;
   }
 
+  const podeSolicitarLote = !isOutraLoja && lojas.filter(l => l.id !== lojaId).length > 0;
+
   return (
-    <div className="overflow-x-auto">
+    <div>
+      <div className="overflow-x-auto">
       <table className="w-full text-sm min-w-[640px]">
         <thead>
           <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
+            {podeSolicitarLote && (
+              <th className="p-3 w-10">
+                <input
+                  type="checkbox"
+                  className="accent-orange-500 cursor-pointer"
+                  checked={lista.filter(u => u.status === 'ESTOQUE').length > 0 && lista.filter(u => u.status === 'ESTOQUE').every(u => selecionados.has(u.id))}
+                  onChange={() => toggleTodos(lista)}
+                />
+              </th>
+            )}
             <th className="text-left p-3 font-medium">Chassi</th>
             <th className="text-left p-3 font-medium">Modelo</th>
             <th className="text-left p-3 font-medium hidden md:table-cell">Cód. Motor</th>
@@ -713,7 +830,20 @@ function TabUnitaria({
             const podeAcionar = u.status === 'ESTOQUE';
             return (
               <Fragment key={u.id}>
-                <tr className={`border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors ${isExp ? 'bg-zinc-800/20' : ''}`}>
+                <tr className={`border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors ${isExp ? 'bg-zinc-800/20' : ''} ${selecionados.has(u.id) ? 'bg-orange-500/5' : ''}`}>
+                  {podeSolicitarLote && (
+                    <td className="p-3">
+                      {podeAcionar && (
+                        <input
+                          type="checkbox"
+                          className="accent-orange-500 cursor-pointer"
+                          checked={selecionados.has(u.id)}
+                          onChange={() => toggleSelecionado(u.id)}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      )}
+                    </td>
+                  )}
                   <td className="p-3 font-mono text-zinc-200 text-xs">{u.chassi}</td>
                   <td className="p-3 text-white font-medium">{u.modeloNome}</td>
                   <td className="p-3 font-mono text-zinc-400 text-xs hidden md:table-cell">{u.codigoMotor || '—'}</td>
@@ -812,6 +942,48 @@ function TabUnitaria({
           })}
         </tbody>
       </table>
+      </div>
+
+      {/* Barra de ação em lote */}
+      {podeSolicitarLote && selecionados.size > 0 && (
+        <div className="mt-3 bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+          {loteSucesso ? (
+            <p className="text-green-400 font-medium text-sm flex items-center gap-2">
+              <span>✓</span> Transferências em lote solicitadas com sucesso!
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-orange-400 font-medium text-sm">
+                {selecionados.size} unidade{selecionados.size > 1 ? 's' : ''} selecionada{selecionados.size > 1 ? 's' : ''}
+              </span>
+              <select
+                value={loteDestino}
+                onChange={e => setLoteDestino(e.target.value ? Number(e.target.value) : '')}
+                className="bg-zinc-800 border border-zinc-600 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+              >
+                <option value="">Transferir para...</option>
+                {lojas.filter(l => l.id !== lojaId).map(l => (
+                  <option key={l.id} value={l.id} className="bg-zinc-800">{l.nomeFantasia}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => executarLote(lista)}
+                disabled={!loteDestino || loteLoading}
+                className="text-sm bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 px-4 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                {loteLoading ? 'Solicitando...' : '↔ Solicitar Transferência em Lote'}
+              </button>
+              <button
+                onClick={() => setSelecionados(new Set())}
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                Limpar seleção
+              </button>
+              {loteErro && <p className="text-red-400 text-xs w-full">{loteErro}</p>}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -926,7 +1098,14 @@ function TabSolicitacoes({
             {pendentes.map(t => (
               <div key={t.id} className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-4 flex items-center gap-4">
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm">{t.produto?.nome}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white font-medium text-sm">{t.produto?.nome}</p>
+                    {t.unidadeFisica?.chassi && (
+                      <span className="font-mono text-orange-400 text-xs bg-orange-500/10 border border-orange-500/30 px-1.5 py-0.5 rounded">
+                        {t.unidadeFisica.chassi}{t.unidadeFisica.cor ? ` · ${t.unidadeFisica.cor}` : ''}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-zinc-400 text-xs mt-0.5">
                     De: <span className="text-orange-400">{t.lojaOrigem?.nomeFantasia}</span>
                     {' → '}
@@ -969,7 +1148,7 @@ function TabSolicitacoes({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
-                  <th className="text-left p-3">Produto</th>
+                  <th className="text-left p-3">Produto / Chassi</th>
                   <th className="text-left p-3">Origem</th>
                   <th className="text-left p-3">Destino</th>
                   <th className="text-left p-3">Solicitado por</th>
@@ -982,7 +1161,12 @@ function TabSolicitacoes({
                   const st = STATUS_TRANSFERENCIA[t.status] || { label: t.status, cls: '' };
                   return (
                     <tr key={t.id} className="border-b border-[#27272a] hover:bg-zinc-800/20">
-                      <td className="p-3 text-white">{t.produto?.nome}</td>
+                      <td className="p-3">
+                        <p className="text-white">{t.produto?.nome}</p>
+                        {t.unidadeFisica?.chassi && (
+                          <p className="font-mono text-orange-400 text-xs">{t.unidadeFisica.chassi}{t.unidadeFisica.cor ? ` · ${t.unidadeFisica.cor}` : ''}</p>
+                        )}
+                      </td>
                       <td className="p-3 text-zinc-300 text-xs">{t.lojaOrigem?.nomeFantasia}</td>
                       <td className="p-3 text-zinc-300 text-xs">{t.lojaDestino?.nomeFantasia}</td>
                       <td className="p-3 text-zinc-400 text-xs">{t.solicitadoPorUser?.nome}</td>

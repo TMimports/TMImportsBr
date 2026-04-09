@@ -10,10 +10,12 @@ router.use(verifyToken);
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
+    const { lojaId: queryLojaId } = req.query;
 
     const where: any = { deletedAt: null };
     if (filter.lojaId) where.lojaId = filter.lojaId;
-    if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+    else if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
+    else if (queryLojaId) where.lojaId = Number(queryLojaId);
 
     const ordens = await prisma.ordemServico.findMany({
       where,

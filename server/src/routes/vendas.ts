@@ -89,12 +89,13 @@ async function criarGarantiasVenda(vendaId: number, clienteId: number, itens: an
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
-    const { lojaId: queryLojaId } = req.query;
+    const { lojaId: queryLojaId, clienteId: queryClienteId } = req.query;
 
     const where: any = { deletedAt: null };
     if (filter.lojaId) where.lojaId = filter.lojaId;
     else if (filter.grupoId) where.loja = { grupoId: filter.grupoId };
     if (queryLojaId && !filter.lojaId) where.lojaId = Number(queryLojaId);
+    if (queryClienteId) where.clienteId = Number(queryClienteId);
     const vendas = await prisma.venda.findMany({
       where,
       include: {
@@ -140,7 +141,9 @@ router.get('/produtos-catalogo/:lojaId', async (req: AuthRequest, res) => {
     const resultado = produtos.map(p => ({
       id: p.id,
       nome: p.nome,
-      preco: p.preco,
+      preco: p.estoques[0]?.precoVenda ?? p.preco,
+      precoBase: p.preco,
+      precoLoja: p.estoques[0]?.precoVenda ?? null,
       tipo: p.tipo,
       codigo: p.codigo,
       estoque: p.estoques[0]?.quantidade || 0
@@ -190,6 +193,10 @@ router.post('/', async (req: AuthRequest, res) => {
 
     if (!clienteId || !lojaId || !formaPagamento || !itens?.length) {
       return res.status(400).json({ error: 'Dados incompletos' });
+    }
+
+    if (req.user?.lojaId && req.user.lojaId !== Number(lojaId)) {
+      return res.status(403).json({ error: 'Você só pode registrar vendas para sua própria loja.' });
     }
 
     const config = await prisma.configuracao.findFirst();

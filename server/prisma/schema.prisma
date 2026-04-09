@@ -148,12 +148,13 @@ model UnidadeFisica {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   createdBy     Int?
-  garantias     Garantia[]
-  itensVenda    ItemVenda[]
-  ordensServico OrdemServico[]
-  revisoes      Revisao[]
-  loja          Loja           @relation(fields: [lojaId], references: [id])
-  produto       Produto        @relation(fields: [produtoId], references: [id])
+  garantias      Garantia[]
+  itensVenda     ItemVenda[]
+  ordensServico  OrdemServico[]
+  revisoes       Revisao[]
+  transferencias Transferencia[]
+  loja           Loja           @relation(fields: [lojaId], references: [id])
+  produto        Produto        @relation(fields: [produtoId], references: [id])
 }
 
 model Estoque {
@@ -166,6 +167,7 @@ model Estoque {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   custoMedio    Decimal? @db.Decimal(10, 2)
+  precoVenda    Decimal? @db.Decimal(10, 2)
   loja          Loja     @relation(fields: [lojaId], references: [id])
   produto       Produto  @relation(fields: [produtoId], references: [id])
 
@@ -173,21 +175,23 @@ model Estoque {
 }
 
 model Transferencia {
-  id            Int                 @id @default(autoincrement())
-  produtoId     Int
-  lojaOrigemId  Int
-  lojaDestinoId Int
-  quantidade    Int
-  status        StatusTransferencia @default(SOLICITADA)
-  solicitadoPor Int
-  aprovadoPor   Int?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  lojaDestino       Loja    @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
-  lojaOrigem        Loja    @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
-  produto           Produto @relation(fields: [produtoId], references: [id])
-  solicitadoPorUser User    @relation("TransferenciaSolicitadaPor", fields: [solicitadoPor], references: [id])
-  aprovadoPorUser   User?   @relation("TransferenciaAprovadaPor", fields: [aprovadoPor], references: [id])
+  id              Int                 @id @default(autoincrement())
+  produtoId       Int
+  lojaOrigemId    Int
+  lojaDestinoId   Int
+  quantidade      Int
+  status          StatusTransferencia @default(SOLICITADA)
+  solicitadoPor   Int
+  aprovadoPor     Int?
+  unidadeFisicaId Int?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  lojaDestino       Loja           @relation("TransferenciaDestino", fields: [lojaDestinoId], references: [id])
+  lojaOrigem        Loja           @relation("TransferenciaOrigem", fields: [lojaOrigemId], references: [id])
+  produto           Produto        @relation(fields: [produtoId], references: [id])
+  solicitadoPorUser User           @relation("TransferenciaSolicitadaPor", fields: [solicitadoPor], references: [id])
+  aprovadoPorUser   User?          @relation("TransferenciaAprovadaPor", fields: [aprovadoPor], references: [id])
+  unidadeFisica     UnidadeFisica? @relation(fields: [unidadeFisicaId], references: [id])
 }
 
 model Cliente {

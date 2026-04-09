@@ -1,0 +1,32 @@
+[16:28, 08/04/2026] João Ferreira Tecle: - Acionamento da Garantia -> Ordem de Serviço -> Análise Técnica -> Laudo Técnico -> Ordem de Serviço de Garantia ou Orçamento. 
+	Dois caminhos
+	- Acatar garantia: baixa de produto para reposição 
+	- Não acatar garantia: gera uma orçamento para situação.
+[16:54, 08/04/2026] João Ferreira Tecle: Transferências de motos entre lojas 
+- Parte de transferência entre lojas evidenciar o Chassi transferido. 
+- Solicitação de transferência em Lote
+ * Seleciono o modelo que desejo e depois selecionar o Chassi que desejo
+	OBS: é preterido escolher o Chassi, pois a cor é atrelada com a cor. 
+- Visualização diferente para funcionário que for realizar solicitação de moto. Qual moto/chassi que vai ser direcionado é selecionado pelo Admin
+- Impossibilitar que o funcionário visualize o valor de Custo das peças e Motos
+- Na aba venda um hyperlink para direcionar para o cadastramento do Cliente. Sem ter a necessidade de sair da venda
+- Modulos de venda/financeiro/dashboard e tudo mais devem ser selecionados as empresas com base no filtro grande geral.
+ * Impossibilitar que um loja registra venda para outra loja
+- Na aba da conciliação deve ter as informações da conta bancária e as informações de lançamento de Contas a Receber e Contas a Pagar.
+- Venda registrar um contas a receber do valor e ser confirmado com o financeiro
+- Na pedido de compra um hyperlink para direcionar para o cadastramento do Fornecedores. Sem ter a necessidade de sair da pedido de compra
+- Pedido de Compra -  Data para pagamento - Método de Pagamento - Parcelas - Vencimentos. Pedido de compra irá gerar um contas a pagar após confirmado
+- Conciliação bancário com o Contas a Receber e Contas a Pagar - Desvincular
+- Retirar o Centro de Custo. Centro de custo = Departamento
+- Abertura de Garantia - Ao selecionar o cliente ter atrelado a ele, as compras realizadas. Atrelar o pedido de venda no chamado de garantia. Moto, peça e serviços
+- Diferenciação entre abertura de garantias e Orçamento de serviço. Caso não atenda a garantia, devemos fazer uma OS. 
+ - Acionamento da Garantia -> Ordem de Serviço -> Análise Técnica -> Laudo Técnico -> Ordem de Serviço de Garantia ou Orçamento. 
+	Dois caminhos
+	- Acatar garantia: baixa de produto para reposição  
+	- Não acatar garantia: gera uma orçamento para situação.
+ * Laudo técnico de garantia efetivando se é ou não uma garantia
+[17:02, 08/04/2026] João Ferreira Tecle: -  Permitir criação de perfis e administrar quais acessos a pessoa possa ter aos modulos. 
+Somente "Administrador Geral" posso gerenciar os Usuários da Plataforma.
+[17:03, 08/04/2026] João Ferreira Tecle: (FUTURAMENTE) RH e Departamento Pessoal - Criação de Registro de Ponto
+[17:06, 08/04/2026] João Ferreira Tecle: -- Margem de lucro não ser determinante para o preço de venda. Servir mais como um informativo e não determinante. Preço de venda alterável por Loja (Cada uma terá seu preço de venda)
+[17:07, 08/04/2026] João Ferreira Tecle: -- Mudança de loja no canto superior direito para outra. Deve emitir uma mensagem perguntando se quer realmente alterar.

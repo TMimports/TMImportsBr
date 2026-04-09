@@ -165,7 +165,7 @@ export function Vendas() {
         setClientes(clientesData);
         setLojas(lojasData);
         if (configData) setConfigDescontos(configData);
-        const preselLoja = filtroLoja ?? (lojasData.length === 1 ? lojasData[0].id : null);
+        const preselLoja = filtroLoja ?? user?.lojaId ?? (lojasData.length === 1 ? lojasData[0].id : null);
         if (preselLoja) {
           const lojaIdStr = String(preselLoja);
           setForm(f => ({ ...f, lojaId: lojaIdStr }));
@@ -576,7 +576,7 @@ export function Vendas() {
             </div>
           </div>
 
-          {lojas.length > 1 && (
+          {lojas.length > 1 && !user?.lojaId && (
             <CustomSelect
               label="Loja"
               required

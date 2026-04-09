@@ -12,6 +12,7 @@ const INCLUDE_FULL = {
   produto: { select: { id: true, nome: true, tipo: true, codigo: true } },
   solicitadoPorUser: { select: { id: true, nome: true, role: true } },
   aprovadoPorUser:   { select: { id: true, nome: true, role: true } },
+  unidadeFisica: { select: { id: true, chassi: true, cor: true, ano: true, codigoMotor: true } },
 };
 
 // GET /api/transferencias — lista solicitações
@@ -60,11 +61,12 @@ router.post('/', async (req: AuthRequest, res) => {
 
     const transferencia = await prisma.transferencia.create({
       data: {
-        produtoId:     Number(produtoId),
-        lojaOrigemId:  Number(lojaOrigemId),
-        lojaDestinoId: Number(lojaDestinoId),
-        quantidade:    Number(quantidade),
-        solicitadoPor: req.user!.id,
+        produtoId:       Number(produtoId),
+        lojaOrigemId:    Number(lojaOrigemId),
+        lojaDestinoId:   Number(lojaDestinoId),
+        quantidade:      Number(quantidade),
+        solicitadoPor:   req.user!.id,
+        unidadeFisicaId: unidadeFisicaId ? Number(unidadeFisicaId) : undefined,
       },
       include: INCLUDE_FULL,
     });
@@ -115,7 +117,7 @@ router.put('/:id/concluir', async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Transferência não está aprovada' });
     }
 
-    await prisma.$transaction([
+    const ops: any[] = [
       // Decrementa origem
       prisma.estoque.update({
         where: { produtoId_lojaId: { produtoId: transferencia.produtoId, lojaId: transferencia.lojaOrigemId } },
@@ -129,7 +131,19 @@ router.put('/:id/concluir', async (req: AuthRequest, res) => {
       }),
       // Conclui
       prisma.transferencia.update({ where: { id: Number(req.params.id) }, data: { status: 'CONCLUIDA' } }),
-    ]);
+    ];
+
+    // Se é transferência de unidade física específica, atualiza lojaId da unidade
+    if (transferencia.unidadeFisicaId) {
+      ops.push(
+        prisma.unidadeFisica.update({
+          where: { id: transferencia.unidadeFisicaId },
+          data: { lojaId: transferencia.lojaDestinoId },
+        })
+      );
+    }
+
+    await prisma.$transaction(ops);
 
     res.json({ message: 'Transferência concluída' });
   } catch (error) {

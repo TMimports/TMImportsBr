@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { Button, Input, Select } from '../components/ui';
+import { useLojaContext } from '../contexts/LojaContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -137,6 +138,7 @@ function ModalReceber({ conta, onClose, onSuccess }: { conta: ContaReceber; onCl
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function ContasReceber() {
+  const { selectedLojaId } = useLojaContext();
   const [contas, setContas] = useState<ContaReceber[]>([]);
   const [resumo, setResumo] = useState<Resumo>({ totalAberto: 0, totalRecebido: 0 });
   const [categorias, setCategorias] = useState<Categoria[]>([]);
@@ -160,9 +162,12 @@ export function ContasReceber() {
     try {
       const params = new URLSearchParams();
       if (filtro !== 'todas') params.set('status', filtro === 'pagas' ? 'recebidas' : filtro);
+      if (selectedLojaId) params.set('lojaId', String(selectedLojaId));
+      const resumoParams = new URLSearchParams();
+      if (selectedLojaId) resumoParams.set('lojaId', String(selectedLojaId));
       const [contasData, resumoData] = await Promise.all([
         api.get<ContaReceber[]>(`/financeiro/contas-receber?${params}`),
-        api.get<Resumo>('/financeiro/contas-receber/resumo')
+        api.get<Resumo>(`/financeiro/contas-receber/resumo?${resumoParams}`)
       ]);
       setContas(contasData);
       setResumo(resumoData);
@@ -171,7 +176,7 @@ export function ContasReceber() {
     } finally {
       setLoading(false);
     }
-  }, [filtro]);
+  }, [filtro, selectedLojaId]);
 
   useEffect(() => {
     loadData();

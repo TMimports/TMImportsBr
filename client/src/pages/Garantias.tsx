@@ -10,12 +10,22 @@ interface Garantia {
   ativa: boolean;
   revisaoFeita: boolean;
   unidade?: { chassi: string; produto: { nome: string }; loja?: { nomeFantasia: string } } | null;
-  cliente?: { nome: string; telefone?: string };
+  cliente?: { id: number; nome: string; telefone?: string };
   venda?: { id: number; createdAt: string; itens?: { produto?: { nome: string; tipo: string } }[]; loja?: { nomeFantasia: string } };
+}
+
+interface HistoricoVenda {
+  id: number;
+  createdAt: string;
+  valorTotal: number;
+  formaPagamento: string;
+  loja?: { nomeFantasia: string };
+  itens?: { produto?: { nome: string; tipo: string }; servico?: { nome: string } }[];
 }
 
 interface ClienteGrupo {
   key: string;
+  clienteId: number;
   clienteNome: string;
   telefone: string;
   produto: string;
@@ -30,6 +40,8 @@ export function Garantias() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<'todas' | 'ativas' | 'vencendo' | 'expiradas'>('todas');
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const [historicoMap, setHistoricoMap] = useState<Record<number, HistoricoVenda[]>>({});
+  const [historicoLoading, setHistoricoLoading] = useState<Record<number, boolean>>({});
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -53,13 +65,26 @@ export function Garantias() {
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  const toggleExpandido = (key: string) => {
+  const loadHistoricoCliente = useCallback(async (clienteId: number) => {
+    if (historicoMap[clienteId] !== undefined) return;
+    setHistoricoLoading(prev => ({ ...prev, [clienteId]: true }));
+    try {
+      const data = await api.get<HistoricoVenda[]>(`/vendas?clienteId=${clienteId}`);
+      setHistoricoMap(prev => ({ ...prev, [clienteId]: data }));
+    } catch {
+    } finally {
+      setHistoricoLoading(prev => ({ ...prev, [clienteId]: false }));
+    }
+  }, [historicoMap]);
+
+  const toggleExpandido = (key: string, clienteId: number) => {
     setExpandidos(prev => {
       const next = new Set(prev);
       if (next.has(key)) {
         next.delete(key);
       } else {
         next.add(key);
+        loadHistoricoCliente(clienteId);
       }
       return next;
     });
@@ -100,6 +125,7 @@ export function Garantias() {
     if (!grupo) {
       grupo = {
         key,
+        clienteId: g.cliente?.id || 0,
         clienteNome: g.cliente?.nome || '-',
         telefone: g.cliente?.telefone || '-',
         produto: g.unidade?.produto?.nome || g.venda?.itens?.find(i => i.produto?.tipo === 'MOTO')?.produto?.nome || 'Produto',
@@ -198,7 +224,7 @@ export function Garantias() {
               }`}>
                 <div 
                   className="flex items-center justify-between cursor-pointer select-none"
-                  onClick={() => toggleExpandido(grupo.key)}
+                  onClick={() => toggleExpandido(grupo.key, grupo.clienteId)}
                 >
                   <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -335,6 +361,37 @@ export function Garantias() {
                           })}
                         </tbody>
                       </table>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-zinc-700">
+                      <h4 className="text-xs font-semibold text-orange-400 mb-2 uppercase tracking-wide">Histórico de Compras do Cliente</h4>
+                      {historicoLoading[grupo.clienteId] ? (
+                        <p className="text-xs text-zinc-500">Carregando...</p>
+                      ) : (historicoMap[grupo.clienteId] || []).length === 0 ? (
+                        <p className="text-xs text-zinc-500">Nenhuma compra encontrada.</p>
+                      ) : (
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                          {(historicoMap[grupo.clienteId] || []).map(v => {
+                            const motos = v.itens?.filter(i => i.produto?.tipo === 'MOTO').map(i => i.produto?.nome).filter(Boolean) || [];
+                            const servicos = v.itens?.filter(i => i.servico).map(i => i.servico?.nome).filter(Boolean) || [];
+                            const descricao = [...motos, ...servicos].join(', ') || 'Venda';
+                            return (
+                              <div key={v.id} className={`flex items-center justify-between p-2 rounded-lg text-xs ${v.id === grupo.vendaId ? 'bg-orange-500/10 border border-orange-500/30' : 'bg-zinc-800/40'}`}>
+                                <div>
+                                  <span className="font-mono text-zinc-400 mr-2">#{v.id}</span>
+                                  <span className="text-zinc-200">{descricao}</span>
+                                  {v.loja && <span className="text-zinc-500 ml-2">· {v.loja.nomeFantasia}</span>}
+                                  {v.id === grupo.vendaId && <span className="ml-2 text-orange-400 font-semibold text-[10px]">ESTA VENDA</span>}
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-zinc-300 font-medium">R$ {Number(v.valorTotal).toFixed(2).replace('.', ',')}</span>
+                                  <span className="text-zinc-500 ml-2">{new Date(v.createdAt).toLocaleDateString('pt-BR')}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-zinc-700">

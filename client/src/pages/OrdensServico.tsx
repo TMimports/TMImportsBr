@@ -1,8 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../contexts/AuthContext';
 import { CustomSelect } from '../components/CustomSelect';
+import { useLojaContext } from '../contexts/LojaContext';
 
 interface OrdemServicoItem {
   id: number;
@@ -90,7 +91,8 @@ interface ConfigDescontos {
 }
 
 export function OrdensServico() {
-  useAuth();
+  const { user } = useAuth();
+  const { selectedLojaId } = useLojaContext();
   const [ordens, setOrdens] = useState<OrdemServico[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [servicos, setServicos] = useState<Servico[]>([]);
@@ -132,9 +134,10 @@ export function OrdensServico() {
     }
   };
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
+    const osUrl = selectedLojaId ? `/os?lojaId=${selectedLojaId}` : '/os';
     Promise.all([
-      api.get<OrdemServico[]>('/os'),
+      api.get<OrdemServico[]>(osUrl),
       api.get<Cliente[]>('/clientes'),
       api.get<Servico[]>('/servicos'),
       api.get<Loja[]>('/lojas'),
@@ -148,21 +151,22 @@ export function OrdensServico() {
         setLojas(lojasData);
         setTecnicos(usuariosData.filter(u => u.role === 'TECNICO'));
         if (configData) setConfigDescontos(configData);
-        if (lojasData.length === 1) {
-          const lojaIdStr = String(lojasData[0].id);
+        const preselLoja = user?.lojaId ?? (lojasData.length === 1 ? lojasData[0].id : null);
+        if (preselLoja) {
+          const lojaIdStr = String(preselLoja);
           setForm(f => ({ ...f, lojaId: lojaIdStr }));
           loadProdutosLoja(lojaIdStr);
         }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
+  }, [selectedLojaId]);
 
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
 
   const adicionarServico = () => {
     setServicosSelecionados([...servicosSelecionados, { servicoId: '', quantidade: 1, preco: 0 }]);
@@ -480,7 +484,7 @@ export function OrdensServico() {
             </div>
           </div>
 
-          {lojas.length > 1 && (
+          {lojas.length > 1 && !user?.lojaId && (
             <CustomSelect
               label="Loja"
               required

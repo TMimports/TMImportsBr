@@ -331,7 +331,7 @@ router.post('/', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async 
 
 router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
   try {
-    const { quantidade, estoqueMinimo, estoqueMaximo, custoMedio } = req.body;
+    const { quantidade, estoqueMinimo, estoqueMaximo, custoMedio, precoVenda } = req.body;
 
     const estoque = await prisma.estoque.update({
       where: { id: Number(req.params.id) },
@@ -340,6 +340,7 @@ router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', '
         estoqueMinimo: estoqueMinimo !== undefined ? Number(estoqueMinimo) : undefined,
         estoqueMaximo: estoqueMaximo !== undefined ? Number(estoqueMaximo) : undefined,
         custoMedio: custoMedio !== undefined ? Number(custoMedio) : undefined,
+        precoVenda: precoVenda !== undefined ? (precoVenda === null ? null : Number(precoVenda)) : undefined,
       },
       include: { produto: true, loja: true }
     });
@@ -417,9 +418,11 @@ router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
       estoqueMinimo: e.estoqueMinimo,
       estoqueMaximo: e.estoqueMaximo,
       custoMedio: e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo),
-      precoVenda: Number(e.produto.preco),
+      precoVenda: e.precoVenda ? Number(e.precoVenda) : Number(e.produto.preco),
+      precoVendaLoja: e.precoVenda ? Number(e.precoVenda) : null,
+      precoVendaBase: Number(e.produto.preco),
       valorTotalCusto: (e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo)) * e.quantidade,
-      valorTotalPreco: Number(e.produto.preco) * e.quantidade,
+      valorTotalPreco: (e.precoVenda ? Number(e.precoVenda) : Number(e.produto.preco)) * e.quantidade,
       alerta: e.quantidade <= e.estoqueMinimo && e.estoqueMinimo > 0,
       semEstoque: e.quantidade === 0,
     }));
