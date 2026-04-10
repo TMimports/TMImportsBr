@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLojaContext } from '../contexts/LojaContext';
+import { api } from '../services/api';
 import { Input } from './ui';
 import { Button } from './ui';
 
@@ -240,6 +241,26 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [senhaErro,    setSenhaErro]    = useState('');
   const [senhaSucesso, setSenhaSucesso] = useState('');
   const [senhaLoading, setSenhaLoading] = useState(false);
+
+  // ── Notificações: transferências pendentes ────────────────────────────────────
+  const podeVerTransferencias = user?.role
+    ? ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', 'GERENTE_LOJA', 'VENDEDOR'].includes(user.role)
+    : false;
+  const [notifPendentes, setNotifPendentes] = useState(0);
+
+  const buscarNotificacoes = useCallback(async () => {
+    if (!podeVerTransferencias) return;
+    try {
+      const data = await api.get<{ pendentes: number }>('/transferencias/resumo');
+      setNotifPendentes(data?.pendentes ?? 0);
+    } catch {}
+  }, [podeVerTransferencias]);
+
+  useEffect(() => {
+    buscarNotificacoes();
+    const interval = setInterval(buscarNotificacoes, 30_000);
+    return () => clearInterval(interval);
+  }, [buscarNotificacoes]);
 
   // ── PWA install ──────────────────────────────────────────────────────────────
   const [pwaPrompt, setPwaPrompt]       = useState<any>(null);
@@ -580,7 +601,25 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <span className="text-sm font-semibold text-white">{brandName}</span>
             </div>
           )}
-          <div className="w-10" />
+          {/* Bell — mobile */}
+          {podeVerTransferencias ? (
+            <button
+              onClick={() => { handleNavigate('transferencias'); buscarNotificacoes(); }}
+              className="relative flex items-center justify-center w-9 h-9 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title="Transferências pendentes"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {notifPendentes > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+                  {notifPendentes > 99 ? '99+' : notifPendentes}
+                </span>
+              )}
+            </button>
+          ) : (
+            <div className="w-9" />
+          )}
         </header>
 
         {/* Desktop topbar */}
@@ -658,6 +697,24 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <span>🏪</span>
               <span className="font-medium text-zinc-300">{user.loja.nomeFantasia}</span>
             </div>
+          )}
+
+          {/* Bell — desktop */}
+          {podeVerTransferencias && (
+            <button
+              onClick={() => { handleNavigate('transferencias'); buscarNotificacoes(); }}
+              className="relative ml-2 flex items-center justify-center w-8 h-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              title={notifPendentes > 0 ? `${notifPendentes} transferência(s) aguardando aprovação` : 'Transferências'}
+            >
+              <svg className="w-4.5 h-4.5" style={{ width: '1.125rem', height: '1.125rem' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {notifPendentes > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none animate-pulse">
+                  {notifPendentes > 99 ? '99+' : notifPendentes}
+                </span>
+              )}
+            </button>
           )}
         </header>
 

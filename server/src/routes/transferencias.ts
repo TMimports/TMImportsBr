@@ -16,6 +16,32 @@ const INCLUDE_FULL = {
   unidadeFisica: { select: { id: true, chassi: true, cor: true, ano: true, codigoMotor: true } },
 };
 
+// GET /api/transferencias/resumo — contagem de pendências (para badge de notificação)
+router.get('/resumo', async (req: AuthRequest, res) => {
+  try {
+    const role = req.user!.role;
+    const where: any = { status: 'SOLICITADA' };
+
+    if (!['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role)) {
+      const lojaId = req.user!.lojaId;
+      if (lojaId) {
+        where.OR = [{ lojaOrigemId: lojaId }, { lojaDestinoId: lojaId }];
+      } else if (req.user!.grupoId) {
+        where.OR = [
+          { lojaOrigem: { grupoId: req.user!.grupoId } },
+          { lojaDestino: { grupoId: req.user!.grupoId } },
+        ];
+      }
+    }
+
+    const pendentes = await prisma.transferencia.count({ where });
+    res.json({ pendentes });
+  } catch (error) {
+    console.error('Erro ao buscar resumo de transferências:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // GET /api/transferencias — lista solicitações
 router.get('/', async (req: AuthRequest, res) => {
   try {
