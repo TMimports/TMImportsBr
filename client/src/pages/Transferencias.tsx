@@ -34,7 +34,7 @@ interface UnidadeFisica {
   chassi: string;
   cor?: string;
   ano?: number;
-  status: string;
+  produtoId: number;
 }
 
 interface Loja {
@@ -61,7 +61,11 @@ function StatusBadge({ status }: { status: string }) {
     REJEITADA:  '✕ Rejeitada',
     CONCLUIDA:  '✓ Concluída',
   };
-  return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${map[status] || 'bg-zinc-700 text-zinc-300'}`}>{label[status] || status}</span>;
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${map[status] || 'bg-zinc-700 text-zinc-300'}`}>
+      {label[status] || status}
+    </span>
+  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -78,16 +82,14 @@ export function Transferencias() {
   const [buscando, setBuscando] = useState(false);
   const [buscaFeita, setBuscaFeita] = useState(false);
 
-  // My destination loja (for non-admin)
+  // Available lojas
   const [minhasLojas, setMinhasLojas] = useState<Loja[]>([]);
 
-  // Transfer request modal
+  // Request modal
   const [solicitando, setSolicitando] = useState<{ produto: ResultadoBusca['produto']; origem: LojaEstoque } | null>(null);
   const [formLojaDestino, setFormLojaDestino] = useState('');
   const [formQtd, setFormQtd] = useState('1');
   const [formObs, setFormObs] = useState('');
-  const [formUnidade, setFormUnidade] = useState('');
-  const [unidadesOrigem, setUnidadesOrigem] = useState<UnidadeFisica[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [erroForm, setErroForm] = useState('');
 
@@ -95,6 +97,13 @@ export function Transferencias() {
   const [transferencias, setTransferencias] = useState<Transferencia[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>('');
+
+  // Approval with chassi (for admins)
+  const [aprovandoTransf, setAprovandoTransf] = useState<Transferencia | null>(null);
+  const [chassisDisponiveis, setChassiDisponiveis] = useState<UnidadeFisica[]>([]);
+  const [chassiSelecionado, setChassiSelecionado] = useState('');
+  const [carregandoChassi, setCarregandoChassi] = useState(false);
+  const [erroAprovacao, setErroAprovacao] = useState('');
 
   // Actions
   const [atualizando, setAtualizando] = useState<number | null>(null);
@@ -137,43 +146,27 @@ export function Transferencias() {
     }
   };
 
-  const abrirSolicitar = async (produto: ResultadoBusca['produto'], origem: LojaEstoque) => {
+  const abrirSolicitar = (produto: ResultadoBusca['produto'], origem: LojaEstoque) => {
     setSolicitando({ produto, origem });
     setFormLojaDestino(minhaLojaId ? String(minhaLojaId) : '');
     setFormQtd('1');
     setFormObs('');
-    setFormUnidade('');
     setErroForm('');
-
-    if (produto.tipo === 'MOTO') {
-      try {
-        const data = await api.get<any[]>(`/unidades/disponiveis/${origem.lojaId}`);
-        const filtradas = Array.isArray(data) ? data.filter(u => u.produtoId === produto.id) : [];
-        setUnidadesOrigem(filtradas);
-      } catch {
-        setUnidadesOrigem([]);
-      }
-    } else {
-      setUnidadesOrigem([]);
-    }
   };
 
   const enviarSolicitacao = async () => {
     if (!solicitando) return;
     if (!formLojaDestino) { setErroForm('Selecione a loja de destino'); return; }
     if (Number(formLojaDestino) === solicitando.origem.lojaId) { setErroForm('Origem e destino devem ser diferentes'); return; }
-    if (solicitando.produto.tipo === 'MOTO' && !formUnidade) { setErroForm('Selecione o chassi para motos'); return; }
 
     setEnviando(true);
     setErroForm('');
     try {
       await api.post('/transferencias', {
-        produtoId:      solicitando.produto.id,
-        lojaOrigemId:   solicitando.origem.lojaId,
-        lojaDestinoId:  Number(formLojaDestino),
-        quantidade:     solicitando.produto.tipo === 'MOTO' ? 1 : Number(formQtd),
-        unidadeFisicaId: formUnidade ? Number(formUnidade) : undefined,
-        observacao:     formObs || undefined,
+        produtoId:     solicitando.produto.id,
+        lojaOrigemId:  solicitando.origem.lojaId,
+        lojaDestinoId: Number(formLojaDestino),
+        quantidade:    solicitando.produto.tipo === 'MOTO' ? 1 : Number(formQtd),
       });
       setSolicitando(null);
       setResultados([]);
@@ -187,14 +180,42 @@ export function Transferencias() {
     }
   };
 
-  const aprovar = async (id: number) => {
-    setAtualizando(id);
-    setErroAcao('');
+  // Open approval modal (for admins) — loads available chassi from origem
+  const abrirAprovacao = async (t: Transferencia) => {
+    setAprovandoTransf(t);
+    setChassiSelecionado('');
+    setErroAprovacao('');
+    setChassiDisponiveis([]);
+
+    if (t.produto?.tipo === 'MOTO' && t.lojaOrigem) {
+      setCarregandoChassi(true);
+      try {
+        const data = await api.get<any[]>(`/unidades/disponiveis/${t.lojaOrigem.id}`);
+        const filtradas = Array.isArray(data) ? data.filter(u => u.produtoId === t.produto?.id) : [];
+        setChassiDisponiveis(filtradas);
+      } catch {
+        setChassiDisponiveis([]);
+      } finally {
+        setCarregandoChassi(false);
+      }
+    }
+  };
+
+  const confirmarAprovacao = async () => {
+    if (!aprovandoTransf) return;
+    const isMoto = aprovandoTransf.produto?.tipo === 'MOTO';
+    if (isMoto && !chassiSelecionado) { setErroAprovacao('Selecione o chassi para autorizar'); return; }
+
+    setAtualizando(aprovandoTransf.id);
+    setErroAprovacao('');
     try {
-      await api.put(`/transferencias/${id}/aprovar`, {});
+      await api.put(`/transferencias/${aprovandoTransf.id}/aprovar`, {
+        unidadeFisicaId: chassiSelecionado ? Number(chassiSelecionado) : undefined,
+      });
+      setAprovandoTransf(null);
       await carregarTransferencias();
     } catch (err: any) {
-      setErroAcao(err.message || 'Erro ao aprovar');
+      setErroAprovacao(err.message || 'Erro ao aprovar');
     } finally {
       setAtualizando(null);
     }
@@ -229,13 +250,11 @@ export function Transferencias() {
   };
 
   const destinoOptions = minhasLojas.filter(l => !solicitando || l.id !== solicitando.origem.lojaId);
-
   const grupos = {
     pendentes:  transferencias.filter(t => t.status === 'SOLICITADA'),
     transito:   transferencias.filter(t => t.status === 'APROVADA'),
     concluidas: transferencias.filter(t => ['CONCLUIDA', 'REJEITADA'].includes(t.status)),
   };
-
   const listFiltrada = filtroStatus
     ? transferencias.filter(t => t.status === filtroStatus)
     : transferencias;
@@ -250,8 +269,12 @@ export function Transferencias() {
           <p className="text-zinc-400 text-sm mt-0.5">Solicite, aprove e acompanhe transferências de estoque entre lojas</p>
         </div>
         <div className="flex gap-2 text-xs">
-          <span className="px-2.5 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-medium">{grupos.pendentes.length} pendente{grupos.pendentes.length !== 1 ? 's' : ''}</span>
-          <span className="px-2.5 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">{grupos.transito.length} em trânsito</span>
+          <span className="px-2.5 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-medium">
+            {grupos.pendentes.length} pendente{grupos.pendentes.length !== 1 ? 's' : ''}
+          </span>
+          <span className="px-2.5 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">
+            {grupos.transito.length} em trânsito
+          </span>
         </div>
       </div>
 
@@ -286,7 +309,6 @@ export function Transferencias() {
           )}
         </div>
 
-        {/* Resultados da busca */}
         {buscaFeita && !buscando && (
           <div className="mt-4">
             {resultados.length === 0 ? (
@@ -320,15 +342,14 @@ export function Transferencias() {
                             </div>
                             <div className="text-xs text-zinc-500">em estoque</div>
                           </div>
-                          {loja.lojaId !== minhaLojaId && (
+                          {loja.lojaId !== minhaLojaId ? (
                             <button
                               onClick={() => abrirSolicitar(res.produto, loja)}
                               className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
                             >
                               Solicitar →
                             </button>
-                          )}
-                          {loja.lojaId === minhaLojaId && (
+                          ) : (
                             <span className="px-4 py-2 bg-zinc-800 text-zinc-500 text-xs rounded-lg flex-shrink-0">Minha loja</span>
                           )}
                         </div>
@@ -342,18 +363,23 @@ export function Transferencias() {
         )}
       </div>
 
-      {/* ── Modal de Solicitação ── */}
+      {/* ── Modal de Solicitação (store users — SEM chassi) ── */}
       {solicitando && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setSolicitando(null); }}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="p-5 border-b border-zinc-800">
               <h3 className="text-base font-bold text-white">Solicitar Transferência</h3>
-              <p className="text-zinc-400 text-sm mt-0.5">Aguardará aprovação do financeiro antes de ser liberada</p>
+              <p className="text-zinc-400 text-sm mt-0.5">
+                {solicitando.produto.tipo === 'MOTO'
+                  ? 'O financeiro escolherá e liberará o chassi após aprovação'
+                  : 'Aguardará aprovação do financeiro antes de ser liberada'}
+              </p>
             </div>
             <div className="p-5 space-y-4">
+
               {/* Info do produto */}
               <div className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl p-4 space-y-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs text-zinc-500">Produto</span>
                   <span className="text-sm font-semibold text-white">{solicitando.produto.nome}</span>
                   <span className="text-xs text-zinc-500">{solicitando.produto.codigo}</span>
@@ -381,32 +407,7 @@ export function Transferencias() {
                 </select>
               </div>
 
-              {/* Chassis para MOTO */}
-              {solicitando.produto.tipo === 'MOTO' && (
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Chassi *</label>
-                  {unidadesOrigem.length === 0 ? (
-                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg">
-                      Nenhum chassi disponível nesta loja para este modelo
-                    </div>
-                  ) : (
-                    <select
-                      value={formUnidade}
-                      onChange={e => setFormUnidade(e.target.value)}
-                      className="w-full bg-[#09090b] border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 appearance-none"
-                    >
-                      <option value="">Selecione o chassi...</option>
-                      {unidadesOrigem.map(u => (
-                        <option key={u.id} value={u.id}>
-                          {u.chassi}{u.cor ? ` — ${u.cor}` : ''}{u.ano ? ` (${u.ano})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              )}
-
-              {/* Quantidade (não-MOTO) */}
+              {/* Quantidade (apenas não-MOTO) */}
               {solicitando.produto.tipo !== 'MOTO' && (
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">Quantidade *</label>
@@ -418,6 +419,15 @@ export function Transferencias() {
                     onChange={e => setFormQtd(e.target.value)}
                     className="w-full bg-[#09090b] border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500"
                   />
+                </div>
+              )}
+
+              {/* Info para MOTO — chassi será definido pelo financeiro */}
+              {solicitando.produto.tipo === 'MOTO' && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                  <p className="text-blue-300 text-xs leading-relaxed">
+                    🏍️ Para motos, o chassi específico será selecionado e liberado pelo financeiro ao aprovar o pedido. Você receberá uma confirmação quando estiver em trânsito.
+                  </p>
                 </div>
               )}
 
@@ -443,7 +453,7 @@ export function Transferencias() {
               </button>
               <button
                 onClick={enviarSolicitacao}
-                disabled={enviando || (solicitando.produto.tipo === 'MOTO' && unidadesOrigem.length === 0)}
+                disabled={enviando}
                 className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-sm font-bold rounded-lg transition-colors"
               >
                 {enviando ? 'Enviando...' : 'Solicitar Transferência'}
@@ -453,18 +463,101 @@ export function Transferencias() {
         </div>
       )}
 
+      {/* ── Modal de Aprovação com Chassi (apenas admins) ── */}
+      {aprovandoTransf && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setAprovandoTransf(null); }}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="p-5 border-b border-zinc-800">
+              <h3 className="text-base font-bold text-white">Aprovar Transferência #{aprovandoTransf.id}</h3>
+              <p className="text-zinc-400 text-sm mt-0.5">
+                {aprovandoTransf.produto?.tipo === 'MOTO' ? 'Selecione o chassi que será transferido' : 'Confirme a aprovação desta transferência'}
+              </p>
+            </div>
+            <div className="p-5 space-y-4">
+
+              {/* Info */}
+              <div className="bg-zinc-800/60 border border-zinc-700/60 rounded-xl p-4 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-white">{aprovandoTransf.produto?.nome || '—'}</span>
+                  <span className="text-xs text-zinc-500">{aprovandoTransf.produto?.codigo}</span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-zinc-400 flex-wrap">
+                  <span>📦 <strong className="text-zinc-200">{aprovandoTransf.lojaOrigem?.nomeFantasia}</strong></span>
+                  <span className="text-orange-400">→</span>
+                  <span>🏪 <strong className="text-zinc-200">{aprovandoTransf.lojaDestino?.nomeFantasia}</strong></span>
+                </div>
+                <div className="text-xs text-zinc-500">
+                  Solicitado por: {aprovandoTransf.solicitadoPorUser?.nome || '?'}
+                </div>
+              </div>
+
+              {/* Chassi selector — only for MOTO */}
+              {aprovandoTransf.produto?.tipo === 'MOTO' && (
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Chassi a transferir *</label>
+                  {carregandoChassi ? (
+                    <div className="text-zinc-500 text-xs py-3 text-center">Carregando chassi disponíveis...</div>
+                  ) : chassisDisponiveis.length === 0 ? (
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg">
+                      Nenhum chassi disponível na loja de origem para este modelo
+                    </div>
+                  ) : (
+                    <select
+                      value={chassiSelecionado}
+                      onChange={e => setChassiSelecionado(e.target.value)}
+                      className="w-full bg-[#09090b] border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 appearance-none"
+                    >
+                      <option value="">Selecione o chassi...</option>
+                      {chassisDisponiveis.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.chassi}{u.cor ? ` — ${u.cor}` : ''}{u.ano ? ` (${u.ano})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {erroAprovacao && (
+                <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm p-3 rounded-lg">{erroAprovacao}</div>
+              )}
+            </div>
+            <div className="p-5 border-t border-zinc-800 flex gap-3">
+              <button
+                onClick={() => setAprovandoTransf(null)}
+                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarAprovacao}
+                disabled={
+                  atualizando === aprovandoTransf.id ||
+                  (aprovandoTransf.produto?.tipo === 'MOTO' && (carregandoChassi || chassisDisponiveis.length === 0))
+                }
+                className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm font-bold rounded-lg transition-colors"
+              >
+                {atualizando === aprovandoTransf.id ? 'Aprovando...' : '✓ Aprovar e Liberar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Lista de Transferências ── */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl">
         <div className="p-5 border-b border-zinc-800 flex items-center justify-between flex-wrap gap-3">
-          <h2 className="text-sm font-semibold text-white">Minhas Transferências</h2>
-          <div className="flex gap-2">
+          <h2 className="text-sm font-semibold text-white">
+            {podeAprovar ? 'Todas as Transferências' : 'Minhas Transferências'}
+          </h2>
+          <div className="flex gap-2 flex-wrap">
             {['', 'SOLICITADA', 'APROVADA', 'CONCLUIDA', 'REJEITADA'].map(s => (
               <button
                 key={s}
                 onClick={() => setFiltroStatus(s)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${filtroStatus === s ? 'bg-orange-500 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
               >
-                {s === '' ? 'Todas' : s === 'SOLICITADA' ? 'Pendentes' : s === 'APROVADA' ? 'Em trânsito' : s === 'CONCLUIDA' ? 'Concluídas' : 'Rejeitadas'}
+                {s === '' ? 'Todas' : s === 'SOLICITADA' ? `Pendentes (${grupos.pendentes.length})` : s === 'APROVADA' ? 'Em trânsito' : s === 'CONCLUIDA' ? 'Concluídas' : 'Rejeitadas'}
               </button>
             ))}
           </div>
@@ -485,8 +578,8 @@ export function Transferencias() {
         ) : (
           <div className="divide-y divide-zinc-800">
             {listFiltrada.map(t => {
-              const isPendente = t.status === 'SOLICITADA';
-              const isTransito = t.status === 'APROVADA';
+              const isPendente  = t.status === 'SOLICITADA';
+              const isTransito  = t.status === 'APROVADA';
               const possoAprovar = podeAprovar && isPendente;
               const possoReceber = isTransito && (minhaLojaId === t.lojaDestino?.id || podeAprovar);
 
@@ -499,7 +592,15 @@ export function Transferencias() {
                     </div>
                     <div className="mt-2 text-sm font-semibold text-white truncate">
                       {t.produto?.nome || '—'}
-                      {t.unidadeFisica && <span className="text-orange-400 ml-1.5 text-xs font-mono">{t.unidadeFisica.chassi}</span>}
+                      {t.unidadeFisica && (
+                        <span className="text-orange-400 ml-1.5 text-xs font-mono">
+                          {t.unidadeFisica.chassi}
+                          {t.unidadeFisica.cor ? ` · ${t.unidadeFisica.cor}` : ''}
+                        </span>
+                      )}
+                      {!t.unidadeFisica && t.produto?.tipo === 'MOTO' && isPendente && (
+                        <span className="text-yellow-500 ml-1.5 text-xs">chassi a definir</span>
+                      )}
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-xs text-zinc-400 flex-wrap">
                       <span>Qtd: <strong className="text-zinc-200">{t.quantidade}</strong></span>
@@ -513,20 +614,22 @@ export function Transferencias() {
                       {t.aprovadoPorUser && ` · Aprovado por: ${t.aprovadoPorUser.nome}`}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+
+                  {/* Actions */}
+                  <div className="flex gap-2 flex-shrink-0">
                     {possoAprovar && (
                       <>
                         <button
-                          onClick={() => aprovar(t.id)}
+                          onClick={() => abrirAprovacao(t)}
                           disabled={atualizando === t.id}
-                          className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors"
+                          className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors"
                         >
-                          {atualizando === t.id ? '...' : '✓ Aprovar'}
+                          ✓ Aprovar
                         </button>
                         <button
                           onClick={() => rejeitar(t.id)}
                           disabled={atualizando === t.id}
-                          className="px-4 py-2 bg-red-600/80 hover:bg-red-700 disabled:opacity-40 text-white text-xs font-medium rounded-lg transition-colors"
+                          className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-semibold rounded-lg transition-colors border border-red-500/30"
                         >
                           ✕ Rejeitar
                         </button>
@@ -536,9 +639,9 @@ export function Transferencias() {
                       <button
                         onClick={() => concluir(t.id)}
                         disabled={atualizando === t.id}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors"
+                        className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-semibold rounded-lg transition-colors border border-blue-500/30"
                       >
-                        {atualizando === t.id ? '...' : '📦 Confirmar Recebimento'}
+                        📦 Confirmar Recebimento
                       </button>
                     )}
                   </div>
