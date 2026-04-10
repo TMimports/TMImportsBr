@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell, RadialBarChart, RadialBar,
+  Tooltip, ResponsiveContainer, Cell, RadialBarChart, RadialBar, LabelList,
 } from 'recharts';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -572,8 +572,12 @@ function AdminDashboard({ onNavigate, lojaId }: DashboardProps) {
                 width={60}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="vendas" name="vendas" stroke="#f97316" strokeWidth={2} fill="url(#gradVendas)" dot={false} activeDot={{ r: 4, fill: '#f97316' }} />
-              <Area type="monotone" dataKey="os" name="os" stroke="#3b82f6" strokeWidth={2} fill="url(#gradOS)" dot={false} activeDot={{ r: 4, fill: '#3b82f6' }} />
+              <Area type="monotone" dataKey="vendas" name="vendas" stroke="#f97316" strokeWidth={2} fill="url(#gradVendas)" dot={(props: any) => props.value > 0 ? <circle key={props.key} cx={props.cx} cy={props.cy} r={3} fill="#f97316" /> : <g key={props.key} />} activeDot={{ r: 5, fill: '#f97316' }}>
+                <LabelList dataKey="vendas" position="top" formatter={(v: number) => v > 0 ? fmtCurrencyShort(v) : ''} style={{ fontSize: 10, fill: '#f97316', fontWeight: 600 }} />
+              </Area>
+              <Area type="monotone" dataKey="os" name="os" stroke="#3b82f6" strokeWidth={2} fill="url(#gradOS)" dot={(props: any) => props.value > 0 ? <circle key={props.key} cx={props.cx} cy={props.cy} r={3} fill="#3b82f6" /> : <g key={props.key} />} activeDot={{ r: 5, fill: '#3b82f6' }}>
+                <LabelList dataKey="os" position="top" formatter={(v: number) => v > 0 ? fmtCurrencyShort(v) : ''} style={{ fontSize: 10, fill: '#3b82f6', fontWeight: 600 }} />
+              </Area>
             </AreaChart>
           </ResponsiveContainer>
         ) : (

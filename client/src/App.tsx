@@ -32,6 +32,7 @@ import { FinanceiroEmpresa } from './pages/FinanceiroEmpresa';
 import { ConciliacaoBancaria } from './pages/ConciliacaoBancaria';
 import { Relatorios } from './pages/Relatorios';
 import { WhatsAppCRM } from './pages/WhatsAppCRM';
+import { Transferencias } from './pages/Transferencias';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -122,6 +123,8 @@ function AppContent() {
         return <FinanceiroEmpresa />;
       case 'configuracoes':
         return <Configuracoes />;
+      case 'transferencias':
+        return <Transferencias />;
       case 'utilidades':
         return <Utilidades />;
       case 'relatorios':

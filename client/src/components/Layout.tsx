@@ -50,9 +50,10 @@ const VENDAS_GROUP = (vendorLabel = 'Vendas') =>
 
 // Logística — Produtos, Serviços, Estoque
 const LOGISTICA_GROUP = group('logistica-group', 'Logística', '📦', [
-  { id: 'produtos',  label: 'Produtos',  icon: '🏍️' },
-  { id: 'servicos',  label: 'Serviços',  icon: '🔧' },
-  { id: 'estoque',   label: 'Estoque',   icon: '📋' },
+  { id: 'produtos',        label: 'Produtos',       icon: '🏍️' },
+  { id: 'servicos',        label: 'Serviços',       icon: '🔧' },
+  { id: 'estoque',         label: 'Estoque',        icon: '📋' },
+  { id: 'transferencias',  label: 'Transferências', icon: '🔄' },
 ]);
 
 // Cadastros — registro de entidades base do sistema
@@ -122,7 +123,8 @@ const menuItems: Record<string, NavEntry[]> = {
   ],
   ADMIN_FINANCEIRO: [
     item('dashboard', 'Dashboard', '📊'),
-    item('estoque',   'Estoque',   '📋'),
+    item('estoque',        'Estoque',        '📋'),
+    item('transferencias', 'Transferências', '🔄'),
     CADASTROS_GROUP,
     COMERCIAL_FIN_GROUP,
     FIN_GROUP,
@@ -138,9 +140,10 @@ const menuItems: Record<string, NavEntry[]> = {
     RELATORIOS_ITEM,
   ],
   DONO_LOJA: [
-    item('dashboard', 'Dashboard', '📊'),
-    item('lojas',     'Lojas',     '🏪'),
-    item('estoque',   'Estoque',   '📋'),
+    item('dashboard',      'Dashboard',      '📊'),
+    item('lojas',          'Lojas',          '🏪'),
+    item('estoque',        'Estoque',        '📋'),
+    item('transferencias', 'Transferências', '🔄'),
     CADASTROS_GROUP,
     VENDAS_GROUP(),
     FIN_GROUP,
@@ -149,8 +152,9 @@ const menuItems: Record<string, NavEntry[]> = {
     CONFIG_GROUP,
   ],
   GERENTE_LOJA: [
-    item('dashboard', 'Dashboard', '📊'),
-    item('estoque',   'Estoque',   '📋'),
+    item('dashboard',      'Dashboard',      '📊'),
+    item('estoque',        'Estoque',        '📋'),
+    item('transferencias', 'Transferências', '🔄'),
     CADASTROS_GROUP,
     VENDAS_GROUP(),
     FIN_GROUP,
@@ -158,8 +162,9 @@ const menuItems: Record<string, NavEntry[]> = {
     RELATORIOS_ITEM,
   ],
   VENDEDOR: [
-    item('dashboard', 'Dashboard', '📊'),
-    item('estoque',   'Estoque',   '📋'),
+    item('dashboard',      'Dashboard',      '📊'),
+    item('estoque',        'Estoque',        '📋'),
+    item('transferencias', 'Transferências', '🔄'),
     VENDAS_GROUP('Minhas Vendas'),
   ],
   TECNICO: [
