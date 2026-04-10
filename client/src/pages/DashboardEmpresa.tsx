@@ -71,8 +71,8 @@ export function DashboardEmpresa({ lojaId: lojaIdProp }: DashboardEmpresaProps =
 
   async function loadLojas() {
     try {
-      const res = await api.get('/lojas');
-      const list = Array.isArray(res) ? res : res.lojas ?? [];
+      const res = await api.get('/lojas') as any;
+      const list: any[] = Array.isArray(res) ? res : res?.lojas ?? [];
       setLojas(list);
       if (list.length > 0) {
         const defaultId = user?.lojaId ?? list[0].id;
@@ -85,7 +85,7 @@ export function DashboardEmpresa({ lojaId: lojaIdProp }: DashboardEmpresaProps =
     setLoading(true);
     setErro(null);
     try {
-      const d = await api.get(`/dashboard/empresa/${id}`);
+      const d = await api.get(`/dashboard/empresa/${id}`) as DashboardData;
       setData(d);
     } catch (err: any) {
       setErro(err?.message || 'Erro ao carregar dados da loja');
