@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../index.js';
 import { verifyToken, AuthRequest } from '../middleware/auth.js';
 import { criarDisparo, marcarEnviado, gerarDisparosMotivacioanis, TEMPLATES_PADRAO } from '../services/whatsapp.js';
+import { zapiVerificarStatus, zapiEnviarMensagem } from '../services/zapi.js';
 
 const router = Router();
 router.use(verifyToken);
@@ -204,7 +205,38 @@ router.post('/disparar/motivacional', async (req: AuthRequest, res) => {
   }
 });
 
-// Estatísticas rápidas
+// ─── Z-API Status ─────────────────────────────────────────────────────────────
+
+router.get('/zapi/status', async (_req, res) => {
+  try {
+    const status = await zapiVerificarStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao verificar status' });
+  }
+});
+
+// Reenvio imediato de um disparo via Z-API
+router.post('/disparos/:id/reenviar', async (req: AuthRequest, res) => {
+  try {
+    const disparo = await prisma.disparoWhatsApp.findUnique({ where: { id: Number(req.params.id) } });
+    if (!disparo) return res.status(404).json({ error: 'Disparo não encontrado' });
+
+    const result = await zapiEnviarMensagem(disparo.numero, disparo.mensagem);
+    if (result.success) {
+      await prisma.disparoWhatsApp.update({
+        where: { id: disparo.id },
+        data: { status: 'ENVIADO', enviadoAt: new Date() },
+      });
+    }
+    res.json({ success: result.success, messageId: result.messageId, error: result.error });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao reenviar' });
+  }
+});
+
+// ─── Estatísticas rápidas ──────────────────────────────────────────────────────
+
 router.get('/stats', async (_req, res) => {
   try {
     const hoje = new Date();

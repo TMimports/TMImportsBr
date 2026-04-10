@@ -1,4 +1,5 @@
 import { prisma } from '../index.js';
+import { zapiEnviarMensagem } from './zapi.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,7 @@ function substituirVariaveis(template: string, vars: Record<string, string>): st
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] || `{{${key}}}`);
 }
 
-// ─── Criação de disparo com link wa.me ────────────────────────────────────────
+// ─── Criação de disparo + envio real via Z-API ─────────────────────────────────
 
 export async function criarDisparo(opts: {
   destinatario: string;
@@ -34,22 +35,41 @@ export async function criarDisparo(opts: {
   tipo?: 'MANUAL' | 'AUTOMATICO' | 'CRON';
 }) {
   const link = gerarLinkWa(opts.numero, opts.mensagem);
+  const numeroLimpo = limparNumero(opts.numero);
 
+  // 1. Salva no banco como PENDENTE
   const disparo = await prisma.disparoWhatsApp.create({
     data: {
-      destinatario: opts.destinatario,
-      numero: limparNumero(opts.numero),
-      mensagem: opts.mensagem,
-      contexto: (opts.contexto as any) || null,
-      templateId: opts.templateId || null,
-      operadorId: opts.operadorId || null,
-      clienteId: opts.clienteId || null,
-      fornecedorId: opts.fornecedorId || null,
+      destinatario:       opts.destinatario,
+      numero:             numeroLimpo,
+      mensagem:           opts.mensagem,
+      contexto:           (opts.contexto as any) || null,
+      templateId:         opts.templateId || null,
+      operadorId:         opts.operadorId || null,
+      clienteId:          opts.clienteId || null,
+      fornecedorId:       opts.fornecedorId || null,
       destinatarioUserId: opts.destinatarioUserId || null,
-      tipo: (opts.tipo as any) || 'MANUAL',
-      status: 'PENDENTE',
+      tipo:               (opts.tipo as any) || 'MANUAL',
+      status:             'PENDENTE',
     },
   });
+
+  // 2. Tenta envio real via Z-API (não bloqueia em caso de falha)
+  zapiEnviarMensagem(numeroLimpo, opts.mensagem)
+    .then(async (result) => {
+      if (result.success) {
+        await prisma.disparoWhatsApp.update({
+          where: { id: disparo.id },
+          data: { status: 'ENVIADO', enviadoAt: new Date() },
+        });
+      } else {
+        console.warn(`[Z-API] Falha no envio para ${opts.destinatario}:`, result.error);
+        // mantém como PENDENTE — link wa.me ainda está disponível
+      }
+    })
+    .catch((err) => {
+      console.error('[Z-API] Erro inesperado:', err);
+    });
 
   return { disparo, link };
 }
@@ -139,13 +159,13 @@ export async function gerarDisparosMotivacioanis(): Promise<{ total: number; lin
     });
 
     const { link } = await criarDisparo({
-      destinatario: v.nome,
-      numero: v.telefone,
+      destinatario:       v.nome,
+      numero:             v.telefone,
       mensagem,
-      contexto: 'MOTIVACIONAL_VENDEDOR',
-      templateId: template.id,
+      contexto:           'MOTIVACIONAL_VENDEDOR',
+      templateId:         template.id,
       destinatarioUserId: v.id,
-      tipo: 'CRON',
+      tipo:               'CRON',
     });
 
     links.push({ nome: v.nome, link });

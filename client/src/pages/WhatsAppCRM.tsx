@@ -86,11 +86,13 @@ export function WhatsAppCRM() {
   const { user } = useAuth();
   const [tab, setTab] = useState<'disparar' | 'templates' | 'historico'>('disparar');
   const [stats, setStats] = useState<Stats | null>(null);
+  const [zapiStatus, setZapiStatus] = useState<{ connected: boolean; phone?: string } | null>(null);
 
   const isAdmin = ['ADMIN_GERAL', 'DONO_LOJA', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(user?.role || '');
 
   useEffect(() => {
     api.get<Stats>('/whatsapp/stats').then(setStats).catch(() => {});
+    api.get<{ connected: boolean; phone?: string }>('/whatsapp/zapi/status').then(setZapiStatus).catch(() => {});
   }, []);
 
   return (
@@ -101,7 +103,15 @@ export function WhatsAppCRM() {
           <h1 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
             <span className="text-2xl">💬</span> WhatsApp CRM
           </h1>
-          <p className="text-sm text-zinc-500">Envio de mensagens automáticas e manuais via WhatsApp</p>
+          <p className="text-sm text-zinc-500 flex items-center gap-2">
+            Envio de mensagens automáticas e manuais via WhatsApp
+            {zapiStatus !== null && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${zapiStatus.connected ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-red-500/10 text-red-400 border-red-500/30'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${zapiStatus.connected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+                {zapiStatus.connected ? `Z-API Conectado${zapiStatus.phone ? ` · ${zapiStatus.phone}` : ''}` : 'Z-API Desconectado'}
+              </span>
+            )}
+          </p>
         </div>
         {isAdmin && (
           <button
