@@ -752,7 +752,8 @@ function TabUnitaria({
     return <div className="text-center py-12 text-zinc-500">Nenhuma unidade encontrada</div>;
   }
 
-  const podeSolicitarLote = !isOutraLoja && lojas.filter(l => l.id !== lojaId).length > 0;
+  const podeTransferirLote = isAdmin && lojas.filter(l => l.id !== lojaId).length > 0;
+  const podeSolicitarLote  = !isOutraLoja && lojas.filter(l => l.id !== lojaId).length > 0;
 
   return (
     <div>
@@ -760,7 +761,7 @@ function TabUnitaria({
       <table className="w-full text-sm min-w-[640px]">
         <thead>
           <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
-            {podeSolicitarLote && (
+            {(podeTransferirLote || podeSolicitarLote) && (
               <th className="p-3 w-10">
                 <input
                   type="checkbox"
@@ -786,7 +787,7 @@ function TabUnitaria({
             return (
               <Fragment key={u.id}>
                 <tr className={`border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors ${isExp ? 'bg-zinc-800/20' : ''} ${selecionados.has(u.id) ? 'bg-orange-500/5' : ''}`}>
-                  {podeSolicitarLote && (
+                  {(podeTransferirLote || podeSolicitarLote) && (
                     <td className="p-3">
                       {podeAcionar && (
                         <input
@@ -899,24 +900,29 @@ function TabUnitaria({
       </table>
       </div>
 
-      {/* Barra de ação em lote */}
-      {podeSolicitarLote && selecionados.size > 0 && (
-        <div className="mt-3 bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+      {/* ── Barra de ação em lote (admin) ── */}
+      {podeTransferirLote && selecionados.size > 0 && (
+        <div className={`mt-3 border rounded-xl p-4 transition-all ${selecionados.size > 1 ? 'bg-orange-500/15 border-orange-500/40' : 'bg-zinc-800/60 border-zinc-700'}`}>
           {loteSucesso ? (
             <p className="text-green-400 font-medium text-sm flex items-center gap-2">
-              <span>✓</span> Transferências em lote solicitadas com sucesso!
+              <span>✓</span> {selecionados.size > 1 ? 'Transferências em lote' : 'Transferência'} solicitada com sucesso! O financeiro receberá para aprovação.
             </p>
           ) : (
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-orange-400 font-medium text-sm">
-                {selecionados.size} unidade{selecionados.size > 1 ? 's' : ''} selecionada{selecionados.size > 1 ? 's' : ''}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-semibold ${selecionados.size > 1 ? 'text-orange-400' : 'text-zinc-300'}`}>
+                  {selecionados.size > 1 ? `🔄 ${selecionados.size} unidades selecionadas` : '1 unidade selecionada'}
+                </span>
+                {selecionados.size > 1 && (
+                  <span className="text-xs text-zinc-400">— Transferência em lote</span>
+                )}
+              </div>
               <select
                 value={loteDestino}
                 onChange={e => setLoteDestino(e.target.value ? Number(e.target.value) : '')}
                 className="bg-zinc-800 border border-zinc-600 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500"
               >
-                <option value="">Transferir para...</option>
+                <option value="">Loja de destino...</option>
                 {lojas.filter(l => l.id !== lojaId).map(l => (
                   <option key={l.id} value={l.id} className="bg-zinc-800">{l.nomeFantasia}</option>
                 ))}
@@ -924,14 +930,68 @@ function TabUnitaria({
               <button
                 onClick={() => executarLote(lista)}
                 disabled={!loteDestino || loteLoading}
-                className="text-sm bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30 px-4 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                className={`text-sm font-bold px-5 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ${
+                  selecionados.size > 1
+                    ? 'bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20'
+                    : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30'
+                }`}
               >
-                {loteLoading ? 'Solicitando...' : '↔ Solicitar Transferência em Lote'}
+                {loteLoading
+                  ? 'Solicitando...'
+                  : selecionados.size > 1
+                    ? `🔄 Transferir Todas Selecionadas (${selecionados.size})`
+                    : '↔ Transferir Selecionada'}
               </button>
               <button
                 onClick={() => setSelecionados(new Set())}
                 className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
               >
+                Limpar seleção
+              </button>
+              {loteErro && <p className="text-red-400 text-xs w-full">{loteErro}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Barra de ação em lote (loja própria) ── */}
+      {!podeTransferirLote && podeSolicitarLote && selecionados.size > 0 && (
+        <div className={`mt-3 border rounded-xl p-4 transition-all ${selecionados.size > 1 ? 'bg-orange-500/15 border-orange-500/40' : 'bg-zinc-800/60 border-zinc-700'}`}>
+          {loteSucesso ? (
+            <p className="text-green-400 font-medium text-sm flex items-center gap-2">
+              <span>✓</span> Solicitação{selecionados.size > 1 ? 'ões' : ''} enviada{selecionados.size > 1 ? 's' : ''}! Aguardando aprovação do financeiro.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className={`text-sm font-semibold ${selecionados.size > 1 ? 'text-orange-400' : 'text-zinc-300'}`}>
+                {selecionados.size > 1 ? `${selecionados.size} unidades selecionadas` : '1 unidade selecionada'}
+              </span>
+              <select
+                value={loteDestino}
+                onChange={e => setLoteDestino(e.target.value ? Number(e.target.value) : '')}
+                className="bg-zinc-800 border border-zinc-600 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+              >
+                <option value="">Loja de destino...</option>
+                {lojas.filter(l => l.id !== lojaId).map(l => (
+                  <option key={l.id} value={l.id} className="bg-zinc-800">{l.nomeFantasia}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => executarLote(lista)}
+                disabled={!loteDestino || loteLoading}
+                className={`text-sm font-bold px-5 py-2 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap ${
+                  selecionados.size > 1
+                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                    : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border border-orange-500/30'
+                }`}
+              >
+                {loteLoading
+                  ? 'Solicitando...'
+                  : selecionados.size > 1
+                    ? `Solicitar Transferência das ${selecionados.size} Selecionadas`
+                    : 'Solicitar Transferência'}
+              </button>
+              <button onClick={() => setSelecionados(new Set())} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
                 Limpar seleção
               </button>
               {loteErro && <p className="text-red-400 text-xs w-full">{loteErro}</p>}
