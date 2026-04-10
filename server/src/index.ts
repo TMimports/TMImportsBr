@@ -84,32 +84,27 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-app.get('/api/setup', async (req, res) => {
-  try {
-    const bcrypt = await import('bcryptjs');
-    let admin = await prisma.user.findFirst({ where: { email: 'admin@teclemotos.com' } });
-    
-    if (!admin) {
-      const senha = await bcrypt.default.hash('123456', 10);
-      admin = await prisma.user.create({
-        data: {
-          nome: 'Admin Geral',
-          email: 'admin@teclemotos.com',
-          senha,
-          role: 'ADMIN_GERAL',
-          ativo: true
-        }
-      });
-      res.json({ status: 'Admin criado!', email: 'admin@teclemotos.com', senha: '123456' });
-    } else {
-      const senha = await bcrypt.default.hash('123456', 10);
-      await prisma.user.update({ where: { id: admin.id }, data: { senha, ativo: true, lojaId: null, grupoId: null } });
-      res.json({ status: 'Senha resetada!', email: 'admin@teclemotos.com', senha: '123456' });
+if (isDev) {
+  app.get('/api/setup', async (req, res) => {
+    try {
+      const bcrypt = await import('bcryptjs');
+      let admin = await prisma.user.findFirst({ where: { email: 'admin@teclemotos.com' } });
+      if (!admin) {
+        const senha = await bcrypt.default.hash('123456', 10);
+        admin = await prisma.user.create({
+          data: { nome: 'Admin Geral', email: 'admin@teclemotos.com', senha, role: 'ADMIN_GERAL', ativo: true }
+        });
+        res.json({ status: 'Admin criado!', email: 'admin@teclemotos.com', senha: '123456' });
+      } else {
+        const senha = await bcrypt.default.hash('123456', 10);
+        await prisma.user.update({ where: { id: admin.id }, data: { senha, ativo: true, lojaId: null, grupoId: null } });
+        res.json({ status: 'Senha resetada!', email: 'admin@teclemotos.com', senha: '123456' });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  });
+}
 
 app.use('/api/auth', authRoutes);
 app.use('/api/grupos', gruposRoutes);
@@ -144,7 +139,7 @@ app.use('/api/notas-fiscais', notasFiscaisRoutes);
 app.use('/api/conciliacao-bancaria', conciliacaoBancariaRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 
-app.get('/api/debug-build', (req, res) => {
+if (isDev) app.get('/api/debug-build', (req, res) => {
   const fs = require('fs');
   try {
     const distPath = path.join(process.cwd(), 'client/dist');

@@ -57,9 +57,15 @@ const LOGISTICA_GROUP = group('logistica-group', 'Logística', '📦', [
   { id: 'transferencias',  label: 'Transferências', icon: '🔄' },
 ]);
 
-// Cadastros — entidades base (sem Produtos e Clientes que ficam em Logística e Vendas)
+// Cadastros completo — para ADMIN_GERAL e DONO_LOJA (gerenciam usuários)
 const CADASTROS_GROUP = group('cadastros-group', 'Cadastros', '📝', [
   { id: 'usuarios',        label: 'Usuários',         icon: '👥' },
+  { id: 'fin-fornecedores',label: 'Fornecedores',     icon: '🤝' },
+  { id: 'fin-categorias',  label: 'Categ. / Depart.', icon: '🏷' },
+]);
+
+// Cadastros sem Usuários — para ADMIN_FINANCEIRO e GERENTE_LOJA
+const CADASTROS_BASE_GROUP = group('cadastros-base-group', 'Cadastros', '📝', [
   { id: 'fin-fornecedores',label: 'Fornecedores',     icon: '🤝' },
   { id: 'fin-categorias',  label: 'Categ. / Depart.', icon: '🏷' },
 ]);
@@ -121,7 +127,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('dashboard', 'Dashboard', '📊'),
     item('estoque',        'Estoque',        '📋'),
     item('transferencias', 'Transferências', '🔄'),
-    CADASTROS_GROUP,
+    CADASTROS_BASE_GROUP,
     COMERCIAL_FIN_GROUP,
     FIN_GROUP,
     item('comissoes', 'Comissões', '💸'),
@@ -151,7 +157,7 @@ const menuItems: Record<string, NavEntry[]> = {
     item('dashboard',      'Dashboard',      '📊'),
     item('estoque',        'Estoque',        '📋'),
     item('transferencias', 'Transferências', '🔄'),
-    CADASTROS_GROUP,
+    CADASTROS_BASE_GROUP,
     VENDAS_GROUP(),
     FIN_GROUP,
     WHATSAPP_ITEM,

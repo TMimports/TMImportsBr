@@ -1,0 +1,154 @@
+AUDITORIA FINAL DO SISTEMA ERP TECLE MOTOS
+
+Quero que você faça uma AUDITORIA FINAL COMPLETA no sistema já pronto, sem reinventar a estrutura, sem aumentar complexidade desnecessária e sem piorar nada do que já funciona.
+
+REGRA PRINCIPAL:
+Você NÃO deve reconstruir o sistema do zero.
+Você NÃO deve adicionar novas áreas sem necessidade real.
+Você NÃO deve aumentar número de abas, campos, módulos ou memória do sistema sem justificativa forte.
+Você NÃO deve deixar o sistema mais pesado, mais confuso ou mais ambíguo.
+Você deve apenas:
+- identificar falhas
+- corrigir inconsistências
+- eliminar ambiguidades
+- simplificar onde estiver excessivo
+- padronizar onde estiver desalinhado
+- preservar tudo que já está bom
+- melhorar sem piorar
+
+OBJETIVO:
+Quero que o sistema fique pronto para hospedagem e uso real, com ambiente simples, visual limpo, navegação clara, regras objetivas e funcionamento consistente.
+
+FAÇA A CHECAGEM FINAL NESTES PONTOS:
+
+1. ESTRUTURA E NAVEGAÇÃO
+- verificar se a navegação lateral está simples
+- manter apenas as estruturas principais já definidas
+- remover excesso de menus, subtelas, duplicidades ou caminhos confusos
+- eliminar qualquer ambiguidade visual
+- garantir que o sistema esteja fácil de visualizar e operar
+- garantir que não exista poluição visual
+
+2. IDENTIDADE VISUAL
+- garantir aderência visual à identidade da Tecle Motos
+- usar corretamente as cores da marca
+- manter layout profissional, limpo e tecnológico
+- melhorar contraste, espaçamento, leitura e organização visual
+- revisar consistência entre dashboard central e dashboard das lojas
+
+3. DASHBOARDS
+- revisar o dashboard central
+- revisar o dashboard das lojas
+- garantir que ambos tenham muitos gráficos e comparativos úteis
+- validar se os gráficos realmente ajudam a leitura
+- remover gráficos redundantes ou poluídos
+- garantir leitura rápida dos indicadores
+- validar se os números e comparativos estão coerentes
+
+4. CADASTRO E ESTOQUE
+- confirmar que o cadastro das motos está simples e objetivo
+- manter somente a base principal:
+  Modelo
+  Cor
+  Quantidade
+  Chassi
+  SKU/SKR
+  Valor de custo
+- remover qualquer campo desnecessário adicionado sem necessidade
+- revisar fluxo de entrada por planilha, CSV, PDF ou espelho de nota
+- validar se a conferência antes de salvar está clara
+- revisar duplicidades, inconsistências e validações
+
+5. LOJAS E ACESSOS
+- revisar ambiente central
+- revisar ambiente do lojista
+- confirmar que o lojista tem:
+  Dashboard
+  Vendas
+  Estoque
+  Financeiro
+  Configuração
+- validar se o ambiente do lojista está simples e funcional
+- validar permissões por perfil
+- confirmar que o central vê tudo e o lojista só o que deve ver
+- eliminar qualquer acesso ambíguo ou indevido
+
+6. FINANCEIRO
+- tratar o financeiro como prioridade máxima
+- revisar contas a pagar
+- revisar contas a receber
+- revisar fluxo de caixa
+- revisar rateio entre lojas
+- revisar conciliação bancária
+- revisar contas bancárias
+- revisar histórico, detalhes, edição e exclusão
+- confirmar que os cálculos estão corretos
+- confirmar que nenhum fluxo financeiro ficou ambíguo
+- simplificar o que estiver excessivo sem perder robustez
+
+7. VENDAS E OPERAÇÃO DA LOJA
+- revisar clientes
+- revisar vendas
+- revisar seguro
+- revisar vistoria
+- revisar comissões
+- garantir que a estrutura esteja simples, clara e útil
+- remover excessos
+- manter somente o que ajuda a operação real
+
+8. PWA / APP
+- revisar se o sistema está pronto para funcionar como app instalável
+- revisar experiência mobile
+- revisar botão ou fluxo de instalar app
+- revisar compatibilidade visual com Android e iPhone
+- garantir que a experiência do lojista no celular esteja boa
+
+9. DESEMPENHO E LIMPEZA
+- remover componentes desnecessários
+- remover estados, hooks, telas, cards, textos ou blocos inúteis
+- remover duplicações
+- reduzir complexidade onde não agrega valor
+- manter o sistema leve e fácil de manter
+- evitar consumir memória à toa com elementos desnecessários
+
+10. SEGURANÇA E CONFIABILIDADE
+- revisar autenticação
+- revisar perfis e permissões
+- revisar proteções de rotas
+- revisar consistência de dados
+- revisar tratamento de erro
+- revisar validações de formulário
+- revisar logs de ações críticas
+- revisar confirmação antes de exclusões importantes
+
+11. PADRONIZAÇÃO
+- padronizar nomes de botões
+- padronizar títulos
+- padronizar labels
+- padronizar tabelas
+- padronizar filtros
+- padronizar ações como Editar, Detalhes e Excluir
+- padronizar experiência entre ambiente central e ambiente das lojas
+
+12. RESULTADO FINAL ESPERADO
+Ao final da auditoria:
+- não criar novos módulos desnecessários
+- não complicar o sistema
+- não aumentar a memória usada sem necessidade
+- não mudar o que já está bom
+- apenas corrigir, simplificar, alinhar e melhorar
+
+ENTREGA ESPERADA:
+1. Liste claramente tudo que está bom e deve ser preservado
+2. Liste claramente tudo que está ambíguo, redundante ou confuso
+3. Liste claramente tudo que deve ser corrigido antes da hospedagem
+4. Aplique as correções com foco em simplificação e estabilidade
+5. Faça as melhorias sem alterar o escopo principal do sistema
+6. Preserve a lógica atual sempre que ela já estiver funcionando bem
+
+REGRA FINAL ABSOLUTA:
+MELHORAR SEM PIORAR.
+SIMPLIFICAR SEM EMPOBRECER.
+CORRIGIR SEM REINVENTAR.
+PADRONIZAR SEM POLUIR.
+PRESERVAR O QUE JÁ ESTÁ CERTO.

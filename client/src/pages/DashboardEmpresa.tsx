@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLojaContext } from '../contexts/LojaContext';
+import { api } from '../services/api';
 
 interface DashboardData {
   loja: { id: number; cnpj: string; razaoSocial: string; nomeFantasia?: string; grupo: { nome: string } };
@@ -69,11 +70,8 @@ export function DashboardEmpresa({ lojaId: lojaIdProp }: DashboardEmpresaProps =
   }, [lojaId]);
 
   async function loadLojas() {
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
     try {
-      const r = await fetch('/api/lojas', { headers });
-      const res = await r.json();
+      const res = await api.get('/lojas');
       const list = Array.isArray(res) ? res : res.lojas ?? [];
       setLojas(list);
       if (list.length > 0) {
@@ -84,21 +82,13 @@ export function DashboardEmpresa({ lojaId: lojaIdProp }: DashboardEmpresaProps =
   }
 
   async function loadDashboard(id: number) {
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
     setLoading(true);
     setErro(null);
     try {
-      const r = await fetch(`/api/dashboard/empresa/${id}`, { headers });
-      if (r.ok) {
-        const d = await r.json();
-        setData(d);
-      } else {
-        const e = await r.json().catch(() => ({}));
-        setErro(e.error || `Erro ${r.status} ao carregar dados`);
-      }
+      const d = await api.get(`/dashboard/empresa/${id}`);
+      setData(d);
     } catch (err: any) {
-      setErro(err?.message || 'Erro de conexão com o servidor');
+      setErro(err?.message || 'Erro ao carregar dados da loja');
     } finally {
       setLoading(false);
     }

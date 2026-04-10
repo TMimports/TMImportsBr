@@ -95,6 +95,14 @@ This project is a comprehensive multi-company ERP system for TM Imports and its 
 - All pages use NAMED exports; App.tsx uses named imports
 - Fornecedor schema: uses `classe: ClasseFornecedor` (PRODUTO/SERVICO/AMBOS), NOT `tipo`
 
+### Audit Notes (2026-04-10 — Auditoria Final)
+- **Security**: `/api/setup` and `/api/debug-build` endpoints now guarded by `isDev` — inaccessible in production
+- **Navigation roles**: `ADMIN_FINANCEIRO` and `GERENTE_LOJA` now use `CADASTROS_BASE_GROUP` (Fornecedores + Categ./Depart. only, no Usuários). `ADMIN_GERAL` and `DONO_LOJA` keep full `CADASTROS_GROUP` with Usuários
+- **Legacy cleanup**: removed `server/routes/` (legacy JS routes directory, unused)
+- **App.tsx**: `case 'unidades'` now redirects to `<Estoque />` instead of showing dead "Módulo descontinuado" message
+- **DashboardEmpresa.tsx**: replaced raw `fetch` + localStorage token with `api` service (consistent with all other pages)
+- **TypeScript**: 0 errors confirmed on both frontend and backend after all changes
+
 ### Audit Notes (2026-04-09)
 - **Venda model**: uses `valorTotal` (NOT `total`). All routes/services fixed to use `valorTotal`.
 - **OrdemServico model**: uses `valorTotal` (NOT `total`).
