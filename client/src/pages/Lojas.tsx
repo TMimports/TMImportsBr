@@ -350,11 +350,11 @@ export function Lojas() {
   }, []);
 
   const handleBuscarCNPJ = async () => {
-    const cnpj = form.cnpj.replace(/\D/g, '');
-    if (cnpj.length !== 14) { flash('Digite um CNPJ válido com 14 dígitos', 'erro'); return; }
+    const cnpjLimpo = form.cnpj.trim().replace(/\D/g, '');
+    if (cnpjLimpo.length !== 14) { flash('Digite um CNPJ válido com 14 dígitos', 'erro'); return; }
     setBuscando(true);
     try {
-      const d = await api.get<any>(`/lojas/consultar-cnpj/${cnpj}`);
+      const d = await api.get<any>(`/lojas/consultar-cnpj/${cnpjLimpo}`);
       setForm(p => ({
         ...p,
         cnpj: d.cnpj ?? p.cnpj,
