@@ -376,8 +376,9 @@ export function Lojas() {
     e.preventDefault();
     setSaving(true);
     try {
+      const cnpjLimpo = form.cnpj.replace(/\D/g, '');
       const enderecoFull = [form.endereco, form.bairro, form.cidade, form.uf, form.cep].filter(Boolean).join(', ');
-      const body = { ...form, endereco: enderecoFull };
+      const body = { ...form, cnpj: cnpjLimpo, endereco: enderecoFull };
       if (editando && form.id) {
         await api.put(`/lojas/${form.id}`, body);
         flash('Loja atualizada com sucesso!', 'ok');

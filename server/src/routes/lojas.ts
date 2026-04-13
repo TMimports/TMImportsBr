@@ -101,9 +101,10 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Grupo não encontrado' });
     }
 
+    const cnpjNorm = String(cnpj || '').startsWith('PENDENTE') ? String(cnpj) : String(cnpj || '').replace(/\D/g, '');
     const loja = await prisma.loja.create({
       data: {
-        cnpj: cnpj.replace(/\D/g, ''),
+        cnpj: cnpjNorm,
         razaoSocial,
         nomeFantasia,
         endereco,
