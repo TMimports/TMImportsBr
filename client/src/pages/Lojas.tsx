@@ -350,7 +350,9 @@ export function Lojas() {
   }, []);
 
   const handleBuscarCNPJ = async () => {
-    const cnpjLimpo = form.cnpj.trim().replace(/\D/g, '');
+    const valorCnpj = String(form.cnpj || '');
+    const cnpjLimpo = valorCnpj.trim().replace(/\D/g, '');
+    console.log('[Buscar CNPJ] valorOriginal:', JSON.stringify(valorCnpj), '| cnpjLimpo:', cnpjLimpo, '| length:', cnpjLimpo.length);
     if (cnpjLimpo.length !== 14) { flash('Digite um CNPJ válido com 14 dígitos', 'erro'); return; }
     setBuscando(true);
     try {
