@@ -324,7 +324,7 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
 
     const {
       nome, telefone, email, origem, campanha, interesse,
-      interesseCorrigido, lojaId, vendedorId, status, prioridade,
+      lojaId, vendedorId, status, prioridade,
       resumo, proximaAcao, mensagemWhatsApp, dataProximoFollowUp, observacoes,
       whatsappComercialOrigem, canalOrigem, mensagemRecebida, linkConversa,
       regiaoCliente, bairroCliente, cidadeCliente, ufCliente, lojaSugerida, motivoLojaSugerida,
@@ -337,7 +337,6 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
     if (origem !== undefined)                  data.origem                  = origem;
     if (campanha !== undefined)                data.campanha                = campanha?.trim() || null;
     if (interesse !== undefined)               data.interesse               = interesse;
-    if (interesseCorrigido !== undefined)      data.interesseCorrigido      = interesseCorrigido?.trim() || null;
     if (lojaId !== undefined)                  data.lojaId                  = lojaId ? Number(lojaId) : null;
     if (vendedorId !== undefined)              data.vendedorId              = vendedorId ? Number(vendedorId) : null;
     if (prioridade !== undefined)              data.prioridade              = prioridade;
@@ -373,7 +372,7 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
 
     // Fallback: campos que podem não existir em versões antigas do schema de prod
     const CAMPOS_EXTENDIDOS = [
-      'interesseCorrigido', 'mensagemWhatsApp', 'regiaoCliente', 'bairroCliente',
+      'mensagemWhatsApp', 'regiaoCliente', 'bairroCliente',
       'cidadeCliente', 'ufCliente', 'lojaSugerida', 'motivoLojaSugerida',
       'origemRepasse', 'whatsappComercialOrigem', 'canalOrigem', 'mensagemRecebida', 'linkConversa',
     ];
