@@ -95,6 +95,14 @@ This project is a comprehensive multi-company ERP system for TM Imports and its 
 - All pages use NAMED exports; App.tsx uses named imports
 - Fornecedor schema: uses `classe: ClasseFornecedor` (PRODUTO/SERVICO/AMBOS), NOT `tipo`
 
+### CRM Leads Beta — Passar Bastão (2026-04-14)
+- **Schema**: Lead recebeu `repassadoPorId Int?`, `dataRepasseVendedor DateTime?`, `whatsappComercialOrigem String?`, `canalOrigem String?`, `mensagemRecebida String?`, `linkConversa String?`. Relação `vendedor` nomeada `"LeadVendedor"` e nova relação `repassadoPor User? @relation("LeadRepassadoPor")`. User tem `leadsRepassados Lead[] @relation("LeadRepassadoPor")`.
+- **`crm-leads.ts`**: `GET /crm-leads/vendedores` (lista VENDEDOR+GERENTE_LOJA+DONO_LOJA ativos com loja e telefone). `POST /crm-leads/:id/repasse` (salva vendedorId, repassadoPorId, dataRepasseVendedor, muda status NOVO→EM_ATENDIMENTO, cria LeadInteracao "🤝 Lead repassado para..."). PATCH aceita campos `whatsappComercialOrigem`, `canalOrigem`, `mensagemRecebida`, `linkConversa`. INCLUDE_LEAD inclui `repassadoPor`.
+- **`CrmLeadsBeta.tsx`**: Botão "🤝 Passar Bastão" no header do PainelDetalhe. Seção "Vendedor Responsável" na aba info (mostra nome, quem repassou, data, link WhatsApp do vendedor). ModalPassarBastao (componente separado): lista vendedores por card, mostra mensagem sugerida pré-montada, botão "📲 Abrir WhatsApp do Vendedor" com deep-link, confirma repasse via POST /crm-leads/:id/repasse.
+- **Estrutura futura (preparada)**: campos `whatsappComercialOrigem`, `canalOrigem`, `mensagemRecebida`, `linkConversa` no Lead para integração futura com Z-API/WhatsApp Cloud API via n8n.
+- **Permissões**: apenas ADMIN_GERAL nesta fase. VENDEDOR/ADMIN_COMERCIAL para fase futura.
+- **TypeScript**: 0 erros frontend e backend após implementação.
+
 ### CRM Leads Beta — Enriquecimento Claude/n8n (2026-04-14)
 - **Schema**: `Lead` model tem campos `mensagemWhatsApp String?` e `interesseCorrigido String?` além de `resumo`, `proximaAcao`, `prioridade`, `origem`, `campanha`.
 - **`integracoes.ts`**: `POST /integracoes/leads-test` aceita payload Claude completo (`prioridade`, `interesseCorrigido`, `resumo`, `proximaAcao`, `mensagemWhatsApp`). Token: `INTEGRATION_TOKEN = 'crm_test_token_2024'`. Regra: `prioridade` vazia → `MEDIA`; `interesseCorrigido` vazio → `null`.

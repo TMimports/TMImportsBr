@@ -1,0 +1,94 @@
+Quero evoluir o CRM Leads Beta com uma etapa de “Passar Bastão” para o vendedor.
+
+Objetivo:
+Depois que o lead entrar no CRM e for classificado pelo n8n/Claude, o ADMIN_GERAL deve conseguir repassar esse lead para um vendedor responsável.
+
+Requisitos:
+
+1. Cadastro de vendedor
+Cada usuário vendedor deve ter:
+- nome
+- e-mail
+- telefone/WhatsApp
+- loja/unidade vinculada, se aplicável
+- ativo/inativo
+
+Se já existir usuário com role VENDEDOR, adicionar/garantir campo telefone/WhatsApp.
+
+2. Lead
+Adicionar/garantir no Lead:
+- vendedorId
+- status
+- dataRepasseVendedor
+- repassadoPorId
+- mensagemWhatsAppSugerida
+- historico/interações
+
+3. Botão “Passar Bastão”
+Na tela de detalhes do Lead no CRM Leads Beta, criar botão:
+“Passar para Vendedor”
+
+Ao clicar:
+- abrir modal para selecionar vendedor
+- mostrar telefone/WhatsApp cadastrado do vendedor
+- mostrar mensagem sugerida pela Claude/n8n
+- permitir confirmar o repasse
+
+4. Ao confirmar repasse
+O sistema deve:
+- salvar vendedorId no lead
+- alterar status para EM_ATENDIMENTO
+- preencher dataRepasseVendedor
+- registrar interação/histórico: “Lead repassado para [vendedor] por [usuário]”
+- manter rastreabilidade
+
+5. WhatsApp
+Nesta fase, não disparar mensagem automática real ainda.
+Criar botão “Abrir WhatsApp do vendedor” usando link wa.me com mensagem pronta.
+
+Mensagem sugerida:
+“Novo lead recebido:
+Nome: [nome]
+Telefone: [telefone]
+Origem: [origem]
+Campanha: [campanha]
+Interesse: [interesse]
+Prioridade: [prioridade]
+Resumo: [resumo]
+Próxima ação: [proximaAcao]”
+
+6. WhatsApp comercial
+Preparar estrutura para futura integração com WhatsApp comercial via n8n, Z-API ou WhatsApp Cloud API.
+Nesta etapa, apenas deixar preparado:
+- campo whatsappComercialOrigem
+- campo canalOrigem
+- campo mensagemRecebida
+- campo linkConversa, se aplicável
+
+7. Permissões
+- ADMIN_GERAL pode repassar lead para qualquer vendedor.
+- ADMIN_COMERCIAL futuramente poderá visualizar e repassar, mas nesta fase manter oculto se o CRM Beta ainda estiver restrito.
+- VENDEDOR futuramente verá apenas leads atribuídos a ele.
+- Não liberar o módulo para todos ainda.
+
+8. Dashboard
+Preparar métricas futuras:
+- leads repassados por vendedor
+- tempo até repasse
+- leads sem vendedor
+- leads em atendimento
+- taxa de conversão por vendedor
+
+9. Segurança
+- não excluir leads
+- não quebrar fluxo atual do n8n
+- não alterar financeiro, estoque ou vendas
+- manter CRM Leads Beta visível somente para ADMIN_GERAL nesta fase
+
+10. Entrega
+Ao final, informar:
+- arquivos alterados
+- modelos Prisma alterados
+- endpoints criados/alterados
+- como testar o botão Passar Bastão
+- confirmação se build passou

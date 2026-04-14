@@ -5,7 +5,10 @@ import { Card } from '../components/ui/Card';
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 interface Loja { id: number; nomeFantasia: string; }
-interface Vendedor { id: number; nome: string; }
+interface VendedorLista {
+  id: number; nome: string; email: string; telefone?: string;
+  loja?: { id: number; nomeFantasia: string; };
+}
 interface LeadInteracao {
   id: number; tipo: string; descricao: string; createdAt: string;
   usuario: { id: number; nome: string; };
@@ -15,13 +18,17 @@ interface Lead {
   origem: string; campanha?: string; interesse: string;
   interesseCorrigido?: string;
   lojaId?: number; vendedorId?: number;
+  repassadoPorId?: number; dataRepasseVendedor?: string;
   status: string; prioridade: string;
   resumo?: string; proximaAcao?: string;
   mensagemWhatsApp?: string;
   dataProximoFollowUp?: string; observacoes?: string;
+  whatsappComercialOrigem?: string; canalOrigem?: string;
+  mensagemRecebida?: string; linkConversa?: string;
   createdAt: string; updatedAt: string;
   loja?: { id: number; nomeFantasia: string; };
-  vendedor?: { id: number; nome: string; };
+  vendedor?: { id: number; nome: string; telefone?: string; };
+  repassadoPor?: { id: number; nome: string; };
   interacoes?: LeadInteracao[];
 }
 interface DashboardData {
@@ -246,6 +253,7 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
   );
   const [savingAcao, setSavingAcao] = useState(false);
   const [detalhe, setDetalhe] = useState<Lead>(lead);
+  const [showRepasse, setShowRepasse] = useState(false);
 
   async function registrarInteracao() {
     if (!descInt.trim()) { setErroInt('Descreva a interação'); return; }
@@ -281,19 +289,26 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
   }
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/60 flex items-start justify-end z-50 p-0" onClick={onClose}>
       <div className="bg-zinc-900 border-l border-zinc-700 w-full max-w-lg h-full overflow-y-auto shadow-2xl flex flex-col"
         onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-start justify-between px-5 py-4 border-b border-zinc-800 flex-shrink-0">
-          <div>
-            <h2 className="text-base font-bold text-white">{detalhe.nome}</h2>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-bold text-white truncate">{detalhe.nome}</h2>
             <p className="text-xs text-zinc-400 mt-0.5">
               {ORIGEM_ICON[detalhe.origem]} {detalhe.origem}
               {detalhe.campanha && <span className="ml-2 text-zinc-500">· {detalhe.campanha}</span>}
             </p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl ml-3 flex-shrink-0">✕</button>
+          <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+            <button onClick={() => setShowRepasse(true)}
+              className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+              🤝 Passar Bastão
+            </button>
+            <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">✕</button>
+          </div>
         </div>
 
         {/* Badges */}
@@ -375,6 +390,40 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
                   <p className="text-zinc-300 text-sm bg-zinc-800 rounded-lg px-3 py-2">{detalhe.observacoes}</p></div>
               )}
 
+              {/* Vendedor Responsável */}
+              {detalhe.vendedor ? (
+                <div className="bg-orange-950/20 border border-orange-800/30 rounded-xl p-4 space-y-2">
+                  <p className="text-orange-400 text-xs font-semibold uppercase tracking-wider">🤝 Vendedor Responsável</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-medium text-sm">{detalhe.vendedor.nome}</p>
+                      {detalhe.repassadoPor && (
+                        <p className="text-zinc-500 text-xs">Repassado por {detalhe.repassadoPor.nome}</p>
+                      )}
+                      {detalhe.dataRepasseVendedor && (
+                        <p className="text-zinc-500 text-xs">em {fmtDate(detalhe.dataRepasseVendedor)}</p>
+                      )}
+                    </div>
+                    {detalhe.vendedor.telefone && (
+                      <a href={`https://wa.me/55${detalhe.vendedor.telefone.replace(/\D/g,'')}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 bg-green-700 hover:bg-green-600 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition-colors">
+                        📲 WhatsApp
+                      </a>
+                    )}
+                  </div>
+                  <button onClick={() => setShowRepasse(true)}
+                    className="w-full text-xs text-orange-400 hover:text-orange-300 border border-orange-800/40 hover:border-orange-600/40 rounded-lg py-1.5 transition-colors">
+                    Alterar vendedor responsável
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setShowRepasse(true)}
+                  className="w-full flex items-center justify-center gap-2 border border-dashed border-orange-600/40 hover:border-orange-500 text-orange-400 hover:text-orange-300 rounded-xl py-3 text-sm font-medium transition-colors">
+                  🤝 Passar Bastão — Atribuir Vendedor
+                </button>
+              )}
+
               {/* Alterar status */}
               <div className="border border-zinc-800 rounded-lg p-4 space-y-2">
                 <p className="text-xs text-zinc-400 font-medium uppercase tracking-wide">🔄 Alterar Status</p>
@@ -446,6 +495,142 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
               </div>
             </>
           )}
+        </div>
+      </div>
+    </div>
+
+    {showRepasse && (
+      <ModalPassarBastao
+        lead={detalhe}
+        onClose={() => setShowRepasse(false)}
+        onConfirmado={(atualizado) => {
+          setDetalhe(atualizado);
+          onAtualizado(atualizado);
+          setShowRepasse(false);
+        }}
+      />
+    )}
+    </>
+  );
+}
+
+// ── Modal Passar Bastão ────────────────────────────────────────────────────────
+
+interface ModalPassarBastaoProps {
+  lead: Lead;
+  onClose: () => void;
+  onConfirmado: (l: Lead) => void;
+}
+
+function ModalPassarBastao({ lead, onClose, onConfirmado }: ModalPassarBastaoProps) {
+  const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500';
+  const [vendedores, setVendedores] = useState<VendedorLista[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(lead.vendedorId ?? null);
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get<VendedorLista[]>('/crm-leads/vendedores')
+      .then(v => { setVendedores(v); setLoading(false); })
+      .catch(() => { setErro('Erro ao carregar vendedores'); setLoading(false); });
+  }, []);
+
+  const vendedorSel = vendedores.find(v => v.id === selectedId);
+
+  const msgSugerida = `Novo lead recebido:
+Nome: ${lead.nome}
+Telefone: ${lead.telefone ?? '—'}
+Origem: ${lead.origem}
+Campanha: ${lead.campanha ?? '—'}
+Interesse: ${lead.interesseCorrigido || lead.interesse}
+Prioridade: ${lead.prioridade}
+Resumo: ${lead.resumo ?? '—'}
+Próxima ação: ${lead.proximaAcao ?? '—'}`;
+
+  async function confirmar() {
+    if (!selectedId) { setErro('Selecione um vendedor'); return; }
+    setSaving(true); setErro('');
+    try {
+      const atualizado = await api.post<Lead>(`/crm-leads/${lead.id}/repasse`, { vendedorId: selectedId });
+      onConfirmado(atualizado);
+    } catch (e: any) { setErro(e.message || 'Erro ao repassar lead'); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4" onClick={onClose}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <div>
+            <h3 className="text-base font-bold text-white">🤝 Passar Bastão</h3>
+            <p className="text-xs text-zinc-400 mt-0.5">Atribuir lead <span className="text-orange-400 font-medium">{lead.nome}</span> a um vendedor</p>
+          </div>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">✕</button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Selecionar vendedor */}
+          <div>
+            <label className="block text-xs text-zinc-400 mb-2 font-medium uppercase tracking-wide">Selecionar Vendedor</label>
+            {loading ? (
+              <p className="text-zinc-500 text-sm">Carregando vendedores...</p>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {vendedores.length === 0 && (
+                  <p className="text-zinc-500 text-sm text-center py-4">Nenhum vendedor ativo encontrado</p>
+                )}
+                {vendedores.map(v => (
+                  <button key={v.id} onClick={() => setSelectedId(v.id)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-colors ${
+                      selectedId === v.id
+                        ? 'border-orange-500 bg-orange-500/10 text-white'
+                        : 'border-zinc-700 bg-zinc-800 text-zinc-300 hover:border-zinc-500'
+                    }`}>
+                    <div className="text-left">
+                      <p className="font-medium">{v.nome}</p>
+                      <p className="text-xs text-zinc-500">{v.loja?.nomeFantasia ?? 'Sem loja'}</p>
+                    </div>
+                    {v.telefone && (
+                      <span className="text-xs text-green-400">{v.telefone}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Mensagem sugerida + link WhatsApp do vendedor */}
+          {vendedorSel && (
+            <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl p-4 space-y-3">
+              <p className="text-xs text-zinc-400 font-medium uppercase tracking-wide">💬 Mensagem para Vendedor</p>
+              <pre className="text-green-300 text-xs whitespace-pre-wrap leading-relaxed bg-green-950/20 border border-green-800/30 rounded-lg px-3 py-2">{msgSugerida}</pre>
+              {vendedorSel.telefone ? (
+                <a href={`https://wa.me/55${vendedorSel.telefone.replace(/\D/g,'')}?text=${encodeURIComponent(msgSugerida)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-green-600 hover:bg-green-500 text-white text-xs px-4 py-2 rounded-lg font-medium transition-colors">
+                  📲 Abrir WhatsApp do Vendedor
+                </a>
+              ) : (
+                <p className="text-zinc-500 text-xs">Vendedor sem telefone cadastrado</p>
+              )}
+            </div>
+          )}
+
+          {erro && <p className="text-red-400 text-xs">{erro}</p>}
+
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
+              Cancelar
+            </button>
+            <button onClick={confirmar} disabled={saving || !selectedId}
+              className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
+              {saving ? 'Repassando...' : '✅ Confirmar Repasse'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

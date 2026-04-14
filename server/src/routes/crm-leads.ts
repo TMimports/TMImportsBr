@@ -19,8 +19,9 @@ function onlyAdminGeral(req: AuthRequest, res: any, next: any) {
 }
 
 const INCLUDE_LEAD = {
-  loja:     { select: { id: true, nomeFantasia: true } },
-  vendedor: { select: { id: true, nome: true } },
+  loja:        { select: { id: true, nomeFantasia: true } },
+  vendedor:    { select: { id: true, nome: true, telefone: true } },
+  repassadoPor:{ select: { id: true, nome: true } },
   interacoes: {
     include: { usuario: { select: { id: true, nome: true } } },
     orderBy: { createdAt: 'desc' as const },
@@ -112,6 +113,74 @@ router.get('/dashboard', onlyAdminGeral, async (_req: AuthRequest, res) => {
   }
 });
 
+// ── GET /crm-leads/vendedores — listar vendedores ativos ─────────────────────
+// IMPORTANTE: deve vir ANTES de /:id para o Express não interpretar "vendedores" como id
+router.get('/vendedores', onlyAdminGeral, async (_req: AuthRequest, res) => {
+  try {
+    const vendedores = await prisma.user.findMany({
+      where: {
+        role: { in: ['VENDEDOR', 'GERENTE_LOJA', 'DONO_LOJA'] },
+        ativo: true,
+      },
+      select: {
+        id: true, nome: true, email: true, telefone: true,
+        loja: { select: { id: true, nomeFantasia: true } },
+      },
+      orderBy: { nome: 'asc' },
+    });
+    res.json(vendedores);
+  } catch (err) {
+    console.error('[CRM Leads] GET /vendedores', err);
+    res.status(500).json({ error: 'Erro ao listar vendedores' });
+  }
+});
+
+// ── POST /crm-leads/:id/repasse — passar bastão ───────────────────────────────
+router.post('/:id/repasse', onlyAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const leadId = Number(req.params.id);
+    const { vendedorId } = req.body;
+
+    if (!vendedorId) return res.status(400).json({ error: 'vendedorId é obrigatório' });
+
+    const [lead, vendedor] = await Promise.all([
+      prisma.lead.findUnique({ where: { id: leadId } }),
+      prisma.user.findUnique({ where: { id: Number(vendedorId) }, select: { id: true, nome: true, telefone: true } }),
+    ]);
+    if (!lead)     return res.status(404).json({ error: 'Lead não encontrado' });
+    if (!vendedor) return res.status(404).json({ error: 'Vendedor não encontrado' });
+
+    const repassante = req.user!;
+
+    const atualizado = await prisma.lead.update({
+      where: { id: leadId },
+      data: {
+        vendedorId:         Number(vendedorId),
+        repassadoPorId:     repassante.id,
+        dataRepasseVendedor: new Date(),
+        status:             lead.status === 'NOVO' ? 'EM_ATENDIMENTO' : lead.status,
+      },
+      include: INCLUDE_LEAD,
+    });
+
+    await prisma.leadInteracao.create({
+      data: {
+        leadId,
+        usuarioId: repassante.id,
+        tipo:     'OBSERVACAO',
+        descricao: `🤝 Lead repassado para ${vendedor.nome} por ${repassante.nome}.`,
+      },
+    });
+
+    // Recarregar com interações atualizadas
+    const final = await prisma.lead.findUnique({ where: { id: leadId }, include: INCLUDE_LEAD });
+    res.json(final);
+  } catch (err) {
+    console.error('[CRM Leads] POST /:id/repasse', err);
+    res.status(500).json({ error: 'Erro ao repassar lead' });
+  }
+});
+
 // ── GET /crm-leads/:id — detalhe ─────────────────────────────────────────────
 router.get('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
   try {
@@ -188,24 +257,29 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
       nome, telefone, email, origem, campanha, interesse,
       interesseCorrigido, lojaId, vendedorId, status, prioridade,
       resumo, proximaAcao, mensagemWhatsApp, dataProximoFollowUp, observacoes,
+      whatsappComercialOrigem, canalOrigem, mensagemRecebida, linkConversa,
     } = req.body;
 
     const data: any = {};
-    if (nome !== undefined)                data.nome               = nome.trim();
-    if (telefone !== undefined)            data.telefone           = telefone?.trim() || null;
-    if (email !== undefined)               data.email              = email?.trim() || null;
-    if (origem !== undefined)              data.origem             = origem;
-    if (campanha !== undefined)            data.campanha           = campanha?.trim() || null;
-    if (interesse !== undefined)           data.interesse          = interesse;
-    if (interesseCorrigido !== undefined)  data.interesseCorrigido = interesseCorrigido?.trim() || null;
-    if (lojaId !== undefined)              data.lojaId             = lojaId ? Number(lojaId) : null;
-    if (vendedorId !== undefined)          data.vendedorId         = vendedorId ? Number(vendedorId) : null;
-    if (prioridade !== undefined)          data.prioridade         = prioridade;
-    if (resumo !== undefined)              data.resumo             = resumo?.trim() || null;
-    if (proximaAcao !== undefined)         data.proximaAcao        = proximaAcao?.trim() || null;
-    if (mensagemWhatsApp !== undefined)    data.mensagemWhatsApp   = mensagemWhatsApp?.trim() || null;
-    if (dataProximoFollowUp !== undefined) data.dataProximoFollowUp = dataProximoFollowUp ? new Date(dataProximoFollowUp) : null;
-    if (observacoes !== undefined)         data.observacoes        = observacoes?.trim() || null;
+    if (nome !== undefined)                    data.nome                    = nome.trim();
+    if (telefone !== undefined)                data.telefone                = telefone?.trim() || null;
+    if (email !== undefined)                   data.email                   = email?.trim() || null;
+    if (origem !== undefined)                  data.origem                  = origem;
+    if (campanha !== undefined)                data.campanha                = campanha?.trim() || null;
+    if (interesse !== undefined)               data.interesse               = interesse;
+    if (interesseCorrigido !== undefined)      data.interesseCorrigido      = interesseCorrigido?.trim() || null;
+    if (lojaId !== undefined)                  data.lojaId                  = lojaId ? Number(lojaId) : null;
+    if (vendedorId !== undefined)              data.vendedorId              = vendedorId ? Number(vendedorId) : null;
+    if (prioridade !== undefined)              data.prioridade              = prioridade;
+    if (resumo !== undefined)                  data.resumo                  = resumo?.trim() || null;
+    if (proximaAcao !== undefined)             data.proximaAcao             = proximaAcao?.trim() || null;
+    if (mensagemWhatsApp !== undefined)        data.mensagemWhatsApp        = mensagemWhatsApp?.trim() || null;
+    if (dataProximoFollowUp !== undefined)     data.dataProximoFollowUp     = dataProximoFollowUp ? new Date(dataProximoFollowUp) : null;
+    if (observacoes !== undefined)             data.observacoes             = observacoes?.trim() || null;
+    if (whatsappComercialOrigem !== undefined) data.whatsappComercialOrigem = whatsappComercialOrigem?.trim() || null;
+    if (canalOrigem !== undefined)             data.canalOrigem             = canalOrigem?.trim() || null;
+    if (mensagemRecebida !== undefined)        data.mensagemRecebida        = mensagemRecebida?.trim() || null;
+    if (linkConversa !== undefined)            data.linkConversa            = linkConversa?.trim() || null;
 
     // Registrar mudança de status como interação automática
     if (status !== undefined && status !== current.status) {
