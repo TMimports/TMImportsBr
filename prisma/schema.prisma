@@ -52,6 +52,7 @@ model Loja {
   unidades              UnidadeFisica[]
   usuarios              User[]
   vendas                Venda[]
+  leads                 Lead[]            @relation("LeadLoja")
 }
 
 model User {
@@ -88,6 +89,8 @@ model User {
   grupo                     Grupo?             @relation(fields: [grupoId], references: [id])
   loja                      Loja?              @relation(fields: [lojaId], references: [id])
   vendas                    Venda[]            @relation("VendaVendedor")
+  leadsAtribuidos           Lead[]             @relation("LeadVendedor")
+  leadsInteracoes           LeadInteracao[]    @relation("LeadInteracaoUsuario")
 }
 
 model Produto {
@@ -1002,4 +1005,81 @@ enum TipoDisparo {
   MANUAL
   AUTOMATICO
   CRON
+}
+
+// ── CRM Leads Beta ────────────────────────────────────────────────────────────
+
+enum OrigemLead {
+  META
+  GOOGLE
+  SITE
+  WHATSAPP
+  INDICACAO
+  OUTRO
+  TESTE
+}
+
+enum InteresseLead {
+  MOTO
+  PECA
+  SERVICO
+  CURSO
+  OUTRO
+}
+
+enum StatusLead {
+  NOVO
+  EM_ATENDIMENTO
+  PROPOSTA_ENVIADA
+  GANHO
+  PERDIDO
+  SEM_RESPOSTA
+}
+
+enum PrioridadeLead {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum TipoInteracaoLead {
+  LIGACAO
+  WHATSAPP
+  EMAIL
+  OBSERVACAO
+  FOLLOW_UP
+}
+
+model Lead {
+  id                  Int               @id @default(autoincrement())
+  nome                String
+  telefone            String?
+  email               String?
+  origem              OrigemLead        @default(OUTRO)
+  campanha            String?
+  interesse           InteresseLead     @default(MOTO)
+  lojaId              Int?
+  vendedorId          Int?
+  status              StatusLead        @default(NOVO)
+  prioridade          PrioridadeLead    @default(MEDIA)
+  resumo              String?
+  proximaAcao         String?
+  dataProximoFollowUp DateTime?
+  observacoes         String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  interacoes          LeadInteracao[]
+  loja                Loja?             @relation("LeadLoja", fields: [lojaId], references: [id])
+  vendedor            User?             @relation("LeadVendedor", fields: [vendedorId], references: [id])
+}
+
+model LeadInteracao {
+  id          Int               @id @default(autoincrement())
+  leadId      Int
+  usuarioId   Int
+  tipo        TipoInteracaoLead
+  descricao   String
+  createdAt   DateTime          @default(now())
+  lead        Lead              @relation(fields: [leadId], references: [id])
+  usuario     User              @relation("LeadInteracaoUsuario", fields: [usuarioId], references: [id])
 }

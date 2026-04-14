@@ -34,6 +34,7 @@ import { Relatorios } from './pages/Relatorios';
 import { WhatsAppCRM } from './pages/WhatsAppCRM';
 import { Transferencias } from './pages/Transferencias';
 import { DashboardComercial } from './pages/DashboardComercial';
+import { CrmLeadsBeta } from './pages/CrmLeadsBeta';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
@@ -136,6 +137,8 @@ function AppContent() {
         return <WhatsAppCRM />;
       case 'dashboard-comercial':
         return <DashboardComercial />;
+      case 'crm-leads-beta':
+        return <CrmLeadsBeta />;
       default:
         return (
           <div className="card">

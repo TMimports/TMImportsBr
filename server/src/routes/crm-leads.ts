@@ -1,0 +1,253 @@
+import { Router } from 'express';
+import { prisma } from '../index.js';
+import { verifyToken, AuthRequest } from '../middleware/auth.js';
+
+const router = Router();
+router.use(verifyToken);
+
+// Guard: apenas ADMIN_GERAL nesta fase beta
+function onlyAdminGeral(req: AuthRequest, res: any, next: any) {
+  if (req.user?.role !== 'ADMIN_GERAL') {
+    return res.status(403).json({ error: 'Módulo em beta — acesso restrito ao Administrador Geral.' });
+  }
+  // Verificar flag de ambiente (opcional — se não definida, libera para ADMIN_GERAL)
+  const betaAtivo = process.env.CRM_LEADS_BETA;
+  if (betaAtivo !== undefined && betaAtivo !== 'true') {
+    return res.status(503).json({ error: 'CRM Leads Beta desativado neste ambiente.' });
+  }
+  next();
+}
+
+const INCLUDE_LEAD = {
+  loja:     { select: { id: true, nomeFantasia: true } },
+  vendedor: { select: { id: true, nome: true } },
+  interacoes: {
+    include: { usuario: { select: { id: true, nome: true } } },
+    orderBy: { createdAt: 'desc' as const },
+    take: 50,
+  },
+};
+
+// ── GET /crm-leads — listar ──────────────────────────────────────────────────
+router.get('/', onlyAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const { status, origem, prioridade, lojaId, vendedorId, from, to, busca } = req.query;
+
+    const where: any = {};
+    if (status)     where.status     = status;
+    if (origem)     where.origem     = origem;
+    if (prioridade) where.prioridade = prioridade;
+    if (lojaId)     where.lojaId     = Number(lojaId);
+    if (vendedorId) where.vendedorId = Number(vendedorId);
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(String(from));
+      if (to)   where.createdAt.lte = new Date(String(to) + 'T23:59:59');
+    }
+    if (busca) {
+      const q = String(busca);
+      where.OR = [
+        { nome:     { contains: q, mode: 'insensitive' } },
+        { telefone: { contains: q } },
+        { email:    { contains: q, mode: 'insensitive' } },
+        { campanha: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const leads = await prisma.lead.findMany({
+      where,
+      include: { loja: { select: { id: true, nomeFantasia: true } }, vendedor: { select: { id: true, nome: true } } },
+      orderBy: [{ prioridade: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    res.json(leads);
+  } catch (err) {
+    console.error('[CRM Leads] GET /', err);
+    res.status(500).json({ error: 'Erro ao listar leads' });
+  }
+});
+
+// ── GET /crm-leads/:id — detalhe ─────────────────────────────────────────────
+router.get('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const lead = await prisma.lead.findUnique({
+      where: { id: Number(req.params.id) },
+      include: INCLUDE_LEAD,
+    });
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+    res.json(lead);
+  } catch (err) {
+    console.error('[CRM Leads] GET /:id', err);
+    res.status(500).json({ error: 'Erro ao buscar lead' });
+  }
+});
+
+// ── POST /crm-leads — criar ──────────────────────────────────────────────────
+router.post('/', onlyAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const {
+      nome, telefone, email, origem, campanha, interesse,
+      lojaId, vendedorId, status, prioridade,
+      resumo, proximaAcao, dataProximoFollowUp, observacoes,
+    } = req.body;
+
+    if (!nome?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
+
+    const lead = await prisma.lead.create({
+      data: {
+        nome:               nome.trim(),
+        telefone:           telefone?.trim() || null,
+        email:              email?.trim() || null,
+        origem:             origem || 'OUTRO',
+        campanha:           campanha?.trim() || null,
+        interesse:          interesse || 'MOTO',
+        lojaId:             lojaId ? Number(lojaId) : null,
+        vendedorId:         vendedorId ? Number(vendedorId) : null,
+        status:             status || 'NOVO',
+        prioridade:         prioridade || 'MEDIA',
+        resumo:             resumo?.trim() || null,
+        proximaAcao:        proximaAcao?.trim() || null,
+        dataProximoFollowUp: dataProximoFollowUp ? new Date(dataProximoFollowUp) : null,
+        observacoes:        observacoes?.trim() || null,
+      },
+      include: INCLUDE_LEAD,
+    });
+
+    // Registrar interação inicial de criação
+    await prisma.leadInteracao.create({
+      data: {
+        leadId:    lead.id,
+        usuarioId: req.user!.id,
+        tipo:      'OBSERVACAO',
+        descricao: `Lead criado manualmente pelo admin.`,
+      },
+    });
+
+    res.status(201).json(lead);
+  } catch (err) {
+    console.error('[CRM Leads] POST /', err);
+    res.status(500).json({ error: 'Erro ao criar lead' });
+  }
+});
+
+// ── PATCH /crm-leads/:id — editar ────────────────────────────────────────────
+router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    const current = await prisma.lead.findUnique({ where: { id } });
+    if (!current) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    const {
+      nome, telefone, email, origem, campanha, interesse,
+      lojaId, vendedorId, status, prioridade,
+      resumo, proximaAcao, dataProximoFollowUp, observacoes,
+    } = req.body;
+
+    const data: any = {};
+    if (nome !== undefined)               data.nome               = nome.trim();
+    if (telefone !== undefined)           data.telefone           = telefone?.trim() || null;
+    if (email !== undefined)              data.email              = email?.trim() || null;
+    if (origem !== undefined)             data.origem             = origem;
+    if (campanha !== undefined)           data.campanha           = campanha?.trim() || null;
+    if (interesse !== undefined)          data.interesse          = interesse;
+    if (lojaId !== undefined)             data.lojaId             = lojaId ? Number(lojaId) : null;
+    if (vendedorId !== undefined)         data.vendedorId         = vendedorId ? Number(vendedorId) : null;
+    if (prioridade !== undefined)         data.prioridade         = prioridade;
+    if (resumo !== undefined)             data.resumo             = resumo?.trim() || null;
+    if (proximaAcao !== undefined)        data.proximaAcao        = proximaAcao?.trim() || null;
+    if (dataProximoFollowUp !== undefined) data.dataProximoFollowUp = dataProximoFollowUp ? new Date(dataProximoFollowUp) : null;
+    if (observacoes !== undefined)        data.observacoes        = observacoes?.trim() || null;
+
+    // Registrar mudança de status como interação automática
+    if (status !== undefined && status !== current.status) {
+      data.status = status;
+      await prisma.leadInteracao.create({
+        data: {
+          leadId:    id,
+          usuarioId: req.user!.id,
+          tipo:      'OBSERVACAO',
+          descricao: `Status alterado: ${current.status} → ${status}`,
+        },
+      });
+    }
+
+    const lead = await prisma.lead.update({ where: { id }, data, include: INCLUDE_LEAD });
+    res.json(lead);
+  } catch (err) {
+    console.error('[CRM Leads] PATCH /:id', err);
+    res.status(500).json({ error: 'Erro ao atualizar lead' });
+  }
+});
+
+// ── POST /crm-leads/:id/interacoes — registrar interação ─────────────────────
+router.post('/:id/interacoes', onlyAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const leadId = Number(req.params.id);
+    const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    const { tipo, descricao } = req.body;
+    if (!descricao?.trim()) return res.status(400).json({ error: 'Descrição obrigatória' });
+
+    const interacao = await prisma.leadInteracao.create({
+      data: {
+        leadId,
+        usuarioId: req.user!.id,
+        tipo:      tipo || 'OBSERVACAO',
+        descricao: descricao.trim(),
+      },
+      include: { usuario: { select: { id: true, nome: true } } },
+    });
+
+    res.status(201).json(interacao);
+  } catch (err) {
+    console.error('[CRM Leads] POST /:id/interacoes', err);
+    res.status(500).json({ error: 'Erro ao registrar interação' });
+  }
+});
+
+// ── GET /crm-leads-dashboard — métricas ──────────────────────────────────────
+router.get('-dashboard', onlyAdminGeral, async (_req: AuthRequest, res) => {
+  try {
+    const [
+      total, porStatus, porOrigem, porPrioridade, porLoja, porVendedor,
+      ganhos, perdidos, semana, mes,
+    ] = await Promise.all([
+      prisma.lead.count(),
+      prisma.lead.groupBy({ by: ['status'],    _count: { _all: true } }),
+      prisma.lead.groupBy({ by: ['origem'],    _count: { _all: true } }),
+      prisma.lead.groupBy({ by: ['prioridade'], _count: { _all: true } }),
+      prisma.lead.groupBy({ by: ['lojaId'],    _count: { _all: true } }),
+      prisma.lead.groupBy({ by: ['vendedorId'], _count: { _all: true }, orderBy: { _count: { vendedorId: 'desc' } }, take: 10 }),
+      prisma.lead.count({ where: { status: 'GANHO' } }),
+      prisma.lead.count({ where: { status: 'PERDIDO' } }),
+      prisma.lead.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 864e5) } } }),
+      prisma.lead.count({ where: { createdAt: { gte: new Date(Date.now() - 30 * 864e5) } } }),
+    ]);
+
+    const lojaIds = porLoja.map(l => l.lojaId).filter((id): id is number => id !== null);
+    const lojas   = await prisma.loja.findMany({ where: { id: { in: lojaIds } }, select: { id: true, nomeFantasia: true } });
+    const lojaMap = Object.fromEntries(lojas.map(l => [l.id, l.nomeFantasia]));
+
+    const vendedorIds = porVendedor.map(v => v.vendedorId).filter((id): id is number => id !== null);
+    const vendedores  = await prisma.user.findMany({ where: { id: { in: vendedorIds } }, select: { id: true, nome: true } });
+    const vendMap     = Object.fromEntries(vendedores.map(v => [v.id, v.nome]));
+
+    const taxaConversao = total > 0 ? Math.round((ganhos / total) * 100) : 0;
+
+    res.json({
+      total, ganhos, perdidos, taxaConversao,
+      novosUltimaSemana: semana, novosUltimoMes: mes,
+      porStatus:     porStatus.map(x  => ({ status:    x.status,    total: x._count._all })),
+      porOrigem:     porOrigem.map(x  => ({ origem:    x.origem,    total: x._count._all })),
+      porPrioridade: porPrioridade.map(x => ({ prioridade: x.prioridade, total: x._count._all })),
+      porLoja:       porLoja.map(x    => ({ lojaId:    x.lojaId,    nome: lojaMap[x.lojaId ?? 0] ?? '—', total: x._count._all })),
+      porVendedor:   porVendedor.map(x => ({ vendedorId: x.vendedorId, nome: vendMap[x.vendedorId ?? 0] ?? '—', total: x._count._all })),
+    });
+  } catch (err) {
+    console.error('[CRM Leads] GET -dashboard', err);
+    res.status(500).json({ error: 'Erro ao carregar dashboard' });
+  }
+});
+
+export default router;

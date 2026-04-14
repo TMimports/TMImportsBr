@@ -121,6 +121,7 @@ const menuItems: Record<string, NavEntry[]> = {
     FIN_GROUP,
     WHATSAPP_ITEM,
     RELATORIOS_ITEM,
+    item('crm-leads-beta', 'CRM Leads (Beta)', '🎯'),
     CONFIG_ITEM,
   ],
   ADMIN_FINANCEIRO: [

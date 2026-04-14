@@ -1,0 +1,225 @@
+Quero iniciar o desenvolvimento de um novo módulo de CRM/Leads no ERP, mas este módulo deve nascer em modo de desenvolvimento/beta, sem afetar a operação atual e sem aparecer para os usuários comuns.
+
+OBJETIVO GERAL
+Criar uma estrutura inicial de CRM de captação de leads integrada ao ERP, preparada futuramente para n8n, Claude e automações, mas nesta etapa ainda sem ativar automações reais.
+
+REGRA PRINCIPAL
+Não alterar o fluxo atual do ERP.
+Não quebrar telas existentes.
+Não mostrar esse módulo no menu para vendedores, lojistas, financeiro ou admin comercial ainda.
+Não liberar para operação real.
+Criar tudo de forma isolada, testável e segura.
+
+ACESSO
+Nesta primeira fase, somente ADMIN_GERAL pode acessar e testar o módulo.
+
+Criar uma rota interna/beta, por exemplo:
+- /crm-leads-beta
+ou
+- /admin/crm-leads-beta
+
+Essa rota pode aparecer apenas para ADMIN_GERAL ou ficar acessível por rota direta protegida.
+
+NÃO exibir no menu principal para outros perfis.
+
+FASE 1 — BANCO DE DADOS
+Criar estrutura para leads comerciais.
+
+Campos do Lead:
+- id
+- nome
+- telefone
+- email
+- origem: META, GOOGLE, SITE, WHATSAPP, INDICACAO, OUTRO
+- campanha
+- interesse: MOTO, PECA, SERVICO, CURSO, OUTRO
+- lojaId
+- vendedorId
+- status: NOVO, EM_ATENDIMENTO, PROPOSTA_ENVIADA, GANHO, PERDIDO, SEM_RESPOSTA
+- prioridade: BAIXA, MEDIA, ALTA
+- resumo
+- proximaAcao
+- dataProximoFollowUp
+- observacoes
+- createdAt
+- updatedAt
+
+Criar também histórico/interações do lead:
+- id
+- leadId
+- usuarioId
+- tipo: LIGACAO, WHATSAPP, EMAIL, OBSERVACAO, FOLLOW_UP
+- descricao
+- createdAt
+
+FASE 2 — BACKEND/API
+Criar endpoints protegidos para ADMIN_GERAL testar:
+
+- POST /api/crm-leads
+criar lead
+
+- GET /api/crm-leads
+listar leads
+
+- GET /api/crm-leads/:id
+detalhar lead
+
+- PATCH /api/crm-leads/:id
+editar lead/status/próxima ação
+
+- POST /api/crm-leads/:id/interacoes
+registrar interação
+
+- GET /api/crm-leads-dashboard
+retornar métricas para dashboard beta
+
+Criar também um endpoint preparado para integração futura com n8n, mas ainda em modo teste:
+
+- POST /api/integracoes/leads-test
+
+Esse endpoint deve:
+- receber lead externo de teste
+- exigir token simples via header, exemplo: x-integration-token
+- não disparar automações reais
+- apenas salvar o lead no CRM beta
+- marcar origem como TESTE ou conforme payload recebido
+
+Adicionar variável de ambiente opcional:
+CRM_LEADS_BETA=true
+INTEGRATION_TOKEN=token_de_teste
+
+Se a variável CRM_LEADS_BETA não estiver ativa, o módulo pode ficar bloqueado.
+
+FASE 3 — FRONTEND / TELA BETA
+Criar uma tela simples e limpa para ADMIN_GERAL testar o CRM de leads.
+
+Nome da tela:
+CRM Leads Beta
+
+A tela deve conter:
+- cards de resumo
+- tabela de leads
+- botão criar lead manual
+- filtros por status, origem, prioridade e período
+- botão ver detalhes
+- botão registrar interação
+- botão alterar status
+- campo próxima ação
+- data de próximo follow-up
+
+Não precisa ficar perfeito visualmente nesta etapa, mas deve seguir o padrão visual do ERP.
+
+FASE 4 — DASHBOARD BETA DO ADMIN COMERCIAL
+Criar uma prévia de dashboard comercial, ainda visível somente para ADMIN_GERAL.
+
+Esse dashboard deve mostrar:
+- total de leads
+- leads por origem
+- leads por status
+- leads por loja
+- leads por vendedor
+- leads por prioridade
+- taxa de conversão
+- ganhos x perdidos
+- volume por período
+- ranking de vendedores por quantidade de leads
+- ranking de vendedores por conversão
+
+Importante:
+Este dashboard ainda não deve aparecer para ADMIN_COMERCIAL.
+Ele deve ser apenas uma prévia beta para o ADMIN_GERAL validar.
+
+FASE 5 — PREPARAÇÃO PARA ÁREA DO VENDEDOR
+Preparar a lógica para que no futuro o vendedor veja apenas seus próprios leads.
+
+Mas nesta etapa:
+- não liberar para vendedor ainda
+- não exibir no menu do vendedor
+- deixar a regra preparada no backend
+
+Regra futura:
+- VENDEDOR verá apenas leads onde vendedorId = usuário logado
+- ADMIN_COMERCIAL verá métricas comerciais e todos os leads, mas sem editar/movimentar
+- ADMIN_GERAL verá tudo
+
+FASE 6 — PREPARAÇÃO PARA ADMIN_COMERCIAL
+O perfil ADMIN_COMERCIAL já existe no sistema.
+
+Preparar, mas NÃO liberar ainda:
+- dashboard comercial exclusivo
+- acesso somente leitura
+- sem permissão de criar, editar, excluir, movimentar, transferir, baixar ou alterar registros críticos
+- sem acesso ao dashboard principal da diretoria
+- sem dados financeiros sensíveis
+
+Nesta etapa, deixar tudo oculto para ADMIN_COMERCIAL até validação final.
+
+FASE 7 — PREPARAÇÃO PARA N8N E CLAUDE
+Preparar a estrutura para futuramente o n8n enviar leads para o ERP e a Claude classificar.
+
+Ainda não integrar de verdade com Claude nem Meta nem Google.
+
+Criar apenas o endpoint de teste e documentar o payload esperado.
+
+Payload esperado exemplo:
+{
+  "nome": "João Silva",
+  "telefone": "21999999999",
+  "email": "joao@email.com",
+  "origem": "META",
+  "campanha": "Campanha TM Recreio",
+  "interesse": "MOTO",
+  "mensagem": "Tenho interesse em moto elétrica",
+  "lojaId": 1
+}
+
+O sistema deve salvar o lead e permitir que o ADMIN_GERAL visualize no CRM Leads Beta.
+
+FASE 8 — SEGURANÇA
+Aplicar proteção de rota:
+- somente ADMIN_GERAL acessa o beta
+- endpoint de integração teste exige token
+- não permitir exclusão física de leads nesta fase
+- registrar logs básicos de criação/alteração se o sistema já tiver estrutura de auditoria
+
+FASE 9 — NÃO FAZER
+Não conectar Meta Ads ainda.
+Não conectar Google Ads ainda.
+Não conectar WhatsApp real ainda.
+Não disparar mensagem automática real.
+Não liberar para vendedores.
+Não liberar para admin comercial.
+Não alterar dashboard principal.
+Não alterar financeiro.
+Não alterar estoque.
+Não mexer em vendas reais.
+Não mexer em permissões críticas já existentes.
+
+FASE 10 — TESTES
+Depois de implementar:
+1. rodar prisma generate
+2. rodar prisma db push, se houver alteração no schema
+3. rodar build do frontend
+4. testar criação manual de lead
+5. testar listagem de leads
+6. testar alteração de status
+7. testar criação de interação
+8. testar endpoint /api/integracoes/leads-test com token
+9. confirmar que somente ADMIN_GERAL acessa
+10. confirmar que vendedores e ADMIN_COMERCIAL ainda não veem o módulo
+
+ENTREGA ESPERADA
+Ao final, me entregue um relatório com:
+- arquivos alterados
+- modelos Prisma criados/alterados
+- endpoints criados
+- rota frontend criada
+- como acessar a área beta
+- como testar o endpoint de integração
+- comandos executados
+- confirmação se o build passou
+
+REGRA FINAL
+Este módulo deve ser criado como beta invisível.
+A produção não pode ser impactada para usuários normais.
+O objetivo é testar primeiro com ADMIN_GERAL e só depois liberar em fases.
