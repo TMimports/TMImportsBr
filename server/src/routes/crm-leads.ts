@@ -67,6 +67,51 @@ router.get('/', onlyAdminGeral, async (req: AuthRequest, res) => {
   }
 });
 
+// ── GET /crm-leads/dashboard — métricas ──────────────────────────────────────
+// IMPORTANTE: deve ficar ANTES de /:id para o Express não capturar "dashboard" como id
+router.get('/dashboard', onlyAdminGeral, async (_req: AuthRequest, res) => {
+  try {
+    const [
+      total, porStatus, porOrigem, porPrioridade, porLoja, porVendedor,
+      ganhos, perdidos, semana, mes,
+    ] = await Promise.all([
+      prisma.lead.count(),
+      prisma.lead.groupBy({ by: ['status'],    _count: { _all: true } }),
+      prisma.lead.groupBy({ by: ['origem'],    _count: { _all: true } }),
+      prisma.lead.groupBy({ by: ['prioridade'], _count: { _all: true } }),
+      prisma.lead.groupBy({ by: ['lojaId'],    _count: { _all: true } }),
+      prisma.lead.groupBy({ by: ['vendedorId'], _count: { _all: true }, orderBy: { _count: { vendedorId: 'desc' } }, take: 10 }),
+      prisma.lead.count({ where: { status: 'GANHO' } }),
+      prisma.lead.count({ where: { status: 'PERDIDO' } }),
+      prisma.lead.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 864e5) } } }),
+      prisma.lead.count({ where: { createdAt: { gte: new Date(Date.now() - 30 * 864e5) } } }),
+    ]);
+
+    const lojaIds = porLoja.map(l => l.lojaId).filter((id): id is number => id !== null);
+    const lojas   = await prisma.loja.findMany({ where: { id: { in: lojaIds } }, select: { id: true, nomeFantasia: true } });
+    const lojaMap = Object.fromEntries(lojas.map(l => [l.id, l.nomeFantasia]));
+
+    const vendedorIds = porVendedor.map(v => v.vendedorId).filter((id): id is number => id !== null);
+    const vendedores  = await prisma.user.findMany({ where: { id: { in: vendedorIds } }, select: { id: true, nome: true } });
+    const vendMap     = Object.fromEntries(vendedores.map(v => [v.id, v.nome]));
+
+    const taxaConversao = total > 0 ? Math.round((ganhos / total) * 100) : 0;
+
+    res.json({
+      total, ganhos, perdidos, taxaConversao,
+      novosUltimaSemana: semana, novosUltimoMes: mes,
+      porStatus:     porStatus.map(x  => ({ status:    x.status,    total: x._count._all })),
+      porOrigem:     porOrigem.map(x  => ({ origem:    x.origem,    total: x._count._all })),
+      porPrioridade: porPrioridade.map(x => ({ prioridade: x.prioridade, total: x._count._all })),
+      porLoja:       porLoja.map(x    => ({ lojaId:    x.lojaId,    nome: lojaMap[x.lojaId ?? 0] ?? '—', total: x._count._all })),
+      porVendedor:   porVendedor.map(x => ({ vendedorId: x.vendedorId, nome: vendMap[x.vendedorId ?? 0] ?? '—', total: x._count._all })),
+    });
+  } catch (err) {
+    console.error('[CRM Leads] GET /dashboard', err);
+    res.status(500).json({ error: 'Erro ao carregar dashboard' });
+  }
+});
+
 // ── GET /crm-leads/:id — detalhe ─────────────────────────────────────────────
 router.get('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
   try {
@@ -203,50 +248,6 @@ router.post('/:id/interacoes', onlyAdminGeral, async (req: AuthRequest, res) => 
   } catch (err) {
     console.error('[CRM Leads] POST /:id/interacoes', err);
     res.status(500).json({ error: 'Erro ao registrar interação' });
-  }
-});
-
-// ── GET /crm-leads/dashboard — métricas ──────────────────────────────────────
-router.get('/dashboard', onlyAdminGeral, async (_req: AuthRequest, res) => {
-  try {
-    const [
-      total, porStatus, porOrigem, porPrioridade, porLoja, porVendedor,
-      ganhos, perdidos, semana, mes,
-    ] = await Promise.all([
-      prisma.lead.count(),
-      prisma.lead.groupBy({ by: ['status'],    _count: { _all: true } }),
-      prisma.lead.groupBy({ by: ['origem'],    _count: { _all: true } }),
-      prisma.lead.groupBy({ by: ['prioridade'], _count: { _all: true } }),
-      prisma.lead.groupBy({ by: ['lojaId'],    _count: { _all: true } }),
-      prisma.lead.groupBy({ by: ['vendedorId'], _count: { _all: true }, orderBy: { _count: { vendedorId: 'desc' } }, take: 10 }),
-      prisma.lead.count({ where: { status: 'GANHO' } }),
-      prisma.lead.count({ where: { status: 'PERDIDO' } }),
-      prisma.lead.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 864e5) } } }),
-      prisma.lead.count({ where: { createdAt: { gte: new Date(Date.now() - 30 * 864e5) } } }),
-    ]);
-
-    const lojaIds = porLoja.map(l => l.lojaId).filter((id): id is number => id !== null);
-    const lojas   = await prisma.loja.findMany({ where: { id: { in: lojaIds } }, select: { id: true, nomeFantasia: true } });
-    const lojaMap = Object.fromEntries(lojas.map(l => [l.id, l.nomeFantasia]));
-
-    const vendedorIds = porVendedor.map(v => v.vendedorId).filter((id): id is number => id !== null);
-    const vendedores  = await prisma.user.findMany({ where: { id: { in: vendedorIds } }, select: { id: true, nome: true } });
-    const vendMap     = Object.fromEntries(vendedores.map(v => [v.id, v.nome]));
-
-    const taxaConversao = total > 0 ? Math.round((ganhos / total) * 100) : 0;
-
-    res.json({
-      total, ganhos, perdidos, taxaConversao,
-      novosUltimaSemana: semana, novosUltimoMes: mes,
-      porStatus:     porStatus.map(x  => ({ status:    x.status,    total: x._count._all })),
-      porOrigem:     porOrigem.map(x  => ({ origem:    x.origem,    total: x._count._all })),
-      porPrioridade: porPrioridade.map(x => ({ prioridade: x.prioridade, total: x._count._all })),
-      porLoja:       porLoja.map(x    => ({ lojaId:    x.lojaId,    nome: lojaMap[x.lojaId ?? 0] ?? '—', total: x._count._all })),
-      porVendedor:   porVendedor.map(x => ({ vendedorId: x.vendedorId, nome: vendMap[x.vendedorId ?? 0] ?? '—', total: x._count._all })),
-    });
-  } catch (err) {
-    console.error('[CRM Leads] GET -dashboard', err);
-    res.status(500).json({ error: 'Erro ao carregar dashboard' });
   }
 });
 
