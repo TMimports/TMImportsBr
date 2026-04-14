@@ -229,20 +229,16 @@ router.post('/leads-test', async (req: Request, res: Response) => {
 
       if (lojaResolvida) {
         vendedorAtribuido = await escolherVendedorRodizio(lojaResolvida.id);
+        const nomeLoja = lojaResolvida.nomeFantasia ?? `Loja #${lojaResolvida.id}`;
         if (vendedorAtribuido) {
           statusFinal        = 'EM_ATENDIMENTO';
           origemRepasseFinal = 'AUTO_REGIAO';
-          observacoesFinal   = `Lead recebido via ${origemFinal}. Atribuído para ${vendedorAtribuido.nome} (${lojaResolvida.nomeFantasia ?? lojaResolvida.id}).`;
+          observacoesFinal   = `Lead recebido via ${origemFinal}. Loja identificada: ${nomeLoja}. Atribuído para ${vendedorAtribuido.nome}.`;
         } else {
-          observacoesFinal = `Lead recebido via ${origemFinal}. Loja identificada: ${lojaResolvida.nomeFantasia ?? lojaResolvida.id}. Aguardando atribuição de vendedor.`;
+          observacoesFinal = `Lead recebido via ${origemFinal}. Loja identificada: ${nomeLoja}. Sem vendedores ativos vinculados — lead aguardando atribuição manual.`;
         }
       } else {
-        const temDadosRegiao = regiaoCliente || bairroCliente || cidadeCliente || lojaSugerida;
-        if (temDadosRegiao) {
-          observacoesFinal = `Lead recebido via ${origemFinal}. Dados de localização não correspondem a nenhuma loja cadastrada. Aguardando definição de loja.`;
-        } else {
-          observacoesFinal = `Lead recebido via ${origemFinal}. Aguardando definição de loja e vendedor responsável.`;
-        }
+        observacoesFinal = `Lead recebido via ${origemFinal}. Aguardando definição de loja.`;
       }
     } else {
       observacoesFinal = `Lead recebido via ${origemFinal}.`;
