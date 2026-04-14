@@ -91,6 +91,7 @@ const LOJA_IMPORTACAO_ID = 4;
 // ─── ModalCadastroChassi ───────────────────────────────────────────────────────
 
 interface ProdutoMoto { id: number; nome: string; codigo: string; }
+interface FornecedorBasico { id: number; razaoSocial: string; nomeFantasia?: string | null; }
 
 interface ChassiRow { chassi: string; cor: string; codigoMotor: string; ano: string; }
 
@@ -103,9 +104,12 @@ function ModalCadastroChassi({
   onClose: () => void; onSucesso: () => void;
 }) {
   const [produtos, setProdutos] = useState<ProdutoMoto[]>([]);
+  const [fornecedores, setFornecedores] = useState<FornecedorBasico[]>([]);
   const [produtoId, setProdutoId] = useState('');
   const [lojaIdSel, setLojaIdSel] = useState(String(lojaId));
   const [custo, setCusto] = useState('');
+  const [fornecedorId, setFornecedorId] = useState('');
+  const [notaFiscalEntrada, setNotaFiscalEntrada] = useState('');
   const [modo, setModo] = useState<'unitario' | 'lote'>('unitario');
   const [rows, setRows] = useState<ChassiRow[]>([emptyRow()]);
   const [saving, setSaving] = useState(false);
@@ -123,7 +127,13 @@ function ModalCadastroChassi({
         setProdutos(listaProdutos.filter((p: any) => p.tipo === 'MOTO'));
       })
       .catch(() => setProdutos([]));
-  }, []);
+    api.get<any>(`/fornecedores?lojaId=${lojaIdSel}&limit=200`)
+      .then(d => {
+        const raw: any = d;
+        setFornecedores(Array.isArray(raw) ? raw : raw?.fornecedores ?? []);
+      })
+      .catch(() => setFornecedores([]));
+  }, [lojaIdSel]);
 
   function updateRow(i: number, field: keyof ChassiRow, val: string) {
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
@@ -145,6 +155,8 @@ function ModalCadastroChassi({
           codigoMotor: row.codigoMotor.trim() || null,
           ano: Number(row.ano) || new Date().getFullYear(),
           custo: custo ? Number(custo.replace(',', '.')) : undefined,
+          fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+          notaFiscalEntrada: notaFiscalEntrada.trim() || null,
         });
         setResultado({ criados: 1, erros: 0, detalhesErros: [] });
       } else {
@@ -157,7 +169,13 @@ function ModalCadastroChassi({
         if (itens.length === 0) { setErro('Adicione pelo menos um chassi'); setSaving(false); return; }
         const res = await api.post<{ criados: number; erros: number; detalhesErros: string[] }>(
           '/unidades/manual/lote',
-          { produtoId: Number(produtoId), lojaId: Number(lojaIdSel), itens }
+          {
+            produtoId: Number(produtoId),
+            lojaId: Number(lojaIdSel),
+            itens,
+            fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+            notaFiscalEntrada: notaFiscalEntrada.trim() || null,
+          }
         );
         setResultado(res);
       }
@@ -215,7 +233,7 @@ function ModalCadastroChassi({
             ))}
           </div>
 
-          {/* Produto + Loja + Custo */}
+          {/* Produto + Loja */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
               <label className={lbl}>Modelo / Produto *</label>
@@ -232,12 +250,38 @@ function ModalCadastroChassi({
                 </select>
               </div>
             )}
-            {modo === 'unitario' && (
-              <div>
-                <label className={lbl}>Custo de Aquisição (R$)</label>
-                <input value={custo} onChange={e => setCusto(e.target.value)} placeholder="0,00" className={inp} />
+          </div>
+
+          {/* Origem / Fornecedor */}
+          <div className="border border-zinc-800 rounded-lg p-4 space-y-3">
+            <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium">📦 Origem do Produto</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className={lbl}>Fornecedor</label>
+                <select value={fornecedorId} onChange={e => setFornecedorId(e.target.value)} className={inp}>
+                  <option value="">Selecione o fornecedor...</option>
+                  {fornecedores.map(f => (
+                    <option key={f.id} value={f.id}>
+                      {f.nomeFantasia ? `${f.nomeFantasia} (${f.razaoSocial})` : f.razaoSocial}
+                    </option>
+                  ))}
+                </select>
+                {fornecedores.length === 0 && (
+                  <p className="text-xs text-zinc-500 mt-1">Nenhum fornecedor cadastrado nesta loja</p>
+                )}
               </div>
-            )}
+              <div>
+                <label className={lbl}>Nota Fiscal de Entrada</label>
+                <input value={notaFiscalEntrada} onChange={e => setNotaFiscalEntrada(e.target.value)}
+                  placeholder="Ex: NF-e 001234" className={inp} />
+              </div>
+              {modo === 'unitario' && (
+                <div>
+                  <label className={lbl}>Custo de Aquisição (R$)</label>
+                  <input value={custo} onChange={e => setCusto(e.target.value)} placeholder="0,00" className={inp} />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Linhas de chassi */}

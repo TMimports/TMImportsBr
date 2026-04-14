@@ -18,7 +18,7 @@ router.put('/:id(\\d+)', goneHandler);
 // ── Cadastro manual de chassi ──────────────────────────────────────────────
 router.post('/manual', async (req: AuthRequest, res) => {
   try {
-    const { produtoId, lojaId, cor, chassi, codigoMotor, ano, custo } = req.body;
+    const { produtoId, lojaId, cor, chassi, codigoMotor, ano, custo, fornecedorId, notaFiscalEntrada } = req.body;
     const user = req.user!;
 
     if (!produtoId || !lojaId) {
@@ -65,8 +65,14 @@ router.post('/manual', async (req: AuthRequest, res) => {
         numeroSerie,
         status: 'ESTOQUE',
         createdBy: user.id,
+        fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+        notaFiscalEntrada: notaFiscalEntrada?.trim() || null,
       },
-      include: { produto: { select: { nome: true } }, loja: { select: { nomeFantasia: true } } }
+      include: {
+        produto: { select: { nome: true } },
+        loja: { select: { nomeFantasia: true } },
+        fornecedor: { select: { razaoSocial: true, nomeFantasia: true } }
+      }
     });
 
     // Atualizar custo médio do produto se informado
@@ -87,7 +93,7 @@ router.post('/manual', async (req: AuthRequest, res) => {
 // ── Cadastro em lote (vários chassi de uma vez) ─────────────────────────────
 router.post('/manual/lote', async (req: AuthRequest, res) => {
   try {
-    const { lojaId, produtoId, itens } = req.body;
+    const { lojaId, produtoId, itens, fornecedorId, notaFiscalEntrada } = req.body;
     const user = req.user!;
 
     if (!lojaId || !produtoId || !Array.isArray(itens) || itens.length === 0) {
@@ -136,6 +142,8 @@ router.post('/manual/lote', async (req: AuthRequest, res) => {
             numeroSerie,
             status: 'ESTOQUE',
             createdBy: user.id,
+            fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+            notaFiscalEntrada: notaFiscalEntrada?.trim() || null,
           }
         });
         criados.push(unidade);
