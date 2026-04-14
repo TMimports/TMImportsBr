@@ -336,6 +336,7 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
     if (ufCliente !== undefined)               data.ufCliente               = ufCliente?.trim() || null;
     if (lojaSugerida !== undefined)            data.lojaSugerida            = lojaSugerida?.trim() || null;
     if (motivoLojaSugerida !== undefined)      data.motivoLojaSugerida      = motivoLojaSugerida?.trim() || null;
+    if ((req.body as any).origemRepasse !== undefined) data.origemRepasse   = (req.body as any).origemRepasse?.trim() || null;
 
     // Registrar mudança de status como interação automática
     if (status !== undefined && status !== current.status) {

@@ -17,6 +17,7 @@
  *   "proximaAcao": "Ligar às 10h amanhã e enviar catálogo",
  *   "mensagemWhatsApp": "Olá João! Vi que você tem interesse...",
  *   // ── Região (atribuição automática) ──────────────────────────────
+ *   "autoAtribuir": true,          // opcional, default true
  *   "regiaoCliente": "Recreio",
  *   "bairroCliente": "Recreio dos Bandeirantes",
  *   "cidadeCliente": "Rio de Janeiro",
@@ -27,14 +28,17 @@
  *
  * Header obrigatório: x-integration-token: <INTEGRATION_TOKEN>
  *
- * Regra de atribuição automática:
+ * Regra de atribuição automática (autoAtribuir=true, default):
  *  1. Se lojaId fornecido → usa diretamente.
  *  2. Se lojaSugerida fornecido → busca Loja por nomeFantasia (contém, case-insensitive).
  *  3. Se regiaoCliente → busca Loja por regiao (case-insensitive).
  *  4. Se bairroCliente → busca Loja onde bairrosAtendidos contém o bairro.
  *  5. Se cidadeCliente → busca Loja por cidade (case-insensitive).
- *  6. Se loja encontrada → rodízio entre VENDEDORs ativos (último atribuído = fim da fila).
- *  7. Se nenhuma loja → status NOVO + observação de espera por região.
+ *  6. Fallback: nomeFantasia ou endereco contendo regiaoCliente/bairroCliente/cidadeCliente.
+ *  7. Se loja encontrada → rodízio entre VENDEDORs ativos (role=VENDEDOR) da loja.
+ *  8. Se vendedor encontrado → salva vendedorId, lojaId, status EM_ATENDIMENTO, origemRepasse=AUTO_REGIAO.
+ *  9. Se sem vendedor → status NOVO + observação detalhada.
+ * 10. Se autoAtribuir=false → não tenta atribuição, salva NOVO.
  */
 
 import { Router, Request, Response } from 'express';
@@ -108,10 +112,10 @@ async function resolverLojaPorRegiao(params: {
   // Passo 2: nome da loja sugerida pela Claude
   if (lojaSugerida?.trim()) {
     const loja = await prisma.loja.findFirst({
-      where:  { nomeFantasia: { contains: lojaSugerida.trim(), mode: 'insensitive' } },
+      where:  { nomeFantasia: { contains: lojaSugerida.trim(), mode: 'insensitive' }, ativo: true },
       select: { id: true, nomeFantasia: true },
     });
-    if (loja) return { loja, metodo: `Loja sugerida pela Claude: "${lojaSugerida.trim()}"` };
+    if (loja) return { loja, metodo: `Loja sugerida: "${lojaSugerida.trim()}"` };
   }
 
   // Passo 3: região do cliente → campo regiao da loja
@@ -132,13 +136,29 @@ async function resolverLojaPorRegiao(params: {
     if (loja) return { loja, metodo: `Bairro do cliente: "${bairroCliente.trim()}"` };
   }
 
-  // Passo 5: cidade
+  // Passo 5: cidade → campo cidade da loja
   if (cidadeCliente?.trim()) {
     const loja = await prisma.loja.findFirst({
       where:  { cidade: { contains: cidadeCliente.trim(), mode: 'insensitive' }, ativo: true },
       select: { id: true, nomeFantasia: true },
     });
     if (loja) return { loja, metodo: `Cidade do cliente: "${cidadeCliente.trim()}"` };
+  }
+
+  // Passo 6: fallback — nomeFantasia ou endereco contendo regiaoCliente, bairroCliente ou cidadeCliente
+  const termoBusca = regiaoCliente?.trim() || bairroCliente?.trim() || cidadeCliente?.trim();
+  if (termoBusca) {
+    const loja = await prisma.loja.findFirst({
+      where: {
+        ativo: true,
+        OR: [
+          { nomeFantasia: { contains: termoBusca, mode: 'insensitive' } },
+          { endereco:     { contains: termoBusca, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, nomeFantasia: true },
+    });
+    if (loja) return { loja, metodo: `Fallback nome/endereço: "${termoBusca}"` };
   }
 
   return { loja: null, metodo: '' };
@@ -170,6 +190,7 @@ router.post('/leads-test', async (req: Request, res: Response) => {
       proximaAcao,
       mensagemWhatsApp,
       // ── Região e atribuição ──────────────────────────────────────
+      autoAtribuir,        // boolean, default true — se false, não tenta atribuição automática
       lojaId,
       regiaoCliente,
       bairroCliente,
@@ -178,6 +199,9 @@ router.post('/leads-test', async (req: Request, res: Response) => {
       lojaSugerida,
       motivoLojaSugerida,
     } = req.body;
+
+    // autoAtribuir: undefined/true → tenta atribuição; false explícito → não tenta
+    const deveAutoAtribuir = autoAtribuir !== false;
 
     if (!nome?.trim()) {
       return res.status(400).json({ error: 'Campo "nome" é obrigatório.' });
@@ -203,33 +227,43 @@ router.post('/leads-test', async (req: Request, res: Response) => {
     const resumoFinal: string | null = resumo?.trim() || mensagem?.trim() || null;
 
     // ── Resolver loja e vendedor por região ──────────────────────────────────
-    const { loja: lojaResolvida, metodo: metodoResolucao } = await resolverLojaPorRegiao({
-      lojaId,
-      lojaSugerida:  lojaSugerida?.trim()  || null,
-      regiaoCliente: regiaoCliente?.trim() || null,
-      bairroCliente: bairroCliente?.trim() || null,
-      cidadeCliente: cidadeCliente?.trim() || null,
-    });
-
+    let lojaResolvida: { id: number; nomeFantasia: string | null } | null = null;
+    let metodoResolucao = '';
     let vendedorAtribuido: { id: number; nome: string } | null = null;
     let statusFinal: any = 'NOVO';
+    let origemRepasseFinal: string | null = null;
     let observacoesFinal: string;
 
-    if (lojaResolvida) {
-      vendedorAtribuido = await escolherVendedorRodizio(lojaResolvida.id);
-      if (vendedorAtribuido) {
-        statusFinal = 'EM_ATENDIMENTO';
-        observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Atribuído automaticamente para ${vendedorAtribuido.nome} (${lojaResolvida.nomeFantasia ?? lojaResolvida.id}). Método: ${metodoResolucao}.`;
+    if (deveAutoAtribuir) {
+      const resultado = await resolverLojaPorRegiao({
+        lojaId,
+        lojaSugerida:  lojaSugerida?.trim()  || null,
+        regiaoCliente: regiaoCliente?.trim() || null,
+        bairroCliente: bairroCliente?.trim() || null,
+        cidadeCliente: cidadeCliente?.trim() || null,
+      });
+      lojaResolvida  = resultado.loja;
+      metodoResolucao = resultado.metodo;
+
+      if (lojaResolvida) {
+        vendedorAtribuido = await escolherVendedorRodizio(lojaResolvida.id);
+        if (vendedorAtribuido) {
+          statusFinal       = 'EM_ATENDIMENTO';
+          origemRepasseFinal = 'AUTO_REGIAO';
+          observacoesFinal  = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Atribuído automaticamente para ${vendedorAtribuido.nome} (${lojaResolvida.nomeFantasia ?? lojaResolvida.id}). Método: ${metodoResolucao}.`;
+        } else {
+          observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Loja identificada: ${lojaResolvida.nomeFantasia ?? lojaResolvida.id}. Sem vendedores ativos vinculados — lead aguardando atribuição manual.`;
+        }
       } else {
-        observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Loja identificada (${lojaResolvida.nomeFantasia ?? lojaResolvida.id}), mas sem vendedores ativos disponíveis. Lead aguardando atribuição manual.`;
+        const temDadosRegiao = regiaoCliente || bairroCliente || cidadeCliente || lojaSugerida;
+        if (temDadosRegiao) {
+          observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Dados de região informados (${[regiaoCliente, bairroCliente, cidadeCliente].filter(Boolean).join(', ')}) não correspondem a nenhuma loja cadastrada. Lead aguardando definição de região para atribuição automática.`;
+        } else {
+          observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Sem dados de região — lead aguardando definição de região para atribuição automática.`;
+        }
       }
     } else {
-      const temDadosRegiao = regiaoCliente || bairroCliente || cidadeCliente || lojaSugerida;
-      if (temDadosRegiao) {
-        observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Região informada não corresponde a nenhuma loja cadastrada. Lead aguardando definição de região para atribuição automática.`;
-      } else {
-        observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Sem dados de região. Lead aguardando definição de região para atribuição automática.`;
-      }
+      observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Atribuição automática desativada (autoAtribuir=false).`;
     }
 
     // ── Criar lead ────────────────────────────────────────────────────────────
@@ -246,6 +280,7 @@ router.post('/leads-test', async (req: Request, res: Response) => {
         vendedorId:         vendedorAtribuido ? vendedorAtribuido.id : null,
         repassadoPorId:     vendedorAtribuido ? 1 : null,
         dataRepasseVendedor: vendedorAtribuido ? new Date() : null,
+        origemRepasse:      origemRepasseFinal,
         status:             statusFinal,
         prioridade:         prioridadeFinal,
         resumo:             resumoFinal,

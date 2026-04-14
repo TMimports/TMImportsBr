@@ -103,7 +103,11 @@ This project is a comprehensive multi-company ERP system for TM Imports and its 
 - **Novos endpoints `crm-leads.ts`**: `GET /crm-leads/lojas` (lojas ativas com campos de região); `PATCH /crm-leads/lojas/:id` (salva regiao/bairrosAtendidos/cidade/uf). Ambos estáticos, ANTES de `/:id`.
 - **`CrmLeadsBeta.tsx`**: nova aba "🗺️ Regiões das Lojas" com cards por loja, formulário de edição inline (regiao, bairrosAtendidos, cidade, uf), indicador visual de configuração. Painel detalhe do lead exibe seção "🗺️ Região do Cliente" (região, bairro, cidade/UF, loja atribuída, loja sugerida, motivo).
 - **Payload n8n futuro**: `regiaoCliente`, `bairroCliente`, `cidadeCliente`, `ufCliente`, `lojaSugerida`, `motivoLojaSugerida` aceitos pelo `POST /integracoes/leads-test`.
-- **TypeScript**: 0 erros frontend e backend.
+- **`origemRepasse String?`** no Lead: valor `'AUTO_REGIAO'` quando atribuído automaticamente; `null` quando manual.
+- **`autoAtribuir boolean`** no payload: `true`/omitido = tenta atribuição; `false` explícito = salva como NOVO sem tentar.
+- **Fallback passo 6**: nomeFantasia ou endereco contendo regiaoCliente/bairroCliente/cidadeCliente.
+- **Build frontend**: `npm run build` passa com 0 erros. Corrigidos 3 erros pré-existentes (`Vendedor` → `VendedorLista`, `inp` não usado em `ModalPassarBastao`).
+- **TypeScript**: 0 erros frontend e backend; `npm run build` limpo.
 
 ### CRM Leads Beta — Passar Bastão (2026-04-14)
 - **Schema**: Lead recebeu `repassadoPorId Int?`, `dataRepasseVendedor DateTime?`, `whatsappComercialOrigem String?`, `canalOrigem String?`, `mensagemRecebida String?`, `linkConversa String?`. Relação `vendedor` nomeada `"LeadVendedor"` e nova relação `repassadoPor User? @relation("LeadRepassadoPor")`. User tem `leadsRepassados Lead[] @relation("LeadRepassadoPor")`.

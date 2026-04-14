@@ -31,6 +31,7 @@ interface Lead {
   regiaoCliente?: string; bairroCliente?: string;
   cidadeCliente?: string; ufCliente?: string;
   lojaSugerida?: string; motivoLojaSugerida?: string;
+  origemRepasse?: string;
   createdAt: string; updatedAt: string;
   loja?: { id: number; nomeFantasia: string; regiao?: string; cidade?: string; };
   vendedor?: { id: number; nome: string; telefone?: string; };
@@ -104,7 +105,7 @@ function Badge({ cls, label }: { cls: string; label: string }) {
 // ── Modal Criar Lead ──────────────────────────────────────────────────────────
 
 function ModalCriarLead({ lojas, vendedores, onClose, onSalvo }: {
-  lojas: Loja[]; vendedores: Vendedor[];
+  lojas: Loja[]; vendedores: VendedorLista[];
   onClose: () => void; onSalvo: (lead: Lead) => void;
 }) {
   const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
@@ -402,7 +403,18 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
                   <p className="text-orange-400 text-xs font-semibold uppercase tracking-wider">🤝 Vendedor Responsável</p>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-white font-medium text-sm">{detalhe.vendedor.nome}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-white font-medium text-sm">{detalhe.vendedor.nome}</p>
+                        {detalhe.origemRepasse && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                            detalhe.origemRepasse === 'AUTO_REGIAO'
+                              ? 'bg-teal-500/20 text-teal-400'
+                              : 'bg-zinc-600/40 text-zinc-300'
+                          }`}>
+                            {detalhe.origemRepasse === 'AUTO_REGIAO' ? '🤖 Auto-Região' : detalhe.origemRepasse}
+                          </span>
+                        )}
+                      </div>
                       {detalhe.repassadoPor && (
                         <p className="text-zinc-500 text-xs">Repassado por {detalhe.repassadoPor.nome}</p>
                       )}
@@ -575,7 +587,6 @@ interface ModalPassarBastaoProps {
 }
 
 function ModalPassarBastao({ lead, onClose, onConfirmado }: ModalPassarBastaoProps) {
-  const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500';
   const [vendedores, setVendedores] = useState<VendedorLista[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(lead.vendedorId ?? null);
   const [saving, setSaving] = useState(false);
@@ -755,7 +766,7 @@ export function CrmLeadsBeta() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [lojas, setLojas] = useState<Loja[]>([]);
-  const [vendedores, setVendedores] = useState<Vendedor[]>([]);
+  const [vendedores, setVendedores] = useState<VendedorLista[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
   const [aba, setAba] = useState<'dashboard' | 'leads' | 'regioes'>('dashboard');
