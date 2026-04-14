@@ -91,8 +91,8 @@ async function escolherVendedorRodizio(lojaId: number): Promise<{ id: number; no
 }
 
 // ── Buscar loja compatível com os dados de região ─────────────────────────────
-// IMPORTANTE: Nunca usa Loja.regiao nem Loja.bairrosAtendidos no where (não existem em prod).
-// Usa apenas: lojaId, nomeFantasia, cidade, endereco.
+// SEGURO PARA PRODUÇÃO: usa somente id, nomeFantasia, endereco, razaoSocial, cnpj.
+// Nunca usa: regiao, bairrosAtendidos, cidade, uf (campos opcionais que podem não existir em prod).
 async function resolverLojaPorRegiao(params: {
   lojaId?: number | null;
   lojaSugerida?: string | null;
@@ -102,7 +102,7 @@ async function resolverLojaPorRegiao(params: {
 }): Promise<{ loja: { id: number; nomeFantasia: string | null } | null; metodo: string }> {
   const { lojaId, lojaSugerida, regiaoCliente, bairroCliente, cidadeCliente } = params;
 
-  // Passo 1: lojaId explícito
+  // Passo 1: lojaId explícito — busca direta por id (campo sempre existente)
   if (lojaId) {
     const loja = await prisma.loja.findUnique({
       where:  { id: Number(lojaId) },
@@ -111,7 +111,7 @@ async function resolverLojaPorRegiao(params: {
     if (loja) return { loja, metodo: 'lojaId explícito fornecido pelo payload' };
   }
 
-  // Passo 2: nome da loja sugerida pela Claude → busca por nomeFantasia
+  // Passo 2: lojaSugerida → busca por nomeFantasia (campo original, sempre existe)
   if (lojaSugerida?.trim()) {
     const loja = await prisma.loja.findFirst({
       where:  { nomeFantasia: { contains: lojaSugerida.trim(), mode: 'insensitive' }, ativo: true },
@@ -120,32 +120,27 @@ async function resolverLojaPorRegiao(params: {
     if (loja) return { loja, metodo: `Loja sugerida: "${lojaSugerida.trim()}"` };
   }
 
-  // Passo 3: cidadeCliente → busca Loja.cidade (campo simples, existe em prod)
-  if (cidadeCliente?.trim()) {
-    const loja = await prisma.loja.findFirst({
-      where:  { cidade: { contains: cidadeCliente.trim(), mode: 'insensitive' }, ativo: true },
-      select: { id: true, nomeFantasia: true },
-    });
-    if (loja) return { loja, metodo: `Cidade do cliente: "${cidadeCliente.trim()}"` };
-  }
+  // Passos 3-5: busca por texto livre em campos seguros (nomeFantasia, endereco, razaoSocial)
+  // Tenta cada termo disponível (regiaoCliente, bairroCliente, cidadeCliente) contra esses campos.
+  const termos = [
+    regiaoCliente?.trim(),
+    bairroCliente?.trim(),
+    cidadeCliente?.trim(),
+  ].filter(Boolean) as string[];
 
-  // Passo 4: bairroCliente ou regiaoCliente → busca em Loja.nomeFantasia
-  const termoRegiao = bairroCliente?.trim() || regiaoCliente?.trim();
-  if (termoRegiao) {
+  for (const termo of termos) {
     const loja = await prisma.loja.findFirst({
-      where:  { nomeFantasia: { contains: termoRegiao, mode: 'insensitive' }, ativo: true },
+      where: {
+        ativo: true,
+        OR: [
+          { nomeFantasia: { contains: termo, mode: 'insensitive' } },
+          { endereco:     { contains: termo, mode: 'insensitive' } },
+          { razaoSocial:  { contains: termo, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true, nomeFantasia: true },
     });
-    if (loja) return { loja, metodo: `Bairro/Região em nomeFantasia: "${termoRegiao}"` };
-  }
-
-  // Passo 5: bairroCliente ou regiaoCliente → fallback em Loja.endereco
-  if (termoRegiao) {
-    const loja = await prisma.loja.findFirst({
-      where:  { endereco: { contains: termoRegiao, mode: 'insensitive' }, ativo: true },
-      select: { id: true, nomeFantasia: true },
-    });
-    if (loja) return { loja, metodo: `Bairro/Região em endereço: "${termoRegiao}"` };
+    if (loja) return { loja, metodo: `Texto "${termo}" em nome/endereço/razão social` };
   }
 
   return { loja: null, metodo: '' };
@@ -254,34 +249,48 @@ router.post('/leads-test', async (req: Request, res: Response) => {
     }
 
     // ── Criar lead ────────────────────────────────────────────────────────────
-    const lead = await prisma.lead.create({
-      data: {
-        nome:               nome.trim(),
-        telefone:           telefone?.trim() || null,
-        email:              email?.trim() || null,
-        origem:             origemFinal,
-        campanha:           campanha?.trim() || null,
-        interesse:          interesseFinal,
-        interesseCorrigido: interesseCorrigidoFinal,
-        lojaId:             lojaResolvida ? lojaResolvida.id : (lojaId ? Number(lojaId) : null),
-        vendedorId:         vendedorAtribuido ? vendedorAtribuido.id : null,
-        repassadoPorId:     vendedorAtribuido ? 1 : null,
-        dataRepasseVendedor: vendedorAtribuido ? new Date() : null,
-        origemRepasse:      origemRepasseFinal,
-        status:             statusFinal,
-        prioridade:         prioridadeFinal,
-        resumo:             resumoFinal,
-        proximaAcao:        proximaAcao?.trim() || null,
-        mensagemWhatsApp:   mensagemWhatsApp?.trim() || null,
-        observacoes:        observacoesFinal,
-        regiaoCliente:      regiaoCliente?.trim() || null,
-        bairroCliente:      bairroCliente?.trim() || null,
-        cidadeCliente:      cidadeCliente?.trim() || null,
-        ufCliente:          ufCliente?.trim() || null,
-        lojaSugerida:       lojaSugerida?.trim() || null,
-        motivoLojaSugerida: motivoLojaSugerida?.trim() || null,
-      },
-    });
+    // Campos base: sempre existem em qualquer versão do schema de produção.
+    const dadosBase: any = {
+      nome:        nome.trim(),
+      telefone:    telefone?.trim() || null,
+      email:       email?.trim() || null,
+      origem:      origemFinal,
+      campanha:    campanha?.trim() || null,
+      interesse:   interesseFinal,
+      lojaId:      lojaResolvida ? lojaResolvida.id : (lojaId ? Number(lojaId) : null),
+      vendedorId:  vendedorAtribuido ? vendedorAtribuido.id : null,
+      status:      statusFinal,
+      prioridade:  prioridadeFinal,
+      resumo:      resumoFinal,
+      proximaAcao: proximaAcao?.trim() || null,
+      observacoes: observacoesFinal,
+    };
+
+    // Campos estendidos: adicionados progressivamente — podem não existir no schema de prod.
+    // São tentados primeiro; se o create falhar, usa apenas dadosBase como fallback.
+    const dadosExtendidos: any = {
+      ...dadosBase,
+      interesseCorrigido:  interesseCorrigidoFinal,
+      repassadoPorId:      vendedorAtribuido ? 1 : null,
+      dataRepasseVendedor: vendedorAtribuido ? new Date() : null,
+      origemRepasse:       origemRepasseFinal,
+      mensagemWhatsApp:    mensagemWhatsApp?.trim() || null,
+      regiaoCliente:       regiaoCliente?.trim() || null,
+      bairroCliente:       bairroCliente?.trim() || null,
+      cidadeCliente:       cidadeCliente?.trim() || null,
+      ufCliente:           ufCliente?.trim() || null,
+      lojaSugerida:        lojaSugerida?.trim() || null,
+      motivoLojaSugerida:  motivoLojaSugerida?.trim() || null,
+    };
+
+    let lead: any;
+    try {
+      lead = await prisma.lead.create({ data: dadosExtendidos });
+    } catch (errCreate: any) {
+      // Fallback: schema de produção sem campos estendidos — cria só com campos base
+      console.warn(`[INTEGRAÇÃO] Fallback create (schema antigo): ${String(errCreate?.message ?? '').slice(0, 120)}`);
+      lead = await prisma.lead.create({ data: dadosBase });
+    }
 
     // ── Registrar interação de entrada ────────────────────────────────────────
     const interacaoDesc = [
