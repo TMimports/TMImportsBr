@@ -31,14 +31,14 @@
  * Regra de atribuição automática (autoAtribuir=true, default):
  *  1. Se lojaId fornecido → usa diretamente.
  *  2. Se lojaSugerida fornecido → busca Loja por nomeFantasia (contém, case-insensitive).
- *  3. Se regiaoCliente → busca Loja por regiao (case-insensitive).
- *  4. Se bairroCliente → busca Loja onde bairrosAtendidos contém o bairro.
- *  5. Se cidadeCliente → busca Loja por cidade (case-insensitive).
- *  6. Fallback: nomeFantasia ou endereco contendo regiaoCliente/bairroCliente/cidadeCliente.
- *  7. Se loja encontrada → rodízio entre VENDEDORs ativos (role=VENDEDOR) da loja.
- *  8. Se vendedor encontrado → salva vendedorId, lojaId, status EM_ATENDIMENTO, origemRepasse=AUTO_REGIAO.
- *  9. Se sem vendedor → status NOVO + observação detalhada.
- * 10. Se autoAtribuir=false → não tenta atribuição, salva NOVO.
+ *  3. Se cidadeCliente → busca Loja.cidade (contains, case-insensitive).
+ *  4. Se bairroCliente ou regiaoCliente → busca Loja.nomeFantasia (contains, case-insensitive).
+ *  5. Se não achar por nomeFantasia → busca Loja.endereco (contains, case-insensitive).
+ *  6. Se loja encontrada → rodízio entre VENDEDORs ativos (role=VENDEDOR) da loja.
+ *  7. Se vendedor encontrado → salva vendedorId, lojaId, status EM_ATENDIMENTO, origemRepasse=AUTO_REGIAO.
+ *  8. Se sem vendedor → status NOVO + observação detalhada.
+ *  9. Se autoAtribuir=false → não tenta atribuição, salva NOVO.
+ * NOTA: Nunca usa Loja.regiao nem Loja.bairrosAtendidos em where clauses.
  */
 
 import { Router, Request, Response } from 'express';
@@ -91,6 +91,8 @@ async function escolherVendedorRodizio(lojaId: number): Promise<{ id: number; no
 }
 
 // ── Buscar loja compatível com os dados de região ─────────────────────────────
+// IMPORTANTE: Nunca usa Loja.regiao nem Loja.bairrosAtendidos no where (não existem em prod).
+// Usa apenas: lojaId, nomeFantasia, cidade, endereco.
 async function resolverLojaPorRegiao(params: {
   lojaId?: number | null;
   lojaSugerida?: string | null;
@@ -109,7 +111,7 @@ async function resolverLojaPorRegiao(params: {
     if (loja) return { loja, metodo: 'lojaId explícito fornecido pelo payload' };
   }
 
-  // Passo 2: nome da loja sugerida pela Claude
+  // Passo 2: nome da loja sugerida pela Claude → busca por nomeFantasia
   if (lojaSugerida?.trim()) {
     const loja = await prisma.loja.findFirst({
       where:  { nomeFantasia: { contains: lojaSugerida.trim(), mode: 'insensitive' }, ativo: true },
@@ -118,25 +120,7 @@ async function resolverLojaPorRegiao(params: {
     if (loja) return { loja, metodo: `Loja sugerida: "${lojaSugerida.trim()}"` };
   }
 
-  // Passo 3: região do cliente → campo regiao da loja
-  if (regiaoCliente?.trim()) {
-    const loja = await prisma.loja.findFirst({
-      where:  { regiao: { contains: regiaoCliente.trim(), mode: 'insensitive' }, ativo: true },
-      select: { id: true, nomeFantasia: true },
-    });
-    if (loja) return { loja, metodo: `Região do cliente: "${regiaoCliente.trim()}"` };
-  }
-
-  // Passo 4: bairro → bairrosAtendidos da loja
-  if (bairroCliente?.trim()) {
-    const loja = await prisma.loja.findFirst({
-      where:  { bairrosAtendidos: { contains: bairroCliente.trim(), mode: 'insensitive' }, ativo: true },
-      select: { id: true, nomeFantasia: true },
-    });
-    if (loja) return { loja, metodo: `Bairro do cliente: "${bairroCliente.trim()}"` };
-  }
-
-  // Passo 5: cidade → campo cidade da loja
+  // Passo 3: cidadeCliente → busca Loja.cidade (campo simples, existe em prod)
   if (cidadeCliente?.trim()) {
     const loja = await prisma.loja.findFirst({
       where:  { cidade: { contains: cidadeCliente.trim(), mode: 'insensitive' }, ativo: true },
@@ -145,20 +129,23 @@ async function resolverLojaPorRegiao(params: {
     if (loja) return { loja, metodo: `Cidade do cliente: "${cidadeCliente.trim()}"` };
   }
 
-  // Passo 6: fallback — nomeFantasia ou endereco contendo regiaoCliente, bairroCliente ou cidadeCliente
-  const termoBusca = regiaoCliente?.trim() || bairroCliente?.trim() || cidadeCliente?.trim();
-  if (termoBusca) {
+  // Passo 4: bairroCliente ou regiaoCliente → busca em Loja.nomeFantasia
+  const termoRegiao = bairroCliente?.trim() || regiaoCliente?.trim();
+  if (termoRegiao) {
     const loja = await prisma.loja.findFirst({
-      where: {
-        ativo: true,
-        OR: [
-          { nomeFantasia: { contains: termoBusca, mode: 'insensitive' } },
-          { endereco:     { contains: termoBusca, mode: 'insensitive' } },
-        ],
-      },
+      where:  { nomeFantasia: { contains: termoRegiao, mode: 'insensitive' }, ativo: true },
       select: { id: true, nomeFantasia: true },
     });
-    if (loja) return { loja, metodo: `Fallback nome/endereço: "${termoBusca}"` };
+    if (loja) return { loja, metodo: `Bairro/Região em nomeFantasia: "${termoRegiao}"` };
+  }
+
+  // Passo 5: bairroCliente ou regiaoCliente → fallback em Loja.endereco
+  if (termoRegiao) {
+    const loja = await prisma.loja.findFirst({
+      where:  { endereco: { contains: termoRegiao, mode: 'insensitive' }, ativo: true },
+      select: { id: true, nomeFantasia: true },
+    });
+    if (loja) return { loja, metodo: `Bairro/Região em endereço: "${termoRegiao}"` };
   }
 
   return { loja: null, metodo: '' };
