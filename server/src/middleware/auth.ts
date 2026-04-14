@@ -88,6 +88,9 @@ export function requireGestorUsuarios(req: AuthRequest, res: Response, next: Nex
   next();
 }
 
+// Roles com acesso apenas de leitura (sem criação/edição/exclusão de dados sensíveis)
+export const READ_ONLY_ROLES: Role[] = ['ADMIN_COMERCIAL'];
+
 export function applyTenantFilter(req: AuthRequest): { grupoId?: number; lojaId?: number } {
   const { role, grupoId, lojaId } = req.user!;
 
@@ -95,7 +98,7 @@ export function applyTenantFilter(req: AuthRequest): { grupoId?: number; lojaId?
     return {};
   }
 
-  if (role === 'ADMIN_REDE' || role === 'ADMIN_FINANCEIRO') {
+  if (role === 'ADMIN_REDE' || role === 'ADMIN_FINANCEIRO' || role === 'ADMIN_COMERCIAL') {
     return {};
   }
 

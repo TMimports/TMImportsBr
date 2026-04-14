@@ -1171,5 +1171,144 @@ router.get('/gerente', async (req: AuthRequest, res) => {
   }
 });
 
+// ── Dashboard Comercial (ADMIN_COMERCIAL) — apenas volume, sem dados financeiros sensíveis ──
+router.get('/comercial', async (req: AuthRequest, res) => {
+  try {
+    const lojaId = req.query.lojaId ? Number(req.query.lojaId) : undefined;
+    const now   = new Date();
+    const anoNow = now.getFullYear();
+    const mesNow = now.getMonth() + 1;
+    const inicioMes = new Date(anoNow, mesNow - 1, 1);
+    const inicioAno = new Date(anoNow, 0, 1);
+    const lojaFilter: { lojaId?: number } = lojaId ? { lojaId } : {};
+
+    // Vendas do mês
+    const [vendasMes, vendasAno, totalClientes, novosClientes, topProdutos, topVendedores, vendasPorMes] =
+      await Promise.all([
+        prisma.venda.aggregate({
+          where: { lojaId: lojaFilter.lojaId, createdAt: { gte: inicioMes } },
+          _sum: { valorTotal: true }, _count: { _all: true }
+        }),
+        prisma.venda.aggregate({
+          where: { lojaId: lojaFilter.lojaId, createdAt: { gte: inicioAno } },
+          _sum: { valorTotal: true }, _count: { _all: true }
+        }),
+        prisma.cliente.count(),
+        prisma.cliente.count({ where: { createdAt: { gte: inicioMes } } }),
+        // Top 8 produtos vendidos no ano (por quantidade)
+        prisma.itemVenda.groupBy({
+          by: ['produtoId'],
+          where: { venda: { lojaId: lojaFilter.lojaId, createdAt: { gte: inicioAno } } },
+          _sum: { quantidade: true, precoUnitario: true },
+          orderBy: { _sum: { quantidade: 'desc' } },
+          take: 8
+        }),
+        // Top 8 vendedores no ano (por volume)
+        prisma.venda.groupBy({
+          by: ['vendedorId'],
+          where: { lojaId: lojaFilter.lojaId, createdAt: { gte: inicioAno } },
+          _sum: { valorTotal: true }, _count: { _all: true },
+          orderBy: { _sum: { valorTotal: 'desc' } },
+          take: 8
+        }),
+        // Vendas dos últimos 12 meses para agrupar por mês no JS
+        prisma.venda.findMany({
+          where: {
+            lojaId: lojaFilter.lojaId,
+            createdAt: { gte: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) },
+          },
+          select: { valorTotal: true, createdAt: true }
+        })
+      ]);
+
+    // Enriquecer top produtos com nome
+    const produtosIds = topProdutos.map(p => p.produtoId).filter((id): id is number => id !== null);
+    const produtosInfo = await prisma.produto.findMany({
+      where: { id: { in: produtosIds } },
+      select: { id: true, nome: true, tipo: true }
+    });
+    const prodMap = Object.fromEntries(produtosInfo.map(p => [p.id, p]));
+    const topProdutosMapped = topProdutos.map(p => {
+      const pid = p.produtoId ?? 0;
+      return {
+        nome: prodMap[pid]?.nome ?? '—',
+        tipo: prodMap[pid]?.tipo ?? 'PECA',
+        quantidade: Number(p._sum?.quantidade ?? 0),
+        receita: Number(p._sum?.precoUnitario ?? 0) * Number(p._sum?.quantidade ?? 0)
+      };
+    });
+
+    // Enriquecer top vendedores com nome
+    const vendedoresIds = topVendedores.map(v => v.vendedorId).filter((id): id is number => id !== null);
+    const vendedoresInfo = await prisma.user.findMany({
+      where: { id: { in: vendedoresIds } },
+      select: { id: true, nome: true }
+    });
+    const vendMap = Object.fromEntries(vendedoresInfo.map(v => [v.id, v]));
+    const topVendedoresMapped = topVendedores.map(v => ({
+      nome: vendMap[v.vendedorId ?? 0]?.nome ?? '—',
+      quantidade: v._count?._all ?? 0,
+      receita: Number(v._sum?.valorTotal ?? 0)
+    }));
+
+    // Motos e peças vendidas no ano
+    const [totalMotosSell, totalPecasSell] = await Promise.all([
+      prisma.itemVenda.aggregate({
+        where: {
+          venda: { lojaId: lojaFilter.lojaId, createdAt: { gte: inicioAno } },
+          produto: { tipo: 'MOTO' }
+        },
+        _sum: { quantidade: true }
+      }),
+      prisma.itemVenda.aggregate({
+        where: {
+          venda: { lojaId: lojaFilter.lojaId, createdAt: { gte: inicioAno } },
+          produto: { tipo: 'PECA' }
+        },
+        _sum: { quantidade: true }
+      })
+    ]);
+
+    const totalVendasMes = Number(vendasMes._sum?.valorTotal ?? 0);
+    const qtdVendasMes   = vendasMes._count?._all ?? 0;
+    const totalVendasAno = Number(vendasAno._sum?.valorTotal ?? 0);
+    const qtdVendasAno   = vendasAno._count?._all ?? 0;
+
+    res.json({
+      totalVendasMes,
+      quantidadeVendasMes: qtdVendasMes,
+      totalVendasAno,
+      quantidadeVendasAno: qtdVendasAno,
+      ticketMedio: qtdVendasMes > 0 ? totalVendasMes / qtdVendasMes : 0,
+      totalClientes,
+      novosClientesMes: novosClientes,
+      totalMotosVendidas: Number(totalMotosSell._sum.quantidade ?? 0),
+      totalPecasVendidas: Number(totalPecasSell._sum.quantidade ?? 0),
+      topProdutos: topProdutosMapped,
+      topVendedores: topVendedoresMapped,
+      vendasPorMes: (() => {
+        const map: Record<string, { total: number; quantidade: number }> = {};
+        for (const v of vendasPorMes as { valorTotal: any; createdAt: Date }[]) {
+          const d = new Date(v.createdAt);
+          const key = `${String(d.getMonth() + 1).padStart(2,'0')}/${d.getFullYear()}`;
+          if (!map[key]) map[key] = { total: 0, quantidade: 0 };
+          map[key].total += Number(v.valorTotal ?? 0);
+          map[key].quantidade += 1;
+        }
+        return Object.entries(map)
+          .sort(([a], [b]) => {
+            const [am, ay] = a.split('/').map(Number);
+            const [bm, by] = b.split('/').map(Number);
+            return ay !== by ? ay - by : am - bm;
+          })
+          .map(([mes, val]) => ({ mes, ...val }));
+      })()
+    });
+  } catch (error) {
+    console.error('Erro em dashboard/comercial:', error);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
 export default router;
 

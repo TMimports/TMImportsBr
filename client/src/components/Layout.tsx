@@ -174,6 +174,13 @@ const menuItems: Record<string, NavEntry[]> = {
     item('estoque',   'Estoque',   '📋'),
     TECNICO_GROUP,
   ],
+  ADMIN_COMERCIAL: [
+    item('dashboard-comercial', 'Dashboard Comercial', '🛍️'),
+    item('clientes',  'Clientes',  '👤'),
+    item('vendas',    'Vendas',    '🛍️'),
+    item('garantias', 'Garantias', '📜'),
+    item('estoque',   'Estoque',   '📋'),
+  ],
 };
 
 const roleLabels: Record<string, string> = {
@@ -184,6 +191,7 @@ const roleLabels: Record<string, string> = {
   GERENTE_LOJA:     'Gerente',
   VENDEDOR:         'Vendedor',
   TECNICO:          'Técnico',
+  ADMIN_COMERCIAL:  'Admin Comercial',
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -194,7 +202,7 @@ function groupContainsPage(g: NavGroup, page: string) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const ROLES_CAN_SELECT_LOJA = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA'];
+const ROLES_CAN_SELECT_LOJA = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'ADMIN_COMERCIAL'];
 
 const ADMIN_ROLES = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
 

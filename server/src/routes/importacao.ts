@@ -24,6 +24,37 @@ const upload = multer({
   }
 });
 
+// ── Parser de número no formato brasileiro ──────────────────────────────────
+// Suporta: "1.234,56" "1234,56" "1.234" "1234.56" "10%" e células numéricas do Excel
+function parseBR(val: any): number {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'number') return isFinite(val) ? val : 0;
+  const s = String(val).trim().replace(/\s/g, '').replace('%', '');
+  if (!s) return 0;
+  if (s.includes(',') && s.includes('.')) {
+    const lastComma = s.lastIndexOf(',');
+    const lastDot   = s.lastIndexOf('.');
+    if (lastComma > lastDot) {
+      // Formato BR: "1.234,56" → 1234.56
+      return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+    } else {
+      // Formato US: "1,234.56" → 1234.56
+      return parseFloat(s.replace(/,/g, '')) || 0;
+    }
+  }
+  if (s.includes(',')) {
+    // Só vírgula: "1234,56" → 1234.56
+    return parseFloat(s.replace(',', '.')) || 0;
+  }
+  return parseFloat(s) || 0;
+}
+
+// Valor máximo para Decimal(10,2) no Postgres
+const MAX_MONEY = 99_999_999.99;
+function clampMoney(v: number): number {
+  return Math.min(Math.max(v, 0), MAX_MONEY);
+}
+
 async function gerarCodigoProduto(tipo: string): Promise<string> {
   const prefixo = tipo === 'MOTO' ? 'TMMOT' : 'TMPEC';
   
@@ -109,49 +140,45 @@ router.post('/produtos', verifyToken, upload.single('arquivo'), async (req, res)
       if (!row || !row[1]) continue;
 
       const nome = String(row[1] || '').trim();
-      const custo = parseFloat(row[2]) || 0;
-      const categoria = String(row[11] || 'Peça').trim().toLowerCase();
-      const tipo = categoria.includes('moto') ? 'MOTO' : 'PECA';
-
       if (!nome) {
         erros.push(`Linha ${i + 1}: Nome do produto vazio`);
         continue;
       }
 
-      const percentualLucro = tipo === 'MOTO' ? margemMoto : margemPeca;
-      const preco = custo > 0 ? custo / (1 - percentualLucro / 100) : 0;
+      try {
+        // Coluna C (índice 2) = custo — suporta formato BR e numérico do Excel
+        const custo           = clampMoney(parseBR(row[2]));
+        const categoria       = String(row[11] || 'Peça').trim().toLowerCase();
+        const tipo            = categoria.includes('moto') ? 'MOTO' : 'PECA';
+        const percentualLucro = tipo === 'MOTO' ? margemMoto : margemPeca;
 
-      const existente = await prisma.produto.findFirst({ where: { nome } });
-      if (existente) {
-        const produtoAtualizado = await prisma.produto.update({
-          where: { id: existente.id },
-          data: {
-            tipo,
-            custo,
-            percentualLucro,
-            preco,
-            ativo: true
-          }
-        });
-        produtosAtualizados.push(produtoAtualizado);
-        continue;
-      }
+        // Proteção contra divisão por zero ou margem >= 100%
+        const denominador = 1 - percentualLucro / 100;
+        const preco = clampMoney(
+          custo > 0 && denominador > 0.001
+            ? custo / denominador
+            : custo > 0 ? custo * 1.3 : 0
+        );
 
-      const codigo = await gerarCodigoProduto(tipo);
-
-      const produto = await prisma.produto.create({
-        data: {
-          codigo,
-          nome,
-          tipo,
-          custo,
-          percentualLucro,
-          preco,
-          ativo: true
+        const existente = await prisma.produto.findFirst({ where: { nome } });
+        if (existente) {
+          const produtoAtualizado = await prisma.produto.update({
+            where: { id: existente.id },
+            data: { tipo, custo, percentualLucro, preco, ativo: true }
+          });
+          produtosAtualizados.push(produtoAtualizado);
+          continue;
         }
-      });
 
-      produtosCriados.push(produto);
+        const codigo = await gerarCodigoProduto(tipo);
+        const produto = await prisma.produto.create({
+          data: { codigo, nome, tipo, custo, percentualLucro, preco, ativo: true }
+        });
+        produtosCriados.push(produto);
+      } catch (lineErr: any) {
+        console.error(`Importação linha ${i + 1}:`, lineErr.message);
+        erros.push(`Linha ${i + 1}: ${lineErr.message}`);
+      }
     }
 
     res.json({

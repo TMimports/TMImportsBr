@@ -88,6 +88,221 @@ const STATUS_TRANSFERENCIA: Record<string, { label: string; cls: string }> = {
 
 const LOJA_IMPORTACAO_ID = 4;
 
+// ─── ModalCadastroChassi ───────────────────────────────────────────────────────
+
+interface ProdutoMoto { id: number; nome: string; codigo: string; }
+
+interface ChassiRow { chassi: string; cor: string; codigoMotor: string; ano: string; }
+
+const emptyRow = (): ChassiRow => ({ chassi: '', cor: '', codigoMotor: '', ano: String(new Date().getFullYear()) });
+
+function ModalCadastroChassi({
+  lojaId, lojas, isAdmin, onClose, onSucesso
+}: {
+  lojaId: number; lojas: Loja[]; isAdmin: boolean;
+  onClose: () => void; onSucesso: () => void;
+}) {
+  const [produtos, setProdutos] = useState<ProdutoMoto[]>([]);
+  const [produtoId, setProdutoId] = useState('');
+  const [lojaIdSel, setLojaIdSel] = useState(String(lojaId));
+  const [custo, setCusto] = useState('');
+  const [modo, setModo] = useState<'unitario' | 'lote'>('unitario');
+  const [rows, setRows] = useState<ChassiRow[]>([emptyRow()]);
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
+  const [resultado, setResultado] = useState<{ criados: number; erros: number; detalhesErros: string[] } | null>(null);
+
+  const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
+  const lbl = 'block text-xs text-zinc-400 mb-1';
+
+  useEffect(() => {
+    api.get<any[]>('/produtos?tipo=MOTO&limit=200')
+      .then(d => setProdutos((Array.isArray(d) ? d : d?.produtos ?? []).filter((p: any) => p.tipo === 'MOTO')))
+      .catch(() => setProdutos([]));
+  }, []);
+
+  function updateRow(i: number, field: keyof ChassiRow, val: string) {
+    setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!produtoId) { setErro('Selecione um produto'); return; }
+    setSaving(true); setErro('');
+    try {
+      if (modo === 'unitario') {
+        const row = rows[0];
+        if (!row.chassi.trim()) { setErro('Chassi obrigatório'); setSaving(false); return; }
+        await api.post('/unidades/manual', {
+          produtoId: Number(produtoId),
+          lojaId: Number(lojaIdSel),
+          chassi: row.chassi.trim(),
+          cor: row.cor.trim() || null,
+          codigoMotor: row.codigoMotor.trim() || null,
+          ano: Number(row.ano) || new Date().getFullYear(),
+          custo: custo ? Number(custo.replace(',', '.')) : undefined,
+        });
+        setResultado({ criados: 1, erros: 0, detalhesErros: [] });
+      } else {
+        const itens = rows.filter(r => r.chassi.trim()).map(r => ({
+          chassi: r.chassi.trim(),
+          cor: r.cor.trim() || null,
+          codigoMotor: r.codigoMotor.trim() || null,
+          ano: Number(r.ano) || new Date().getFullYear(),
+        }));
+        if (itens.length === 0) { setErro('Adicione pelo menos um chassi'); setSaving(false); return; }
+        const res = await api.post<{ criados: number; erros: number; detalhesErros: string[] }>(
+          '/unidades/manual/lote',
+          { produtoId: Number(produtoId), lojaId: Number(lojaIdSel), itens }
+        );
+        setResultado(res);
+      }
+    } catch (e: any) { setErro(e.message || 'Erro ao cadastrar'); }
+    finally { setSaving(false); }
+  }
+
+  if (resultado) {
+    return (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+          <div className="text-center">
+            <p className="text-4xl mb-3">{resultado.erros === 0 ? '✅' : '⚠️'}</p>
+            <h3 className="text-lg font-bold text-white mb-2">
+              {resultado.criados} chassi(s) cadastrado(s)
+              {resultado.erros > 0 && ` · ${resultado.erros} erro(s)`}
+            </h3>
+            {resultado.detalhesErros.length > 0 && (
+              <ul className="text-xs text-red-400 mt-2 text-left space-y-1">
+                {resultado.detalhesErros.map((e, i) => <li key={i}>• {e}</li>)}
+              </ul>
+            )}
+            <div className="flex gap-3 mt-5 justify-center">
+              <button onClick={onSucesso} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-medium">
+                Concluir
+              </button>
+              {resultado.erros > 0 && (
+                <button onClick={() => setResultado(null)} className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm">
+                  Cadastrar mais
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-white">🏍️ Cadastrar Chassi</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Modo */}
+          <div className="flex gap-2">
+            {(['unitario', 'lote'] as const).map(m => (
+              <button key={m} type="button" onClick={() => { setModo(m); setRows([emptyRow()]); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${modo === m ? 'bg-orange-500 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                {m === 'unitario' ? '1️⃣ Unitário' : '📋 Lote (vários)'}
+              </button>
+            ))}
+          </div>
+
+          {/* Produto + Loja + Custo */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className={lbl}>Modelo / Produto *</label>
+              <select value={produtoId} onChange={e => setProdutoId(e.target.value)} required className={inp}>
+                <option value="">Selecione o modelo...</option>
+                {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </select>
+            </div>
+            {isAdmin && (
+              <div className="sm:col-span-2">
+                <label className={lbl}>Loja *</label>
+                <select value={lojaIdSel} onChange={e => setLojaIdSel(e.target.value)} className={inp}>
+                  {lojas.map(l => <option key={l.id} value={l.id}>{l.nomeFantasia}</option>)}
+                </select>
+              </div>
+            )}
+            {modo === 'unitario' && (
+              <div>
+                <label className={lbl}>Custo de Aquisição (R$)</label>
+                <input value={custo} onChange={e => setCusto(e.target.value)} placeholder="0,00" className={inp} />
+              </div>
+            )}
+          </div>
+
+          {/* Linhas de chassi */}
+          <div className="border-t border-zinc-800 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-zinc-400 uppercase tracking-wide">
+                {modo === 'unitario' ? 'Dados do Chassi' : `${rows.length} chassi(s) — clique em + para adicionar`}
+              </p>
+              {modo === 'lote' && (
+                <button type="button" onClick={() => setRows(p => [...p, emptyRow()])}
+                  className="text-xs text-orange-400 hover:text-orange-300 font-medium">
+                  + Adicionar linha
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {rows.map((row, i) => (
+                <div key={i} className="grid grid-cols-4 gap-2 items-start">
+                  <div className="col-span-2">
+                    <label className={lbl}>Chassi {modo === 'unitario' ? '*' : ''}</label>
+                    <input value={row.chassi} onChange={e => updateRow(i, 'chassi', e.target.value)}
+                      placeholder="9C2HBxxxxx..." className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Cor</label>
+                    <input value={row.cor} onChange={e => updateRow(i, 'cor', e.target.value)}
+                      placeholder="Preto" className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Ano</label>
+                    <input value={row.ano} onChange={e => updateRow(i, 'ano', e.target.value)}
+                      type="number" min="2000" max="2030" className={inp} />
+                  </div>
+                  <div className="col-span-3">
+                    <label className={lbl}>Cód. Motor</label>
+                    <input value={row.codigoMotor} onChange={e => updateRow(i, 'codigoMotor', e.target.value)}
+                      placeholder="Código do motor" className={inp} />
+                  </div>
+                  {modo === 'lote' && rows.length > 1 && (
+                    <div className="flex items-end pb-0.5">
+                      <button type="button" onClick={() => setRows(p => p.filter((_, idx) => idx !== i))}
+                        className="w-full py-2 text-red-400 hover:text-red-300 bg-red-500/10 rounded-lg text-xs">
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {erro && <p className="text-red-400 text-sm">{erro}</p>}
+
+          <div className="flex gap-2 justify-end pt-2 border-t border-zinc-800">
+            <button type="button" onClick={onClose} className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium">
+              {saving ? 'Salvando...' : modo === 'unitario' ? 'Cadastrar Chassi' : `Cadastrar ${rows.filter(r => r.chassi.trim()).length} Chassi(s)`}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── KpiBlock ─────────────────────────────────────────────────────────────────
 
 function KpiBlock({ label, value, sub, color }: { label: string; value: React.ReactNode; sub?: string; color?: string }) {
@@ -1321,7 +1536,10 @@ function ViewEmpresa({
   const [aba, setAba] = useState<EmpresaTab>('gerencial');
   const [busca, setBusca] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showCadastroChassi, setShowCadastroChassi] = useState(false);
   const isOutraLoja = minhaLojaId !== null && lojaId !== minhaLojaId;
+  const podeGerir = !isOutraLoja; // pode cadastrar chassi nesta loja
 
   useEffect(() => {
     setLoading(true);
@@ -1331,7 +1549,7 @@ function ViewEmpresa({
       .then(d => setData(d && d.empresa ? d : null))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [lojaId]);
+  }, [lojaId, refreshKey]);
 
   if (loading) return <div className="p-12 text-center text-zinc-400">Carregando estoque da empresa...</div>;
   if (!data) return <div className="p-12 text-center text-red-400">Erro ao carregar dados da empresa</div>;
@@ -1376,11 +1594,20 @@ function ViewEmpresa({
           <p className="text-sm text-zinc-400">{e.razaoSocial} — <span className="font-mono">{e.cnpj}</span></p>
           <p className="text-xs text-zinc-500 mt-0.5">Grupo: {e.grupoNome}</p>
         </div>
-        {t.alertasBaixoEstoque > 0 && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-3 py-1.5 rounded-lg text-sm">
-            ⚠ {t.alertasBaixoEstoque} alerta{t.alertasBaixoEstoque > 1 ? 's' : ''} de estoque baixo
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {podeGerir && (
+            <button
+              onClick={() => setShowCadastroChassi(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+              + Cadastrar Chassi
+            </button>
+          )}
+          {t.alertasBaixoEstoque > 0 && (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-3 py-1.5 rounded-lg text-sm">
+              ⚠ {t.alertasBaixoEstoque} alerta{t.alertasBaixoEstoque > 1 ? 's' : ''} de estoque baixo
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Aviso de outra loja */}
@@ -1477,6 +1704,16 @@ function ViewEmpresa({
           />
         )}
       </Card>
+
+      {showCadastroChassi && (
+        <ModalCadastroChassi
+          lojaId={lojaId}
+          lojas={lojas}
+          isAdmin={minhaLojaId === null}
+          onClose={() => setShowCadastroChassi(false)}
+          onSucesso={() => { setShowCadastroChassi(false); setRefreshKey(k => k + 1); setAba('unitaria'); }}
+        />
+      )}
     </div>
   );
 }

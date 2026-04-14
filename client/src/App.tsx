@@ -33,11 +33,14 @@ import { ConciliacaoBancaria } from './pages/ConciliacaoBancaria';
 import { Relatorios } from './pages/Relatorios';
 import { WhatsAppCRM } from './pages/WhatsAppCRM';
 import { Transferencias } from './pages/Transferencias';
+import { DashboardComercial } from './pages/DashboardComercial';
 import { InstallBanner } from './components/InstallBanner';
 
 function AppContent() {
   const { user, loading, mustChangePassword, refreshUser } = useAuth();
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState(() =>
+    user?.role === 'ADMIN_COMERCIAL' ? 'dashboard-comercial' : 'dashboard'
+  );
 
   if (loading) {
     return (
@@ -131,6 +134,8 @@ function AppContent() {
         return <Relatorios />;
       case 'whatsapp-crm':
         return <WhatsAppCRM />;
+      case 'dashboard-comercial':
+        return <DashboardComercial />;
       default:
         return (
           <div className="card">

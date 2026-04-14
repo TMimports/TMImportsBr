@@ -1,0 +1,83 @@
+Preciso de uma correção urgente e de 2 implementações no ERP, sem quebrar o que já existe.
+
+Tarefa 1 — corrigir erro da importação de produtos
+Erro atual:
+Invalid `prisma.produto.create()` invocation
+Postgres error code 22003
+numeric field overflow
+A field with precision 10, scale 2 must round to an absolute value less than 10^8
+
+Objetivo:
+Corrigir definitivamente a importação de produtos.
+
+O que fazer:
+1. localizar a rota e a função de importação de produtos
+2. identificar exatamente qual campo numérico está causando overflow
+3. verificar se o parser da planilha está interpretando errado valores brasileiros, ex:
+   - 1.234,56
+   - 1234,56
+   - 10%
+4. normalizar todos os valores monetários antes de salvar
+5. normalizar percentuais antes de salvar
+6. impedir que string com separador brasileiro seja convertida incorretamente
+7. validar e logar claramente qual linha da planilha deu erro
+8. se o schema Prisma estiver pequeno demais para custo/preço/percentual, ajustar o tipo numérico para suportar a operação real
+9. depois rodar prisma generate e prisma db push se necessário
+10. manter o layout da tela igual
+
+Quero que você me diga:
+- qual campo estava causando o problema
+- qual foi a correção aplicada
+- quais arquivos foram alterados
+
+Tarefa 2 — criar área para cadastro manual de chassi
+Problema:
+Hoje o chassi só entra pela importação da planilha.
+Isso não serve para a operação.
+
+Objetivo:
+Criar uma área manual para cadastrar chassi de motos adquiridas.
+
+Requisitos:
+1. adicionar no ecossistema de estoque/produtos uma ação para cadastrar chassi manualmente
+2. o usuário deve conseguir selecionar:
+   - loja
+   - produto/modelo
+   - cor
+   - SKU/SKR se aplicável
+   - chassi
+   - custo se necessário
+   - status/disponibilidade
+3. validar que o chassi não pode ser duplicado
+4. o chassi deve ficar vinculado corretamente ao produto e à loja
+5. permitir cadastro em lote e cadastro unitário
+6. não depender de planilha para isso
+7. manter o visual do sistema consistente com a tela atual
+
+Tarefa 3 — criar perfil ADMIN_COMERCIAL
+Objetivo:
+Criar um novo perfil de acesso chamado ADMIN_COMERCIAL
+
+Regras:
+1. somente visualização
+2. sem permissão para movimentação
+3. sem permissão para criar, editar, excluir, transferir, baixar, pagar, concluir ou alterar registros
+4. sem acesso ao dashboard principal da diretoria
+5. criar um dashboard próprio para esse perfil
+6. esse dashboard deve seguir o fluxo visual do dashboard principal, mas mostrar apenas:
+   - volume
+   - quantidades
+   - indicadores comerciais
+   - visão de vendas
+   - números consolidados relevantes para comercial
+7. não mostrar dados financeiros sensíveis da diretoria
+8. proteger rotas e menus para esse novo perfil
+9. ajustar backend e frontend
+10. informar quais arquivos foram alterados
+
+Importante:
+- não quebrar o sistema atual
+- não alterar layout desnecessariamente
+- implementar com cuidado em permissões, rotas e banco
+- testar build final
+- me mostrar um relatório final separado por tarefa
