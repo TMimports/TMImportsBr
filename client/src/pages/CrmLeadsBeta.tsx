@@ -71,6 +71,13 @@ const ORIGEM_ICON: Record<string, string> = {
   META: '📘', GOOGLE: '🔍', SITE: '🌐', WHATSAPP: '💬',
   INDICACAO: '🤝', OUTRO: '📌', TESTE: '🧪',
 };
+const ORIGEM_LABEL: Record<string, string> = {
+  META: 'Facebook / Instagram', GOOGLE: 'Google', SITE: 'Site',
+  WHATSAPP: 'WhatsApp', INDICACAO: 'Indicação', OUTRO: 'Outro', TESTE: 'Teste',
+};
+function fmtOrigem(origem: string) {
+  return `${ORIGEM_ICON[origem] ?? '📌'} ${ORIGEM_LABEL[origem] ?? origem}`;
+}
 const TIPO_INTERACAO_ICON: Record<string, string> = {
   LIGACAO: '📞', WHATSAPP: '💬', EMAIL: '📧', OBSERVACAO: '📝', FOLLOW_UP: '🔔',
 };
@@ -305,7 +312,7 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-bold text-white truncate">{detalhe.nome}</h2>
             <p className="text-xs text-zinc-400 mt-0.5">
-              {ORIGEM_ICON[detalhe.origem]} {detalhe.origem}
+              {fmtOrigem(detalhe.origem)}
               {detalhe.campanha && <span className="ml-2 text-zinc-500">· {detalhe.campanha}</span>}
             </p>
           </div>
@@ -350,10 +357,10 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
                 <div><p className="text-zinc-500 text-xs">Criado em</p><p className="text-white">{fmtDate(detalhe.createdAt)}</p></div>
                 <div><p className="text-zinc-500 text-xs">Atualizado</p><p className="text-white">{fmtDate(detalhe.updatedAt)}</p></div>
               </div>
-              {/* Análise Claude */}
+              {/* Análise automática */}
               {(detalhe.resumo || detalhe.proximaAcao || detalhe.mensagemWhatsApp || detalhe.interesseCorrigido) && (
                 <div className="bg-blue-950/30 border border-blue-800/30 rounded-xl p-4 space-y-3">
-                  <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider">🤖 Análise Claude / n8n</p>
+                  <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider">🤖 Análise Automática</p>
                   {detalhe.interesseCorrigido && detalhe.interesseCorrigido !== detalhe.interesse && (
                     <div>
                       <p className="text-zinc-500 text-xs mb-1">Interesse Corrigido pela IA</p>
@@ -475,7 +482,7 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
                   </div>
                   {detalhe.lojaSugerida && (
                     <div>
-                      <p className="text-zinc-500 text-xs">Loja Sugerida pela Claude</p>
+                      <p className="text-zinc-500 text-xs">Loja Sugerida Automaticamente</p>
                       <p className="text-teal-300 text-sm font-medium">{detalhe.lojaSugerida}</p>
                     </div>
                   )}
@@ -604,7 +611,7 @@ function ModalPassarBastao({ lead, onClose, onConfirmado }: ModalPassarBastaoPro
   const msgSugerida = `Novo lead recebido:
 Nome: ${lead.nome}
 Telefone: ${lead.telefone ?? '—'}
-Origem: ${lead.origem}
+Origem: ${ORIGEM_LABEL[lead.origem] ?? lead.origem}
 Campanha: ${lead.campanha ?? '—'}
 Interesse: ${lead.interesseCorrigido || lead.interesse}
 Prioridade: ${lead.prioridade}
@@ -736,7 +743,7 @@ function DashboardKpis({ data }: { data: DashboardData }) {
           <div className="space-y-1.5">
             {data.porOrigem.map(o => (
               <div key={o.origem} className="flex items-center justify-between">
-                <span className="text-sm text-zinc-300">{ORIGEM_ICON[o.origem]} {o.origem}</span>
+                <span className="text-sm text-zinc-300">{fmtOrigem(o.origem)}</span>
                 <span className="text-sm font-medium text-white">{o.total}</span>
               </div>
             ))}
@@ -952,7 +959,7 @@ export function CrmLeadsBeta() {
                           {lead.email && <p className="text-zinc-500 text-xs truncate max-w-[150px]">{lead.email}</p>}
                         </td>
                         <td className="px-4 py-3 text-zinc-300">
-                          {ORIGEM_ICON[lead.origem]} {lead.origem}
+                          {fmtOrigem(lead.origem)}
                           {lead.campanha && <p className="text-zinc-500 text-xs truncate max-w-[120px]">{lead.campanha}</p>}
                         </td>
                         <td className="px-4 py-3 text-zinc-300">
@@ -969,7 +976,7 @@ export function CrmLeadsBeta() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
                             <Badge cls={PRIORIDADE_CLS[lead.prioridade]} label={lead.prioridade} />
-                            {lead.resumo && <span title="Análise Claude disponível" className="text-blue-400 text-xs">🤖</span>}
+                            {lead.resumo && <span title="Análise automática disponível" className="text-blue-400 text-xs">🤖</span>}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-zinc-300 text-xs">{lead.loja?.nomeFantasia ?? '—'}</td>
@@ -1012,7 +1019,7 @@ export function CrmLeadsBeta() {
             <p className="text-teal-300 text-sm font-medium mb-1">🗺️ Configuração de Regiões para Atribuição Automática</p>
             <p className="text-zinc-400 text-xs leading-relaxed">
               Configure a <strong className="text-zinc-300">região</strong>, os <strong className="text-zinc-300">bairros atendidos</strong> e a <strong className="text-zinc-300">cidade</strong> de cada loja.
-              Quando o n8n/Claude enviar um lead com dados de localização, o sistema usará essas informações para atribuir automaticamente ao vendedor correto via rodízio.
+              Quando um lead chegar com dados de localização, o sistema usará essas configurações para atribuir automaticamente ao vendedor correto via rodízio.
             </p>
             <div className="mt-3 grid grid-cols-3 gap-3 text-xs text-zinc-400">
               <div className="bg-zinc-800/60 rounded-lg px-3 py-2">

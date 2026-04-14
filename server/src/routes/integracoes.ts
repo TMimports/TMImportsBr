@@ -230,22 +230,22 @@ router.post('/leads-test', async (req: Request, res: Response) => {
       if (lojaResolvida) {
         vendedorAtribuido = await escolherVendedorRodizio(lojaResolvida.id);
         if (vendedorAtribuido) {
-          statusFinal       = 'EM_ATENDIMENTO';
+          statusFinal        = 'EM_ATENDIMENTO';
           origemRepasseFinal = 'AUTO_REGIAO';
-          observacoesFinal  = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Atribuído automaticamente para ${vendedorAtribuido.nome} (${lojaResolvida.nomeFantasia ?? lojaResolvida.id}). Método: ${metodoResolucao}.`;
+          observacoesFinal   = `Lead recebido via ${origemFinal}. Atribuído para ${vendedorAtribuido.nome} (${lojaResolvida.nomeFantasia ?? lojaResolvida.id}).`;
         } else {
-          observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Loja identificada: ${lojaResolvida.nomeFantasia ?? lojaResolvida.id}. Sem vendedores ativos vinculados — lead aguardando atribuição manual.`;
+          observacoesFinal = `Lead recebido via ${origemFinal}. Loja identificada: ${lojaResolvida.nomeFantasia ?? lojaResolvida.id}. Aguardando atribuição de vendedor.`;
         }
       } else {
         const temDadosRegiao = regiaoCliente || bairroCliente || cidadeCliente || lojaSugerida;
         if (temDadosRegiao) {
-          observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Dados de região informados (${[regiaoCliente, bairroCliente, cidadeCliente].filter(Boolean).join(', ')}) não correspondem a nenhuma loja cadastrada. Lead aguardando definição de região para atribuição automática.`;
+          observacoesFinal = `Lead recebido via ${origemFinal}. Dados de localização não correspondem a nenhuma loja cadastrada. Aguardando definição de loja.`;
         } else {
-          observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Sem dados de região — lead aguardando definição de região para atribuição automática.`;
+          observacoesFinal = `Lead recebido via ${origemFinal}. Aguardando definição de loja e vendedor responsável.`;
         }
       }
     } else {
-      observacoesFinal = `Lead recebido via integração n8n/Claude. Origem: ${origemFinal}. Atribuição automática desativada (autoAtribuir=false).`;
+      observacoesFinal = `Lead recebido via ${origemFinal}.`;
     }
 
     // ── Criar lead ────────────────────────────────────────────────────────────
@@ -294,13 +294,13 @@ router.post('/leads-test', async (req: Request, res: Response) => {
 
     // ── Registrar interação de entrada ────────────────────────────────────────
     const interacaoDesc = [
-      `🤖 Lead recebido via integração n8n (análise Claude).`,
-      mensagem?.trim()       ? `Mensagem original: "${mensagem.trim()}"` : null,
-      resumo?.trim()         ? `Resumo Claude: "${resumo.trim()}"` : null,
-      proximaAcao?.trim()    ? `Próxima ação sugerida: "${proximaAcao.trim()}"` : null,
-      regiaoCliente?.trim()  ? `Região do cliente: ${regiaoCliente.trim()}` : null,
-      bairroCliente?.trim()  ? `Bairro: ${bairroCliente.trim()}` : null,
-      lojaSugerida?.trim()   ? `Loja sugerida: ${lojaSugerida.trim()}` : null,
+      `📋 Lead recebido. Origem: ${origemFinal}${campanha?.trim() ? ` · Campanha: ${campanha.trim()}` : ''}.`,
+      mensagem?.trim()           ? `Mensagem: "${mensagem.trim()}"` : null,
+      resumo?.trim()             ? `Resumo: "${resumo.trim()}"` : null,
+      proximaAcao?.trim()        ? `Próxima ação: "${proximaAcao.trim()}"` : null,
+      regiaoCliente?.trim()      ? `Região: ${regiaoCliente.trim()}` : null,
+      bairroCliente?.trim()      ? `Bairro: ${bairroCliente.trim()}` : null,
+      lojaSugerida?.trim()       ? `Loja sugerida: ${lojaSugerida.trim()}` : null,
       motivoLojaSugerida?.trim() ? `Motivo: ${motivoLojaSugerida.trim()}` : null,
     ].filter(Boolean).join('\n');
 
