@@ -59,11 +59,13 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
   ]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
-  const [categorias, setCategorias] = useState<{ id: number; nome: string }[]>([]);
+  const [categorias, setCategorias] = useState<{ id: number; nome: string; natureza?: string }[]>([]);
   const [departamentos, setDepartamentos] = useState<{ id: number; nome: string }[]>([]);
 
   useEffect(() => {
-    api.get<{ id: number; nome: string }[]>('/categorias-financeiras').then(d => setCategorias(Array.isArray(d) ? d : [])).catch(() => {});
+    api.get<{ id: number; nome: string; natureza?: string }[]>('/categorias-financeiras')
+      .then(d => setCategorias(Array.isArray(d) ? d.filter(c => c.natureza !== 'RECEITA') : []))
+      .catch(() => {});
     api.get<{ id: number; nome: string }[]>('/departamentos').then(d => setDepartamentos(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 

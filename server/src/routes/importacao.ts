@@ -25,11 +25,16 @@ const upload = multer({
 });
 
 // ── Parser de número no formato brasileiro ──────────────────────────────────
-// Suporta: "1.234,56" "1234,56" "1.234" "1234.56" "10%" e células numéricas do Excel
+// Suporta: "R$ 1.234,56" "1.234,56" "1234,56" "1.234" "1234.56" "10%" e células numéricas do Excel
 function parseBR(val: any): number {
   if (val === null || val === undefined) return 0;
   if (typeof val === 'number') return isFinite(val) ? val : 0;
-  const s = String(val).trim().replace(/\s/g, '').replace('%', '');
+  // Strip prefixos monetários e espaços
+  const s = String(val).trim()
+    .replace(/\s/g, '')
+    .replace('%', '')
+    .replace(/^R\$/, '')
+    .replace(/^-R\$/, '-');
   if (!s) return 0;
   if (s.includes(',') && s.includes('.')) {
     const lastComma = s.lastIndexOf(',');
@@ -52,6 +57,7 @@ function parseBR(val: any): number {
 // Valor máximo para Decimal(10,2) no Postgres
 const MAX_MONEY = 99_999_999.99;
 function clampMoney(v: number): number {
+  if (!isFinite(v) || isNaN(v)) return 0;
   return Math.min(Math.max(v, 0), MAX_MONEY);
 }
 
@@ -324,6 +330,129 @@ router.post('/unidades', verifyToken, upload.single('arquivo'), async (req, res)
     });
   } catch (error: any) {
     console.error('Erro na importacao:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ── POST /importacao/estoque — importar planilha de estoque geral ─────────────
+// Não gera financeiro. Registra LogEstoque com origem = IMPORTACAO_ESTOQUE.
+router.post('/estoque', verifyToken, upload.single('arquivo'), async (req: any, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+    const userId: number = req.user?.id ?? 1;
+
+    // Carregar todas as lojas para resolução de nome → id
+    const todasLojas = await prisma.loja.findMany({ select: { id: true, nomeFantasia: true, razaoSocial: true } });
+    function resolverLoja(nomeInput: string): number | null {
+      if (!nomeInput) return null;
+      const n = nomeInput.trim().toLowerCase();
+      const exata = todasLojas.find(l =>
+        (l.nomeFantasia ?? '').toLowerCase() === n || (l.razaoSocial ?? '').toLowerCase() === n
+      );
+      if (exata) return exata.id;
+      // Busca parcial: nome contém a entrada ou entrada contém o nome
+      const parcial = todasLojas.find(l => {
+        const nf = (l.nomeFantasia ?? '').toLowerCase();
+        return nf.includes(n) || n.includes(nf.split(' ').slice(-1)[0] ?? '');
+      });
+      return parcial?.id ?? null;
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as any[][];
+
+    if (rows.length < 2) return res.status(400).json({ error: 'Planilha vazia ou sem dados' });
+
+    // Detectar cabeçalho (primeira linha)
+    const header: string[] = (rows[0] as any[]).map(h => String(h || '').toLowerCase().trim());
+
+    const colIdx = (keywords: string[]) => header.findIndex(h => keywords.some(k => h.includes(k)));
+
+    const iModelo    = colIdx(['model', 'produto', 'nome', 'descricao']);
+    const iCor       = colIdx(['cor']);
+    const iCusto     = colIdx(['custo', 'cif', 'valor custo', 'preco custo']);
+    const iFornec    = colIdx(['fornec']);
+    const iLoja      = colIdx(['estoque', 'unidade', 'loja', 'destino']);
+    const iQtd       = colIdx(['qtd', 'quantidade', 'qty']);
+    const iChassi    = colIdx(['chassi', 'chassis']);
+
+    if (iModelo < 0) return res.status(400).json({ error: 'Coluna de modelo/produto não encontrada no cabeçalho' });
+    if (iLoja < 0)   return res.status(400).json({ error: 'Coluna de loja/unidade de destino não encontrada' });
+
+    let criados = 0, atualizados = 0, entradasLancadas = 0;
+    const erros: string[] = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      const nomeModelo = String(row[iModelo] || '').trim();
+      if (!nomeModelo) continue;
+
+      const nomeLojaStr = iLoja >= 0 ? String(row[iLoja] || '').trim() : '';
+      const lojaId = resolverLoja(nomeLojaStr);
+      if (!lojaId) { erros.push(`Linha ${i + 1}: loja "${nomeLojaStr}" não encontrada`); continue; }
+
+      const cor       = iCor >= 0 ? String(row[iCor] || '').trim() : null;
+      const custo     = clampMoney(parseBR(iCusto >= 0 ? row[iCusto] : 0));
+      const qtd       = Math.max(1, Number(iQtd >= 0 ? (row[iQtd] || 1) : 1));
+      const chassiVal = iChassi >= 0 ? String(row[iChassi] || '').trim() : null;
+
+      try {
+        // Encontrar ou criar produto
+        let produto = await prisma.produto.findFirst({ where: { nome: { equals: nomeModelo, mode: 'insensitive' } } });
+        if (!produto) {
+          const tipoProduto = nomeModelo.toLowerCase().includes('moto') || chassiVal ? 'MOTO' : 'PECA';
+          const codigo = await gerarCodigoProduto(tipoProduto);
+          produto = await prisma.produto.create({ data: { codigo, nome: nomeModelo, tipo: tipoProduto, custo, preco: custo > 0 ? custo * 1.3 : 0, percentualLucro: 30, ativo: true } });
+          criados++;
+        } else if (custo > 0 && Number(produto.custo) !== custo) {
+          await prisma.produto.update({ where: { id: produto.id }, data: { custo } });
+          atualizados++;
+        }
+
+        // Se tem chassi e é MOTO → criar UnidadeFisica
+        if (chassiVal && produto.tipo === 'MOTO') {
+          const dup = await prisma.unidadeFisica.findFirst({ where: { chassi: chassiVal } });
+          if (dup) { erros.push(`Linha ${i + 1}: chassi "${chassiVal}" já cadastrado`); continue; }
+
+          const prefixo = 'TMUNI';
+          const ultimo = await prisma.unidadeFisica.findFirst({ where: { numeroSerie: { startsWith: prefixo } }, orderBy: { numeroSerie: 'desc' } });
+          let seq = 1;
+          if (ultimo?.numeroSerie) { const m = ultimo.numeroSerie.match(/\d+$/); if (m) seq = parseInt(m[0]) + 1; }
+          await prisma.unidadeFisica.create({
+            data: { produtoId: produto.id, lojaId, chassi: chassiVal, cor: cor || null, ano: new Date().getFullYear(), numeroSerie: `${prefixo}${String(seq).padStart(5, '0')}`, status: 'ESTOQUE', createdBy: userId },
+          });
+        }
+
+        // Lançar entrada de estoque
+        const estoqueAtual = await prisma.estoque.findUnique({ where: { produtoId_lojaId: { produtoId: produto.id, lojaId } } });
+        const qtdAnt = estoqueAtual?.quantidade ?? 0;
+        await prisma.estoque.upsert({
+          where: { produtoId_lojaId: { produtoId: produto.id, lojaId } },
+          update: { quantidade: { increment: qtd } },
+          create: { produtoId: produto.id, lojaId, quantidade: qtd },
+        });
+        await prisma.logEstoque.create({
+          data: { tipo: 'ENTRADA', origem: 'IMPORTACAO_ESTOQUE', produtoId: produto.id, lojaId, quantidade: qtd, quantidadeAnterior: qtdAnt, quantidadeNova: qtdAnt + qtd, usuarioId: userId },
+        });
+        entradasLancadas++;
+      } catch (lineErr: any) {
+        erros.push(`Linha ${i + 1} (${nomeModelo}): ${lineErr.message}`);
+      }
+    }
+
+    res.json({
+      sucesso: true,
+      totalLinhas: rows.length - 1,
+      produtosCriados: criados,
+      produtosAtualizados: atualizados,
+      entradasLancadas,
+      erros: erros.length,
+      detalhesErros: erros.slice(0, 20),
+    });
+  } catch (error: any) {
+    console.error('[Importação Estoque]', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -1563,6 +1563,305 @@ function ViewConsolidada({ onSelectEmpresa }: { onSelectEmpresa: (lojaId: number
   );
 }
 
+// ─── Modal Entrada Avulsa ─────────────────────────────────────────────────────
+
+interface ProdutoSimples { id: number; nome: string; tipo: string; codigo: string; }
+interface EntradaChassiRow { chassi: string; cor: string; ano: string; custo: string; }
+
+function ModalEntradaAvulsa({
+  lojaId, lojas, isAdmin, onClose, onSucesso,
+}: {
+  lojaId: number; lojas: Loja[]; isAdmin: boolean;
+  onClose: () => void; onSucesso: () => void;
+}) {
+  const inp  = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
+  const lbl  = 'block text-xs text-zinc-400 mb-1';
+
+  const [produtos, setProdutos]     = useState<ProdutoSimples[]>([]);
+  const [produtoId, setProdutoId]   = useState('');
+  const [lojaDestino, setLojaDestino] = useState(String(lojaId));
+  const [quantidade, setQuantidade] = useState('1');
+  const [custo, setCusto]           = useState('');
+  const [fornecedor, setFornecedor] = useState('');
+  const [nfEntrada, setNfEntrada]   = useState('');
+  const [observacao, setObservacao] = useState('');
+  const [chassis, setChassis]       = useState<EntradaChassiRow[]>([{ chassi: '', cor: '', ano: String(new Date().getFullYear()), custo: '' }]);
+  const [saving, setSaving]         = useState(false);
+  const [erro, setErro]             = useState('');
+  const [resultado, setResultado]   = useState<any>(null);
+
+  useEffect(() => {
+    api.get<ProdutoSimples[]>('/produtos').then(d => setProdutos(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+
+  const produtoSel = produtos.find(p => String(p.id) === produtoId);
+  const isMoto = produtoSel?.tipo === 'MOTO';
+
+  const addChassi = () => setChassis(prev => [...prev, { chassi: '', cor: '', ano: String(new Date().getFullYear()), custo: '' }]);
+  const removeChassi = (i: number) => setChassis(prev => prev.filter((_, idx) => idx !== i));
+  const updateChassi = (i: number, field: keyof EntradaChassiRow, val: string) =>
+    setChassis(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
+
+  const handleSubmit = async () => {
+    if (!produtoId) { setErro('Selecione um produto'); return; }
+    if (!lojaDestino) { setErro('Selecione a loja de destino'); return; }
+    if (isMoto && chassis.filter(r => r.chassi.trim()).length === 0) { setErro('Informe ao menos um chassi'); return; }
+    if (!isMoto && (!quantidade || Number(quantidade) < 1)) { setErro('Informe uma quantidade válida'); return; }
+
+    setSaving(true); setErro('');
+    try {
+      const body: any = {
+        produtoId: Number(produtoId),
+        lojaId: Number(lojaDestino),
+        tipo: isMoto ? 'MOTO' : 'PECA',
+        custo: custo ? Number(custo.replace(',', '.')) : undefined,
+        notaFiscalEntrada: nfEntrada || undefined,
+        observacao: observacao || undefined,
+      };
+      if (isMoto) {
+        body.chassis = chassis.filter(r => r.chassi.trim()).map(r => ({
+          chassi: r.chassi.trim(), cor: r.cor.trim() || undefined,
+          ano: r.ano ? Number(r.ano) : undefined,
+          custo: r.custo ? Number(r.custo.replace(',', '.')) : undefined,
+        }));
+      } else {
+        body.quantidade = Number(quantidade);
+      }
+
+      const res: any = await api.post('/estoque/entrada-avulsa', body);
+      setResultado(res);
+    } catch (e: any) {
+      setErro(e.message || 'Erro ao registrar entrada');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-zinc-800 sticky top-0 bg-zinc-900 z-10">
+          <h2 className="text-lg font-bold text-white">📦 Entrada Avulsa de Estoque</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">×</button>
+        </div>
+
+        {resultado ? (
+          <div className="p-6 space-y-4">
+            <div className="bg-green-900/30 border border-green-700/40 rounded-xl p-4 text-center">
+              <p className="text-green-400 font-semibold text-lg mb-1">✓ Entrada registrada com sucesso!</p>
+              {isMoto && <p className="text-zinc-300 text-sm">{resultado.criados} chassi(s) cadastrado(s)</p>}
+              {!isMoto && <p className="text-zinc-300 text-sm">{resultado.quantidade} unidade(s) adicionada(s) ao estoque</p>}
+              {resultado.erros?.length > 0 && (
+                <div className="mt-3 text-left">
+                  <p className="text-yellow-400 text-xs font-medium mb-1">Avisos:</p>
+                  {resultado.erros.map((e: string, i: number) => <p key={i} className="text-red-400 text-xs">{e}</p>)}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={onSucesso} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-medium text-sm">Fechar e Atualizar</button>
+              <button onClick={() => setResultado(null)} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg text-sm">Nova Entrada</button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Produto *</label>
+                <select value={produtoId} onChange={e => setProdutoId(e.target.value)} className={inp}>
+                  <option value="">Selecione o produto</option>
+                  {['MOTO', 'PECA'].map(t => (
+                    <optgroup key={t} label={t === 'MOTO' ? '🏍️ Motos' : '🔧 Peças'}>
+                      {produtos.filter(p => p.tipo === t).map(p => <option key={p.id} value={p.id}>{p.nome} ({p.codigo})</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              {isAdmin ? (
+                <div>
+                  <label className={lbl}>Loja de Destino *</label>
+                  <select value={lojaDestino} onChange={e => setLojaDestino(e.target.value)} className={inp}>
+                    {lojas.map(l => <option key={l.id} value={l.id}>{l.nomeFantasia}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className={lbl}>Loja de Destino</label>
+                  <input readOnly value={lojas.find(l => l.id === lojaId)?.nomeFantasia ?? ''} className={inp + ' opacity-60 cursor-not-allowed'} />
+                </div>
+              )}
+            </div>
+
+            {produtoSel && (
+              <div className="bg-zinc-800/50 rounded-lg px-4 py-2 text-xs text-zinc-400 flex gap-4">
+                <span>Tipo: <span className={isMoto ? 'text-orange-400' : 'text-blue-400'}>{isMoto ? '🏍️ Moto' : '🔧 Peça'}</span></span>
+                <span>Código: <span className="text-zinc-300 font-mono">{produtoSel.codigo}</span></span>
+              </div>
+            )}
+
+            {produtoSel && !isMoto && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>Quantidade *</label>
+                  <input type="number" min="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} className={inp} placeholder="1" />
+                </div>
+                <div>
+                  <label className={lbl}>Custo Unitário (R$)</label>
+                  <input type="text" value={custo} onChange={e => setCusto(e.target.value)} className={inp} placeholder="0,00" />
+                </div>
+              </div>
+            )}
+
+            {produtoSel && isMoto && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-zinc-300">Chassis a cadastrar</label>
+                  <button onClick={addChassi} className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 px-2 py-1 rounded">+ Adicionar Chassi</button>
+                </div>
+                {chassis.map((row, i) => (
+                  <div key={i} className="bg-zinc-800/50 rounded-lg p-3 grid grid-cols-4 gap-2 relative">
+                    <div>
+                      <label className={lbl}>Chassi</label>
+                      <input value={row.chassi} onChange={e => updateChassi(i, 'chassi', e.target.value)} className={inp} placeholder="9C2..." />
+                    </div>
+                    <div>
+                      <label className={lbl}>Cor</label>
+                      <input value={row.cor} onChange={e => updateChassi(i, 'cor', e.target.value)} className={inp} placeholder="Preto" />
+                    </div>
+                    <div>
+                      <label className={lbl}>Ano</label>
+                      <input type="number" value={row.ano} onChange={e => updateChassi(i, 'ano', e.target.value)} className={inp} placeholder="2024" />
+                    </div>
+                    <div>
+                      <label className={lbl}>Custo (R$)</label>
+                      <input value={row.custo} onChange={e => updateChassi(i, 'custo', e.target.value)} className={inp} placeholder="0,00" />
+                    </div>
+                    {chassis.length > 1 && (
+                      <button onClick={() => removeChassi(i)} className="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs">✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Nota Fiscal de Entrada</label>
+                <input value={nfEntrada} onChange={e => setNfEntrada(e.target.value)} className={inp} placeholder="NFe 12345..." />
+              </div>
+              <div>
+                <label className={lbl}>Fornecedor (opcional)</label>
+                <input value={fornecedor} onChange={e => setFornecedor(e.target.value)} className={inp} placeholder="Nome do fornecedor" />
+              </div>
+            </div>
+            <div>
+              <label className={lbl}>Observações</label>
+              <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={2} className={inp + ' resize-none'} placeholder="Motivo da entrada avulsa..." />
+            </div>
+
+            {erro && <p className="text-red-400 text-sm">{erro}</p>}
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={onClose} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg text-sm">Cancelar</button>
+              <button onClick={handleSubmit} disabled={saving || !produtoId}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2.5 rounded-lg font-medium text-sm">
+                {saving ? 'Salvando...' : '✓ Registrar Entrada'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Importação de Estoque via Planilha ──────────────────────────────────
+
+function ModalImportacaoEstoque({ onClose, onSucesso }: { onClose: () => void; onSucesso: () => void; }) {
+  const [arquivo, setArquivo]   = useState<File | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [resultado, setResultado] = useState<any>(null);
+  const [erro, setErro]         = useState('');
+
+  const handleUpload = async () => {
+    if (!arquivo) { setErro('Selecione um arquivo'); return; }
+    setLoading(true); setErro('');
+    try {
+      const formData = new FormData();
+      formData.append('arquivo', arquivo);
+      const res = await fetch('/api/importacao/estoque', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData,
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao importar'); }
+      setResultado(await res.json());
+    } catch (e: any) {
+      setErro(e.message || 'Erro ao importar planilha');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-white">📊 Importar Planilha de Estoque</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">×</button>
+        </div>
+        <div className="p-5 space-y-4">
+          {!resultado ? (
+            <>
+              <div className="bg-zinc-800/50 rounded-lg p-4 text-xs text-zinc-400 space-y-1">
+                <p className="font-medium text-zinc-300 mb-2">Formato esperado (colunas no cabeçalho):</p>
+                <p>• <span className="text-orange-400">Modelo</span> — nome do produto/modelo (obrigatório)</p>
+                <p>• <span className="text-orange-400">Estoque</span> — nome da loja/unidade de destino (obrigatório)</p>
+                <p>• Cor, CIF/Custo, Chassi, Quantidade (opcionais)</p>
+                <p className="mt-2 text-zinc-500">Exemplos de nomes de loja: "TM Recreio", "TM Campo Grande", "TM Importação"</p>
+                <p className="text-zinc-500">Valores monetários: R$ 7.000,00 | 7000 | 7.000,00</p>
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Arquivo (.xlsx, .xls, .csv)</label>
+                <input type="file" accept=".xlsx,.xls,.csv"
+                  onChange={e => { setArquivo(e.target.files?.[0] ?? null); setErro(''); }}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-orange-500 file:text-white cursor-pointer" />
+              </div>
+              {erro && <p className="text-red-400 text-sm">{erro}</p>}
+              <div className="flex gap-3">
+                <button onClick={onClose} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg text-sm">Cancelar</button>
+                <button onClick={handleUpload} disabled={loading || !arquivo}
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2.5 rounded-lg font-medium text-sm">
+                  {loading ? 'Importando...' : '📥 Importar'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className={`rounded-xl p-4 ${resultado.erros > 0 ? 'bg-yellow-900/20 border border-yellow-700/30' : 'bg-green-900/20 border border-green-700/30'}`}>
+                <p className={`font-semibold mb-3 ${resultado.erros > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                  {resultado.erros > 0 ? '⚠ Importação concluída com avisos' : '✓ Importação concluída!'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="bg-zinc-800/50 rounded p-2"><p className="text-zinc-400 text-xs">Total de linhas</p><p className="text-white font-bold">{resultado.totalLinhas}</p></div>
+                  <div className="bg-zinc-800/50 rounded p-2"><p className="text-zinc-400 text-xs">Entradas lançadas</p><p className="text-green-400 font-bold">{resultado.entradasLancadas}</p></div>
+                  <div className="bg-zinc-800/50 rounded p-2"><p className="text-zinc-400 text-xs">Produtos criados</p><p className="text-orange-400 font-bold">{resultado.produtosCriados}</p></div>
+                  <div className="bg-zinc-800/50 rounded p-2"><p className="text-zinc-400 text-xs">Erros</p><p className="text-red-400 font-bold">{resultado.erros}</p></div>
+                </div>
+                {resultado.detalhesErros?.length > 0 && (
+                  <div className="mt-3 max-h-32 overflow-y-auto space-y-1">
+                    {resultado.detalhesErros.map((e: string, i: number) => <p key={i} className="text-red-400 text-xs">{e}</p>)}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={onSucesso} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-medium text-sm">Fechar e Atualizar</button>
+                <button onClick={() => setResultado(null)} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg text-sm">Nova Importação</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── View por Empresa ─────────────────────────────────────────────────────────
 
 type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes';
@@ -1585,7 +1884,9 @@ function ViewEmpresa({
   const [busca, setBusca] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [showCadastroChassi, setShowCadastroChassi] = useState(false);
+  const [showCadastroChassi, setShowCadastroChassi]       = useState(false);
+  const [showEntradaAvulsa, setShowEntradaAvulsa]         = useState(false);
+  const [showImportacaoEstoque, setShowImportacaoEstoque] = useState(false);
   const isOutraLoja = minhaLojaId !== null && lojaId !== minhaLojaId;
   const podeGerir = !isOutraLoja; // pode cadastrar chassi nesta loja
 
@@ -1644,11 +1945,23 @@ function ViewEmpresa({
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {podeGerir && (
-            <button
-              onClick={() => setShowCadastroChassi(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-              + Cadastrar Chassi
-            </button>
+            <>
+              <button
+                onClick={() => setShowEntradaAvulsa(true)}
+                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+                📦 Entrada Avulsa
+              </button>
+              <button
+                onClick={() => setShowImportacaoEstoque(true)}
+                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+                📊 Importar Planilha
+              </button>
+              <button
+                onClick={() => setShowCadastroChassi(true)}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+                🏍️ Cadastrar Chassi
+              </button>
+            </>
           )}
           {t.alertasBaixoEstoque > 0 && (
             <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-3 py-1.5 rounded-lg text-sm">
@@ -1760,6 +2073,23 @@ function ViewEmpresa({
           isAdmin={minhaLojaId === null}
           onClose={() => setShowCadastroChassi(false)}
           onSucesso={() => { setShowCadastroChassi(false); setRefreshKey(k => k + 1); setAba('unitaria'); }}
+        />
+      )}
+
+      {showEntradaAvulsa && (
+        <ModalEntradaAvulsa
+          lojaId={lojaId}
+          lojas={lojas}
+          isAdmin={minhaLojaId === null}
+          onClose={() => setShowEntradaAvulsa(false)}
+          onSucesso={() => { setShowEntradaAvulsa(false); setRefreshKey(k => k + 1); }}
+        />
+      )}
+
+      {showImportacaoEstoque && (
+        <ModalImportacaoEstoque
+          onClose={() => setShowImportacaoEstoque(false)}
+          onSucesso={() => { setShowImportacaoEstoque(false); setRefreshKey(k => k + 1); }}
         />
       )}
     </div>

@@ -192,7 +192,7 @@ export function Produtos() {
             />
           </div>
           <div className="flex gap-2">
-            {['TODOS', 'MOTO', 'PECA', 'SERVICO'].map(t => (
+            {['TODOS', 'MOTO', 'PECA'].map(t => (
               <button
                 key={t}
                 onClick={() => setFiltroTipo(t)}

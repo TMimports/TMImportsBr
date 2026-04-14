@@ -59,6 +59,119 @@ router.get('/logs', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), asy
   }
 });
 
+// ── POST /estoque/entrada-avulsa ──────────────────────────────────────────────
+// Entrada manual de estoque sem gerar financeiro.
+// Para PECA: incrementa Estoque + LogEstoque.
+// Para MOTO: cria UnidadeFisica por chassi + LogEstoque.
+router.post(
+  '/entrada-avulsa',
+  requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'),
+  async (req: AuthRequest, res) => {
+    try {
+      const { produtoId, lojaId, tipo, quantidade, chassis, custo, fornecedorId, notaFiscalEntrada, observacao } = req.body;
+      const userId = req.user!.id;
+
+      if (!produtoId || !lojaId) return res.status(400).json({ error: 'produtoId e lojaId são obrigatórios' });
+
+      const produto = await prisma.produto.findUnique({ where: { id: Number(produtoId) } });
+      if (!produto) return res.status(404).json({ error: 'Produto não encontrado' });
+
+      const loja = await prisma.loja.findUnique({ where: { id: Number(lojaId) } });
+      if (!loja) return res.status(404).json({ error: 'Loja não encontrada' });
+
+      const tipoProduto = tipo || produto.tipo;
+
+      // ── MOTO: criar UnidadeFisica por chassi ──────────────────────────────
+      if (tipoProduto === 'MOTO') {
+        const chassisList: { chassi?: string; cor?: string; ano?: number; custo?: number }[] = Array.isArray(chassis) ? chassis : [];
+        if (chassisList.length === 0) return res.status(400).json({ error: 'Informe ao menos um chassi para Moto' });
+
+        const criados: any[] = [];
+        const erros: string[] = [];
+
+        for (const item of chassisList) {
+          try {
+            const chassiStr = item.chassi?.trim() || null;
+            if (chassiStr) {
+              const dup = await prisma.unidadeFisica.findFirst({ where: { chassi: chassiStr } });
+              if (dup) { erros.push(`Chassi "${chassiStr}" já cadastrado`); continue; }
+            }
+
+            // Gerar número de série
+            const prefixo = 'TMUNI';
+            const ultimo = await prisma.unidadeFisica.findFirst({
+              where: { numeroSerie: { startsWith: prefixo } },
+              orderBy: { numeroSerie: 'desc' },
+            });
+            let seq = 1;
+            if (ultimo?.numeroSerie) { const m = ultimo.numeroSerie.match(/\d+$/); if (m) seq = parseInt(m[0]) + 1; }
+            const numeroSerie = `${prefixo}${String(seq).padStart(5, '0')}`;
+
+            const unidade = await prisma.unidadeFisica.create({
+              data: {
+                produtoId: Number(produtoId),
+                lojaId: Number(lojaId),
+                chassi: chassiStr,
+                cor: item.cor?.trim() || null,
+                ano: item.ano ? Number(item.ano) : new Date().getFullYear(),
+                numeroSerie,
+                status: 'ESTOQUE',
+                createdBy: userId,
+                fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+                notaFiscalEntrada: notaFiscalEntrada?.trim() || null,
+              },
+            });
+
+            // Atualizar custo do produto se informado
+            const custoUnit = item.custo ? Number(item.custo) : (custo ? Number(custo) : 0);
+            if (custoUnit > 0) await prisma.produto.update({ where: { id: Number(produtoId) }, data: { custo: custoUnit } });
+
+            // Log de estoque (origem = ENTRADA_AVULSA)
+            const estoqueAtual = await prisma.estoque.findUnique({ where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } } });
+            const qtdAnterior = estoqueAtual?.quantidade ?? 0;
+            await prisma.estoque.upsert({
+              where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+              update: { quantidade: { increment: 1 } },
+              create: { produtoId: Number(produtoId), lojaId: Number(lojaId), quantidade: 1 },
+            });
+            await prisma.logEstoque.create({
+              data: {
+                tipo: 'ENTRADA', origem: 'ENTRADA_AVULSA', produtoId: Number(produtoId), lojaId: Number(lojaId),
+                quantidade: 1, quantidadeAnterior: qtdAnterior, quantidadeNova: qtdAnterior + 1, usuarioId: userId,
+              },
+            });
+
+            criados.push(unidade);
+          } catch (e: any) {
+            erros.push(e.message || 'Erro ao criar chassi');
+          }
+        }
+
+        return res.json({ sucesso: true, criados: criados.length, erros });
+      }
+
+      // ── PECA: incrementar estoque ──────────────────────────────────────────
+      const qtd = Math.max(1, Number(quantidade) || 1);
+      const resultado = await InventoryService.darEntrada({
+        tipo: 'ENTRADA', origem: 'ENTRADA_AVULSA',
+        produtoId: Number(produtoId), lojaId: Number(lojaId),
+        quantidade: qtd, usuarioId: userId,
+      });
+
+      if (!resultado.success) return res.status(500).json({ error: resultado.error });
+
+      // Atualizar custo se informado
+      const custoNum = custo ? Number(custo) : 0;
+      if (custoNum > 0) await prisma.produto.update({ where: { id: Number(produtoId) }, data: { custo: custoNum } });
+
+      res.json({ sucesso: true, quantidade: qtd, observacao: observacao || null });
+    } catch (err: any) {
+      console.error('[Entrada Avulsa]', err);
+      res.status(500).json({ error: err.message || 'Erro interno' });
+    }
+  }
+);
+
 // Novo endpoint: resumo hierarquico por grupo
 router.get('/grupo-resumo', async (req: AuthRequest, res) => {
   try {

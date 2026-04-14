@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLojaContext } from '../contexts/LojaContext';
 import { api } from '../services/api';
 import { Financeiro } from './Financeiro';
 import { ContasReceber } from './ContasReceber';
 import { CategoriasDepartamentos } from './CategoriasDepartamentos';
 import { PedidosCompra } from './PedidosCompra';
 import { NotasFiscais } from './NotasFiscais';
-import { DashboardEmpresa } from './DashboardEmpresa';
 import { ConciliacaoBancaria } from './ConciliacaoBancaria';
 import { Fornecedores } from './Fornecedores';
 
@@ -104,7 +104,6 @@ function VisaoGeral() {
 
 const TABS = [
   { id: 'visao-geral',          label: 'Visão Geral',    icon: '📊' },
-  { id: 'por-cnpj',             label: 'Por CNPJ',       icon: '🏢' },
   { id: 'contas-pagar',         label: 'A Pagar',        icon: '📤' },
   { id: 'contas-receber',       label: 'A Receber',      icon: '📥' },
   { id: 'pedidos-compra',       label: 'Compras',        icon: '🛒' },
@@ -116,13 +115,14 @@ const TABS = [
 
 type TabId = typeof TABS[number]['id'];
 
-const ADMIN_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'fornecedores', 'plano-contas'];
-const STORE_TABS: TabId[] = ['visao-geral', 'por-cnpj', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'fornecedores', 'plano-contas'];
+const ADMIN_TABS: TabId[] = ['visao-geral', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'fornecedores', 'plano-contas'];
+const STORE_TABS: TabId[] = ['visao-geral', 'contas-pagar', 'contas-receber', 'pedidos-compra', 'notas-fiscais', 'conciliacao-bancaria', 'fornecedores', 'plano-contas'];
 
 // ── Hub principal ──────────────────────────────────────────────────────────────
 
 export function FinanceiroHub({ initialTab }: { initialTab?: TabId }) {
   const { user } = useAuth();
+  const { selectedLojaId } = useLojaContext();
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'visao-geral');
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -139,11 +139,22 @@ export function FinanceiroHub({ initialTab }: { initialTab?: TabId }) {
     }
   }, [initialTab]);
 
+  // Quando uma loja específica é selecionada, "Visão Geral" é consolidada — ocultar
+  useEffect(() => {
+    if (selectedLojaId && activeTab === 'visao-geral') {
+      setActiveTab('contas-pagar');
+    }
+  }, [selectedLojaId]);
+
   const role = user?.role ?? '';
   const allowedTabs: TabId[] =
     role === 'ADMIN_GERAL' || role === 'ADMIN_FINANCEIRO' ? ADMIN_TABS : STORE_TABS;
 
-  const visibleTabs = TABS.filter(t => allowedTabs.includes(t.id));
+  // Visão Geral só aparece em modo consolidado (sem loja específica selecionada)
+  const visibleTabs = TABS.filter(t =>
+    allowedTabs.includes(t.id) &&
+    !(t.id === 'visao-geral' && selectedLojaId)
+  );
 
   const checkScroll = () => {
     const el = tabBarRef.current;
@@ -174,7 +185,6 @@ export function FinanceiroHub({ initialTab }: { initialTab?: TabId }) {
   const renderContent = () => {
     switch (activeTab) {
       case 'visao-geral':          return <VisaoGeral />;
-      case 'por-cnpj':             return <DashboardEmpresa />;
       case 'contas-pagar':         return <Financeiro />;
       case 'contas-receber':       return <ContasReceber />;
       case 'pedidos-compra':       return <PedidosCompra />;

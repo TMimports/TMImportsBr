@@ -1,0 +1,249 @@
+Preciso implementar ajustes solicitados pelo cliente no ERP Tecle Motos/TM Imports.
+
+IMPORTANTE:
+Não quebrar fluxos existentes.
+Não alterar layout desnecessariamente.
+Manter o padrão visual atual.
+Rodar build ao final e informar arquivos alterados.
+
+========================
+1. FINANCEIRO — REMOVER ABA “POR CNPJ”
+========================
+
+Na área Financeiro, remover a aba/botão “Por CNPJ”.
+
+Motivo:
+O sistema agora já separa as informações por ambiente/unidade usando o seletor superior de unidade/loja, então a aba “Por CNPJ” não é mais necessária.
+
+Regras:
+- Remover visualmente a aba “Por CNPJ”.
+- Não apagar dados do banco.
+- Não quebrar rotas existentes.
+- Se houver rota interna antiga, pode manter sem aparecer no menu.
+- O Financeiro deve trabalhar com:
+  - Visão Geral
+  - A Pagar
+  - A Receber
+  - demais abas financeiras existentes, exceto “Por CNPJ”.
+
+========================
+2. FINANCEIRO — VISÃO GERAL SOMENTE NA VISÃO CONSOLIDADA
+========================
+
+A aba “Visão Geral” do Financeiro só deve aparecer quando o seletor superior estiver em “Visão Consolidada”.
+
+Regras:
+- Quando estiver em “Visão Consolidada”, mostrar “Visão Geral”.
+- Quando estiver selecionada uma loja/unidade específica, esconder “Visão Geral”.
+- Para loja específica, exibir apenas as abas operacionais aplicáveis, como A Pagar, A Receber e demais módulos permitidos.
+- Não permitir acessar a visão geral financeira consolidada dentro da visão de uma loja específica.
+
+========================
+3. PEDIDO DE COMPRA — CATEGORIAS APENAS DESPESA OU AMBOS
+========================
+
+Na tela de Pedido de Compra, ao selecionar categoria, exibir somente categorias do tipo:
+
+- DESPESA
+- AMBOS
+
+Não permitir categorias do tipo RECEITA para pedido de compra.
+
+Regras:
+- Aplicar filtro no frontend.
+- Validar também no backend, se houver endpoint de criação/edição de pedido.
+- Manter categorias atuais no sistema.
+- Não excluir nenhuma categoria.
+- Apenas restringir a seleção dentro do Pedido de Compra.
+
+========================
+4. PRODUTOS — REMOVER BOTÃO/FILTRO “SERVIÇO”
+========================
+
+Na tela Produtos existe filtro/botão:
+- Todos
+- Moto
+- Peça
+- Serviço
+
+Remover o botão/filtro “Serviço”.
+
+Motivo:
+O sistema já possui uma área própria para Serviços.
+
+Regras:
+- Manter apenas:
+  - Todos
+  - Moto
+  - Peça
+- Não excluir serviços do banco.
+- Não quebrar outras telas que usam serviços.
+- Apenas remover essa opção da tela Produtos.
+
+========================
+5. ESTOQUE — CRIAR ENTRADA AVULSA SEM FINANCEIRO
+========================
+
+Problema:
+Hoje, para adicionar item ao estoque, o usuário precisa fazer Pedido de Compra. Isso gera contas a pagar, mas em alguns casos a empresa já pagou os produtos ou está fazendo uma carga inicial de estoque. Então não deve gerar financeiro.
+
+Objetivo:
+Criar uma funcionalidade chamada “Entrada Avulsa de Estoque” ou “Entrada Manual de Estoque”.
+
+Essa entrada deve:
+- adicionar produtos ao estoque
+- permitir definir unidade/loja de destino
+- não gerar Pedido de Compra
+- não gerar Contas a Pagar
+- não gerar obrigação financeira
+- registrar movimentação de estoque para auditoria
+
+Campos necessários:
+- data de inserção
+- produto/modelo
+- tipo: Moto ou Peça
+- fornecedor, se informado
+- valor de custo/CIF, se informado
+- loja/unidade de destino
+- quantidade
+- observação
+- para motos: permitir informar chassi, cor e SKU/SKR se aplicável
+
+Regras:
+- Se for Moto, deve permitir cadastrar chassi.
+- Chassi não pode ser duplicado.
+- Se for Peça, permitir quantidade.
+- Entrada avulsa deve aparecer no histórico/movimentação de estoque.
+- Não deve aparecer como dívida, conta a pagar ou pedido de compra.
+- Criar identificação clara: origem = ENTRADA_AVULSA ou ESTOQUE_INICIAL.
+
+========================
+6. ESTOQUE — IMPORTAR PLANILHA DE ESTOQUE GERAL
+========================
+
+Criar importação de planilha para entrada inicial/geral de estoque.
+
+A planilha enviada pelo cliente tem estrutura parecida com:
+
+Colunas esperadas:
+- Data de inserção
+- Modelo
+- Cor
+- CIF ou valor de custo
+- Fornecedor
+- Valor
+- Estoque / Unidade de destino
+
+Exemplo de unidades possíveis no campo Estoque:
+- TM Bangu
+- TM Barra
+- TM Campo Grande
+- TM Copacabana
+- TM Importação
+- TM Recreio
+- TM Itaipuaçu
+- TM Nilópolis
+- outras lojas cadastradas
+
+Objetivo:
+Ao importar essa planilha, o sistema deve:
+- identificar o produto/modelo
+- identificar o tipo Moto ou Peça quando possível
+- identificar a loja/unidade de destino
+- criar ou atualizar o produto, se necessário
+- lançar entrada no estoque da unidade correta
+- não gerar pedido de compra
+- não gerar contas a pagar
+- registrar como entrada avulsa/importação inicial
+
+Regras:
+- Se o produto não existir, criar produto básico.
+- Se a loja/unidade não existir, retornar erro claro informando a linha e a unidade não encontrada.
+- Se houver valor monetário em formato brasileiro, tratar corretamente:
+  - 7.000,00
+  - 7000
+  - R$ 7.000,00
+- Evitar erro de numeric overflow.
+- Normalizar valores antes de salvar.
+- Informar no resultado da importação:
+  - total de linhas processadas
+  - itens criados
+  - itens atualizados
+  - entradas lançadas
+  - erros por linha, se houver
+
+========================
+7. CORRIGIR ERRO DE IMPORTAÇÃO DE PRODUTOS
+========================
+
+Corrigir erro atual:
+
+Invalid prisma.produto.create invocation
+Postgres error code 22003
+numeric field overflow
+A field with precision 10, scale 2 must round to an absolute value less than 10^8
+
+Objetivo:
+Evitar erro ao importar produtos com valores monetários.
+
+Regras:
+- Localizar campos Decimal/numeric envolvidos em Produto.
+- Corrigir parser de valores monetários.
+- Tratar formato brasileiro.
+- Se necessário, aumentar precisão no schema Prisma para valores de custo/preço/margem.
+- Rodar prisma generate e prisma db push se alterar schema.
+- Ao dar erro, informar linha da planilha e campo problemático.
+
+========================
+8. CHASSI — CADASTRO MANUAL EM ENTRADA DE ESTOQUE
+========================
+
+Criar local para adicionar chassi manualmente quando a empresa adquirir novas motos.
+
+Hoje o chassi entra apenas pela importação da planilha. Isso precisa mudar.
+
+Requisitos:
+- Na entrada avulsa de estoque, se o item for Moto, permitir cadastrar um ou vários chassis.
+- Permitir associar:
+  - modelo/produto
+  - loja/unidade
+  - cor
+  - chassi
+  - SKU/SKR
+  - custo, se necessário
+- Validar duplicidade de chassi.
+- Cada chassi deve ficar vinculado ao produto e à loja correta.
+- Permitir cadastro unitário e em lote.
+- Não gerar financeiro.
+
+========================
+9. SEGURANÇA E PERMISSÕES
+========================
+
+Permitir uso dessa entrada avulsa apenas para perfis autorizados:
+- ADMIN_GERAL
+- perfis administrativos autorizados
+
+Não permitir que vendedor ou funcionário comum faça entrada avulsa sem permissão.
+
+Se houver auditoria:
+- registrar usuário
+- data/hora
+- produto
+- loja
+- quantidade
+- origem da entrada
+
+========================
+10. ENTREGA FINAL
+========================
+
+Ao final, entregar relatório com:
+- arquivos alterados
+- rotas criadas/alteradas
+- modelos Prisma alterados, se houver
+- telas criadas/alteradas
+- como testar Entrada Avulsa
+- como testar Importação de Estoque Geral
+- confirmação se o build passou
+- se rodou prisma generate/db push

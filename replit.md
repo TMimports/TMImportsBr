@@ -95,6 +95,14 @@ This project is a comprehensive multi-company ERP system for TM Imports and its 
 - All pages use NAMED exports; App.tsx uses named imports
 - Fornecedor schema: uses `classe: ClasseFornecedor` (PRODUTO/SERVICO/AMBOS), NOT `tipo`
 
+### Entrada Avulsa de Estoque (2026-04-14)
+- **Backend** `POST /estoque/entrada-avulsa`: aceita MOTO (cria UnidadeFisica por chassi) e PECA (InventoryService.darEntrada). LogEstoque origem = `ENTRADA_AVULSA`. Permissão: ADMIN_GERAL, ADMIN_FINANCEIRO, ADMIN_REDE, DONO_LOJA, GERENTE_LOJA.
+- **Backend** `POST /importacao/estoque`: importa planilha (.xlsx/.xls/.csv) com detecção flexível de colunas. Resolve loja por nome (exata ou parcial). Upsert Produto + Estoque + LogEstoque (origem = `IMPORTACAO_ESTOQUE`). Se chassi presente → cria UnidadeFisica.
+- **Frontend** `ModalEntradaAvulsa`: modal em ViewEmpresa, seleciona produto, detecta tipo (MOTO/PECA), para MOTO exibe lista de chassi+cor+ano+custo; para PECA exibe quantidade. Botão "📦 Entrada Avulsa" no header.
+- **Frontend** `ModalImportacaoEstoque`: modal com upload de arquivo, usa `FormData` + `fetch` direto (não `api`). Exibe resumo: linhas processadas, entradas lançadas, produtos criados, erros. Botão "📊 Importar Planilha" no header.
+- Interface `EntradaChassiRow` separada de `ChassiRow` (existente em ModalCadastroChassi) para evitar conflito.
+- TypeScript: 0 erros em frontend e backend após implementação.
+
 ### Audit Notes (2026-04-10 — Auditoria Final)
 - **Security**: `/api/setup` and `/api/debug-build` endpoints now guarded by `isDev` — inaccessible in production
 - **Navigation roles**: `ADMIN_FINANCEIRO` and `GERENTE_LOJA` now use `CADASTROS_BASE_GROUP` (Fornecedores + Categ./Depart. only, no Usuários). `ADMIN_GERAL` and `DONO_LOJA` keep full `CADASTROS_GROUP` with Usuários
