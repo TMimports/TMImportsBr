@@ -26,7 +26,7 @@ interface Grupo {
 
 const ROLES_COM_LOJA = ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
 const ROLES_COM_GRUPO = ['DONO_LOJA', 'ADMIN_REDE'];
-const ROLES_SEM_VINCULO = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'];
+const ROLES_SEM_VINCULO = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_COMERCIAL'];
 
 const initialForm = {
   id: 0,
@@ -80,18 +80,20 @@ const BANCOS_BRASIL = [
 ];
 
 const roleLabels: Record<string, string> = {
-  ADMIN_GERAL: 'Administrador Geral',
+  ADMIN_GERAL:      'Administrador Geral',
   ADMIN_FINANCEIRO: 'Administrador Financeiro',
-  DONO_LOJA: 'Dono da Loja',
-  VENDEDOR: 'Vendedor',
-  ADMIN_REDE: 'Administrador de Rede',
-  GERENTE_LOJA: 'Gerente da Loja',
-  TECNICO: 'Técnico'
+  ADMIN_COMERCIAL:  'Administrador Comercial',
+  ADMIN_REDE:       'Administrador de Rede',
+  DONO_LOJA:        'Dono da Loja',
+  GERENTE_LOJA:     'Gerente da Loja',
+  VENDEDOR:         'Vendedor',
+  TECNICO:          'Técnico',
 };
 
 const roleDescriptions: Record<string, string> = {
   ADMIN_GERAL:      'Acesso total ao sistema: produtos, precos, estoque, usuarios, financeiro, todas as lojas e franquias.',
   ADMIN_FINANCEIRO: 'Acesso completo a toda a area financeira de todas as lojas. Visualiza vendas e clientes para contexto.',
+  ADMIN_COMERCIAL:  'Visão comercial da rede: volume de vendas, top produtos, top vendedores e estoque. Sem acesso a custos ou dados financeiros.',
   ADMIN_REDE:       'Gerencia a rede de franquias: cadastra lojas, usuarios e acompanha relatorios de toda a rede.',
   DONO_LOJA:        'Gerencia seu grupo de lojas: cadastra funcionarios, ve estoque, vendas, OS e financeiro do grupo.',
   GERENTE_LOJA:     'Gerencia a loja: supervisiona vendas, estoque, OS, comissoes e financeiro da unidade.',
@@ -113,7 +115,7 @@ export function Usuarios() {
 
   const rolesDisponiveis = user?.role === 'DONO_LOJA'
     ? ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO']
-    : ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA', 'VENDEDOR', 'TECNICO'];
+    : ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_COMERCIAL', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA', 'VENDEDOR', 'TECNICO'];
 
   const loadData = () => {
     setLoading(true);
