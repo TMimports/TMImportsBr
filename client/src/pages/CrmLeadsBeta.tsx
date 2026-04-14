@@ -523,6 +523,17 @@ export function CrmLeadsBeta() {
     if (leadDetalhe?.id === lead.id) setLeadDetalhe(lead);
   }
 
+  async function excluirLead(lead: Lead) {
+    if (!confirm(`Excluir o lead "${lead.nome}"?\n\nEsta ação apagará o lead e todo o histórico de interações permanentemente.`)) return;
+    try {
+      await api.delete(`/crm-leads/${lead.id}`);
+      setLeads(prev => prev.filter(l => l.id !== lead.id));
+      if (leadDetalhe?.id === lead.id) setLeadDetalhe(null);
+    } catch (e: any) {
+      alert(e.message || 'Erro ao excluir lead');
+    }
+  }
+
   if (loading && leads.length === 0) return (
     <div className="p-12 text-center text-zinc-400">Carregando CRM Leads Beta...</div>
   );
@@ -643,10 +654,17 @@ export function CrmLeadsBeta() {
                         </td>
                         <td className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">{fmtDate(lead.createdAt)}</td>
                         <td className="px-4 py-3">
-                          <button onClick={() => setLeadDetalhe(lead)}
-                            className="text-orange-400 hover:text-orange-300 text-xs font-medium px-2 py-1 bg-orange-500/10 rounded">
-                            Detalhes →
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => setLeadDetalhe(lead)}
+                              className="text-orange-400 hover:text-orange-300 text-xs font-medium px-2 py-1 bg-orange-500/10 rounded">
+                              Detalhes →
+                            </button>
+                            <button onClick={() => excluirLead(lead)}
+                              className="text-red-400 hover:text-red-300 text-xs font-medium px-2 py-1 bg-red-500/10 hover:bg-red-500/20 rounded transition-colors"
+                              title="Excluir lead">
+                              🗑
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -224,6 +224,22 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
   }
 });
 
+// ── DELETE /crm-leads/:id — excluir ──────────────────────────────────────────
+router.delete('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID inválido' });
+    const lead = await prisma.lead.findUnique({ where: { id } });
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+    await prisma.leadInteracao.deleteMany({ where: { leadId: id } });
+    await prisma.lead.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[CRM Leads] DELETE /:id', err);
+    res.status(500).json({ error: 'Erro ao excluir lead' });
+  }
+});
+
 // ── POST /crm-leads/:id/interacoes — registrar interação ─────────────────────
 router.post('/:id/interacoes', onlyAdminGeral, async (req: AuthRequest, res) => {
   try {
