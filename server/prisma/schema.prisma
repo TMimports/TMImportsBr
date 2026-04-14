@@ -32,6 +32,10 @@ model Loja {
   comissaoMoto          Decimal            @default(1.0) @db.Decimal(5, 2)
   comissaoPecas         Decimal            @default(3.0) @db.Decimal(5, 2)
   comissaoServico       Decimal            @default(10.0) @db.Decimal(5, 2)
+  regiao                String?
+  bairrosAtendidos      String?
+  cidade                String?
+  uf                    String?
   auditoriaEstoque      AuditoriaEstoque[]
   caixa                 Caixa[]
   clientes              Cliente[]
@@ -839,6 +843,12 @@ model Lead {
   canalOrigem             String?
   mensagemRecebida        String?
   linkConversa            String?
+  regiaoCliente           String?
+  bairroCliente           String?
+  cidadeCliente           String?
+  ufCliente               String?
+  lojaSugerida            String?
+  motivoLojaSugerida      String?
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
   loja                    Loja?           @relation(fields: [lojaId], references: [id])

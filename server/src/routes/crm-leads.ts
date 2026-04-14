@@ -19,7 +19,7 @@ function onlyAdminGeral(req: AuthRequest, res: any, next: any) {
 }
 
 const INCLUDE_LEAD = {
-  loja:        { select: { id: true, nomeFantasia: true } },
+  loja:        { select: { id: true, nomeFantasia: true, regiao: true, cidade: true } },
   vendedor:    { select: { id: true, nome: true, telefone: true } },
   repassadoPor:{ select: { id: true, nome: true } },
   interacoes: {
@@ -113,6 +113,48 @@ router.get('/dashboard', onlyAdminGeral, async (_req: AuthRequest, res) => {
   }
 });
 
+// ── GET /crm-leads/lojas — listar lojas com campos de região ─────────────────
+// IMPORTANTE: deve vir ANTES de /:id
+router.get('/lojas', onlyAdminGeral, async (_req: AuthRequest, res) => {
+  try {
+    const lojas = await prisma.loja.findMany({
+      where:   { ativo: true },
+      select: {
+        id: true, nomeFantasia: true, razaoSocial: true,
+        regiao: true, bairrosAtendidos: true, cidade: true, uf: true,
+        endereco: true,
+      },
+      orderBy: { nomeFantasia: 'asc' },
+    });
+    res.json(lojas);
+  } catch (err) {
+    console.error('[CRM Leads] GET /lojas', err);
+    res.status(500).json({ error: 'Erro ao listar lojas' });
+  }
+});
+
+// ── PATCH /crm-leads/lojas/:id — atualizar campos de região da loja ───────────
+router.patch('/lojas/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { regiao, bairrosAtendidos, cidade, uf } = req.body;
+    const data: any = {};
+    if (regiao             !== undefined) data.regiao             = regiao?.trim() || null;
+    if (bairrosAtendidos   !== undefined) data.bairrosAtendidos   = bairrosAtendidos?.trim() || null;
+    if (cidade             !== undefined) data.cidade             = cidade?.trim() || null;
+    if (uf                 !== undefined) data.uf                 = uf?.trim() || null;
+    const loja = await prisma.loja.update({
+      where:  { id },
+      data,
+      select: { id: true, nomeFantasia: true, regiao: true, bairrosAtendidos: true, cidade: true, uf: true },
+    });
+    res.json(loja);
+  } catch (err) {
+    console.error('[CRM Leads] PATCH /lojas/:id', err);
+    res.status(500).json({ error: 'Erro ao atualizar região da loja' });
+  }
+});
+
 // ── GET /crm-leads/vendedores — listar vendedores ativos ─────────────────────
 // IMPORTANTE: deve vir ANTES de /:id para o Express não interpretar "vendedores" como id
 router.get('/vendedores', onlyAdminGeral, async (_req: AuthRequest, res) => {
@@ -203,6 +245,7 @@ router.post('/', onlyAdminGeral, async (req: AuthRequest, res) => {
       nome, telefone, email, origem, campanha, interesse,
       interesseCorrigido, lojaId, vendedorId, status, prioridade,
       resumo, proximaAcao, mensagemWhatsApp, dataProximoFollowUp, observacoes,
+      regiaoCliente, bairroCliente, cidadeCliente, ufCliente, lojaSugerida, motivoLojaSugerida,
     } = req.body;
 
     if (!nome?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -225,6 +268,12 @@ router.post('/', onlyAdminGeral, async (req: AuthRequest, res) => {
         mensagemWhatsApp:   mensagemWhatsApp?.trim() || null,
         dataProximoFollowUp: dataProximoFollowUp ? new Date(dataProximoFollowUp) : null,
         observacoes:        observacoes?.trim() || null,
+        regiaoCliente:      regiaoCliente?.trim() || null,
+        bairroCliente:      bairroCliente?.trim() || null,
+        cidadeCliente:      cidadeCliente?.trim() || null,
+        ufCliente:          ufCliente?.trim() || null,
+        lojaSugerida:       lojaSugerida?.trim() || null,
+        motivoLojaSugerida: motivoLojaSugerida?.trim() || null,
       },
       include: INCLUDE_LEAD,
     });
@@ -258,6 +307,7 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
       interesseCorrigido, lojaId, vendedorId, status, prioridade,
       resumo, proximaAcao, mensagemWhatsApp, dataProximoFollowUp, observacoes,
       whatsappComercialOrigem, canalOrigem, mensagemRecebida, linkConversa,
+      regiaoCliente, bairroCliente, cidadeCliente, ufCliente, lojaSugerida, motivoLojaSugerida,
     } = req.body;
 
     const data: any = {};
@@ -280,6 +330,12 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
     if (canalOrigem !== undefined)             data.canalOrigem             = canalOrigem?.trim() || null;
     if (mensagemRecebida !== undefined)        data.mensagemRecebida        = mensagemRecebida?.trim() || null;
     if (linkConversa !== undefined)            data.linkConversa            = linkConversa?.trim() || null;
+    if (regiaoCliente !== undefined)           data.regiaoCliente           = regiaoCliente?.trim() || null;
+    if (bairroCliente !== undefined)           data.bairroCliente           = bairroCliente?.trim() || null;
+    if (cidadeCliente !== undefined)           data.cidadeCliente           = cidadeCliente?.trim() || null;
+    if (ufCliente !== undefined)               data.ufCliente               = ufCliente?.trim() || null;
+    if (lojaSugerida !== undefined)            data.lojaSugerida            = lojaSugerida?.trim() || null;
+    if (motivoLojaSugerida !== undefined)      data.motivoLojaSugerida      = motivoLojaSugerida?.trim() || null;
 
     // Registrar mudança de status como interação automática
     if (status !== undefined && status !== current.status) {

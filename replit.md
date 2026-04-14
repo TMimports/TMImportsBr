@@ -95,6 +95,16 @@ This project is a comprehensive multi-company ERP system for TM Imports and its 
 - All pages use NAMED exports; App.tsx uses named imports
 - Fornecedor schema: uses `classe: ClasseFornecedor` (PRODUTO/SERVICO/AMBOS), NOT `tipo`
 
+### CRM Leads Beta — Atribuição Automática por Região (2026-04-14)
+- **Schema `Loja`**: novos campos `regiao String?`, `bairrosAtendidos String?`, `cidade String?`, `uf String?` para configurar cobertura geográfica de cada franquia.
+- **Schema `Lead`**: novos campos `regiaoCliente String?`, `bairroCliente String?`, `cidadeCliente String?`, `ufCliente String?`, `lojaSugerida String?`, `motivoLojaSugerida String?`.
+- **Algoritmo de atribuição automática** (`integracoes.ts` `resolverLojaPorRegiao`): prioridade (1) lojaId explícito → (2) lojaSugerida por nomeFantasia → (3) regiaoCliente → (4) bairroCliente em bairrosAtendidos → (5) cidadeCliente. Se loja encontrada → rodízio entre VENDEDORs ativos da loja (quem ficou mais tempo sem receber lead fica na frente da fila). Se sem vendedor → status NOVO + observação. Se sem loja → status NOVO + observação de espera.
+- **Rodízio** (`escolherVendedorRodizio`): busca VENDEDOR/GERENTE_LOJA/DONO_LOJA ativos da loja. Ordena por `dataRepasseVendedor` (null = nunca recebeu = prioridade máxima). Atribui ao primeiro.
+- **Novos endpoints `crm-leads.ts`**: `GET /crm-leads/lojas` (lojas ativas com campos de região); `PATCH /crm-leads/lojas/:id` (salva regiao/bairrosAtendidos/cidade/uf). Ambos estáticos, ANTES de `/:id`.
+- **`CrmLeadsBeta.tsx`**: nova aba "🗺️ Regiões das Lojas" com cards por loja, formulário de edição inline (regiao, bairrosAtendidos, cidade, uf), indicador visual de configuração. Painel detalhe do lead exibe seção "🗺️ Região do Cliente" (região, bairro, cidade/UF, loja atribuída, loja sugerida, motivo).
+- **Payload n8n futuro**: `regiaoCliente`, `bairroCliente`, `cidadeCliente`, `ufCliente`, `lojaSugerida`, `motivoLojaSugerida` aceitos pelo `POST /integracoes/leads-test`.
+- **TypeScript**: 0 erros frontend e backend.
+
 ### CRM Leads Beta — Passar Bastão (2026-04-14)
 - **Schema**: Lead recebeu `repassadoPorId Int?`, `dataRepasseVendedor DateTime?`, `whatsappComercialOrigem String?`, `canalOrigem String?`, `mensagemRecebida String?`, `linkConversa String?`. Relação `vendedor` nomeada `"LeadVendedor"` e nova relação `repassadoPor User? @relation("LeadRepassadoPor")`. User tem `leadsRepassados Lead[] @relation("LeadRepassadoPor")`.
 - **`crm-leads.ts`**: `GET /crm-leads/vendedores` (lista VENDEDOR+GERENTE_LOJA+DONO_LOJA ativos com loja e telefone). `POST /crm-leads/:id/repasse` (salva vendedorId, repassadoPorId, dataRepasseVendedor, muda status NOVO→EM_ATENDIMENTO, cria LeadInteracao "🤝 Lead repassado para..."). PATCH aceita campos `whatsappComercialOrigem`, `canalOrigem`, `mensagemRecebida`, `linkConversa`. INCLUDE_LEAD inclui `repassadoPor`.

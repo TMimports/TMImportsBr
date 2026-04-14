@@ -4,7 +4,10 @@ import { Card } from '../components/ui/Card';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
-interface Loja { id: number; nomeFantasia: string; }
+interface Loja {
+  id: number; nomeFantasia: string; razaoSocial?: string;
+  regiao?: string; bairrosAtendidos?: string; cidade?: string; uf?: string; endereco?: string;
+}
 interface VendedorLista {
   id: number; nome: string; email: string; telefone?: string;
   loja?: { id: number; nomeFantasia: string; };
@@ -25,8 +28,11 @@ interface Lead {
   dataProximoFollowUp?: string; observacoes?: string;
   whatsappComercialOrigem?: string; canalOrigem?: string;
   mensagemRecebida?: string; linkConversa?: string;
+  regiaoCliente?: string; bairroCliente?: string;
+  cidadeCliente?: string; ufCliente?: string;
+  lojaSugerida?: string; motivoLojaSugerida?: string;
   createdAt: string; updatedAt: string;
-  loja?: { id: number; nomeFantasia: string; };
+  loja?: { id: number; nomeFantasia: string; regiao?: string; cidade?: string; };
   vendedor?: { id: number; nome: string; telefone?: string; };
   repassadoPor?: { id: number; nome: string; };
   interacoes?: LeadInteracao[];
@@ -424,6 +430,52 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
                 </button>
               )}
 
+              {/* Região do Cliente & Atribuição Automática */}
+              {(detalhe.regiaoCliente || detalhe.bairroCliente || detalhe.cidadeCliente || detalhe.lojaSugerida) && (
+                <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-4 space-y-3">
+                  <p className="text-teal-400 text-xs font-semibold uppercase tracking-wider">🗺️ Região do Cliente</p>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {detalhe.regiaoCliente && (
+                      <div>
+                        <p className="text-zinc-500 text-xs">Região</p>
+                        <p className="text-white font-medium">{detalhe.regiaoCliente}</p>
+                      </div>
+                    )}
+                    {detalhe.bairroCliente && (
+                      <div>
+                        <p className="text-zinc-500 text-xs">Bairro</p>
+                        <p className="text-white">{detalhe.bairroCliente}</p>
+                      </div>
+                    )}
+                    {detalhe.cidadeCliente && (
+                      <div>
+                        <p className="text-zinc-500 text-xs">Cidade</p>
+                        <p className="text-white">{detalhe.cidadeCliente}{detalhe.ufCliente ? ` / ${detalhe.ufCliente}` : ''}</p>
+                      </div>
+                    )}
+                    {detalhe.loja && (
+                      <div>
+                        <p className="text-zinc-500 text-xs">Loja Atribuída</p>
+                        <p className="text-teal-300 font-medium">{detalhe.loja.nomeFantasia}</p>
+                        {detalhe.loja.regiao && <p className="text-zinc-500 text-xs">Região: {detalhe.loja.regiao}</p>}
+                      </div>
+                    )}
+                  </div>
+                  {detalhe.lojaSugerida && (
+                    <div>
+                      <p className="text-zinc-500 text-xs">Loja Sugerida pela Claude</p>
+                      <p className="text-teal-300 text-sm font-medium">{detalhe.lojaSugerida}</p>
+                    </div>
+                  )}
+                  {detalhe.motivoLojaSugerida && (
+                    <div>
+                      <p className="text-zinc-500 text-xs">Motivo da Sugestão</p>
+                      <p className="text-zinc-300 text-sm bg-zinc-800 rounded-lg px-3 py-2 leading-relaxed">{detalhe.motivoLojaSugerida}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Alterar status */}
               <div className="border border-zinc-800 rounded-lg p-4 space-y-2">
                 <p className="text-xs text-zinc-400 font-medium uppercase tracking-wide">🔄 Alterar Status</p>
@@ -706,7 +758,10 @@ export function CrmLeadsBeta() {
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
-  const [aba, setAba] = useState<'dashboard' | 'leads'>('dashboard');
+  const [aba, setAba] = useState<'dashboard' | 'leads' | 'regioes'>('dashboard');
+  const [lojasRegiao, setLojasRegiao] = useState<Loja[]>([]);
+  const [editandoLoja, setEditandoLoja] = useState<Loja | null>(null);
+  const [savingLoja, setSavingLoja] = useState(false);
   const [showCriar, setShowCriar] = useState(false);
   const [leadDetalhe, setLeadDetalhe] = useState<Lead | null>(null);
 
@@ -727,11 +782,12 @@ export function CrmLeadsBeta() {
       if (fPrioridade) params.set('prioridade', fPrioridade);
       if (fBusca)      params.set('busca', fBusca);
 
-      const [l, d, lj, vs] = await Promise.all([
+      const [l, d, lj, vs, lr] = await Promise.all([
         api.get<Lead[]>(`/crm-leads?${params}`),
         api.get<DashboardData>('/crm-leads/dashboard'),
         api.get<any>('/lojas?limit=50'),
         api.get<any>('/usuarios?limit=200'),
+        api.get<Loja[]>('/crm-leads/lojas'),
       ]);
       setLeads(Array.isArray(l) ? l : []);
       setDashboard(d);
@@ -739,6 +795,7 @@ export function CrmLeadsBeta() {
       setLojas(lojasList.map((x: any) => ({ id: x.id, nomeFantasia: x.nomeFantasia || x.razaoSocial })));
       const vsList: any[] = Array.isArray(vs) ? vs : vs?.usuarios ?? vs?.data ?? [];
       setVendedores(vsList.filter((u: any) => ['VENDEDOR', 'GERENTE_LOJA'].includes(u.role)));
+      setLojasRegiao(Array.isArray(lr) ? lr : []);
     } catch (e: any) {
       setErro(e.message || 'Erro ao carregar CRM Leads');
     } finally { setLoading(false); }
@@ -749,6 +806,23 @@ export function CrmLeadsBeta() {
   function atualizarLead(lead: Lead) {
     setLeads(prev => prev.map(l => l.id === lead.id ? lead : l));
     if (leadDetalhe?.id === lead.id) setLeadDetalhe(lead);
+  }
+
+  async function salvarLoja() {
+    if (!editandoLoja) return;
+    setSavingLoja(true);
+    try {
+      const atualizada = await api.patch<Loja>(`/crm-leads/lojas/${editandoLoja.id}`, {
+        regiao:           editandoLoja.regiao || null,
+        bairrosAtendidos: editandoLoja.bairrosAtendidos || null,
+        cidade:           editandoLoja.cidade || null,
+        uf:               editandoLoja.uf || null,
+      });
+      setLojasRegiao(prev => prev.map(l => l.id === atualizada.id ? { ...l, ...atualizada } : l));
+      setEditandoLoja(null);
+    } catch (e: any) {
+      alert(e.message || 'Erro ao salvar configuração da loja');
+    } finally { setSavingLoja(false); }
   }
 
   async function excluirLead(lead: Lead) {
@@ -792,12 +866,18 @@ export function CrmLeadsBeta() {
 
       {/* Abas */}
       <div className="flex gap-1 bg-zinc-800 p-1 rounded-lg w-fit">
-        {(['dashboard', 'leads'] as const).map(a => (
-          <button key={a} onClick={() => setAba(a)}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${aba === a ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}>
-            {a === 'dashboard' ? '📊 Dashboard' : `📋 Leads (${leads.length})`}
-          </button>
-        ))}
+        <button onClick={() => setAba('dashboard')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${aba === 'dashboard' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}>
+          📊 Dashboard
+        </button>
+        <button onClick={() => setAba('leads')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${aba === 'leads' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}>
+          📋 Leads ({leads.length})
+        </button>
+        <button onClick={() => setAba('regioes')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${aba === 'regioes' ? 'bg-zinc-700 text-white' : 'text-zinc-400 hover:text-white'}`}>
+          🗺️ Regiões das Lojas
+        </button>
       </div>
 
       {/* Dashboard */}
@@ -912,6 +992,122 @@ export function CrmLeadsBeta() {
             )}
           </Card>
         </>
+      )}
+
+      {/* Aba Regiões das Lojas */}
+      {aba === 'regioes' && (
+        <div className="space-y-4">
+          <div className="bg-teal-950/30 border border-teal-800/30 rounded-xl p-4">
+            <p className="text-teal-300 text-sm font-medium mb-1">🗺️ Configuração de Regiões para Atribuição Automática</p>
+            <p className="text-zinc-400 text-xs leading-relaxed">
+              Configure a <strong className="text-zinc-300">região</strong>, os <strong className="text-zinc-300">bairros atendidos</strong> e a <strong className="text-zinc-300">cidade</strong> de cada loja.
+              Quando o n8n/Claude enviar um lead com dados de localização, o sistema usará essas informações para atribuir automaticamente ao vendedor correto via rodízio.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-3 text-xs text-zinc-400">
+              <div className="bg-zinc-800/60 rounded-lg px-3 py-2">
+                <p className="text-teal-400 font-semibold mb-1">Prioridade 1</p>
+                <p>lojaId explícito no payload</p>
+              </div>
+              <div className="bg-zinc-800/60 rounded-lg px-3 py-2">
+                <p className="text-teal-400 font-semibold mb-1">Prioridade 2</p>
+                <p>lojaSugerida → nomeFantasia contém</p>
+              </div>
+              <div className="bg-zinc-800/60 rounded-lg px-3 py-2">
+                <p className="text-teal-400 font-semibold mb-1">Prioridade 3–5</p>
+                <p>regiaoCliente → bairroCliente → cidadeCliente</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {lojasRegiao.map(loja => (
+              <Card key={loja.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-white font-medium">{loja.nomeFantasia || loja.razaoSocial}</p>
+                    {loja.endereco && <p className="text-zinc-500 text-xs">{loja.endereco}</p>}
+                  </div>
+                  <button onClick={() => setEditandoLoja(editandoLoja?.id === loja.id ? null : { ...loja })}
+                    className="text-xs text-orange-400 hover:text-orange-300 border border-orange-800/40 hover:border-orange-600 px-2 py-1 rounded-lg transition-colors">
+                    {editandoLoja?.id === loja.id ? 'Cancelar' : '✏️ Editar'}
+                  </button>
+                </div>
+
+                {editandoLoja?.id === loja.id ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Região</label>
+                        <input value={editandoLoja.regiao || ''}
+                          onChange={e => setEditandoLoja(p => p ? { ...p, regiao: e.target.value } : p)}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500"
+                          placeholder="Ex: Recreio, Copacabana, Campo Grande..." />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">Cidade</label>
+                        <input value={editandoLoja.cidade || ''}
+                          onChange={e => setEditandoLoja(p => p ? { ...p, cidade: e.target.value } : p)}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500"
+                          placeholder="Ex: Rio de Janeiro" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="col-span-2">
+                        <label className="block text-xs text-zinc-400 mb-1">Bairros Atendidos</label>
+                        <input value={editandoLoja.bairrosAtendidos || ''}
+                          onChange={e => setEditandoLoja(p => p ? { ...p, bairrosAtendidos: e.target.value } : p)}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500"
+                          placeholder="Ex: Recreio dos Bandeirantes, Barra da Tijuca..." />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">UF</label>
+                        <input value={editandoLoja.uf || ''} maxLength={2}
+                          onChange={e => setEditandoLoja(p => p ? { ...p, uf: e.target.value.toUpperCase() } : p)}
+                          className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-orange-500"
+                          placeholder="RJ" />
+                      </div>
+                    </div>
+                    <button onClick={salvarLoja} disabled={savingLoja}
+                      className="w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-40 text-white py-1.5 rounded-lg text-xs font-medium transition-colors">
+                      {savingLoja ? 'Salvando...' : '✅ Salvar Configuração'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-zinc-500">Região</p>
+                      <p className={loja.regiao ? 'text-teal-300 font-medium' : 'text-zinc-600 italic'}>
+                        {loja.regiao || 'Não configurado'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-zinc-500">Cidade / UF</p>
+                      <p className={loja.cidade ? 'text-zinc-300' : 'text-zinc-600 italic'}>
+                        {loja.cidade ? `${loja.cidade}${loja.uf ? ` / ${loja.uf}` : ''}` : 'Não configurado'}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-zinc-500">Bairros Atendidos</p>
+                      <p className={loja.bairrosAtendidos ? 'text-zinc-300 leading-relaxed' : 'text-zinc-600 italic'}>
+                        {loja.bairrosAtendidos || 'Não configurado'}
+                      </p>
+                    </div>
+                    {!loja.regiao && !loja.bairrosAtendidos && !loja.cidade && (
+                      <div className="col-span-2">
+                        <span className="text-yellow-500 text-xs">⚠️ Sem configuração de região — leads desta área não serão atribuídos automaticamente</span>
+                      </div>
+                    )}
+                    {(loja.regiao || loja.bairrosAtendidos || loja.cidade) && (
+                      <div className="col-span-2">
+                        <span className="text-teal-500 text-xs">✅ Pronta para atribuição automática</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Modais */}
