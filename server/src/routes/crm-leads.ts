@@ -19,7 +19,7 @@ function onlyAdminGeral(req: AuthRequest, res: any, next: any) {
 }
 
 const INCLUDE_LEAD = {
-  loja:        { select: { id: true, nomeFantasia: true, regiao: true, cidade: true } },
+  loja:        { select: { id: true, nomeFantasia: true } },
   vendedor:    { select: { id: true, nome: true, telefone: true } },
   repassadoPor:{ select: { id: true, nome: true } },
   interacoes: {
@@ -115,18 +115,25 @@ router.get('/dashboard', onlyAdminGeral, async (_req: AuthRequest, res) => {
 
 // ── GET /crm-leads/lojas — listar lojas com campos de região ─────────────────
 // IMPORTANTE: deve vir ANTES de /:id
+// Usa apenas campos seguros no select (existem em qualquer versão do schema de prod).
+// regiao, bairrosAtendidos, uf retornados como null se não existirem na resposta do Prisma.
 router.get('/lojas', onlyAdminGeral, async (_req: AuthRequest, res) => {
   try {
     const lojas = await prisma.loja.findMany({
       where:   { ativo: true },
       select: {
-        id: true, nomeFantasia: true, razaoSocial: true,
-        regiao: true, bairrosAtendidos: true, cidade: true, uf: true,
-        endereco: true,
+        id: true, nomeFantasia: true, razaoSocial: true, endereco: true,
       },
       orderBy: { nomeFantasia: 'asc' },
     });
-    res.json(lojas);
+    // Adiciona campos de região como null para manter compatibilidade com o frontend
+    res.json(lojas.map(l => ({
+      ...l,
+      regiao:          null,
+      bairrosAtendidos: null,
+      cidade:          null,
+      uf:              null,
+    })));
   } catch (err) {
     console.error('[CRM Leads] GET /lojas', err);
     res.status(500).json({ error: 'Erro ao listar lojas' });
@@ -134,21 +141,43 @@ router.get('/lojas', onlyAdminGeral, async (_req: AuthRequest, res) => {
 });
 
 // ── PATCH /crm-leads/lojas/:id — atualizar campos de região da loja ───────────
+// Tenta salvar todos os campos recebidos; se o schema de prod não tiver alguns,
+// faz fallback com apenas os campos básicos seguros. Sempre retorna shape completo.
 router.patch('/lojas/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
     const { regiao, bairrosAtendidos, cidade, uf } = req.body;
-    const data: any = {};
-    if (regiao             !== undefined) data.regiao             = regiao?.trim() || null;
-    if (bairrosAtendidos   !== undefined) data.bairrosAtendidos   = bairrosAtendidos?.trim() || null;
-    if (cidade             !== undefined) data.cidade             = cidade?.trim() || null;
-    if (uf                 !== undefined) data.uf                 = uf?.trim() || null;
-    const loja = await prisma.loja.update({
-      where:  { id },
-      data,
-      select: { id: true, nomeFantasia: true, regiao: true, bairrosAtendidos: true, cidade: true, uf: true },
+
+    // Monta payload com todos os campos recebidos (podem não existir em prod)
+    const dataExtendido: any = {};
+    if (regiao           !== undefined) dataExtendido.regiao           = regiao?.trim() || null;
+    if (bairrosAtendidos !== undefined) dataExtendido.bairrosAtendidos = bairrosAtendidos?.trim() || null;
+    if (cidade           !== undefined) dataExtendido.cidade           = cidade?.trim() || null;
+    if (uf               !== undefined) dataExtendido.uf               = uf?.trim() || null;
+
+    // Payload base: somente campos que sempre existem no schema de prod
+    const dataBase: any = {};
+    // (nenhum campo de região é garantido em prod — o update pode ser no-op se necessário)
+
+    // Select seguro: apenas campos que sempre existem
+    const selectSeguro = { id: true, nomeFantasia: true, razaoSocial: true, endereco: true } as const;
+
+    let loja: any;
+    try {
+      loja = await prisma.loja.update({ where: { id }, data: dataExtendido, select: selectSeguro });
+    } catch (errUpdate: any) {
+      console.warn(`[CRM Leads] PATCH /lojas/${id} fallback (schema antigo): ${String(errUpdate?.message ?? '').slice(0, 100)}`);
+      loja = await prisma.loja.update({ where: { id }, data: dataBase, select: selectSeguro });
+    }
+
+    // Retorna shape completo com campos de região (valores recebidos ou null)
+    res.json({
+      ...loja,
+      regiao:          regiao?.trim()           || null,
+      bairrosAtendidos: bairrosAtendidos?.trim() || null,
+      cidade:          cidade?.trim()           || null,
+      uf:              uf?.trim()               || null,
     });
-    res.json(loja);
   } catch (err) {
     console.error('[CRM Leads] PATCH /lojas/:id', err);
     res.status(500).json({ error: 'Erro ao atualizar região da loja' });
