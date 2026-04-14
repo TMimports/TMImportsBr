@@ -279,33 +279,44 @@ router.post('/', onlyAdminGeral, async (req: AuthRequest, res) => {
 
     if (!nome?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
 
-    const lead = await prisma.lead.create({
-      data: {
-        nome:               nome.trim(),
-        telefone:           telefone?.trim() || null,
-        email:              email?.trim() || null,
-        origem:             origem || 'OUTRO',
-        campanha:           campanha?.trim() || null,
-        interesse:          interesse || 'MOTO',
-        interesseCorrigido: interesseCorrigido?.trim() || null,
-        lojaId:             lojaId ? Number(lojaId) : null,
-        vendedorId:         vendedorId ? Number(vendedorId) : null,
-        status:             status || 'NOVO',
-        prioridade:         prioridade || 'MEDIA',
-        resumo:             resumo?.trim() || null,
-        proximaAcao:        proximaAcao?.trim() || null,
-        mensagemWhatsApp:   mensagemWhatsApp?.trim() || null,
-        dataProximoFollowUp: dataProximoFollowUp ? new Date(dataProximoFollowUp) : null,
-        observacoes:        observacoes?.trim() || null,
-        regiaoCliente:      regiaoCliente?.trim() || null,
-        bairroCliente:      bairroCliente?.trim() || null,
-        cidadeCliente:      cidadeCliente?.trim() || null,
-        ufCliente:          ufCliente?.trim() || null,
-        lojaSugerida:       lojaSugerida?.trim() || null,
-        motivoLojaSugerida: motivoLojaSugerida?.trim() || null,
-      },
-      include: INCLUDE_LEAD,
-    });
+    // Campos base: sempre existem em qualquer versão do schema de produção
+    const dadosBase: any = {
+      nome:                nome.trim(),
+      telefone:            telefone?.trim() || null,
+      email:               email?.trim() || null,
+      origem:              origem || 'OUTRO',
+      campanha:            campanha?.trim() || null,
+      interesse:           interesse || 'MOTO',
+      lojaId:              lojaId ? Number(lojaId) : null,
+      vendedorId:          vendedorId ? Number(vendedorId) : null,
+      status:              status || 'NOVO',
+      prioridade:          prioridade || 'MEDIA',
+      resumo:              resumo?.trim() || null,
+      proximaAcao:         proximaAcao?.trim() || null,
+      dataProximoFollowUp: dataProximoFollowUp ? new Date(dataProximoFollowUp) : null,
+      observacoes:         observacoes?.trim() || null,
+    };
+
+    // Campos estendidos: podem não existir em versões antigas do schema de prod
+    const dadosExtendidos: any = {
+      ...dadosBase,
+      interesseCorrigido:  interesseCorrigido?.trim() || null,
+      mensagemWhatsApp:    mensagemWhatsApp?.trim() || null,
+      regiaoCliente:       regiaoCliente?.trim() || null,
+      bairroCliente:       bairroCliente?.trim() || null,
+      cidadeCliente:       cidadeCliente?.trim() || null,
+      ufCliente:           ufCliente?.trim() || null,
+      lojaSugerida:        lojaSugerida?.trim() || null,
+      motivoLojaSugerida:  motivoLojaSugerida?.trim() || null,
+    };
+
+    let lead: any;
+    try {
+      lead = await prisma.lead.create({ data: dadosExtendidos, include: INCLUDE_LEAD });
+    } catch (errCreate: any) {
+      console.warn(`[CRM Leads] Fallback create (schema antigo): ${String(errCreate?.message ?? '').slice(0, 120)}`);
+      lead = await prisma.lead.create({ data: dadosBase, include: INCLUDE_LEAD });
+    }
 
     // Registrar interação inicial de criação
     await prisma.leadInteracao.create({
@@ -380,7 +391,23 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
       });
     }
 
-    const lead = await prisma.lead.update({ where: { id }, data, include: INCLUDE_LEAD });
+    // Fallback: campos que podem não existir em versões antigas do schema de prod
+    const CAMPOS_EXTENDIDOS = [
+      'interesseCorrigido', 'mensagemWhatsApp', 'regiaoCliente', 'bairroCliente',
+      'cidadeCliente', 'ufCliente', 'lojaSugerida', 'motivoLojaSugerida',
+      'origemRepasse', 'whatsappComercialOrigem', 'canalOrigem', 'mensagemRecebida', 'linkConversa',
+    ];
+    const dataBase: any = Object.fromEntries(
+      Object.entries(data).filter(([k]) => !CAMPOS_EXTENDIDOS.includes(k))
+    );
+
+    let lead: any;
+    try {
+      lead = await prisma.lead.update({ where: { id }, data, include: INCLUDE_LEAD });
+    } catch (errUpdate: any) {
+      console.warn(`[CRM Leads] Fallback update (schema antigo): ${String(errUpdate?.message ?? '').slice(0, 120)}`);
+      lead = await prisma.lead.update({ where: { id }, data: dataBase, include: INCLUDE_LEAD });
+    }
     res.json(lead);
   } catch (err) {
     console.error('[CRM Leads] PATCH /:id', err);
