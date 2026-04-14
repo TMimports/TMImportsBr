@@ -206,8 +206,8 @@ router.post('/:id/interacoes', onlyAdminGeral, async (req: AuthRequest, res) => 
   }
 });
 
-// ── GET /crm-leads-dashboard — métricas ──────────────────────────────────────
-router.get('-dashboard', onlyAdminGeral, async (_req: AuthRequest, res) => {
+// ── GET /crm-leads/dashboard — métricas ──────────────────────────────────────
+router.get('/dashboard', onlyAdminGeral, async (_req: AuthRequest, res) => {
   try {
     const [
       total, porStatus, porOrigem, porPrioridade, porLoja, porVendedor,

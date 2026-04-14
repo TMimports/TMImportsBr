@@ -501,7 +501,7 @@ export function CrmLeadsBeta() {
 
       const [l, d, lj, vs] = await Promise.all([
         api.get<Lead[]>(`/crm-leads?${params}`),
-        api.get<DashboardData>('/crm-leads-dashboard'),
+        api.get<DashboardData>('/crm-leads/dashboard'),
         api.get<any>('/lojas?limit=50'),
         api.get<any>('/usuarios?limit=200'),
       ]);
