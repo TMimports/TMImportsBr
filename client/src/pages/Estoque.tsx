@@ -116,8 +116,12 @@ function ModalCadastroChassi({
   const lbl = 'block text-xs text-zinc-400 mb-1';
 
   useEffect(() => {
-    api.get<any[]>('/produtos?tipo=MOTO&limit=200')
-      .then(d => setProdutos((Array.isArray(d) ? d : d?.produtos ?? []).filter((p: any) => p.tipo === 'MOTO')))
+    api.get<any>('/produtos?tipo=MOTO&limit=200')
+      .then(d => {
+        const dataAny: any = d;
+        const listaProdutos = Array.isArray(dataAny) ? dataAny : dataAny?.produtos ?? [];
+        setProdutos(listaProdutos.filter((p: any) => p.tipo === 'MOTO'));
+      })
       .catch(() => setProdutos([]));
   }, []);
 
