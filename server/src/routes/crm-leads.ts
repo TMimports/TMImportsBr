@@ -272,51 +272,31 @@ router.post('/', onlyAdminGeral, async (req: AuthRequest, res) => {
   try {
     const {
       nome, telefone, email, origem, campanha, interesse,
-      interesseCorrigido, lojaId, vendedorId, status, prioridade,
-      resumo, proximaAcao, mensagemWhatsApp, dataProximoFollowUp, observacoes,
-      regiaoCliente, bairroCliente, cidadeCliente, ufCliente, lojaSugerida, motivoLojaSugerida,
+      lojaId, vendedorId, status, prioridade,
+      resumo, proximaAcao, dataProximoFollowUp, observacoes,
     } = req.body;
 
     if (!nome?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
 
-    // Campos base: sempre existem em qualquer versão do schema de produção
-    const dadosBase: any = {
-      nome:                nome.trim(),
-      telefone:            telefone?.trim() || null,
-      email:               email?.trim() || null,
-      origem:              origem || 'OUTRO',
-      campanha:            campanha?.trim() || null,
-      interesse:           interesse || 'MOTO',
-      lojaId:              lojaId ? Number(lojaId) : null,
-      vendedorId:          vendedorId ? Number(vendedorId) : null,
-      status:              status || 'NOVO',
-      prioridade:          prioridade || 'MEDIA',
-      resumo:              resumo?.trim() || null,
-      proximaAcao:         proximaAcao?.trim() || null,
-      dataProximoFollowUp: dataProximoFollowUp ? new Date(dataProximoFollowUp) : null,
-      observacoes:         observacoes?.trim() || null,
-    };
-
-    // Campos estendidos: podem não existir em versões antigas do schema de prod
-    const dadosExtendidos: any = {
-      ...dadosBase,
-      interesseCorrigido:  interesseCorrigido?.trim() || null,
-      mensagemWhatsApp:    mensagemWhatsApp?.trim() || null,
-      regiaoCliente:       regiaoCliente?.trim() || null,
-      bairroCliente:       bairroCliente?.trim() || null,
-      cidadeCliente:       cidadeCliente?.trim() || null,
-      ufCliente:           ufCliente?.trim() || null,
-      lojaSugerida:        lojaSugerida?.trim() || null,
-      motivoLojaSugerida:  motivoLojaSugerida?.trim() || null,
-    };
-
-    let lead: any;
-    try {
-      lead = await prisma.lead.create({ data: dadosExtendidos, include: INCLUDE_LEAD });
-    } catch (errCreate: any) {
-      console.warn(`[CRM Leads] Fallback create (schema antigo): ${String(errCreate?.message ?? '').slice(0, 120)}`);
-      lead = await prisma.lead.create({ data: dadosBase, include: INCLUDE_LEAD });
-    }
+    const lead = await prisma.lead.create({
+      data: {
+        nome:                nome.trim(),
+        telefone:            telefone?.trim() || null,
+        email:               email?.trim() || null,
+        origem:              origem || 'OUTRO',
+        campanha:            campanha?.trim() || null,
+        interesse:           interesse || 'MOTO',
+        lojaId:              lojaId ? Number(lojaId) : null,
+        vendedorId:          vendedorId ? Number(vendedorId) : null,
+        status:              status || 'NOVO',
+        prioridade:          prioridade || 'MEDIA',
+        resumo:              resumo?.trim() || null,
+        proximaAcao:         proximaAcao?.trim() || null,
+        dataProximoFollowUp: dataProximoFollowUp ? new Date(dataProximoFollowUp) : null,
+        observacoes:         observacoes?.trim() || null,
+      },
+      include: INCLUDE_LEAD,
+    });
 
     // Registrar interação inicial de criação
     await prisma.leadInteracao.create({
