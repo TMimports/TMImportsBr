@@ -95,6 +95,13 @@ This project is a comprehensive multi-company ERP system for TM Imports and its 
 - All pages use NAMED exports; App.tsx uses named imports
 - Fornecedor schema: uses `classe: ClasseFornecedor` (PRODUTO/SERVICO/AMBOS), NOT `tipo`
 
+### CRM Leads Beta — Enriquecimento Claude/n8n (2026-04-14)
+- **Schema**: `Lead` model tem campos `mensagemWhatsApp String?` e `interesseCorrigido String?` além de `resumo`, `proximaAcao`, `prioridade`, `origem`, `campanha`.
+- **`integracoes.ts`**: `POST /integracoes/leads-test` aceita payload Claude completo (`prioridade`, `interesseCorrigido`, `resumo`, `proximaAcao`, `mensagemWhatsApp`). Token: `INTEGRATION_TOKEN = 'crm_test_token_2024'`. Regra: `prioridade` vazia → `MEDIA`; `interesseCorrigido` vazio → `null`.
+- **`crm-leads.ts`**: POST e PATCH persistem `interesseCorrigido` e `mensagemWhatsApp`.
+- **`CrmLeadsBeta.tsx`**: Interface `Lead` tem os novos campos. Seção "🤖 Análise Claude / n8n" exibe `interesseCorrigido`, `resumo`, `proximaAcao` e `mensagemWhatsApp` (com botão WhatsApp deep-link). Na lista: coluna Interesse mostra `interesseCorrigido` em azul com `(🤖)` se disponível; coluna Prioridade mostra badge `🤖` se houver `resumo`.
+- **Backend TS**: erros pré-existentes em `estoque.ts` e `unidades.ts` (campo `fornecedorId` inexistente em `UnidadeFisica`) foram corrigidos — 0 erros confirmados.
+
 ### Entrada Avulsa de Estoque (2026-04-14)
 - **Backend** `POST /estoque/entrada-avulsa`: aceita MOTO (cria UnidadeFisica por chassi) e PECA (InventoryService.darEntrada). LogEstoque origem = `ENTRADA_AVULSA`. Permissão: ADMIN_GERAL, ADMIN_FINANCEIRO, ADMIN_REDE, DONO_LOJA, GERENTE_LOJA.
 - **Backend** `POST /importacao/estoque`: importa planilha (.xlsx/.xls/.csv) com detecção flexível de colunas. Resolve loja por nome (exata ou parcial). Upsert Produto + Estoque + LogEstoque (origem = `IMPORTACAO_ESTOQUE`). Se chassi presente → cria UnidadeFisica.

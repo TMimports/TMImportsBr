@@ -117,8 +117,6 @@ router.post(
                 numeroSerie,
                 status: 'ESTOQUE',
                 createdBy: userId,
-                fornecedorId: fornecedorId ? Number(fornecedorId) : null,
-                notaFiscalEntrada: notaFiscalEntrada?.trim() || null,
               },
             });
 

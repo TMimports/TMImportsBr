@@ -13,9 +13,11 @@ interface LeadInteracao {
 interface Lead {
   id: number; nome: string; telefone?: string; email?: string;
   origem: string; campanha?: string; interesse: string;
+  interesseCorrigido?: string;
   lojaId?: number; vendedorId?: number;
   status: string; prioridade: string;
   resumo?: string; proximaAcao?: string;
+  mensagemWhatsApp?: string;
   dataProximoFollowUp?: string; observacoes?: string;
   createdAt: string; updatedAt: string;
   loja?: { id: number; nomeFantasia: string; };
@@ -298,7 +300,10 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
         <div className="flex gap-2 px-5 py-3 border-b border-zinc-800 flex-wrap flex-shrink-0">
           <Badge cls={STATUS_CLS[detalhe.status]} label={STATUS_LABEL[detalhe.status]} />
           <Badge cls={PRIORIDADE_CLS[detalhe.prioridade]} label={detalhe.prioridade} />
-          <Badge cls="bg-zinc-700 text-zinc-300" label={detalhe.interesse} />
+          <Badge cls="bg-zinc-700 text-zinc-300" label={`🏷 ${detalhe.interesse}`} />
+          {detalhe.interesseCorrigido && (
+            <Badge cls="bg-blue-500/20 text-blue-300 border border-blue-500/30" label={`🤖 ${detalhe.interesseCorrigido}`} />
+          )}
           {detalhe.loja && <Badge cls="bg-zinc-700 text-zinc-300" label={detalhe.loja.nomeFantasia} />}
           {detalhe.vendedor && <Badge cls="bg-zinc-700 text-zinc-300" label={`👤 ${detalhe.vendedor.nome}`} />}
         </div>
@@ -323,10 +328,48 @@ function PainelDetalhe({ lead, onClose, onAtualizado }: {
                 <div><p className="text-zinc-500 text-xs">Criado em</p><p className="text-white">{fmtDate(detalhe.createdAt)}</p></div>
                 <div><p className="text-zinc-500 text-xs">Atualizado</p><p className="text-white">{fmtDate(detalhe.updatedAt)}</p></div>
               </div>
-              {detalhe.resumo && (
-                <div><p className="text-zinc-500 text-xs mb-1">Resumo</p>
-                  <p className="text-zinc-300 text-sm bg-zinc-800 rounded-lg px-3 py-2">{detalhe.resumo}</p></div>
+              {/* Análise Claude */}
+              {(detalhe.resumo || detalhe.proximaAcao || detalhe.mensagemWhatsApp || detalhe.interesseCorrigido) && (
+                <div className="bg-blue-950/30 border border-blue-800/30 rounded-xl p-4 space-y-3">
+                  <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider">🤖 Análise Claude / n8n</p>
+                  {detalhe.interesseCorrigido && detalhe.interesseCorrigido !== detalhe.interesse && (
+                    <div>
+                      <p className="text-zinc-500 text-xs mb-1">Interesse Corrigido pela IA</p>
+                      <p className="text-blue-300 text-sm font-medium">{detalhe.interesseCorrigido}</p>
+                      <p className="text-zinc-600 text-xs">Original declarado: {detalhe.interesse}</p>
+                    </div>
+                  )}
+                  {detalhe.resumo && (
+                    <div>
+                      <p className="text-zinc-500 text-xs mb-1">Resumo da Conversa</p>
+                      <p className="text-zinc-200 text-sm bg-zinc-800/60 rounded-lg px-3 py-2 leading-relaxed">{detalhe.resumo}</p>
+                    </div>
+                  )}
+                  {detalhe.proximaAcao && (
+                    <div>
+                      <p className="text-zinc-500 text-xs mb-1">🎯 Próxima Ação Sugerida</p>
+                      <p className="text-orange-300 text-sm font-medium bg-orange-950/30 border border-orange-800/30 rounded-lg px-3 py-2">{detalhe.proximaAcao}</p>
+                    </div>
+                  )}
+                  {detalhe.mensagemWhatsApp && (
+                    <div>
+                      <p className="text-zinc-500 text-xs mb-1">💬 Mensagem WhatsApp Sugerida</p>
+                      <div className="bg-green-950/30 border border-green-800/30 rounded-lg px-3 py-2">
+                        <p className="text-green-300 text-sm leading-relaxed whitespace-pre-wrap">{detalhe.mensagemWhatsApp}</p>
+                      </div>
+                      {detalhe.telefone && (
+                        <a
+                          href={`https://wa.me/55${detalhe.telefone.replace(/\D/g, '')}?text=${encodeURIComponent(detalhe.mensagemWhatsApp)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg font-medium transition-colors">
+                          📲 Abrir no WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
+
               {detalhe.observacoes && (
                 <div><p className="text-zinc-500 text-xs mb-1">Observações</p>
                   <p className="text-zinc-300 text-sm bg-zinc-800 rounded-lg px-3 py-2">{detalhe.observacoes}</p></div>
@@ -636,12 +679,22 @@ export function CrmLeadsBeta() {
                           {ORIGEM_ICON[lead.origem]} {lead.origem}
                           {lead.campanha && <p className="text-zinc-500 text-xs truncate max-w-[120px]">{lead.campanha}</p>}
                         </td>
-                        <td className="px-4 py-3 text-zinc-300">{lead.interesse}</td>
+                        <td className="px-4 py-3 text-zinc-300">
+                          {lead.interesseCorrigido ? (
+                            <span title={`IA corrigiu para: ${lead.interesseCorrigido}`}>
+                              <span className="text-blue-300 font-medium">{lead.interesseCorrigido}</span>
+                              <span className="text-zinc-600 text-xs ml-1">(🤖)</span>
+                            </span>
+                          ) : lead.interesse}
+                        </td>
                         <td className="px-4 py-3">
                           <Badge cls={STATUS_CLS[lead.status]} label={STATUS_LABEL[lead.status]} />
                         </td>
                         <td className="px-4 py-3">
-                          <Badge cls={PRIORIDADE_CLS[lead.prioridade]} label={lead.prioridade} />
+                          <div className="flex items-center gap-1">
+                            <Badge cls={PRIORIDADE_CLS[lead.prioridade]} label={lead.prioridade} />
+                            {lead.resumo && <span title="Análise Claude disponível" className="text-blue-400 text-xs">🤖</span>}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-zinc-300 text-xs">{lead.loja?.nomeFantasia ?? '—'}</td>
                         <td className="px-4 py-3 text-zinc-300 text-xs">{lead.vendedor?.nome ?? '—'}</td>

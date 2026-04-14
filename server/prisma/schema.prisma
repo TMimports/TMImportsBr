@@ -52,6 +52,7 @@ model Loja {
   unidades              UnidadeFisica[]
   usuarios              User[]
   vendas                Venda[]
+  leads                 Lead[]
 }
 
 model User {
@@ -88,6 +89,8 @@ model User {
   grupo                     Grupo?             @relation(fields: [grupoId], references: [id])
   loja                      Loja?              @relation(fields: [lojaId], references: [id])
   vendas                    Venda[]            @relation("VendaVendedor")
+  leadsVendedor             Lead[]
+  interacoesLead            LeadInteracao[]
 }
 
 model Produto {
@@ -811,6 +814,85 @@ model DisparoWhatsApp {
   template           TemplateWhatsApp? @relation(fields: [templateId], references: [id])
 }
 
+model Lead {
+  id                  Int             @id @default(autoincrement())
+  nome                String
+  telefone            String?
+  email               String?
+  origem              OrigemLead      @default(OUTRO)
+  campanha            String?
+  interesse           InteresseLead   @default(MOTO)
+  interesseCorrigido  String?
+  lojaId              Int?
+  vendedorId          Int?
+  status              StatusLead      @default(NOVO)
+  prioridade          PrioridadeLead  @default(MEDIA)
+  resumo              String?
+  proximaAcao         String?
+  mensagemWhatsApp    String?
+  dataProximoFollowUp DateTime?
+  observacoes         String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  loja                Loja?           @relation(fields: [lojaId], references: [id])
+  vendedor            User?           @relation(fields: [vendedorId], references: [id])
+  interacoes          LeadInteracao[]
+}
+
+model LeadInteracao {
+  id        Int               @id @default(autoincrement())
+  leadId    Int
+  usuarioId Int
+  tipo      TipoInteracaoLead @default(OBSERVACAO)
+  descricao String
+  createdAt DateTime          @default(now())
+  lead      Lead              @relation(fields: [leadId], references: [id])
+  usuario   User              @relation(fields: [usuarioId], references: [id])
+}
+
+enum OrigemLead {
+  META
+  GOOGLE
+  SITE
+  WHATSAPP
+  INDICACAO
+  OUTRO
+  TESTE
+}
+
+enum InteresseLead {
+  MOTO
+  PECA
+  SERVICO
+  CURSO
+  OUTRO
+}
+
+enum StatusLead {
+  NOVO
+  EM_ATENDIMENTO
+  PROPOSTA_ENVIADA
+  GANHO
+  PERDIDO
+  SEM_RESPOSTA
+}
+
+enum PrioridadeLead {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+enum TipoInteracaoLead {
+  LIGACAO
+  WHATSAPP
+  EMAIL
+  REUNIAO
+  VISITA
+  OBSERVACAO
+  FOLLOW_UP
+}
+
 enum Role {
   ADMIN_GERAL
   ADMIN_REDE
@@ -819,6 +901,7 @@ enum Role {
   VENDEDOR
   TECNICO
   ADMIN_FINANCEIRO
+  ADMIN_COMERCIAL
 }
 
 enum StatusPedidoCompra {

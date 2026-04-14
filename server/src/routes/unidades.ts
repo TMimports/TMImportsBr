@@ -65,13 +65,10 @@ router.post('/manual', async (req: AuthRequest, res) => {
         numeroSerie,
         status: 'ESTOQUE',
         createdBy: user.id,
-        fornecedorId: fornecedorId ? Number(fornecedorId) : null,
-        notaFiscalEntrada: notaFiscalEntrada?.trim() || null,
       },
       include: {
         produto: { select: { nome: true } },
         loja: { select: { nomeFantasia: true } },
-        fornecedor: { select: { razaoSocial: true, nomeFantasia: true } }
       }
     });
 
@@ -142,8 +139,6 @@ router.post('/manual/lote', async (req: AuthRequest, res) => {
             numeroSerie,
             status: 'ESTOQUE',
             createdBy: user.id,
-            fornecedorId: fornecedorId ? Number(fornecedorId) : null,
-            notaFiscalEntrada: notaFiscalEntrada?.trim() || null,
           }
         });
         criados.push(unidade);

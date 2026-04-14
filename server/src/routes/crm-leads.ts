@@ -132,8 +132,8 @@ router.post('/', onlyAdminGeral, async (req: AuthRequest, res) => {
   try {
     const {
       nome, telefone, email, origem, campanha, interesse,
-      lojaId, vendedorId, status, prioridade,
-      resumo, proximaAcao, dataProximoFollowUp, observacoes,
+      interesseCorrigido, lojaId, vendedorId, status, prioridade,
+      resumo, proximaAcao, mensagemWhatsApp, dataProximoFollowUp, observacoes,
     } = req.body;
 
     if (!nome?.trim()) return res.status(400).json({ error: 'Nome é obrigatório' });
@@ -146,12 +146,14 @@ router.post('/', onlyAdminGeral, async (req: AuthRequest, res) => {
         origem:             origem || 'OUTRO',
         campanha:           campanha?.trim() || null,
         interesse:          interesse || 'MOTO',
+        interesseCorrigido: interesseCorrigido?.trim() || null,
         lojaId:             lojaId ? Number(lojaId) : null,
         vendedorId:         vendedorId ? Number(vendedorId) : null,
         status:             status || 'NOVO',
         prioridade:         prioridade || 'MEDIA',
         resumo:             resumo?.trim() || null,
         proximaAcao:        proximaAcao?.trim() || null,
+        mensagemWhatsApp:   mensagemWhatsApp?.trim() || null,
         dataProximoFollowUp: dataProximoFollowUp ? new Date(dataProximoFollowUp) : null,
         observacoes:        observacoes?.trim() || null,
       },
@@ -184,24 +186,26 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
 
     const {
       nome, telefone, email, origem, campanha, interesse,
-      lojaId, vendedorId, status, prioridade,
-      resumo, proximaAcao, dataProximoFollowUp, observacoes,
+      interesseCorrigido, lojaId, vendedorId, status, prioridade,
+      resumo, proximaAcao, mensagemWhatsApp, dataProximoFollowUp, observacoes,
     } = req.body;
 
     const data: any = {};
-    if (nome !== undefined)               data.nome               = nome.trim();
-    if (telefone !== undefined)           data.telefone           = telefone?.trim() || null;
-    if (email !== undefined)              data.email              = email?.trim() || null;
-    if (origem !== undefined)             data.origem             = origem;
-    if (campanha !== undefined)           data.campanha           = campanha?.trim() || null;
-    if (interesse !== undefined)          data.interesse          = interesse;
-    if (lojaId !== undefined)             data.lojaId             = lojaId ? Number(lojaId) : null;
-    if (vendedorId !== undefined)         data.vendedorId         = vendedorId ? Number(vendedorId) : null;
-    if (prioridade !== undefined)         data.prioridade         = prioridade;
-    if (resumo !== undefined)             data.resumo             = resumo?.trim() || null;
-    if (proximaAcao !== undefined)        data.proximaAcao        = proximaAcao?.trim() || null;
+    if (nome !== undefined)                data.nome               = nome.trim();
+    if (telefone !== undefined)            data.telefone           = telefone?.trim() || null;
+    if (email !== undefined)               data.email              = email?.trim() || null;
+    if (origem !== undefined)              data.origem             = origem;
+    if (campanha !== undefined)            data.campanha           = campanha?.trim() || null;
+    if (interesse !== undefined)           data.interesse          = interesse;
+    if (interesseCorrigido !== undefined)  data.interesseCorrigido = interesseCorrigido?.trim() || null;
+    if (lojaId !== undefined)              data.lojaId             = lojaId ? Number(lojaId) : null;
+    if (vendedorId !== undefined)          data.vendedorId         = vendedorId ? Number(vendedorId) : null;
+    if (prioridade !== undefined)          data.prioridade         = prioridade;
+    if (resumo !== undefined)              data.resumo             = resumo?.trim() || null;
+    if (proximaAcao !== undefined)         data.proximaAcao        = proximaAcao?.trim() || null;
+    if (mensagemWhatsApp !== undefined)    data.mensagemWhatsApp   = mensagemWhatsApp?.trim() || null;
     if (dataProximoFollowUp !== undefined) data.dataProximoFollowUp = dataProximoFollowUp ? new Date(dataProximoFollowUp) : null;
-    if (observacoes !== undefined)        data.observacoes        = observacoes?.trim() || null;
+    if (observacoes !== undefined)         data.observacoes        = observacoes?.trim() || null;
 
     // Registrar mudança de status como interação automática
     if (status !== undefined && status !== current.status) {
