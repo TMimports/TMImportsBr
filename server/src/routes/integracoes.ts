@@ -238,7 +238,7 @@ router.post('/leads-test', async (req: Request, res: Response) => {
           observacoesFinal = `Lead recebido via ${origemFinal}. Loja identificada: ${nomeLoja}. Sem vendedores ativos vinculados — lead aguardando atribuição manual.`;
         }
       } else {
-        observacoesFinal = `Lead recebido via ${origemFinal}. Aguardando definição de loja.`;
+        observacoesFinal = `Lead recebido via ${origemFinal}. Loja/região não identificada — lead aguardando atribuição manual.`;
       }
     } else {
       observacoesFinal = `Lead recebido via ${origemFinal}.`;
