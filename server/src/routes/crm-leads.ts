@@ -19,9 +19,8 @@ function onlyAdminGeral(req: AuthRequest, res: any, next: any) {
 }
 
 const INCLUDE_LEAD = {
-  loja:        { select: { id: true, nomeFantasia: true } },
-  vendedor:    { select: { id: true, nome: true, telefone: true } },
-  repassadoPor:{ select: { id: true, nome: true } },
+  loja:      { select: { id: true, nomeFantasia: true } },
+  vendedor:  { select: { id: true, nome: true, telefone: true } },
   interacoes: {
     include: { usuario: { select: { id: true, nome: true } } },
     orderBy: { createdAt: 'desc' as const },
@@ -325,37 +324,23 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
     const {
       nome, telefone, email, origem, campanha, interesse,
       lojaId, vendedorId, status, prioridade,
-      resumo, proximaAcao, mensagemWhatsApp, dataProximoFollowUp, observacoes,
-      whatsappComercialOrigem, canalOrigem, mensagemRecebida, linkConversa,
-      regiaoCliente, bairroCliente, cidadeCliente, ufCliente, lojaSugerida, motivoLojaSugerida,
+      resumo, proximaAcao, dataProximoFollowUp, observacoes,
     } = req.body;
 
     const data: any = {};
-    if (nome !== undefined)                    data.nome                    = nome.trim();
-    if (telefone !== undefined)                data.telefone                = telefone?.trim() || null;
-    if (email !== undefined)                   data.email                   = email?.trim() || null;
-    if (origem !== undefined)                  data.origem                  = origem;
-    if (campanha !== undefined)                data.campanha                = campanha?.trim() || null;
-    if (interesse !== undefined)               data.interesse               = interesse;
-    if (lojaId !== undefined)                  data.lojaId                  = lojaId ? Number(lojaId) : null;
-    if (vendedorId !== undefined)              data.vendedorId              = vendedorId ? Number(vendedorId) : null;
-    if (prioridade !== undefined)              data.prioridade              = prioridade;
-    if (resumo !== undefined)                  data.resumo                  = resumo?.trim() || null;
-    if (proximaAcao !== undefined)             data.proximaAcao             = proximaAcao?.trim() || null;
-    if (mensagemWhatsApp !== undefined)        data.mensagemWhatsApp        = mensagemWhatsApp?.trim() || null;
-    if (dataProximoFollowUp !== undefined)     data.dataProximoFollowUp     = dataProximoFollowUp ? new Date(dataProximoFollowUp) : null;
-    if (observacoes !== undefined)             data.observacoes             = observacoes?.trim() || null;
-    if (whatsappComercialOrigem !== undefined) data.whatsappComercialOrigem = whatsappComercialOrigem?.trim() || null;
-    if (canalOrigem !== undefined)             data.canalOrigem             = canalOrigem?.trim() || null;
-    if (mensagemRecebida !== undefined)        data.mensagemRecebida        = mensagemRecebida?.trim() || null;
-    if (linkConversa !== undefined)            data.linkConversa            = linkConversa?.trim() || null;
-    if (regiaoCliente !== undefined)           data.regiaoCliente           = regiaoCliente?.trim() || null;
-    if (bairroCliente !== undefined)           data.bairroCliente           = bairroCliente?.trim() || null;
-    if (cidadeCliente !== undefined)           data.cidadeCliente           = cidadeCliente?.trim() || null;
-    if (ufCliente !== undefined)               data.ufCliente               = ufCliente?.trim() || null;
-    if (lojaSugerida !== undefined)            data.lojaSugerida            = lojaSugerida?.trim() || null;
-    if (motivoLojaSugerida !== undefined)      data.motivoLojaSugerida      = motivoLojaSugerida?.trim() || null;
-    if ((req.body as any).origemRepasse !== undefined) data.origemRepasse   = (req.body as any).origemRepasse?.trim() || null;
+    if (nome !== undefined)                data.nome                = nome.trim();
+    if (telefone !== undefined)            data.telefone            = telefone?.trim() || null;
+    if (email !== undefined)               data.email               = email?.trim() || null;
+    if (origem !== undefined)              data.origem              = origem;
+    if (campanha !== undefined)            data.campanha            = campanha?.trim() || null;
+    if (interesse !== undefined)           data.interesse           = interesse;
+    if (lojaId !== undefined)              data.lojaId              = lojaId ? Number(lojaId) : null;
+    if (vendedorId !== undefined)          data.vendedorId          = vendedorId ? Number(vendedorId) : null;
+    if (prioridade !== undefined)          data.prioridade          = prioridade;
+    if (resumo !== undefined)              data.resumo              = resumo?.trim() || null;
+    if (proximaAcao !== undefined)         data.proximaAcao         = proximaAcao?.trim() || null;
+    if (dataProximoFollowUp !== undefined) data.dataProximoFollowUp = dataProximoFollowUp ? new Date(dataProximoFollowUp) : null;
+    if (observacoes !== undefined)         data.observacoes         = observacoes?.trim() || null;
 
     // Registrar mudança de status como interação automática
     if (status !== undefined && status !== current.status) {
@@ -370,23 +355,7 @@ router.patch('/:id', onlyAdminGeral, async (req: AuthRequest, res) => {
       });
     }
 
-    // Fallback: campos que podem não existir em versões antigas do schema de prod
-    const CAMPOS_EXTENDIDOS = [
-      'mensagemWhatsApp', 'regiaoCliente', 'bairroCliente',
-      'cidadeCliente', 'ufCliente', 'lojaSugerida', 'motivoLojaSugerida',
-      'origemRepasse', 'whatsappComercialOrigem', 'canalOrigem', 'mensagemRecebida', 'linkConversa',
-    ];
-    const dataBase: any = Object.fromEntries(
-      Object.entries(data).filter(([k]) => !CAMPOS_EXTENDIDOS.includes(k))
-    );
-
-    let lead: any;
-    try {
-      lead = await prisma.lead.update({ where: { id }, data, include: INCLUDE_LEAD });
-    } catch (errUpdate: any) {
-      console.warn(`[CRM Leads] Fallback update (schema antigo): ${String(errUpdate?.message ?? '').slice(0, 120)}`);
-      lead = await prisma.lead.update({ where: { id }, data: dataBase, include: INCLUDE_LEAD });
-    }
+    const lead = await prisma.lead.update({ where: { id }, data, include: INCLUDE_LEAD });
     res.json(lead);
   } catch (err) {
     console.error('[CRM Leads] PATCH /:id', err);
