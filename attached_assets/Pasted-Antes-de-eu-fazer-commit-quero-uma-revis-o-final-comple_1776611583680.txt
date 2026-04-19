@@ -1,0 +1,124 @@
+Antes de eu fazer commit, quero uma revisão final completa do sistema e da alteração atual.
+
+Objetivo:
+Verificar se tudo que foi implementado nesta etapa está funcional, consistente e sem quebrar módulos existentes.
+
+Faça uma checagem completa e me entregue um relatório final.
+
+========================
+1. CHECAGEM DE BUILD
+========================
+
+- Rode build completo do frontend e backend.
+- Confirme que não há erros TypeScript.
+- Confirme que não há erro de import/export.
+- Confirme que não há rotas quebradas.
+
+========================
+2. CHECAGEM DO CRM LEADS
+========================
+
+Verifique se o CRM Leads Beta está funcionando corretamente.
+
+Validar:
+- criar lead manual
+- listar leads
+- abrir detalhe do lead
+- editar status
+- exibir prioridade
+- exibir próxima ação
+- exibir origem comercial corretamente
+- não exibir texto técnico como “n8n/Claude” para o usuário
+- botão/manual de passar bastão
+- atribuição automática por região
+- histórico/interações
+
+Importante:
+- confirmar que a criação manual de lead não tenta salvar campos inexistentes no Prisma
+- confirmar que não há include inválido como repassadoPor na criação manual
+
+========================
+3. CHECAGEM DAS INTEGRAÇÕES
+========================
+
+Validar se o endpoint de integração continua funcional:
+- /api/integracoes/leads-test
+
+Verificar:
+- aceita payload externo
+- não quebra ao receber autoAtribuir=true
+- não quebra se não encontrar loja
+- não quebra se não encontrar vendedor
+- salva lead corretamente
+- exibe origem comercial corretamente
+- observações amigáveis ao usuário
+- não mostra termos técnicos como n8n/Claude
+
+========================
+4. CHECAGEM DE ATRIBUIÇÃO AUTOMÁTICA
+========================
+
+Validar a lógica atual de atribuição automática:
+- não usar campos inexistentes no Prisma como Loja.regiao ou Loja.bairrosAtendidos
+- usar apenas campos seguros/existentes
+- fallback correto por nomeFantasia/endereco/razaoSocial quando necessário
+- se não encontrar loja/vendedor, lead deve continuar sendo criado sem quebrar
+
+========================
+5. CHECAGEM DA ÁREA DE LOJAS/USUÁRIOS
+========================
+
+Verificar:
+- listagem de lojas funcionando
+- sem erro “Erro ao listar lojas”
+- sem select/include com campos inexistentes
+- criação/edição de usuários sem quebrar
+- role ADMIN_COMERCIAL preservado
+- dropdown de perfil funcionando se já tiver sido ajustado
+
+========================
+6. CHECAGEM GERAL DE REGRESSÃO
+========================
+
+Verificar rapidamente se as alterações não quebraram:
+- login
+- dashboard
+- estoque
+- financeiro
+- produtos
+- lojas
+- usuários
+- transferências
+- pedidos de compra
+
+Não precisa refazer tudo em profundidade, mas quero regressão básica.
+
+========================
+7. CHECAGEM DE CÓDIGO
+========================
+
+Quero que você procure no código por sinais de erro potencial:
+- campos enviados ao Prisma que não existem no schema
+- includes/selects inválidos
+- referências quebradas
+- código morto introduzido nesta etapa
+- mensagens técnicas aparecendo na interface do usuário
+- qualquer “TODO provisório” perigoso
+
+========================
+8. RESULTADO FINAL
+========================
+
+Ao final, me entregue um relatório com:
+
+1. Build passou ou não
+2. Arquivos alterados nesta etapa
+3. Problemas encontrados
+4. Problemas corrigidos
+5. Pendências restantes, se houver
+6. Se está seguro ou não para eu fazer commit agora
+
+Se não estiver seguro para commit:
+- me diga exatamente o que falta corrigir antes
+- não responda de forma genérica
+- seja objetivo
