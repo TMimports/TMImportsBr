@@ -1,0 +1,252 @@
+Quero refazer a lógica da área de Controle de Estoque e Transferência do ERP para ficar inspirada no modelo operacional da planilha usada pelo cliente.
+
+OBJETIVO GERAL
+A área de estoque deve funcionar de forma mais operacional, simples e prática, muito parecida com a lógica de uma planilha de controle manual, mas dentro do ERP, com rastreabilidade e validações.
+
+A nova estrutura deve ter como base visual e lógica os módulos:
+- Consolidado
+- Estoque Geral
+- Config
+- MOV. ESTOQUE
+- MOV. AVULSA
+- VENDAS
+- Histórico
+
+Não precisa copiar visualmente Excel, mas precisa copiar a lógica operacional.
+
+==================================================
+1. ESTOQUE GERAL
+==================================================
+
+Criar/melhorar uma tela “Estoque Geral” com visão clara de todos os itens do sistema.
+
+Essa tela deve listar pelo menos:
+- Loja / Estoque atual
+- Código do item
+- Modelo
+- Cor
+- Chassi (para motos)
+- Fornecedor
+- Valor / custo
+- Tipo do item (Moto / Peça)
+- Status do estoque
+- Data de entrada
+
+Regras:
+- Para MOTO, cada chassi é uma unidade única.
+- O chassi é a principal referência operacional.
+- Não permitir duplicidade de chassi.
+- Deve ser possível filtrar por:
+  - loja
+  - modelo
+  - cor
+  - fornecedor
+  - chassi
+  - tipo
+  - status
+- Deve existir busca rápida.
+
+==================================================
+2. MOV. ESTOQUE — MOVIMENTO ENTRE ESTOQUES
+==================================================
+
+Criar/melhorar uma tela chamada “MOV. ESTOQUE” com foco em transferência entre estoques/lojas.
+
+A lógica deve ser parecida com a planilha:
+
+CABEÇALHO DA MOVIMENTAÇÃO
+- Código da loja/estoque de origem
+- Nome da loja/estoque de origem
+- Código da loja/estoque de destino
+- Nome da loja/estoque de destino
+
+CORPO DA MOVIMENTAÇÃO
+Cada linha da transferência deve exibir:
+- Data
+- Modelo
+- Cor
+- Chassi
+- Fornecedor
+- Valor
+
+REGRAS DA TRANSFERÊNCIA
+1. O usuário escolhe loja de origem e loja de destino.
+2. Depois escolhe os itens que sairão da origem.
+3. Para MOTO, a seleção deve ser prioritariamente por CHASSI.
+4. Ao selecionar o chassi, preencher automaticamente:
+   - modelo
+   - cor
+   - fornecedor
+   - valor
+5. O sistema só pode mostrar chassis que realmente estão disponíveis no estoque de origem.
+6. Não permitir transferir item que não esteja naquela origem.
+7. Não permitir origem e destino iguais.
+8. Não permitir transferir chassi já transferido/indisponível.
+9. Ao confirmar:
+   - baixar o item do estoque de origem
+   - lançar o item no estoque de destino
+   - registrar histórico completo da transferência
+10. Gerar protocolo/ID da movimentação.
+11. Mostrar quem realizou a transferência.
+12. Salvar data e hora da operação.
+
+COMPORTAMENTO PARA PEÇAS
+- Para peça, permitir movimentação por quantidade.
+- Para moto, movimentação unitária por chassi.
+
+==================================================
+3. MOV. AVULSA — MOVIMENTAÇÃO AVULSA
+==================================================
+
+Criar/melhorar uma tela chamada “MOV. AVULSA”.
+
+Objetivo:
+Permitir entradas e saídas manuais de estoque sem depender de pedido de compra e sem gerar financeiro automaticamente.
+
+Tipos de movimentação avulsa:
+- Entrada avulsa
+- Saída avulsa
+- Ajuste de estoque
+- Acerto de inventário
+
+Campos:
+- Tipo da movimentação
+- Loja / estoque
+- Data
+- Produto / modelo
+- Cor
+- Chassi (quando for moto)
+- Fornecedor
+- Valor
+- Quantidade (para peças)
+- Observação
+- Usuário responsável
+
+Regras:
+- Entrada avulsa não gera contas a pagar.
+- Saída avulsa não gera contas a receber.
+- Tudo deve ir para histórico.
+- Para moto, se houver chassi, validar unicidade.
+- Para peça, permitir quantidade.
+- Permitir motivo obrigatório da movimentação.
+
+==================================================
+4. HISTÓRICO DE MOVIMENTAÇÕES
+==================================================
+
+Criar/melhorar uma aba “Histórico”.
+
+Registrar tudo que acontecer no estoque:
+- entrada inicial
+- entrada avulsa
+- saída avulsa
+- transferência entre estoques
+- venda
+- cancelamento / estorno
+- ajuste manual
+
+Cada registro deve mostrar:
+- data e hora
+- tipo da movimentação
+- loja de origem
+- loja de destino
+- modelo
+- cor
+- chassi
+- fornecedor
+- valor
+- usuário responsável
+- observação
+- protocolo / ID de referência
+
+Filtros:
+- período
+- tipo de movimentação
+- loja
+- modelo
+- chassi
+- usuário
+
+==================================================
+5. LÓGICA OPERACIONAL PRINCIPAL
+==================================================
+
+A lógica deve seguir o fluxo operacional do cliente:
+
+1. O estoque precisa ser controlado por loja/unidade.
+2. Transferência entre lojas precisa ser muito rápida.
+3. O chassi deve ser o centro do controle de motos.
+4. Ao selecionar o chassi, o restante dos dados deve ser preenchido automaticamente.
+5. O sistema deve se comportar como um controle prático de operação, não como uma tela burocrática.
+6. A experiência precisa ser simples para uso diário.
+
+==================================================
+6. INTERFACE
+==================================================
+
+Quero interface mais operacional e objetiva.
+
+Na área de estoque, organizar em seções/tabs parecidas com:
+- Consolidado
+- Estoque Geral
+- MOV. ESTOQUE
+- MOV. AVULSA
+- Histórico
+
+Na tela MOV. ESTOQUE:
+- bloco superior para Origem
+- bloco superior para Destino
+- tabela abaixo com os itens da movimentação
+
+Na tabela da movimentação:
+- permitir adicionar/remover linhas
+- para moto, chassi com autocomplete/dropdown
+- preencher colunas automaticamente ao selecionar o chassi
+
+==================================================
+7. VALIDAÇÕES IMPORTANTES
+==================================================
+
+- Não duplicar chassi
+- Não transferir item indisponível
+- Não permitir loja de origem igual à de destino
+- Não permitir confirmar transferência vazia
+- Não permitir quantidade negativa
+- Não permitir peça sair acima do saldo disponível
+- Não permitir moto sem chassi quando a operação exigir chassi
+- Tudo deve deixar rastreabilidade
+
+==================================================
+8. INTEGRAÇÃO COM O ESTOQUE ATUAL
+==================================================
+
+Não apagar a base atual.
+Aproveitar o que já existe no sistema.
+
+Se necessário:
+- reorganizar rotas
+- reorganizar componentes
+- reorganizar tabela/consulta
+- adaptar lógica do backend
+
+Mas sem quebrar:
+- vendas
+- financeiro
+- transferências já existentes
+- histórico antigo
+
+==================================================
+9. ENTREGA FINAL
+==================================================
+
+Ao final:
+- informar arquivos alterados
+- informar rotas alteradas
+- informar modelos Prisma alterados, se houver
+- informar como testar:
+  1. entrada avulsa
+  2. transferência entre estoques
+  3. histórico
+  4. validação por chassi
+- rodar build final
+- garantir que não haja erro TypeScript

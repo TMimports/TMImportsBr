@@ -216,4 +216,85 @@ router.put('/:id/concluir', async (req: AuthRequest, res) => {
   }
 });
 
+// POST /api/transferencias/direto — ADMIN: cria + conclui em uma transação atômica
+// Dispensa fluxo SOLICITADA→APROVADA→CONCLUIDA; move estoque imediatamente.
+router.post(
+  '/direto',
+  requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'),
+  async (req: AuthRequest, res) => {
+    try {
+      const { produtoId, unidadeFisicaId, lojaOrigemId, lojaDestinoId, quantidade } = req.body;
+
+      if (!produtoId || !lojaOrigemId || !lojaDestinoId || !quantidade) {
+        return res.status(400).json({ error: 'Dados incompletos' });
+      }
+      if (Number(lojaOrigemId) === Number(lojaDestinoId)) {
+        return res.status(400).json({ error: 'Origem e destino não podem ser iguais' });
+      }
+
+      // Validar estoque disponível na origem
+      const estoqueOrigem = await prisma.estoque.findUnique({
+        where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaOrigemId) } },
+      });
+      if (!estoqueOrigem || estoqueOrigem.quantidade < Number(quantidade)) {
+        return res.status(400).json({ error: `Estoque insuficiente na origem. Disponível: ${estoqueOrigem?.quantidade ?? 0}` });
+      }
+
+      // Se chassi informado, validar disponibilidade
+      if (unidadeFisicaId) {
+        const unidade = await prisma.unidadeFisica.findUnique({ where: { id: Number(unidadeFisicaId) } });
+        if (!unidade) return res.status(404).json({ error: 'Unidade física não encontrada' });
+        if (unidade.lojaId !== Number(lojaOrigemId)) return res.status(400).json({ error: 'Chassi não pertence à loja de origem' });
+        if (unidade.status !== 'ESTOQUE') return res.status(400).json({ error: `Chassi com status ${unidade.status} — não disponível` });
+      }
+
+      // Transação atômica: criar transferência CONCLUIDA + mover estoque
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Criar transferência já como CONCLUIDA
+        const transferencia = await tx.transferencia.create({
+          data: {
+            produtoId:       Number(produtoId),
+            lojaOrigemId:    Number(lojaOrigemId),
+            lojaDestinoId:   Number(lojaDestinoId),
+            quantidade:      Number(quantidade),
+            solicitadoPor:   req.user!.id,
+            aprovadoPor:     req.user!.id,
+            unidadeFisicaId: unidadeFisicaId ? Number(unidadeFisicaId) : undefined,
+            status:          'CONCLUIDA',
+          },
+          include: INCLUDE_FULL,
+        });
+
+        // 2. Decrementar estoque origem
+        await tx.estoque.update({
+          where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaOrigemId) } },
+          data:  { quantidade: { decrement: Number(quantidade) } },
+        });
+
+        // 3. Incrementar (ou criar) estoque destino
+        await tx.estoque.upsert({
+          where:  { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaDestinoId) } },
+          update: { quantidade: { increment: Number(quantidade) } },
+          create: { produtoId: Number(produtoId), lojaId: Number(lojaDestinoId), quantidade: Number(quantidade) },
+        });
+
+        // 4. Mover UnidadeFisica para loja destino
+        if (unidadeFisicaId) {
+          await tx.unidadeFisica.update({
+            where: { id: Number(unidadeFisicaId) },
+            data:  { lojaId: Number(lojaDestinoId) },
+          });
+        }
+
+        return transferencia;
+      });
+
+      res.status(201).json(result);
+    } catch (error) {
+      console.error('Erro na transferência direta:', error);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+  }
+);
+
 export default router;

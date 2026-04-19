@@ -687,4 +687,209 @@ router.get('/consolidado', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'), async
   }
 });
 
+// ─── ESTOQUE GERAL (listagem cross-store: Motos por chassi + Peças por qtd) ────
+router.get('/geral', async (req: AuthRequest, res) => {
+  try {
+    const { lojaId: qLojaId, tipo, chassi, modelo, statusUni } = req.query as Record<string, string>;
+    const filter = applyTenantFilter(req);
+    const role = req.user?.role;
+
+    // ── Motos (UnidadeFisica) ────────────────────────────────────────────────
+    const motoWhere: any = {};
+    if (filter.lojaId)          motoWhere.lojaId = filter.lojaId;
+    else if (filter.grupoId)    motoWhere.loja   = { grupoId: filter.grupoId };
+    if (qLojaId)                motoWhere.lojaId = Number(qLojaId);
+    if (statusUni)              motoWhere.status = statusUni;
+
+    // produto filter sempre tem tipo MOTO
+    const prodMotoFilter: any = { tipo: 'MOTO' };
+    if (modelo) prodMotoFilter.nome = { contains: modelo, mode: 'insensitive' };
+    motoWhere.produto = prodMotoFilter;
+
+    if (chassi) motoWhere.chassi = { contains: chassi, mode: 'insensitive' };
+
+    const unidades = (!tipo || tipo === 'MOTO')
+      ? await prisma.unidadeFisica.findMany({
+          where: motoWhere,
+          include: {
+            produto: { select: { id: true, nome: true, codigo: true, custo: true, preco: true } },
+            loja:    { select: { id: true, nomeFantasia: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 500,
+        })
+      : [];
+
+    // ── Peças (Estoque por produto/loja) ─────────────────────────────────────
+    const pecaWhere: any = {};
+    if (filter.lojaId)       pecaWhere.lojaId = filter.lojaId;
+    else if (filter.grupoId) pecaWhere.loja   = { grupoId: filter.grupoId };
+    if (qLojaId)             pecaWhere.lojaId = Number(qLojaId);
+
+    const prodPecaFilter: any = { tipo: 'PECA' };
+    if (modelo) prodPecaFilter.nome = { contains: modelo, mode: 'insensitive' };
+    pecaWhere.produto = prodPecaFilter;
+
+    const pecas = (!tipo || tipo === 'PECA')
+      ? await prisma.estoque.findMany({
+          where: pecaWhere,
+          include: {
+            produto: { select: { id: true, nome: true, codigo: true, tipo: true, custo: true, preco: true } },
+            loja:    { select: { id: true, nomeFantasia: true } },
+          },
+          orderBy: { produto: { nome: 'asc' } },
+          take: 500,
+        })
+      : [];
+
+    const verCustos = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(role || '');
+
+    res.json({ unidades, pecas, verCustos });
+  } catch (error) {
+    console.error('[EstoqueGeral]', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ─── SAÍDA AVULSA ─────────────────────────────────────────────────────────────
+// Saída manual de estoque sem gerar financeiro.
+// Para MOTO: marca UnidadeFisica como VENDIDA + decrementa Estoque.
+// Para PECA: decrementa Estoque.
+router.post(
+  '/saida-avulsa',
+  requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'),
+  async (req: AuthRequest, res) => {
+    try {
+      const { produtoId, lojaId, tipo, quantidade, chassi, motivo, observacao } = req.body;
+      const userId = req.user!.id;
+
+      if (!produtoId || !lojaId) return res.status(400).json({ error: 'produtoId e lojaId são obrigatórios' });
+      if (!motivo?.trim())       return res.status(400).json({ error: 'Motivo é obrigatório para saída avulsa' });
+
+      const produto = await prisma.produto.findUnique({ where: { id: Number(produtoId) } });
+      if (!produto) return res.status(404).json({ error: 'Produto não encontrado' });
+
+      const tipoProd = tipo || produto.tipo;
+      const origemStr = observacao?.trim()
+        ? `SAIDA_AVULSA | ${motivo.trim()} — ${observacao.trim()}`
+        : `SAIDA_AVULSA | ${motivo.trim()}`;
+
+      // ── MOTO ──────────────────────────────────────────────────────────────
+      if (tipoProd === 'MOTO') {
+        if (!chassi?.trim()) return res.status(400).json({ error: 'Chassi obrigatório para saída de Moto' });
+
+        const unidade = await prisma.unidadeFisica.findFirst({
+          where: { chassi: chassi.trim(), lojaId: Number(lojaId) },
+        });
+        if (!unidade)                 return res.status(404).json({ error: `Chassi "${chassi}" não encontrado nesta loja` });
+        if (unidade.status !== 'ESTOQUE') return res.status(400).json({ error: `Chassi "${chassi}" não está disponível (status: ${unidade.status})` });
+
+        const estoqueReg = await prisma.estoque.findUnique({
+          where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+        });
+        const qtdAnterior = estoqueReg?.quantidade ?? 0;
+        const qtdNova     = Math.max(0, qtdAnterior - 1);
+
+        await prisma.$transaction([
+          prisma.unidadeFisica.update({ where: { id: unidade.id }, data: { status: 'VENDIDA' } }),
+          prisma.estoque.upsert({
+            where:  { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+            update: { quantidade: qtdNova },
+            create: { produtoId: Number(produtoId), lojaId: Number(lojaId), quantidade: 0 },
+          }),
+          prisma.logEstoque.create({
+            data: {
+              tipo: 'SAIDA', origem: origemStr,
+              produtoId: Number(produtoId), lojaId: Number(lojaId),
+              quantidade: 1, quantidadeAnterior: qtdAnterior, quantidadeNova: qtdNova,
+              usuarioId: userId,
+            },
+          }),
+        ]);
+
+        return res.json({ sucesso: true, chassi: chassi.trim() });
+      }
+
+      // ── PECA ──────────────────────────────────────────────────────────────
+      const qtd = Math.max(1, Number(quantidade) || 1);
+      const estoqueReg = await prisma.estoque.findUnique({
+        where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+      });
+      const qtdAnterior = estoqueReg?.quantidade ?? 0;
+
+      if (qtdAnterior < qtd) {
+        return res.status(400).json({ error: `Estoque insuficiente. Disponível: ${qtdAnterior}` });
+      }
+
+      const qtdNova = qtdAnterior - qtd;
+      await prisma.$transaction([
+        prisma.estoque.update({
+          where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+          data:  { quantidade: qtdNova },
+        }),
+        prisma.logEstoque.create({
+          data: {
+            tipo: 'SAIDA', origem: origemStr,
+            produtoId: Number(produtoId), lojaId: Number(lojaId),
+            quantidade: qtd, quantidadeAnterior: qtdAnterior, quantidadeNova: qtdNova,
+            usuarioId: userId,
+          },
+        }),
+      ]);
+
+      res.json({ sucesso: true, quantidade: qtd });
+    } catch (err: any) {
+      console.error('[SaídaAvulsa]', err);
+      res.status(500).json({ error: err.message || 'Erro interno' });
+    }
+  }
+);
+
+// ─── HISTÓRICO DE MOVIMENTAÇÕES (logs com filtros avançados) ──────────────────
+router.get('/historico', async (req: AuthRequest, res) => {
+  try {
+    const { lojaId: qLojaId, tipo, dias, chassi, modelo, usuarioId: qUsuarioId } = req.query as Record<string, string>;
+    const filter = applyTenantFilter(req);
+
+    const where: any = {};
+    if (filter.lojaId)       where.lojaId = filter.lojaId;
+    else if (filter.grupoId) where.loja   = { grupoId: filter.grupoId };
+    if (qLojaId)             where.lojaId = Number(qLojaId);
+    if (tipo)                where.tipo   = tipo;
+    if (qUsuarioId)          where.usuarioId = Number(qUsuarioId);
+
+    if (dias) {
+      const desde = new Date();
+      desde.setDate(desde.getDate() - Number(dias));
+      where.createdAt = { gte: desde };
+    }
+
+    if (chassi || modelo) {
+      where.produto = {};
+      if (modelo) where.produto.nome = { contains: modelo, mode: 'insensitive' };
+    }
+
+    const logs = await prisma.logEstoque.findMany({
+      where,
+      include: {
+        produto: { select: { nome: true, tipo: true, codigo: true } },
+        loja:    { select: { id: true, nomeFantasia: true } },
+        usuario: { select: { id: true, nome: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+
+    // Post-filter por chassi (origemId aponta para unidadeFisica)
+    const filtrado = chassi
+      ? logs.filter(l => l.origem.toLowerCase().includes(chassi.toLowerCase()))
+      : logs;
+
+    res.json(filtrado);
+  } catch (error) {
+    console.error('[Histórico]', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;

@@ -7,6 +7,10 @@ import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { SectionHeader } from '../components/ui/SectionHeader';
+import { TabEstoqueGeral } from './estoque/TabEstoqueGeral';
+import { TabMovEstoque }   from './estoque/TabMovEstoque';
+import { TabMovAvulsa }    from './estoque/TabMovAvulsa';
+import { TabHistorico }    from './estoque/TabHistorico';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
