@@ -1,0 +1,440 @@
+Quero refatorar profissionalmente a área de Controle de Estoque e Transferências do ERP usando como BASE DIRETA a lógica operacional da planilha Excel do cliente.
+
+ATENÇÃO PRINCIPAL
+Não quero simplesmente “inventar uma nova tela de estoque”.
+Quero que o sistema seja redesenhado com base na lógica prática da planilha Excel que o cliente já usa no dia a dia.
+
+Ou seja:
+- não copiar o visual do Excel literalmente
+- copiar a lógica operacional do Excel
+- transformar isso em um fluxo de sistema mais profissional
+- manter a praticidade, velocidade e clareza que a planilha dá para a operação
+
+O cliente quer sentir que o sistema está funcionando como a planilha dele funciona, porém:
+- mais bonito
+- mais seguro
+- mais organizado
+- com validações
+- com rastreabilidade
+- sem perder agilidade
+
+==================================================
+1. OBJETIVO DO MÓDULO
+==================================================
+
+Quero transformar a lógica da planilha operacional em um módulo robusto dentro do ERP para controlar:
+
+- estoque geral
+- movimentação entre estoques/lojas
+- movimentação avulsa
+- entradas e saídas
+- histórico de movimentações
+- controle unitário por chassi para motos
+- controle por quantidade para peças
+
+A referência operacional é a estrutura da planilha do cliente, especialmente as áreas equivalentes a:
+- Consolidado
+- Estoque Geral
+- Config
+- MOV. ESTOQUE
+- MOV. AVULSA
+- VENDAS
+- Histórico
+
+==================================================
+2. CONCEITO CENTRAL
+==================================================
+
+A lógica do sistema deve seguir exatamente a forma como a operação acontece no Excel/manual:
+
+1. o cliente olha onde o item está
+2. define de onde sai
+3. define para onde vai
+4. seleciona o item correto
+5. registra a movimentação
+6. acompanha tudo no histórico
+
+Para motos:
+- o principal identificador operacional é o CHASSI
+
+Para peças:
+- o principal identificador operacional é produto + quantidade
+
+Então o sistema precisa ser construído ao redor disso.
+
+==================================================
+3. NOVA ORGANIZAÇÃO DA ÁREA DE ESTOQUE
+==================================================
+
+Quero reorganizar a área de estoque em abas/seções operacionais:
+
+1. Consolidado
+2. Estoque Geral
+3. MOV. ESTOQUE
+4. MOV. AVULSA
+5. Histórico
+
+A navegação deve ser muito objetiva e operacional.
+
+==================================================
+4. ABA CONSOLIDADO
+==================================================
+
+Criar ou melhorar uma aba “Consolidado” com visão resumida e gerencial.
+
+Mostrar:
+- total de motos em estoque
+- total de peças em estoque
+- total por loja/unidade
+- total por modelo
+- total por fornecedor
+- últimas movimentações
+- motos disponíveis por loja
+- peças com saldo baixo
+- itens aguardando ajuste/manual
+
+Filtros rápidos:
+- loja
+- modelo
+- fornecedor
+- tipo (Moto / Peça)
+
+==================================================
+5. ABA ESTOQUE GERAL
+==================================================
+
+Criar ou melhorar “Estoque Geral” como visão completa do estoque operacional.
+
+Mostrar por linha:
+- loja/unidade atual
+- código do item
+- modelo
+- cor
+- tipo (Moto / Peça)
+- chassi (quando for moto)
+- fornecedor
+- valor / custo
+- data de entrada
+- status
+- origem da entrada/movimentação
+
+Regras:
+- motos devem ser controladas por unidade/chassi
+- peças devem ser controladas por quantidade
+- não permitir chassi duplicado
+- permitir busca rápida por:
+  - chassi
+  - modelo
+  - código
+  - fornecedor
+  - loja
+- filtros por:
+  - loja
+  - tipo
+  - modelo
+  - cor
+  - fornecedor
+  - status
+
+==================================================
+6. ABA MOV. ESTOQUE — TRANSFERÊNCIA ENTRE ESTOQUES
+==================================================
+
+Esta é a parte mais importante.
+
+Quero uma tela fortemente inspirada na lógica da planilha “MOV. ESTOQUE”.
+
+A tela deve funcionar assim:
+
+6.1 BLOCO ORIGEM
+- código da loja/estoque de origem
+- nome da loja/estoque de origem
+
+6.2 BLOCO DESTINO
+- código da loja/estoque de destino
+- nome da loja/estoque de destino
+
+6.3 TABELA DE ITENS DA MOVIMENTAÇÃO
+Abaixo dos blocos, uma tabela com os itens da transferência.
+
+Colunas desejadas:
+- Data
+- Modelo
+- Cor
+- Chassi
+- Fornecedor
+- Valor
+
+Internamente também pode ter:
+- id do item
+- tipo
+- observação
+- status da linha
+
+6.4 LÓGICA DA TRANSFERÊNCIA
+1. usuário escolhe origem
+2. usuário escolhe destino
+3. sistema bloqueia origem = destino
+4. usuário adiciona linhas de movimentação
+
+PARA MOTOS
+- a seleção deve ser feita prioritariamente por CHASSI
+- ao escolher o chassi, preencher automaticamente:
+  - modelo
+  - cor
+  - fornecedor
+  - valor
+- mostrar apenas chassis disponíveis na origem
+- não permitir transferir chassi indisponível
+
+PARA PEÇAS
+- selecionar produto
+- informar quantidade
+- validar saldo disponível na origem
+
+6.5 CONFIRMAÇÃO
+Ao confirmar a movimentação:
+- dar baixa no estoque da origem
+- lançar no estoque do destino
+- gerar ID/protocolo da movimentação
+- registrar data e hora
+- registrar usuário responsável
+- registrar histórico completo
+
+==================================================
+7. ABA MOV. AVULSA
+==================================================
+
+Criar ou melhorar uma aba “MOV. AVULSA”.
+
+Objetivo:
+Permitir entradas e saídas manuais sem depender de pedido de compra e sem gerar financeiro automático.
+
+Tipos:
+- entrada avulsa
+- saída avulsa
+- ajuste manual
+- acerto de inventário
+
+Campos:
+- tipo da movimentação
+- loja/estoque
+- data
+- produto/modelo
+- tipo
+- cor
+- chassi (se for moto)
+- fornecedor
+- valor
+- quantidade (se for peça)
+- motivo
+- observação
+- usuário responsável
+
+Regras:
+- não gerar contas a pagar
+- não gerar contas a receber
+- para moto, validar chassi único
+- para peça, validar quantidade
+- motivo obrigatório em ajuste
+- tudo deve registrar histórico
+
+==================================================
+8. ABA HISTÓRICO
+==================================================
+
+Criar ou melhorar uma aba “Histórico”.
+
+Registrar:
+- entrada inicial
+- entrada avulsa
+- saída avulsa
+- ajuste manual
+- transferência entre estoques
+- venda
+- cancelamento/estorno
+- acerto de inventário
+
+Cada registro deve mostrar:
+- data e hora
+- tipo da movimentação
+- loja origem
+- loja destino
+- modelo
+- cor
+- chassi
+- fornecedor
+- valor
+- quantidade
+- usuário responsável
+- observação
+- protocolo / referência
+
+Filtros:
+- período
+- tipo
+- loja
+- modelo
+- chassi
+- fornecedor
+- usuário
+
+==================================================
+9. REGRA OPERACIONAL PARA MOTOS
+==================================================
+
+A moto precisa ser tratada de forma unitária por chassi.
+
+Regras:
+- cada chassi é único
+- o chassi é a principal chave operacional
+- ao selecionar chassi, preencher automaticamente:
+  - modelo
+  - cor
+  - fornecedor
+  - valor
+- não permitir movimentação de moto sem chassi quando a operação exigir controle unitário
+- não permitir duplicidade
+
+==================================================
+10. REGRA OPERACIONAL PARA PEÇAS
+==================================================
+
+As peças devem ser tratadas por saldo/quantidade.
+
+Regras:
+- movimentação por quantidade
+- validação de saldo
+- não permitir saldo negativo
+- não permitir saída acima do disponível
+- registrar quantidade movimentada no histórico
+
+==================================================
+11. UX E INTERFACE
+==================================================
+
+A experiência deve ser inspirada no Excel em lógica, não em aparência.
+
+Quero:
+- operação rápida
+- menos burocracia
+- clareza visual
+- blocos bem definidos
+- tabela operacional prática
+- autocomplete para chassi
+- preenchimento automático ao selecionar chassi
+- adicionar/remover linhas de movimentação com facilidade
+- feedback claro de erro e sucesso
+
+A pessoa deve sentir:
+“isso aqui está funcionando como a minha planilha, só que melhor”
+
+==================================================
+12. VALIDAÇÕES OBRIGATÓRIAS
+==================================================
+
+Implementar:
+- não duplicar chassi
+- não permitir origem = destino
+- não permitir movimentação sem itens
+- não permitir item indisponível
+- não permitir quantidade negativa
+- não permitir quantidade acima do saldo
+- não permitir moto sem chassi
+- não permitir confirmar transferência vazia
+- obrigar motivo em ajustes
+- registrar tudo no histórico
+
+==================================================
+13. COMPATIBILIDADE COM O SISTEMA ATUAL
+==================================================
+
+Não apagar base atual.
+Não quebrar módulos já existentes.
+
+Pode:
+- reorganizar componentes
+- reorganizar rotas
+- criar serviços auxiliares
+- melhorar o backend
+- adaptar estrutura existente
+
+Mas sem quebrar:
+- vendas
+- financeiro
+- transferências antigas
+- pedidos de compra
+- histórico antigo
+- cadastro de produtos
+
+==================================================
+14. SUGESTÃO TÉCNICA
+==================================================
+
+Se tecnicamente fizer sentido:
+- criar cabeçalho de movimentação + itens da movimentação
+- separar tipos:
+  - TRANSFERENCIA
+  - ENTRADA_AVULSA
+  - SAIDA_AVULSA
+  - AJUSTE
+- manter rastreabilidade por usuário/data/hora
+- tratar moto por item/chassi
+- tratar peça por quantidade
+
+==================================================
+15. TESTES OBRIGATÓRIOS
+==================================================
+
+Garantir funcionamento destes testes:
+
+TESTE 1
+Transferir uma moto da TM Recreio para TM Itaipuaçu
+- selecionar origem
+- selecionar destino
+- escolher chassi
+- preencher dados automaticamente
+- confirmar
+- sair da origem
+- entrar no destino
+- registrar histórico
+
+TESTE 2
+Transferir peça entre lojas
+- selecionar peça
+- informar quantidade
+- validar saldo
+- confirmar
+- registrar histórico
+
+TESTE 3
+Entrada avulsa de moto
+- cadastrar com chassi
+- lançar em loja
+- não gerar financeiro
+- aparecer no estoque geral
+- aparecer no histórico
+
+TESTE 4
+Saída avulsa / ajuste manual
+- exigir motivo
+- refletir no saldo
+- registrar histórico
+
+==================================================
+16. ENTREGA FINAL
+==================================================
+
+Ao final:
+- informar arquivos alterados
+- informar rotas alteradas
+- informar modelos Prisma alterados, se houver
+- informar componentes alterados/criados
+- explicar como testar:
+  - Consolidado
+  - Estoque Geral
+  - MOV. ESTOQUE
+  - MOV. AVULSA
+  - Histórico
+- rodar build final
+- garantir sem erros TypeScript
