@@ -1,0 +1,186 @@
+Quero um refinamento cirúrgico da área de Estoque e Transferências do ERP com foco em ficar mais fiel ao modelo operacional da planilha Excel do cliente.
+
+IMPORTANTE
+A base já existe, mas ainda não está suficientemente fiel à lógica da planilha/manual do cliente.
+Não quero reconstruir tudo do zero.
+Quero refinar o que já foi feito para que a experiência operacional fique muito mais próxima do fluxo real que ele usa no Excel.
+
+A referência correta é:
+- não copiar visualmente o Excel
+- copiar a lógica operacional do Excel
+- transformar isso em um módulo de sistema mais prático, rápido e confiável
+
+O sistema precisa parecer menos “formulário burocrático” e mais “operação diária de estoque”.
+
+==================================================
+1. REFINAR A ABA MOV. ESTOQUE
+==================================================
+
+Essa é a principal tela a ser refinada.
+
+Quero que a experiência fique muito mais parecida com uma grade operacional.
+
+Hoje a base existe, mas ainda precisa ficar mais próxima da lógica da planilha.
+
+AJUSTES NECESSÁRIOS:
+
+1. Separar visualmente e de forma forte:
+- ORIGEM
+- DESTINO
+
+Cada bloco deve mostrar claramente:
+- código da loja
+- nome da loja
+
+2. Abaixo, a movimentação deve parecer uma grade operacional de itens, não apenas um formulário sequencial.
+
+3. Cada linha da movimentação deve mostrar claramente:
+- Data
+- Modelo
+- Cor
+- Chassi
+- Fornecedor
+- Valor
+
+4. Para MOTO:
+- o campo principal deve ser CHASSI
+- ao selecionar o chassi, preencher automaticamente:
+  - modelo
+  - cor
+  - fornecedor
+  - valor
+- o usuário não deve precisar digitar manualmente esses dados se o chassi já existe
+
+5. A seleção do chassi deve ser prática:
+- autocomplete
+- dropdown pesquisável
+- mostrar apenas chassis disponíveis na origem
+
+6. O objetivo é que o usuário consiga movimentar várias motos rapidamente, quase como preenchendo linhas de uma planilha.
+
+7. Melhorar a visualização das linhas já adicionadas na movimentação:
+- deixar mais claro o que está indo da origem para o destino
+- permitir remover linha de forma prática
+- permitir ver rapidamente quantos itens estão sendo transferidos
+
+==================================================
+2. REFINAR A ABA MOV. AVULSA
+==================================================
+
+Hoje a base existe, mas precisa ficar mais objetiva.
+
+Quero que MOV. AVULSA tenha experiência muito prática, no estilo:
+- escolhe tipo da movimentação
+- escolhe a loja
+- lança item
+- confirma
+
+AJUSTES:
+1. Tornar a entrada/saída/ajuste mais claros visualmente.
+2. Diferenciar bem:
+- Entrada Avulsa
+- Saída Avulsa
+- Ajuste
+3. Para MOTO:
+- chassi deve ser central
+- preenchimento automático quando aplicável
+4. Para PEÇA:
+- foco em quantidade
+5. Tornar motivo e observação mais claros para auditoria.
+
+==================================================
+3. REFINAR ESTOQUE GERAL
+==================================================
+
+Quero que a aba Estoque Geral fique mais útil operacionalmente.
+
+AJUSTES:
+1. Melhorar a leitura por loja/unidade.
+2. Tornar mais fácil localizar:
+- uma moto por chassi
+- um modelo específico
+- uma peça por loja
+3. Melhorar filtros rápidos.
+4. Mostrar de forma mais clara onde o item está hoje.
+
+==================================================
+4. REFINAR HISTÓRICO
+==================================================
+
+Quero o histórico mais próximo de uma leitura operacional de movimentações.
+
+AJUSTES:
+1. Melhorar leitura das transferências:
+- origem
+- destino
+- item
+- usuário
+- data/hora
+2. Deixar claro se foi:
+- TRANSFERÊNCIA
+- ENTRADA_AVULSA
+- SAIDA_AVULSA
+- AJUSTE
+3. Melhorar tabela e filtros para consulta rápida.
+4. Dar sensação de rastreabilidade total.
+
+==================================================
+5. EXPERIÊNCIA OPERACIONAL
+==================================================
+
+Quero que o usuário sinta que a lógica da planilha foi respeitada.
+
+Isso significa:
+- menos passos desnecessários
+- mais preenchimento automático
+- mais clareza na origem/destino
+- mais foco em linha de movimentação
+- menos sensação de formulário engessado
+
+Em resumo:
+A tela precisa ficar com “cara de operação diária” e não apenas “cara de cadastro”.
+
+==================================================
+6. MOTO VS PEÇA
+==================================================
+
+Reforçar no sistema:
+
+MOTO
+- controlada por chassi
+- movimentação unitária
+- preenchimento automático por chassi
+
+PEÇA
+- controlada por quantidade
+- validação de saldo
+- movimentação por volume
+
+Quero que essa diferença fique clara tanto na lógica quanto na interface.
+
+==================================================
+7. NÃO QUEBRAR O QUE JÁ FUNCIONA
+==================================================
+
+Não destruir o que já foi implementado.
+Quero refinamento, não retrabalho completo.
+
+Manter:
+- histórico
+- transferências
+- entradas avulsas
+- integrações existentes
+- base de estoque atual
+
+==================================================
+8. ENTREGA FINAL
+==================================================
+
+Ao final:
+- me diga exatamente o que foi refinado
+- arquivos alterados
+- se a MOV. ESTOQUE ficou mais próxima do modelo operacional da planilha
+- se a MOV. AVULSA ficou mais objetiva
+- se a experiência geral ficou mais prática
+- rodar build final
+- garantir sem erros TypeScript
