@@ -2119,34 +2119,38 @@ const LOJA_ORDER: Record<number, number> = {
   3: 11,  // Itaipuaçu
 };
 
+type MainTab = 'consolidado' | 'estoque-geral' | 'mov-estoque' | 'mov-avulsa' | 'historico';
+
+const TAB_LABELS: { id: MainTab; label: string; icon: string }[] = [
+  { id: 'consolidado',   label: 'Consolidado',   icon: '📊' },
+  { id: 'estoque-geral', label: 'Estoque Geral',  icon: '📋' },
+  { id: 'mov-estoque',   label: 'MOV. ESTOQUE',   icon: '🔄' },
+  { id: 'mov-avulsa',    label: 'MOV. AVULSA',    icon: '⚡' },
+  { id: 'historico',     label: 'Histórico',      icon: '📜' },
+];
+
 export function Estoque() {
   const { user } = useAuth();
   const { selectedLojaId: ctxLojaId } = useLojaContext();
-  const [lojas, setLojas] = useState<Loja[]>([]);
-  const [lojaId, setLojaId] = useState<number | null>(null);
+  const [lojas, setLojas]         = useState<Loja[]>([]);
+  const [lojaId, setLojaId]       = useState<number | null>(null);
   const [loadingLojas, setLoadingLojas] = useState(true);
   const [refreshSolicitacoes, setRefreshSolicitacoes] = useState(0);
-  const [modoBusca, setModoBusca] = useState(false);
-  const [modoTransferencias, setModoTransferencias] = useState(false);
+  const [activeTab, setActiveTab] = useState<MainTab>('consolidado');
 
-  const role = user?.role || '';
-  const isAdmin = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
-  const isAprovador = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
+  const role           = user?.role || '';
+  const isAdmin        = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
+  const isAprovador    = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO'].includes(role);
   const verCustosGlobal = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(role);
-  const minhaLojaId = user?.lojaId ?? null;
-  const showConsolidado = isAdmin && lojaId === null && !modoBusca && !modoTransferencias;
+  const minhaLojaId    = user?.lojaId ?? null;
 
   useEffect(() => {
     api.get<Loja[]>('/lojas?todos=true')
       .then(lista => {
         setLojas(lista);
-        if (ctxLojaId) {
-          setLojaId(ctxLojaId);
-        } else if (user?.lojaId) {
-          setLojaId(user.lojaId);
-        } else if (!isAdmin && lista.length > 0) {
-          setLojaId(lista[0].id);
-        }
+        if (ctxLojaId)          setLojaId(ctxLojaId);
+        else if (user?.lojaId)  setLojaId(user.lojaId);
+        else if (!isAdmin && lista.length > 0) setLojaId(lista[0].id);
       })
       .catch(() => setLojas([]))
       .finally(() => setLoadingLojas(false));
@@ -2155,8 +2159,7 @@ export function Estoque() {
   useEffect(() => {
     if (ctxLojaId) {
       setLojaId(ctxLojaId);
-      setModoBusca(false);
-      setModoTransferencias(false);
+      setActiveTab('consolidado');
     } else if (isAdmin && !user?.lojaId) {
       setLojaId(null);
     }
@@ -2164,146 +2167,147 @@ export function Estoque() {
 
   const lojasSorted = useMemo(() => {
     if (!lojas.length) return [];
-    // Para não-admin: mostra a loja do usuário primeiro, depois Importação, depois as outras
     if (!isAdmin && minhaLojaId) {
-      const minhaLoja = lojas.find(l => l.id === minhaLojaId);
+      const minhaLoja  = lojas.find(l => l.id === minhaLojaId);
       const importacao = lojas.find(l => l.id === LOJA_IMPORTACAO_ID && l.id !== minhaLojaId);
-      const outras = lojas
+      const outras     = lojas
         .filter(l => l.id !== minhaLojaId && l.id !== LOJA_IMPORTACAO_ID)
         .sort((a, b) => (LOJA_ORDER[a.id] ?? 99) - (LOJA_ORDER[b.id] ?? 99));
-      return [
-        ...(minhaLoja ? [minhaLoja] : []),
-        ...(importacao ? [importacao] : []),
-        ...outras,
-      ];
+      return [...(minhaLoja ? [minhaLoja] : []), ...(importacao ? [importacao] : []), ...outras];
     }
     return [...lojas].sort((a, b) => (LOJA_ORDER[a.id] ?? 99) - (LOJA_ORDER[b.id] ?? 99));
   }, [lojas, isAdmin, minhaLojaId]);
 
   if (loadingLojas) return <div className="p-12 text-center text-zinc-400">Carregando...</div>;
 
-  function handleVerLoja(id: number) {
-    setLojaId(id);
-    setModoBusca(false);
-    setModoTransferencias(false);
-  }
+  // ── Subtítulo dinâmico por aba ──────────────────────────────────────────────
+  const subtitulos: Record<MainTab, string> = {
+    'consolidado':   isAdmin ? 'Visão consolidada — todas as empresas' : 'Estoque da sua loja',
+    'estoque-geral': 'Lista completa de itens — motos e peças',
+    'mov-estoque':   'Transferência entre estoques / lojas',
+    'mov-avulsa':    'Entradas e saídas manuais sem gerar financeiro',
+    'historico':     'Histórico completo de movimentações',
+  };
 
-  function toggleBusca() {
-    setModoBusca(b => !b);
-    setModoTransferencias(false);
-  }
+  // ── Componente da aba ativa ─────────────────────────────────────────────────
+  function renderTab() {
+    switch (activeTab) {
 
-  function toggleTransferencias() {
-    setModoTransferencias(b => !b);
-    setModoBusca(false);
+      case 'consolidado':
+        return (
+          <div className="space-y-4">
+            {/* Seletor de loja para Consolidado */}
+            {isAdmin && (
+              <div className="min-w-64 max-w-sm">
+                <Select
+                  value={lojaId ?? ''}
+                  onChange={e => setLojaId(e.target.value ? Number(e.target.value) : null)}
+                >
+                  <option value="">📊 Todas as Empresas (Consolidado)</option>
+                  {lojasSorted.map(l => (
+                    <option key={l.id} value={l.id}>
+                      {l.id === minhaLojaId
+                        ? `🏠 ${l.nomeFantasia} (Minha Loja)`
+                        : l.id === LOJA_IMPORTACAO_ID
+                          ? `🏭 ${l.nomeFantasia} — Estoque Central`
+                          : `🏪 ${l.nomeFantasia}`}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+
+            {isAdmin && lojaId === null ? (
+              <>
+                <BuscadorRede
+                  minhaLojaId={minhaLojaId}
+                  lojas={lojasSorted}
+                  onVerLoja={id => setLojaId(id)}
+                />
+                <ViewConsolidada onSelectEmpresa={id => setLojaId(id)} />
+              </>
+            ) : lojaId ? (
+              <ViewEmpresa
+                lojaId={lojaId}
+                minhaLojaId={minhaLojaId}
+                isAprovador={isAprovador}
+                lojas={lojasSorted}
+                onBack={isAdmin ? () => setLojaId(null) : undefined}
+                refreshSolicitacoes={refreshSolicitacoes}
+                onSolicitacaoFeita={() => setRefreshSolicitacoes(k => k + 1)}
+                verCustos={verCustosGlobal}
+              />
+            ) : (
+              <div className="text-center py-12 text-zinc-500">
+                <p className="text-4xl mb-3">🏪</p>
+                <p className="text-lg font-medium text-zinc-400">Nenhuma empresa disponível</p>
+                <p className="text-sm mt-1">Cadastre lojas no sistema para ver o estoque</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'estoque-geral':
+        return (
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-6">
+            <TabEstoqueGeral lojas={lojasSorted} />
+          </div>
+        );
+
+      case 'mov-estoque':
+        return (
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-6">
+            <TabMovEstoque lojas={lojasSorted} />
+          </div>
+        );
+
+      case 'mov-avulsa':
+        return (
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-6">
+            <TabMovAvulsa lojas={lojasSorted} />
+          </div>
+        );
+
+      case 'historico':
+        return (
+          <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-6">
+            <TabHistorico lojas={lojasSorted} />
+          </div>
+        );
+    }
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <SectionHeader
-          title="Estoque"
-          subtitle={
-            modoTransferencias
-              ? isAprovador ? 'Solicitações de transferência da rede' : 'Minhas solicitações de transferência'
-              : modoBusca
-                ? 'Buscar produto em toda a rede'
-                : showConsolidado
-                  ? 'Visão consolidada — todas as empresas'
-                  : lojaId === minhaLojaId
-                    ? 'Estoque da sua loja'
-                    : lojaId === LOJA_IMPORTACAO_ID
-                      ? 'Estoque Central — TM Importação'
-                      : 'Consultando outra loja'
-          }
-        />
+    <div className="p-4 md:p-6 space-y-4">
+      {/* Header */}
+      <SectionHeader
+        title="Controle de Estoque"
+        subtitle={subtitulos[activeTab]}
+      />
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Botão de Transferências */}
+      {/* Barra de abas principal */}
+      <div className="flex items-center gap-0.5 border-b border-[#27272a] overflow-x-auto">
+        {TAB_LABELS.map(tab => (
           <button
-            onClick={toggleTransferencias}
-            title="Ver solicitações de transferência de estoque"
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-              modoTransferencias
-                ? 'bg-purple-500 text-white border-purple-500'
-                : 'bg-[#18181b] text-zinc-300 border-[#27272a] hover:border-purple-400 hover:text-purple-400'
-            }`}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`
+              flex items-center gap-1.5 pb-3 px-3 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap
+              ${activeTab === tab.id
+                ? 'border-orange-500 text-orange-400'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'}
+            `}
           >
-            🔄 <span className="hidden sm:inline">Transferências</span>
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
           </button>
-
-          {/* Botão de busca cross-rede */}
-          <button
-            onClick={toggleBusca}
-            title="Buscar produto em toda a rede"
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
-              modoBusca
-                ? 'bg-orange-500 text-white border-orange-500'
-                : 'bg-[#18181b] text-zinc-300 border-[#27272a] hover:border-orange-500 hover:text-orange-400'
-            }`}
-          >
-            🔍 <span className="hidden sm:inline">Buscar na Rede</span>
-          </button>
-
-          {/* Seletor de empresa (oculto no modo busca e transferências) */}
-          {!modoBusca && !modoTransferencias && (
-            <div className="min-w-64">
-              <Select
-                value={lojaId ?? ''}
-                onChange={e => setLojaId(e.target.value ? Number(e.target.value) : null)}
-              >
-                {isAdmin && <option value="">📊 Todas as Empresas (Consolidado)</option>}
-                {lojasSorted.map(l => (
-                  <option key={l.id} value={l.id}>
-                    {l.id === minhaLojaId
-                      ? `🏠 ${l.nomeFantasia} (Minha Loja)`
-                      : l.id === LOJA_IMPORTACAO_ID
-                        ? `🏭 ${l.nomeFantasia} — Estoque Central`
-                        : `🏪 ${l.nomeFantasia}`
-                    }
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
-        </div>
+        ))}
       </div>
 
-      {/* Conteúdo */}
-      {modoTransferencias ? (
-        <div className="bg-[#18181b] border border-[#27272a] rounded-xl p-4 sm:p-6">
-          <TabSolicitacoes
-            isAprovador={isAprovador}
-            lojaId={minhaLojaId}
-            refreshKey={refreshSolicitacoes}
-          />
-        </div>
-      ) : modoBusca ? (
-        <BuscadorRede
-          minhaLojaId={minhaLojaId}
-          lojas={lojasSorted}
-          onVerLoja={handleVerLoja}
-        />
-      ) : showConsolidado ? (
-        <ViewConsolidada onSelectEmpresa={setLojaId} />
-      ) : lojaId ? (
-        <ViewEmpresa
-          lojaId={lojaId}
-          minhaLojaId={minhaLojaId}
-          isAprovador={isAprovador}
-          lojas={lojasSorted}
-          onBack={isAdmin ? () => setLojaId(null) : undefined}
-          refreshSolicitacoes={refreshSolicitacoes}
-          onSolicitacaoFeita={() => setRefreshSolicitacoes(k => k + 1)}
-          verCustos={verCustosGlobal}
-        />
-      ) : (
-        <div className="text-center py-12 text-zinc-500">
-          <p className="text-4xl mb-3">🏪</p>
-          <p className="text-lg font-medium text-zinc-400">Nenhuma empresa disponível</p>
-          <p className="text-sm mt-1">Cadastre lojas no sistema para ver o estoque</p>
-        </div>
-      )}
+      {/* Conteúdo da aba ativa */}
+      <div>
+        {renderTab()}
+      </div>
     </div>
   );
 }

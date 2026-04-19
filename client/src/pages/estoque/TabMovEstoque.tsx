@@ -36,7 +36,6 @@ interface LinhaTransf {
 
 const inp = 'bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500';
 const sel = inp + ' cursor-pointer';
-const fmtBRL = (v: string | number) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 let keySeq = 0;
 const newLinha = (): LinhaTransf => ({ key: ++keySeq, tipo: 'MOTO', chassi: '', modelo: '', cor: '', ano: '', quantidade: 1, custo: '' });
