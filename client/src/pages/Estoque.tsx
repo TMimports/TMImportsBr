@@ -2011,7 +2011,7 @@ function TabImportacaoCentral() {
   const refProdutos = useRef<HTMLInputElement>(null);
   const refEstoque  = useRef<HTMLInputElement>(null);
   const refUnidades = useRef<HTMLInputElement>(null);
-  const fileRefs: Record<string, React.RefObject<HTMLInputElement>> = {
+  const fileRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
     produtos: refProdutos,
     estoque:  refEstoque,
     unidades: refUnidades,
