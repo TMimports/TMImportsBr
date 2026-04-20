@@ -458,7 +458,7 @@ function ModalCadastroChassi({
 
             <div className="space-y-3">
               {rows.map((row, i) => (
-                <div key={i} className="grid grid-cols-4 gap-2 items-start">
+                <div key={i} className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-start">
                   <div className="col-span-2">
                     <label className={lbl}>Chassi {modo === 'unitario' ? '*' : ''}</label>
                     <input value={row.chassi} onChange={e => updateRow(i, 'chassi', e.target.value)}
@@ -474,7 +474,7 @@ function ModalCadastroChassi({
                     <input value={row.ano} onChange={e => updateRow(i, 'ano', e.target.value)}
                       type="number" min="2000" max="2030" className={inp} />
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2 sm:col-span-3">
                     <label className={lbl}>Cód. Motor</label>
                     <input value={row.codigoMotor} onChange={e => updateRow(i, 'codigoMotor', e.target.value)}
                       placeholder="Código do motor" className={inp} />
@@ -2133,7 +2133,7 @@ function ModalEntradaAvulsa({
           </div>
         ) : (
           <div className="p-5 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Produto *</label>
                 <select value={produtoId} onChange={e => setProdutoId(e.target.value)} className={inp}>
@@ -2168,7 +2168,7 @@ function ModalEntradaAvulsa({
             )}
 
             {produtoSel && !isMoto && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={lbl}>Quantidade *</label>
                   <input type="number" min="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} className={inp} placeholder="1" />
@@ -2187,7 +2187,7 @@ function ModalEntradaAvulsa({
                   <button onClick={addChassi} className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 px-2 py-1 rounded">+ Adicionar Chassi</button>
                 </div>
                 {chassis.map((row, i) => (
-                  <div key={i} className="bg-zinc-800/50 rounded-lg p-3 grid grid-cols-4 gap-2 relative">
+                  <div key={i} className="bg-zinc-800/50 rounded-lg p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 relative">
                     <div>
                       <label className={lbl}>Chassi</label>
                       <input value={row.chassi} onChange={e => updateChassi(i, 'chassi', e.target.value)} className={inp} placeholder="9C2..." />
@@ -2212,7 +2212,7 @@ function ModalEntradaAvulsa({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Nota Fiscal de Entrada</label>
                 <input value={nfEntrada} onChange={e => setNfEntrada(e.target.value)} className={inp} placeholder="NFe 12345..." />

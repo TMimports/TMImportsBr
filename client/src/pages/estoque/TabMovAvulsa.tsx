@@ -291,7 +291,7 @@ export function TabMovAvulsa({ lojas }: { lojas: Loja[] }) {
       {isAjuste && (
         <div className="bg-zinc-800/30 border border-zinc-700 rounded-xl p-4 space-y-3">
           <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">1 — Selecionar Loja e Produto</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-zinc-400 mb-1">Loja / Estoque *</label>
               <select value={lojaId} onChange={e => setLojaId(e.target.value)} className={sel}>

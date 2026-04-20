@@ -229,3 +229,40 @@ input:-webkit-autofill:focus {
 .table-actions {
   @apply flex gap-1;
 }
+
+/* ── Inputs dentro de containers flex (prefixo R$, %, etc.) ─── */
+/* Garante que o input transparente não exiba borda nem ring próprios */
+.input-group {
+  @apply flex items-center bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors;
+}
+
+.input-group input,
+.input-group select {
+  @apply flex-1 min-w-0 bg-transparent py-2.5 px-2 outline-none border-none focus:ring-0;
+}
+
+.input-group .prefix,
+.input-group .suffix {
+  @apply shrink-0 select-none text-zinc-500 text-xs whitespace-nowrap;
+}
+
+.input-group .prefix { @apply pl-2 pr-0.5; }
+.input-group .suffix { @apply pr-2 pl-0.5; }
+
+/* ── Responsividade geral ───────────────────────────────────── */
+/* Previne overflow horizontal silencioso em containers flex */
+.flex-row-safe > * {
+  min-width: 0;
+}
+
+/* Scroll suave horizontal em tabelas */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile: reduz padding em cards */
+@media (max-width: 640px) {
+  .card {
+    padding: 0.75rem;
+  }
+}

@@ -799,26 +799,26 @@ export function Vendas() {
                           <>
                             <div className="flex flex-col gap-0.5">
                               <span className="text-xs text-zinc-500">Desconto %</span>
-                              <div className="relative w-24">
+                              <div className={`flex items-center w-24 bg-zinc-800 border rounded-lg focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 focus-within:border-red-500' : 'border-zinc-700 focus-within:border-orange-500'}`}>
                                 <input
                                   type="number" step="0.1" min="0" max={maxDescontoRole}
                                   value={item.desconto}
                                   onChange={(e) => atualizarMoto(index, 'desconto', e.target.value)}
-                                  className={`input text-sm pr-7 ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 text-red-400' : 'text-yellow-400'}`}
+                                  className={`flex-1 min-w-0 bg-transparent py-2.5 pl-3 pr-1 text-sm outline-none border-none focus:ring-0 ${parseFloat(item.desconto) > maxDescontoRole ? 'text-red-400' : 'text-yellow-400'}`}
                                   placeholder="0"
                                 />
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                                <span className="pr-2 text-gray-500 text-xs shrink-0 select-none">%</span>
                               </div>
                             </div>
                             <div className="flex flex-col gap-0.5">
                               <span className="text-xs text-zinc-500">Desconto R$</span>
-                              <div className="relative w-28">
-                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">-R$</span>
+                              <div className="flex items-center w-28 bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
+                                <span className="pl-2 pr-0.5 text-gray-500 text-xs shrink-0 select-none whitespace-nowrap">-R$</span>
                                 <input
                                   type="number" step="0.01" min="0"
                                   value={item.descontoValor}
                                   onChange={(e) => atualizarMoto(index, 'descontoValor', e.target.value)}
-                                  className="input text-sm pl-9 text-yellow-400"
+                                  className="flex-1 min-w-0 bg-transparent py-2.5 pr-2 text-sm text-yellow-400 outline-none border-none focus:ring-0"
                                   placeholder="0,00"
                                 />
                               </div>
@@ -939,26 +939,26 @@ export function Vendas() {
                         <>
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs text-zinc-500">Desconto %</span>
-                            <div className="relative w-24">
+                            <div className={`flex items-center w-24 bg-zinc-800 border rounded-lg focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 focus-within:border-red-500' : 'border-zinc-700 focus-within:border-orange-500'}`}>
                               <input
                                 type="number" step="0.1" min="0" max={maxDescontoRole}
                                 value={item.desconto}
                                 onChange={(e) => atualizarItem(index, 'desconto', e.target.value)}
-                                className={`input text-sm pr-7 ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 text-red-400' : 'text-yellow-400'}`}
+                                className={`flex-1 min-w-0 bg-transparent py-2.5 pl-3 pr-1 text-sm outline-none border-none focus:ring-0 ${parseFloat(item.desconto) > maxDescontoRole ? 'text-red-400' : 'text-yellow-400'}`}
                                 placeholder="0"
                               />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                              <span className="pr-2 text-gray-500 text-xs shrink-0 select-none">%</span>
                             </div>
                           </div>
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs text-zinc-500">Desconto R$</span>
-                            <div className="relative w-28">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">-R$</span>
+                            <div className="flex items-center w-28 bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
+                              <span className="pl-2 pr-0.5 text-gray-500 text-xs shrink-0 select-none whitespace-nowrap">-R$</span>
                               <input
                                 type="number" step="0.01" min="0"
                                 value={item.descontoValor}
                                 onChange={(e) => atualizarItem(index, 'descontoValor', e.target.value)}
-                                className="input text-sm pl-9 text-yellow-400"
+                                className="flex-1 min-w-0 bg-transparent py-2.5 pr-2 text-sm text-yellow-400 outline-none border-none focus:ring-0"
                                 placeholder="0,00"
                               />
                             </div>
@@ -967,13 +967,13 @@ export function Vendas() {
                       )}
                       <div className="flex flex-col gap-0.5">
                         <span className="text-xs text-zinc-500">Preço</span>
-                        <div className="relative w-28">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+                        <div className="flex items-center w-28 bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
+                          <span className="pl-2 pr-0.5 text-gray-500 text-xs shrink-0 select-none">R$</span>
                           <input
                             type="number" step="0.01" min="0"
                             value={item.preco}
                             onChange={(e) => atualizarItem(index, 'preco', parseFloat(e.target.value) || 0)}
-                            className="input text-sm pl-8 text-green-400"
+                            className="flex-1 min-w-0 bg-transparent py-2.5 pr-2 text-sm text-green-400 outline-none border-none focus:ring-0"
                           />
                         </div>
                       </div>
@@ -1132,13 +1132,13 @@ export function Vendas() {
                           {/* Valor */}
                           <div className="w-36">
                             <label className="block text-xs text-zinc-400 mb-1">Valor (R$)</label>
-                            <div className="relative">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">R$</span>
+                            <div className="flex items-center bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
+                              <span className="pl-2 pr-0.5 text-zinc-500 text-xs shrink-0 select-none">R$</span>
                               <input
                                 type="number" step="0.01" min="0"
                                 value={pag.valor}
                                 onChange={(e) => i === 0 ? updateEntrada(e.target.value) : updatePagamento(i, 'valor', e.target.value)}
-                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-8 pr-2 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                                className="flex-1 min-w-0 bg-transparent py-1.5 pr-2 text-sm text-white outline-none border-none focus:ring-0"
                                 placeholder="0,00"
                               />
                             </div>
@@ -1322,7 +1322,8 @@ export function Vendas() {
               </div>
             </div>
 
-            <table className="w-full mb-4">
+            <div className="overflow-x-auto -mx-1">
+            <table className="w-full min-w-[400px] mb-4">
               <thead>
                 <tr className="border-b border-zinc-700">
                   <th className="text-left p-2 text-gray-400 text-sm">Produto</th>
@@ -1364,6 +1365,7 @@ export function Vendas() {
                 })}
               </tbody>
             </table>
+            </div>
 
             <div className="border-t border-zinc-700 pt-4 space-y-2">
               {vendaDetalhada?.valorBruto && vendaDetalhada.valorBruto !== vendaDetalhada.valorTotal && (
