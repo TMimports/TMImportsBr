@@ -319,6 +319,15 @@ export function Vendas() {
 
   const totalPagamentosCompostos = pagamentosCompostos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
 
+  // Total real que o cliente paga (entrada + financiado já com taxa da máquina)
+  const totalComEncargos = pagamentosCompostos.reduce((acc, p) => {
+    const val = parseFloat(p.valor) || 0;
+    const n = parseInt(p.parcelas) || 1;
+    const tipoCredito = p.tipo === 'CARTAO_CREDITO' || p.tipo === 'FINANCIAMENTO';
+    const taxa = tipoCredito ? (TAXAS_MAQUINA[n] ?? 0) : 0;
+    return acc + val * (1 + taxa);
+  }, 0);
+
   const addPagamento = () => setPagamentosCompostos(prev => [...prev, { tipo: 'CARTAO_CREDITO', valor: '', parcelas: '1', obs: '' }]);
   const removePagamento = (i: number) => setPagamentosCompostos(prev => prev.filter((_, idx) => idx !== i));
   const updatePagamento = (i: number, field: keyof PagamentoComp, val: string) =>
@@ -1100,8 +1109,10 @@ export function Vendas() {
                 <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700 bg-zinc-800">
                   <p className="text-sm font-semibold text-orange-400">🔀 Pagamento Combinado</p>
                   <div className="text-right">
-                    <p className="text-xs text-zinc-500">Total da venda</p>
-                    <p className="text-sm font-bold text-white">R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-xs text-zinc-500">Base da venda</p>
+                    <p className="text-xs text-zinc-400">R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">Total a pagar (c/ encargos)</p>
+                    <p className="text-sm font-bold text-orange-300">R$ {totalComEncargos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                   </div>
                 </div>
 
@@ -1216,19 +1227,29 @@ export function Vendas() {
                   </button>
 
                   {/* Resumo do total */}
-                  <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold ${
-                    Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01
-                      ? 'bg-green-500/10 text-green-400 border border-green-500/30'
-                      : 'bg-red-500/10 text-red-400 border border-red-500/30'
-                  }`}>
-                    <span>
-                      {Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01
-                        ? '✓ Valores conferem'
-                        : `⚠ Diferença: R$ ${Math.abs(totalPagamentosCompostos - calcularTotal()).toFixed(2)}`}
-                    </span>
-                    <span>
-                      R$ {totalPagamentosCompostos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
+                  <div className="space-y-1.5">
+                    {/* Validação base */}
+                    <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium ${
+                      Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01
+                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                        : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                    }`}>
+                      <span>
+                        {Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01
+                          ? '✓ Divisão correta (base)'
+                          : `⚠ Diferença: R$ ${Math.abs(totalPagamentosCompostos - calcularTotal()).toFixed(2)}`}
+                      </span>
+                      <span>
+                        R$ {totalPagamentosCompostos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {/* Total real com encargos */}
+                    <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                      <span className="text-xs font-semibold text-orange-300">💳 Total a pagar pelo cliente</span>
+                      <span className="text-sm font-bold text-orange-400">
+                        R$ {totalComEncargos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
