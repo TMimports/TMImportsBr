@@ -706,36 +706,45 @@ export function Vendas() {
                           };
                         })}
                       />
-                      <div className="flex gap-2 items-center flex-wrap">
+                      <div className="flex gap-3 items-end flex-wrap">
                         {!isCartao && (
                           <>
-                            <div className="relative w-24">
-                              <input
-                                type="number" step="0.1" min="0" max={maxDescontoRole}
-                                value={item.desconto}
-                                onChange={(e) => atualizarMoto(index, 'desconto', e.target.value)}
-                                className={`input text-sm pr-7 ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 text-red-400' : 'text-yellow-400'}`}
-                                placeholder="0"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-xs text-zinc-500">Desconto %</span>
+                              <div className="relative w-24">
+                                <input
+                                  type="number" step="0.1" min="0" max={maxDescontoRole}
+                                  value={item.desconto}
+                                  onChange={(e) => atualizarMoto(index, 'desconto', e.target.value)}
+                                  className={`input text-sm pr-7 ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 text-red-400' : 'text-yellow-400'}`}
+                                  placeholder="0"
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                              </div>
                             </div>
-                            <div className="relative w-28">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">-R$</span>
-                              <input
-                                type="number" step="0.01" min="0"
-                                value={item.descontoValor}
-                                onChange={(e) => atualizarMoto(index, 'descontoValor', e.target.value)}
-                                className="input text-sm pl-9 text-yellow-400"
-                                placeholder="0,00"
-                              />
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-xs text-zinc-500">Desconto R$</span>
+                              <div className="relative w-28">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">-R$</span>
+                                <input
+                                  type="number" step="0.01" min="0"
+                                  value={item.descontoValor}
+                                  onChange={(e) => atualizarMoto(index, 'descontoValor', e.target.value)}
+                                  className="input text-sm pl-9 text-yellow-400"
+                                  placeholder="0,00"
+                                />
+                              </div>
                             </div>
                           </>
                         )}
-                        <div className="flex items-center gap-1 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-2 py-1.5">
-                          <span className="text-gray-500 text-xs">R$</span>
-                          <span className="text-green-400 text-sm font-medium">{Number(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs text-zinc-500">Preço</span>
+                          <div className="flex items-center gap-1 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-2 py-1.5">
+                            <span className="text-gray-500 text-xs">R$</span>
+                            <span className="text-green-400 text-sm font-medium">{Number(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </div>
                         </div>
-                        <button type="button" onClick={() => removerMoto(index)} className="text-red-500 hover:text-red-400 font-bold">✕</button>
+                        <button type="button" onClick={() => removerMoto(index)} className="text-red-500 hover:text-red-400 font-bold mb-1">✕</button>
                       </div>
                     </div>
                     {item.produtoId && !isCartao && (
@@ -828,47 +837,59 @@ export function Vendas() {
                         };
                       })}
                     />
-                    <div className="flex gap-2 items-center flex-wrap">
-                      <input
-                        type="number" min="1" max={maxQtd}
-                        value={item.quantidade}
-                        onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value) || 1)}
-                        className="input w-16"
-                      />
+                    <div className="flex gap-3 items-end flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-zinc-500">Qtd.</span>
+                        <input
+                          type="number" min="1" max={maxQtd}
+                          value={item.quantidade}
+                          onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value) || 1)}
+                          className="input w-16"
+                        />
+                      </div>
                       {!isCartao && (
                         <>
-                          <div className="relative w-24">
-                            <input
-                              type="number" step="0.1" min="0" max={maxDescontoRole}
-                              value={item.desconto}
-                              onChange={(e) => atualizarItem(index, 'desconto', e.target.value)}
-                              className={`input text-sm pr-7 ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 text-red-400' : 'text-yellow-400'}`}
-                              placeholder="0"
-                            />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-zinc-500">Desconto %</span>
+                            <div className="relative w-24">
+                              <input
+                                type="number" step="0.1" min="0" max={maxDescontoRole}
+                                value={item.desconto}
+                                onChange={(e) => atualizarItem(index, 'desconto', e.target.value)}
+                                className={`input text-sm pr-7 ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 text-red-400' : 'text-yellow-400'}`}
+                                placeholder="0"
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                            </div>
                           </div>
-                          <div className="relative w-28">
-                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">-R$</span>
-                            <input
-                              type="number" step="0.01" min="0"
-                              value={item.descontoValor}
-                              onChange={(e) => atualizarItem(index, 'descontoValor', e.target.value)}
-                              className="input text-sm pl-9 text-yellow-400"
-                              placeholder="0,00"
-                            />
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-zinc-500">Desconto R$</span>
+                            <div className="relative w-28">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">-R$</span>
+                              <input
+                                type="number" step="0.01" min="0"
+                                value={item.descontoValor}
+                                onChange={(e) => atualizarItem(index, 'descontoValor', e.target.value)}
+                                className="input text-sm pl-9 text-yellow-400"
+                                placeholder="0,00"
+                              />
+                            </div>
                           </div>
                         </>
                       )}
-                      <div className="relative w-28">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
-                        <input
-                          type="number" step="0.01" min="0"
-                          value={item.preco}
-                          onChange={(e) => atualizarItem(index, 'preco', parseFloat(e.target.value) || 0)}
-                          className="input text-sm pl-8 text-green-400"
-                        />
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-zinc-500">Preço</span>
+                        <div className="relative w-28">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+                          <input
+                            type="number" step="0.01" min="0"
+                            value={item.preco}
+                            onChange={(e) => atualizarItem(index, 'preco', parseFloat(e.target.value) || 0)}
+                            className="input text-sm pl-8 text-green-400"
+                          />
+                        </div>
                       </div>
-                      <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400 font-bold">✕</button>
+                      <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400 font-bold mb-1">✕</button>
                     </div>
                     {item.produtoId && !isCartao && (
                       <div className="mt-1">
