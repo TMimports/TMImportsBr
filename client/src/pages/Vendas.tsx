@@ -107,6 +107,17 @@ interface ConfigDescontos {
   descontoMaxPeca: number;
 }
 
+// Taxas da máquina (calculadas da planilha: Valor recebido / 6000 - 1)
+const TAXAS_MAQUINA: Record<number, number> = {
+  1:  0.04378,  2:  0.05688,  3:  0.06328,  4:  0.06981,
+  5:  0.07647,  6:  0.08326,  7:  0.09304,  8:  0.10013,
+  9:  0.10738,  10: 0.11478,  11: 0.12234,  12: 0.13006,
+  13: 0.14391,  14: 0.15202,  15: 0.16030,  16: 0.16878,
+  17: 0.17745,  18: 0.18631,
+};
+
+const TODAS_PARCELAS = Array.from({ length: 18 }, (_, i) => i + 1);
+
 export function Vendas() {
   const { user } = useAuth();
   const { selectedLojaId } = useLojaContext();
@@ -1037,20 +1048,29 @@ export function Vendas() {
                       onChange={e => setForm(f => ({ ...f, parcelas: e.target.value }))}
                       className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
                     >
-                      {[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n => (
+                      {TODAS_PARCELAS.map(n => (
                         <option key={n} value={n}>{n}x</option>
                       ))}
                     </select>
                   </div>
-                  {parseInt(form.parcelas) > 1 && calcularTotal() > 0 && (
-                    <div className="text-right">
-                      <p className="text-xs text-zinc-500">Valor por parcela</p>
-                      <p className="text-lg font-bold text-orange-400">
-                        R$ {(calcularTotal() / parseInt(form.parcelas)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                      <p className="text-xs text-zinc-500">{form.parcelas}x sem juros</p>
-                    </div>
-                  )}
+                  {calcularTotal() > 0 && (() => {
+                    const n = parseInt(form.parcelas) || 1;
+                    const base = calcularTotal();
+                    const taxa = TAXAS_MAQUINA[n] ?? 0;
+                    const totalComTaxa = base * (1 + taxa);
+                    const parcela = totalComTaxa / n;
+                    return (
+                      <div className="text-right">
+                        <p className="text-xs text-zinc-500">Valor por parcela</p>
+                        <p className="text-lg font-bold text-orange-400">
+                          R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          Taxa: {(taxa * 100).toFixed(2)}% · Total: R$ {totalComTaxa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {/* Atalho: adicionar entrada */}
                 <button
@@ -1089,8 +1109,11 @@ export function Vendas() {
                   {pagamentosCompostos.map((pag, i) => {
                     const valorPag = parseFloat(pag.valor) || 0;
                     const nParcelas = parseInt(pag.parcelas) || 1;
-                    const valorParc = precisaParcelas(pag.tipo) && nParcelas > 1 && valorPag > 0
-                      ? valorPag / nParcelas
+                    // Taxa da máquina aplicada ao valor parcelado
+                    const taxaMaq = precisaParcelas(pag.tipo) ? (TAXAS_MAQUINA[nParcelas] ?? 0) : 0;
+                    const valorComTaxa = valorPag * (1 + taxaMaq);
+                    const valorParc = precisaParcelas(pag.tipo) && valorPag > 0
+                      ? valorComTaxa / nParcelas
                       : null;
                     // Acumulado antes deste item
                     const acumuladoAntes = pagamentosCompostos.slice(0, i).reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
@@ -1153,7 +1176,7 @@ export function Vendas() {
                                 onChange={(e) => updatePagamento(i, 'parcelas', e.target.value)}
                                 className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
                               >
-                                {[1,2,3,4,5,6,7,8,9,10,11,12,18].map(n => (
+                                {TODAS_PARCELAS.map(n => (
                                   <option key={n} value={n}>{n}x</option>
                                 ))}
                               </select>
@@ -1161,11 +1184,26 @@ export function Vendas() {
                           )}
                         </div>
 
-                        {/* Valor por parcela */}
-                        {valorParc !== null && (
-                          <p className="text-xs text-orange-300 font-medium">
-                            = R$ {valorParc.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / mês ({nParcelas}x)
-                          </p>
+                        {/* Simulação taxa da máquina (crédito/financiamento) */}
+                        {precisaParcelas(pag.tipo) && valorPag > 0 && (
+                          <div className="rounded-lg bg-orange-950/30 border border-orange-500/20 px-3 py-2 space-y-1">
+                            <div className="flex items-center justify-between text-xs text-zinc-400">
+                              <span>Valor financiado</span>
+                              <span className="font-medium text-white">R$ {valorPag.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-zinc-400">
+                              <span>Taxa da máquina ({nParcelas}x)</span>
+                              <span className="text-yellow-400">+{(taxaMaq * 100).toFixed(2)}%</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-zinc-400">
+                              <span>Total com encargos</span>
+                              <span className="font-medium text-white">R$ {valorComTaxa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="border-t border-orange-500/20 pt-1 flex items-center justify-between">
+                              <span className="text-xs font-semibold text-orange-300">{nParcelas}x de</span>
+                              <span className="text-base font-bold text-orange-400">R$ {valorParc!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
                         )}
                       </div>
                     );
