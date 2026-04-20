@@ -495,6 +495,68 @@ router.post('/estoque', verifyToken, upload.single('arquivo'), async (req: any, 
   }
 });
 
+// ── GET /importacao/modelo/:tipo — baixar planilha modelo ────────────────────
+router.get('/modelo/:tipo', verifyToken, (req, res) => {
+  const { tipo } = req.params;
+
+  let sheetData: any[][];
+  let filename: string;
+
+  if (tipo === 'produtos') {
+    filename = 'modelo_importacao_produtos.xlsx';
+    sheetData = [
+      // Cabeçalho
+      ['Nome', 'Tipo', 'Custo (R$)', 'Preco Venda (R$)', 'Margem (%)'],
+      // Linha de instrução (em itálico visual via valor)
+      ['OBRIGATORIO', 'Moto ou Peca', 'Opcional', 'Opcional - se vazio usa margem', 'Opcional - se vazio usa config do sistema'],
+      // Exemplos
+      ['Scooter Eletrica 1500W', 'Moto', 3500.00, '', ''],
+      ['Scooter Cargo 2000W', 'Moto', 4200.00, '', ''],
+      ['Kit Relacao 428H', 'Peca', 85.00, '', ''],
+      ['Capacete Integral Preto', 'Peca', 120.00, '', ''],
+      ['Freio a Disco Dianteiro', 'Peca', 75.00, '', ''],
+      ['Bateria 60V 20Ah', 'Peca', 320.00, '', ''],
+    ];
+  } else if (tipo === 'servicos') {
+    filename = 'modelo_importacao_servicos.xlsx';
+    sheetData = [
+      ['Nome', 'Preco (R$)', 'Duracao (min)'],
+      ['OBRIGATORIO', 'OBRIGATORIO', 'Opcional - ex: 30, 60, 90'],
+      ['Revisao Geral', 150.00, 60],
+      ['Troca de Oleo', 80.00, 30],
+      ['Alinhamento e Balanceamento', 90.00, 45],
+      ['Calibragem de Pneus', 20.00, 15],
+      ['Diagnostico Eletrico', 120.00, 45],
+    ];
+  } else if (tipo === 'unidades') {
+    filename = 'modelo_importacao_unidades.xlsx';
+    sheetData = [
+      ['Modelo', 'Cor', 'Chassi', 'Motor', 'Ano'],
+      ['Nome exato do produto no sistema', 'Opcional', 'Opcional', 'Opcional', 'Opcional - padrao ano atual'],
+      ['Scooter Eletrica 1500W', 'Branca', '9BWZZZ377VT004251', 'EL1500BR', 2024],
+      ['Scooter Eletrica 1500W', 'Preta', '9BWZZZ377VT004252', 'EL1500BR', 2024],
+      ['Scooter Cargo 2000W', 'Azul', '9BWZZZ377VT004253', 'EL2000CG', 2025],
+    ];
+  } else {
+    return res.status(400).json({ error: 'Tipo de modelo inválido. Use: produtos, servicos, unidades' });
+  }
+
+  const wb  = XLSX.utils.book_new();
+  const ws  = XLSX.utils.aoa_to_sheet(sheetData);
+
+  // Larguras automáticas das colunas
+  ws['!cols'] = sheetData[0].map((_: any, ci: number) => ({
+    wch: Math.max(...sheetData.map(r => String(r[ci] ?? '').length), 14)
+  }));
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Modelo');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
+});
+
 // ── GET /importacao/gerar-codigo/:tipo ───────────────────────────────────────
 router.get('/gerar-codigo/:tipo', verifyToken, async (req, res) => {
   try {
