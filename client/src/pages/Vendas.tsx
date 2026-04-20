@@ -132,6 +132,7 @@ export function Vendas() {
     clienteId: '',
     lojaId: '',
     formaPagamento: 'PIX',
+    parcelas: '1',
     tipo: 'VENDA',
     observacoes: ''
   });
@@ -299,13 +300,40 @@ export function Vendas() {
 
   const isCartao = form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO';
   const isCombinado = form.formaPagamento === 'COMBINADO';
+  const isCredito = form.formaPagamento === 'CARTAO_CREDITO' || form.formaPagamento === 'FINANCIAMENTO';
 
   const totalPagamentosCompostos = pagamentosCompostos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
 
-  const addPagamento = () => setPagamentosCompostos(prev => [...prev, { tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
+  const addPagamento = () => setPagamentosCompostos(prev => [...prev, { tipo: 'CARTAO_CREDITO', valor: '', parcelas: '1', obs: '' }]);
   const removePagamento = (i: number) => setPagamentosCompostos(prev => prev.filter((_, idx) => idx !== i));
   const updatePagamento = (i: number, field: keyof PagamentoComp, val: string) =>
     setPagamentosCompostos(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: val } : p));
+
+  // Ao digitar o valor da entrada, auto-preenche o restante na última linha de crédito
+  const updateEntrada = (valor: string) => {
+    updatePagamento(0, 'valor', valor);
+    if (pagamentosCompostos.length >= 2) {
+      const total = calcularTotal();
+      const entrada = parseFloat(valor) || 0;
+      const restante = Math.max(0, total - entrada);
+      // Atualiza última linha com o restante
+      setPagamentosCompostos(prev => prev.map((p, idx) =>
+        idx === prev.length - 1 ? { ...p, valor: restante > 0 ? restante.toFixed(2) : '' } : idx === 0 ? { ...p, valor } : p
+      ));
+    }
+  };
+
+  // Ativa modo combinado com atalho entrada (PIX/Dinheiro) + crédito
+  const ativarCombinado = (tipoEntrada: string) => {
+    const total = calcularTotal();
+    setForm(f => ({ ...f, formaPagamento: 'COMBINADO' }));
+    setPagamentosCompostos([
+      { tipo: tipoEntrada, valor: '', parcelas: '1', obs: '' },
+      { tipo: 'CARTAO_CREDITO', valor: total > 0 ? total.toFixed(2) : '', parcelas: '1', obs: '' },
+    ]);
+  };
+
+  const precisaParcelas = (tipo: string) => tipo === 'CARTAO_CREDITO' || tipo === 'FINANCIAMENTO';
 
   const calcularTotal = () => {
     const totalPecas = itensSelecionados.reduce((acc, item) => {
@@ -397,6 +425,7 @@ export function Vendas() {
         lojaId: parseInt(form.lojaId),
         itens,
         formaPagamento: form.formaPagamento,
+        parcelas: isCombinado ? undefined : (parseInt(form.parcelas) || 1),
         tipo: form.tipo,
         observacoes: form.observacoes,
         pagamentosCompostos: isCombinado ? pagamentosCompostos : undefined,
@@ -408,6 +437,7 @@ export function Vendas() {
         clienteId: '',
         lojaId: lojas.length === 1 ? String(lojas[0].id) : '',
         formaPagamento: 'PIX',
+        parcelas: '1',
         tipo: 'VENDA',
         observacoes: ''
       });
@@ -907,87 +937,203 @@ export function Vendas() {
             )}
           </div>
 
-          <div>
-            <CustomSelect
-              label="Forma de Pagamento"
-              required
-              value={form.formaPagamento}
-              onChange={(val) => setForm({ ...form, formaPagamento: val })}
-              options={[
-                { value: 'PIX', label: 'PIX' },
-                { value: 'DINHEIRO', label: 'Dinheiro' },
-                { value: 'CARTAO_DEBITO', label: 'Cartao Debito' },
-                { value: 'CARTAO_CREDITO', label: 'Cartao Credito' },
-                { value: 'FINANCIAMENTO', label: 'Financiamento' },
-                { value: 'COMBINADO', label: 'Combinado (multiplas formas)' }
-              ]}
-            />
-            {isCartao && (
-              <div className="mt-2 p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg flex items-start gap-2">
-                <span className="text-blue-400 text-lg">i</span>
-                <p className="text-sm text-blue-300">
-                  Vendas no cartao nao possuem desconto. O valor sera cobrado integralmente.
-                </p>
+          {/* ── PAGAMENTO ─────────────────────────────────────────── */}
+          <div className="space-y-3">
+            <div>
+              <CustomSelect
+                label="Forma de Pagamento"
+                required
+                value={form.formaPagamento}
+                onChange={(val) => {
+                  setForm(f => ({ ...f, formaPagamento: val, parcelas: '1' }));
+                  if (val !== 'COMBINADO') setPagamentosCompostos([{ tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
+                }}
+                options={[
+                  { value: 'PIX', label: '💰 PIX' },
+                  { value: 'DINHEIRO', label: '💵 Dinheiro' },
+                  { value: 'CARTAO_DEBITO', label: '💳 Cartão Débito' },
+                  { value: 'CARTAO_CREDITO', label: '💳 Cartão Crédito' },
+                  { value: 'FINANCIAMENTO', label: '🏦 Financiamento' },
+                  { value: 'COMBINADO', label: '🔀 Combinado (entrada + parcelamento)' }
+                ]}
+              />
+            </div>
+
+            {/* Aviso cartão sem desconto */}
+            {isCartao && !isCombinado && (
+              <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg flex items-start gap-2">
+                <span className="text-blue-400">ℹ</span>
+                <p className="text-sm text-blue-300">Vendas no cartão não possuem desconto. O valor será cobrado integralmente.</p>
               </div>
             )}
-            {isCombinado && (
-              <div className="mt-3 p-3 bg-zinc-800 rounded-lg space-y-2 border border-zinc-700">
-                <div className="flex justify-between items-center mb-1">
-                  <p className="text-sm font-medium text-orange-400">Detalhe dos Pagamentos</p>
-                  <button type="button" onClick={addPagamento} className="btn btn-sm btn-secondary text-xs">+ Adicionar</button>
-                </div>
-                {pagamentosCompostos.map((pag, i) => (
-                  <div key={i} className="flex gap-2 flex-wrap items-center border-b border-zinc-700/50 pb-2 last:border-0">
+
+            {/* Parcelas para crédito/financiamento simples */}
+            {isCredito && !isCombinado && (
+              <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl p-4 space-y-3">
+                <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium">💳 Parcelamento</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex-1 min-w-32">
+                    <label className="block text-xs text-zinc-400 mb-1">Nº de Parcelas</label>
                     <select
-                      value={pag.tipo}
-                      onChange={(e) => updatePagamento(i, 'tipo', e.target.value)}
-                      className="input text-sm w-36"
+                      value={form.parcelas}
+                      onChange={e => setForm(f => ({ ...f, parcelas: e.target.value }))}
+                      className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
                     >
-                      <option value="PIX">PIX</option>
-                      <option value="DINHEIRO">Dinheiro</option>
-                      <option value="CARTAO_DEBITO">Cartao Debito</option>
-                      <option value="CARTAO_CREDITO">Cartao Credito</option>
-                      <option value="FINANCIAMENTO">Financiamento</option>
+                      {[1,2,3,4,5,6,7,8,9,10,11,12,18,24,36,48].map(n => (
+                        <option key={n} value={n}>{n}x</option>
+                      ))}
                     </select>
-                    <div className="relative w-32">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
-                      <input
-                        type="number" step="0.01" min="0"
-                        value={pag.valor}
-                        onChange={(e) => updatePagamento(i, 'valor', e.target.value)}
-                        className="input text-sm pl-8"
-                        placeholder="0,00"
-                      />
-                    </div>
-                    {(pag.tipo === 'CARTAO_CREDITO' || pag.tipo === 'FINANCIAMENTO') && (
-                      <div className="relative w-20">
-                        <input
-                          type="number" min="1" max="72"
-                          value={pag.parcelas}
-                          onChange={(e) => updatePagamento(i, 'parcelas', e.target.value)}
-                          className="input text-sm pr-6"
-                          placeholder="1"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">x</span>
-                      </div>
-                    )}
-                    <input
-                      type="text"
-                      value={pag.obs}
-                      onChange={(e) => updatePagamento(i, 'obs', e.target.value)}
-                      className="input text-sm flex-1 min-w-24"
-                      placeholder="Obs..."
-                    />
-                    {pagamentosCompostos.length > 1 && (
-                      <button type="button" onClick={() => removePagamento(i)} className="text-red-500 hover:text-red-400 font-bold text-sm">✕</button>
-                    )}
                   </div>
-                ))}
-                <div className="flex justify-between items-center pt-1">
-                  <span className="text-xs text-gray-500">Total informado:</span>
-                  <span className={`text-sm font-semibold ${Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01 ? 'text-green-400' : 'text-red-400'}`}>
-                    R$ {totalPagamentosCompostos.toFixed(2)} / R$ {calcularTotal().toFixed(2)}
-                  </span>
+                  {parseInt(form.parcelas) > 1 && calcularTotal() > 0 && (
+                    <div className="text-right">
+                      <p className="text-xs text-zinc-500">Valor por parcela</p>
+                      <p className="text-lg font-bold text-orange-400">
+                        R$ {(calcularTotal() / parseInt(form.parcelas)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-zinc-500">{form.parcelas}x sem juros</p>
+                    </div>
+                  )}
+                </div>
+                {/* Atalho: adicionar entrada */}
+                <button
+                  type="button"
+                  onClick={() => ativarCombinado('PIX')}
+                  className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 hover:border-orange-400/50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  + Adicionar entrada (PIX/Dinheiro) antes do crédito
+                </button>
+              </div>
+            )}
+
+            {/* Atalho para pagamento simples (PIX/Dinheiro): adicionar crédito */}
+            {(form.formaPagamento === 'PIX' || form.formaPagamento === 'DINHEIRO') && (
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => ativarCombinado(form.formaPagamento)}
+                  className="text-xs text-zinc-400 hover:text-orange-300 border border-zinc-700 hover:border-orange-500/40 px-3 py-1.5 rounded-lg transition-colors">
+                  🔀 Dividir: entrada + parcelar restante no crédito
+                </button>
+              </div>
+            )}
+
+            {/* COMBINADO — UI principal redesenhada */}
+            {isCombinado && (
+              <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl overflow-hidden">
+                {/* Header com total */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700 bg-zinc-800">
+                  <p className="text-sm font-semibold text-orange-400">🔀 Pagamento Combinado</p>
+                  <div className="text-right">
+                    <p className="text-xs text-zinc-500">Total da venda</p>
+                    <p className="text-sm font-bold text-white">R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  {pagamentosCompostos.map((pag, i) => {
+                    const valorPag = parseFloat(pag.valor) || 0;
+                    const nParcelas = parseInt(pag.parcelas) || 1;
+                    const valorParc = precisaParcelas(pag.tipo) && nParcelas > 1 && valorPag > 0
+                      ? valorPag / nParcelas
+                      : null;
+                    // Acumulado antes deste item
+                    const acumuladoAntes = pagamentosCompostos.slice(0, i).reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
+                    const restanteParaEste = Math.max(0, calcularTotal() - acumuladoAntes);
+
+                    return (
+                      <div key={i} className={`rounded-lg border p-3 space-y-2 ${i === 0 ? 'border-blue-500/40 bg-blue-500/5' : 'border-zinc-700 bg-zinc-900/40'}`}>
+                        {/* Label da linha */}
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${i === 0 ? 'bg-blue-500/20 text-blue-300' : 'bg-zinc-700 text-zinc-400'}`}>
+                            {i === 0 ? '💰 Entrada' : `💳 Pagamento ${i + 1}`}
+                          </span>
+                          {i === 0 && pagamentosCompostos.length === 2 && restanteParaEste > 0 && (
+                            <span className="text-xs text-zinc-500">Restante: R$ {restanteParaEste.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          )}
+                          {pagamentosCompostos.length > 1 && (
+                            <button type="button" onClick={() => removePagamento(i)} className="text-red-400 hover:text-red-300 text-xs ml-auto pl-2">✕</button>
+                          )}
+                        </div>
+
+                        {/* Campos */}
+                        <div className="flex gap-2 flex-wrap items-end">
+                          {/* Tipo */}
+                          <div className="flex-1 min-w-32">
+                            <label className="block text-xs text-zinc-400 mb-1">Forma</label>
+                            <select
+                              value={pag.tipo}
+                              onChange={(e) => updatePagamento(i, 'tipo', e.target.value)}
+                              className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                            >
+                              <option value="PIX">PIX</option>
+                              <option value="DINHEIRO">Dinheiro</option>
+                              <option value="CARTAO_DEBITO">Cartão Débito</option>
+                              <option value="CARTAO_CREDITO">Cartão Crédito</option>
+                              <option value="FINANCIAMENTO">Financiamento</option>
+                            </select>
+                          </div>
+
+                          {/* Valor */}
+                          <div className="w-36">
+                            <label className="block text-xs text-zinc-400 mb-1">Valor (R$)</label>
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">R$</span>
+                              <input
+                                type="number" step="0.01" min="0"
+                                value={pag.valor}
+                                onChange={(e) => i === 0 ? updateEntrada(e.target.value) : updatePagamento(i, 'valor', e.target.value)}
+                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg pl-8 pr-2 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                                placeholder="0,00"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Parcelas (só crédito/financiamento) */}
+                          {precisaParcelas(pag.tipo) && (
+                            <div className="w-24">
+                              <label className="block text-xs text-zinc-400 mb-1">Parcelas</label>
+                              <select
+                                value={pag.parcelas}
+                                onChange={(e) => updatePagamento(i, 'parcelas', e.target.value)}
+                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                              >
+                                {[1,2,3,4,5,6,7,8,9,10,11,12,18,24,36,48].map(n => (
+                                  <option key={n} value={n}>{n}x</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Valor por parcela */}
+                        {valorParc !== null && (
+                          <p className="text-xs text-orange-300 font-medium">
+                            = R$ {valorParc.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / mês ({nParcelas}x)
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Botão adicionar método */}
+                  <button type="button" onClick={addPagamento}
+                    className="w-full py-2 text-xs text-zinc-400 hover:text-orange-400 border border-dashed border-zinc-700 hover:border-orange-500/40 rounded-lg transition-colors">
+                    + Adicionar outra forma de pagamento
+                  </button>
+
+                  {/* Resumo do total */}
+                  <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold ${
+                    Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01
+                      ? 'bg-green-500/10 text-green-400 border border-green-500/30'
+                      : 'bg-red-500/10 text-red-400 border border-red-500/30'
+                  }`}>
+                    <span>
+                      {Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01
+                        ? '✓ Valores conferem'
+                        : `⚠ Diferença: R$ ${Math.abs(totalPagamentosCompostos - calcularTotal()).toFixed(2)}`}
+                    </span>
+                    <span>
+                      R$ {totalPagamentosCompostos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
