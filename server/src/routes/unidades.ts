@@ -154,6 +154,38 @@ router.post('/manual/lote', async (req: AuthRequest, res) => {
   }
 });
 
+// ── Slots disponíveis para cadastro de chassi ─────────────────────────────
+// Retorna quantas unidades do estoque ainda não têm chassi registrado
+router.get('/slots', async (req: AuthRequest, res) => {
+  try {
+    const produtoId = Number(req.query.produtoId);
+    const lojaId    = Number(req.query.lojaId);
+
+    if (!produtoId || !lojaId) {
+      return res.status(400).json({ error: 'produtoId e lojaId são obrigatórios' });
+    }
+
+    // Quantidade no estoque (tabela Estoque)
+    const estoque = await prisma.estoque.findUnique({
+      where: { produtoId_lojaId: { produtoId, lojaId } },
+      select: { quantidade: true },
+    });
+    const estoqueQtd = estoque?.quantidade ?? 0;
+
+    // Chassis já cadastrados em status ESTOQUE para esse produto+loja
+    const chassisCadastrados = await prisma.unidadeFisica.count({
+      where: { produtoId, lojaId, status: 'ESTOQUE' },
+    });
+
+    const slotsDisponiveis = Math.max(0, estoqueQtd - chassisCadastrados);
+
+    res.json({ estoqueQtd, chassisCadastrados, slotsDisponiveis });
+  } catch (error) {
+    console.error('Erro ao calcular slots:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 router.get('/disponiveis/:lojaId', async (req: AuthRequest, res) => {
   try {
     const lojaId = Number(req.params.lojaId);

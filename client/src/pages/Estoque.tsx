@@ -122,6 +122,7 @@ function ModalCadastroChassi({
   const [resultado, setResultado] = useState<{ criados: number; erros: number; detalhesErros: string[] } | null>(null);
   const [importErro, setImportErro] = useState('');
   const fileImportRef = useRef<HTMLInputElement>(null);
+  const [slots, setSlots] = useState<{ estoqueQtd: number; chassisCadastrados: number; slotsDisponiveis: number } | null>(null);
 
   const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
   const lbl = 'block text-xs text-zinc-400 mb-1';
@@ -182,6 +183,17 @@ function ModalCadastroChassi({
           }));
 
         if (novasRows.length === 0) { setImportErro('Nenhuma linha com chassi encontrada.'); return; }
+
+        // Respeita o limite de slots disponíveis
+        if (slots !== null && novasRows.length > slots.slotsDisponiveis) {
+          const cortadas = novasRows.slice(0, slots.slotsDisponiveis);
+          setImportErro(
+            `⚠️ Planilha tinha ${novasRows.length} chassis, mas só há ${slots.slotsDisponiveis} slot(s) disponível(is) no estoque. ` +
+            `Foram importados apenas os primeiros ${slots.slotsDisponiveis}.`
+          );
+          setRows(cortadas.length > 0 ? cortadas : [emptyRow()]);
+          return;
+        }
         setRows(novasRows);
       } catch {
         setImportErro('Erro ao ler a planilha. Verifique o formato do arquivo.');
@@ -207,6 +219,14 @@ function ModalCadastroChassi({
       .catch(() => setFornecedores([]));
   }, [lojaIdSel]);
 
+  // Busca slots disponíveis ao selecionar produto + loja
+  useEffect(() => {
+    if (!produtoId || !lojaIdSel) { setSlots(null); return; }
+    api.get<any>(`/unidades/slots?produtoId=${produtoId}&lojaId=${lojaIdSel}`)
+      .then(d => setSlots(d as any))
+      .catch(() => setSlots(null));
+  }, [produtoId, lojaIdSel]);
+
   function updateRow(i: number, field: keyof ChassiRow, val: string) {
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
   }
@@ -214,6 +234,22 @@ function ModalCadastroChassi({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!produtoId) { setErro('Selecione um produto'); return; }
+
+    // Valida contra slots disponíveis
+    if (slots !== null) {
+      if (slots.slotsDisponiveis === 0) {
+        setErro(`Todos os ${slots.estoqueQtd} chassis já estão registrados para este produto nesta loja.`);
+        return;
+      }
+      if (modo === 'lote') {
+        const qtdValidas = rows.filter(r => r.chassi.trim()).length;
+        if (qtdValidas > slots.slotsDisponiveis) {
+          setErro(`Você tentou cadastrar ${qtdValidas} chassis, mas só há ${slots.slotsDisponiveis} vaga(s) disponível(is) no estoque (${slots.estoqueQtd} no estoque − ${slots.chassisCadastrados} já cadastrados).`);
+          return;
+        }
+      }
+    }
+
     setSaving(true); setErro('');
     try {
       if (modo === 'unitario') {
@@ -324,6 +360,31 @@ function ModalCadastroChassi({
             )}
           </div>
 
+          {/* Indicador de slots */}
+          {slots !== null && produtoId && (
+            <div className={`rounded-lg px-4 py-3 flex items-center gap-3 text-sm border ${
+              slots.slotsDisponiveis === 0
+                ? 'bg-red-500/10 border-red-500/30 text-red-300'
+                : slots.slotsDisponiveis <= 3
+                ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
+                : 'bg-green-500/10 border-green-500/30 text-green-300'
+            }`}>
+              <span className="text-xl">
+                {slots.slotsDisponiveis === 0 ? '🔴' : slots.slotsDisponiveis <= 3 ? '🟡' : '🟢'}
+              </span>
+              <div className="flex-1">
+                <p className="font-medium">
+                  {slots.slotsDisponiveis === 0
+                    ? 'Nenhum slot disponível'
+                    : `${slots.slotsDisponiveis} slot(s) disponível(is)`}
+                </p>
+                <p className="text-xs opacity-70 mt-0.5">
+                  {slots.estoqueQtd} no estoque · {slots.chassisCadastrados} chassi(s) já cadastrado(s)
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Origem / Fornecedor */}
           <div className="border border-zinc-800 rounded-lg p-4 space-y-3">
             <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium">📦 Origem do Produto</p>
@@ -377,8 +438,10 @@ function ModalCadastroChassi({
                   <input ref={fileImportRef} type="file" accept=".xlsx,.xls,.csv"
                     className="hidden" onChange={importarPlanilha} />
                   {/* Adicionar linha manual */}
-                  <button type="button" onClick={() => setRows(p => [...p, emptyRow()])}
-                    className="text-xs text-orange-400 hover:text-orange-300 font-medium">
+                  <button type="button"
+                    onClick={() => setRows(p => [...p, emptyRow()])}
+                    disabled={slots !== null && rows.length >= slots.slotsDisponiveis}
+                    className="text-xs text-orange-400 hover:text-orange-300 font-medium disabled:opacity-30 disabled:cursor-not-allowed">
                     + Linha
                   </button>
                 </div>
@@ -435,7 +498,8 @@ function ModalCadastroChassi({
             <button type="button" onClick={onClose} className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm">
               Cancelar
             </button>
-            <button type="submit" disabled={saving}
+            <button type="submit"
+              disabled={saving || (slots !== null && slots.slotsDisponiveis === 0)}
               className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium">
               {saving ? 'Salvando...' : modo === 'unitario' ? 'Cadastrar Chassi' : `Cadastrar ${rows.filter(r => r.chassi.trim()).length} Chassi(s)`}
             </button>
