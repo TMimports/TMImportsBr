@@ -1024,7 +1024,15 @@ export function Vendas() {
                 value={form.formaPagamento}
                 onChange={(val) => {
                   setForm(f => ({ ...f, formaPagamento: val, parcelas: '1' }));
-                  if (val !== 'COMBINADO') setPagamentosCompostos([{ tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
+                  if (val === 'COMBINADO') {
+                    const total = calcularTotal();
+                    setPagamentosCompostos([
+                      { tipo: 'PIX', valor: '', parcelas: '1', obs: '' },
+                      { tipo: 'CARTAO_CREDITO', valor: total > 0 ? total.toFixed(2) : '', parcelas: '1', obs: '' },
+                    ]);
+                  } else {
+                    setPagamentosCompostos([{ tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
+                  }
                 }}
                 options={[
                   { value: 'PIX', label: '💰 PIX' },
