@@ -48,6 +48,7 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+/* ── Responsive utilities ──────────────────────────── */
 @media (max-width: 768px) {
   .hide-mobile {
     display: none !important;
@@ -57,6 +58,27 @@ input[type="number"] {
 @media (min-width: 769px) {
   .hide-desktop {
     display: none !important;
+  }
+}
+
+/* Tabelas com scroll horizontal no mobile */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Garante que textos não quebrem linhas em células de tabela */
+.table-scroll table {
+  min-width: 600px;
+}
+
+/* Modais: garante altura máxima com scroll em mobile */
+@media (max-width: 768px) {
+  /* Qualquer div de modal grande: limita a 90vh e scroll */
+  .fixed.inset-0 > div[class*="max-w"] {
+    max-height: 90vh !important;
+    overflow-y: auto !important;
   }
 }
 

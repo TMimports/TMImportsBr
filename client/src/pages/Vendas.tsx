@@ -731,14 +731,9 @@ export function Vendas() {
                             </div>
                           </>
                         )}
-                        <div className="relative w-32">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
-                          <input
-                            type="number" step="0.01" min="0"
-                            value={item.preco}
-                            onChange={(e) => atualizarMoto(index, 'preco', parseFloat(e.target.value) || 0)}
-                            className="input text-sm pl-8 text-green-400"
-                          />
+                        <div className="flex items-center gap-1 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-2 py-1.5">
+                          <span className="text-gray-500 text-xs">R$</span>
+                          <span className="text-green-400 text-sm font-medium">{Number(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <button type="button" onClick={() => removerMoto(index)} className="text-red-500 hover:text-red-400 font-bold">✕</button>
                       </div>
