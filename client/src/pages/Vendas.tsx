@@ -107,13 +107,13 @@ interface ConfigDescontos {
   descontoMaxPeca: number;
 }
 
-// Taxas da máquina (calculadas da planilha: Valor recebido / 6000 - 1)
+// Taxas da máquina — coluna D "Taxa Adulterada" da planilha
 const TAXAS_MAQUINA: Record<number, number> = {
-  1:  0.04378,  2:  0.05688,  3:  0.06328,  4:  0.06981,
-  5:  0.07647,  6:  0.08326,  7:  0.09304,  8:  0.10013,
-  9:  0.10738,  10: 0.11478,  11: 0.12234,  12: 0.13006,
-  13: 0.14391,  14: 0.15202,  15: 0.16030,  16: 0.16878,
-  17: 0.17745,  18: 0.18631,
+  1:  0.0570,   2:  0.0685,   3:  0.0740,   4:  0.0796,
+  5:  0.0852,   6:  0.0908,   7:  0.0989,   8:  0.1046,
+  9:  0.1104,   10: 0.1162,   11: 0.1220,   12: 0.1280,
+  13: 0.1384,   14: 0.1443,   15: 0.1504,   16: 0.1564,
+  17: 0.1626,   18: 0.1687,
 };
 
 const TODAS_PARCELAS = Array.from({ length: 18 }, (_, i) => i + 1);
