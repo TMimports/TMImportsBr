@@ -361,9 +361,12 @@ router.post('/', async (req: AuthRequest, res) => {
     }
 
     res.status(201).json(venda);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao criar venda:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    const msg = process.env.NODE_ENV === 'development'
+      ? (error?.message || String(error))
+      : 'Erro interno do servidor';
+    res.status(500).json({ error: msg });
   }
 });
 
