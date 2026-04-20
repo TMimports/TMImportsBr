@@ -1080,10 +1080,10 @@ export function Vendas() {
                       <div className="text-right">
                         <p className="text-xs text-zinc-500">Valor por parcela</p>
                         <p className="text-lg font-bold text-orange-400">
-                          R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                         <p className="text-xs text-zinc-500">
-                          Taxa: {(taxa * 100).toFixed(2)}% · Total: R$ {totalComTaxa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          Taxa: {(taxa * 100).toFixed(2)}% · Total: R$ {totalComTaxa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                       </div>
                     );
@@ -1208,7 +1208,7 @@ export function Vendas() {
                           <div className="rounded-lg bg-orange-950/30 border border-orange-500/20 px-3 py-2 space-y-1">
                             <div className="flex items-center justify-between text-xs text-zinc-400">
                               <span>Valor financiado</span>
-                              <span className="font-medium text-white">R$ {valorPag.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="font-medium text-white">R$ {valorPag.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex items-center justify-between text-xs text-zinc-400">
                               <span>Taxa da máquina ({nParcelas}x)</span>
@@ -1216,11 +1216,11 @@ export function Vendas() {
                             </div>
                             <div className="flex items-center justify-between text-xs text-zinc-400">
                               <span>Total com encargos</span>
-                              <span className="font-medium text-white">R$ {valorComTaxa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="font-medium text-white">R$ {valorComTaxa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="border-t border-orange-500/20 pt-1 flex items-center justify-between">
                               <span className="text-xs font-semibold text-orange-300">{nParcelas}x de</span>
-                              <span className="text-base font-bold text-orange-400">R$ {valorParc!.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              <span className="text-base font-bold text-orange-400">R$ {valorParc!.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                           </div>
                         )}
