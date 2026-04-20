@@ -1340,9 +1340,15 @@ export function Vendas() {
               <div className="flex justify-between items-center text-lg font-bold border-t border-zinc-700 pt-2">
                 <span>Total a Pagar:</span>
                 <span className="text-green-400">
-                  R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(isCombinado ? totalComEncargos : calcularTotal()).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
+              {isCombinado && totalComEncargos > calcularTotal() && (
+                <div className="flex justify-between text-xs text-zinc-500">
+                  <span>Base do produto:</span>
+                  <span>R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
             </div>
           </div>
 
