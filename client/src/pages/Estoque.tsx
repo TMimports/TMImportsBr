@@ -848,7 +848,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   const verCustos = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(userTabG?.role || '');
   const isAdmin = minhaLojaId === null;
   const podeTransferir = isAdmin || lojaId === minhaLojaId;
-  const podeEditarEstoque = userTabG && ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userTabG.role);
+  const podeEditarEstoque = userTabG?.role === 'ADMIN_GERAL';
 
   function abrirEditarItem(it: ItemGerencial) {
     setEditandoItem(it);
@@ -1196,7 +1196,7 @@ function TabUnitaria({
   const [deletandoId, setDeletandoId] = useState<number | null>(null);
 
   const { user: userTabU } = useAuth();
-  const podeEditarExcluir = userTabU && ['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userTabU.role);
+  const podeEditarExcluir = userTabU?.role === 'ADMIN_GERAL';
 
   function abrirEditar(u: ItemUnitario) {
     setEditandoUnidade(u);

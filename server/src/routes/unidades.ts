@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
-import { verifyToken, applyTenantFilter, AuthRequest } from '../middleware/auth.js';
+import { verifyToken, applyTenantFilter, AuthRequest, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -15,7 +15,7 @@ router.get('/:id(\\d+)', goneHandler);
 router.post('/', goneHandler);
 
 // ── Editar dados do chassi ──────────────────────────────────────────────────
-router.put('/:id(\\d+)', async (req: AuthRequest, res) => {
+router.put('/:id(\\d+)', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
     const { chassi, cor, codigoMotor, ano } = req.body;
@@ -47,7 +47,7 @@ router.put('/:id(\\d+)', async (req: AuthRequest, res) => {
 });
 
 // ── Excluir chassi (apenas ESTOQUE) ────────────────────────────────────────
-router.delete('/:id(\\d+)', async (req: AuthRequest, res) => {
+router.delete('/:id(\\d+)', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
     const user = req.user!;

@@ -464,7 +464,7 @@ router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', '
 });
 
 // ─── Remover produto do estoque (apenas qtd=0 e sem chassi em ESTOQUE) ────────
-router.delete('/:id(\\d+)', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
+router.delete('/:id(\\d+)', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
   try {
     const id = Number(req.params.id);
     const estoque = await prisma.estoque.findUnique({
