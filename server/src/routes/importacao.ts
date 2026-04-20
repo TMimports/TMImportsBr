@@ -537,8 +537,20 @@ router.get('/modelo/:tipo', verifyToken, (req, res) => {
       ['Scooter Eletrica 1500W', 'Preta', '9BWZZZ377VT004252', 'EL1500BR', 2024],
       ['Scooter Cargo 2000W', 'Azul', '9BWZZZ377VT004253', 'EL2000CG', 2025],
     ];
+  } else if (tipo === 'estoque') {
+    filename = 'modelo_importacao_estoque.xlsx';
+    sheetData = [
+      ['Modelo', 'Loja', 'Tipo', 'Cor', 'Custo (R$)', 'Chassi', 'Quantidade'],
+      ['Nome do produto', 'Nome da loja de destino', 'Moto ou Peca', 'Opcional', 'Opcional', 'Opcional (so MOTO)', 'Opcional - padrao 1'],
+      ['Scooter Eletrica 1500W', 'TM Importacao', 'Moto', 'Branca', 3500.00, '9BWZZZ377VT004251', 1],
+      ['Scooter Eletrica 1500W', 'TM Recreio', 'Moto', 'Preta', 3500.00, '9BWZZZ377VT004252', 1],
+      ['Scooter Cargo 2000W', 'TM Barra', 'Moto', 'Azul', 4200.00, '', 1],
+      ['Kit Relacao 428H', 'TM Importacao', 'Peca', '', 85.00, '', 10],
+      ['Capacete Integral Preto', 'TM Campo Grande', 'Peca', 'Preto', 120.00, '', 5],
+      ['Bateria 60V 20Ah', 'TM Recreio', 'Peca', '', 320.00, '', 3],
+    ];
   } else {
-    return res.status(400).json({ error: 'Tipo de modelo inválido. Use: produtos, servicos, unidades' });
+    return res.status(400).json({ error: 'Tipo de modelo inválido. Use: produtos, servicos, unidades, estoque' });
   }
 
   const wb  = XLSX.utils.book_new();

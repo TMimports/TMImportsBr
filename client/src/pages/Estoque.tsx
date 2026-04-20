@@ -1866,9 +1866,246 @@ function ModalImportacaoEstoque({ onClose, onSucesso }: { onClose: () => void; o
   );
 }
 
+// ─── Tab de Importação Central (exclusivo TM Importação) ──────────────────────
+
+interface ImportSection {
+  key: string;
+  title: string;
+  icon: string;
+  desc: string;
+  endpoint: string;
+  modeloTipo: string;
+  campos: string[];
+  obs: string;
+}
+
+const IMPORT_SECTIONS: ImportSection[] = [
+  {
+    key: 'produtos',
+    title: 'Catálogo de Produtos',
+    icon: '📦',
+    desc: 'Cria ou atualiza produtos no catálogo global (Motos e Peças). Use antes de importar estoque.',
+    endpoint: '/api/importacao/produtos',
+    modeloTipo: 'produtos',
+    campos: ['Nome (obrigatório)', 'Tipo (Moto ou Peca)', 'Custo R$', 'Preço Venda R$', 'Margem %'],
+    obs: 'O tipo MOTO ou PEÇA é detectado automaticamente pelo nome caso a coluna Tipo esteja vazia.',
+  },
+  {
+    key: 'estoque',
+    title: 'Estoque por Loja',
+    icon: '🏪',
+    desc: 'Importa entradas de estoque distribuídas por loja. Cria produtos se não existirem. Registra LogEstoque.',
+    endpoint: '/api/importacao/estoque',
+    modeloTipo: 'estoque',
+    campos: ['Modelo (obrigatório)', 'Loja/Destino (obrigatório)', 'Cor', 'Custo R$', 'Chassi', 'Quantidade'],
+    obs: 'Loja pode ser "TM Recreio", "TM Barra", "TM Importação", etc. Se tiver chassi e for MOTO → cria UnidadeFisica.',
+  },
+  {
+    key: 'unidades',
+    title: 'Chassis / Unidades Físicas',
+    icon: '🏍️',
+    desc: 'Vincula chassis individualmente a produtos MOTO já cadastrados. Requer produto existente no catálogo.',
+    endpoint: '/api/importacao/unidades',
+    modeloTipo: 'unidades',
+    campos: ['Modelo (nome exato do produto)', 'Cor', 'Chassi', 'Motor', 'Ano'],
+    obs: 'O nome do modelo deve corresponder exatamente a um produto MOTO cadastrado.',
+  },
+];
+
+function TabImportacaoCentral() {
+  // Estado por seção: arquivo, loading, resultado
+  const [estados, setEstados] = useState<Record<string, { arquivo: File | null; loading: boolean; resultado: any; erro: string }>>(() =>
+    Object.fromEntries(IMPORT_SECTIONS.map(s => [s.key, { arquivo: null, loading: false, resultado: null, erro: '' }]))
+  );
+  const refProdutos = useRef<HTMLInputElement>(null);
+  const refEstoque  = useRef<HTMLInputElement>(null);
+  const refUnidades = useRef<HTMLInputElement>(null);
+  const fileRefs: Record<string, React.RefObject<HTMLInputElement>> = {
+    produtos: refProdutos,
+    estoque:  refEstoque,
+    unidades: refUnidades,
+  };
+
+  function setEstado(key: string, patch: Partial<typeof estados[string]>) {
+    setEstados(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  }
+
+  async function baixarModelo(tipo: string) {
+    try {
+      const res = await fetch(`/api/importacao/modelo/${tipo}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!res.ok) throw new Error('Falha ao baixar modelo');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `modelo_${tipo}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert('Erro ao baixar modelo: ' + e.message);
+    }
+  }
+
+  async function importar(section: ImportSection) {
+    const st = estados[section.key];
+    if (!st.arquivo) { setEstado(section.key, { erro: 'Selecione um arquivo' }); return; }
+    setEstado(section.key, { loading: true, erro: '', resultado: null });
+    try {
+      const fd = new FormData();
+      fd.append('arquivo', st.arquivo);
+      const res = await fetch(section.endpoint, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao importar');
+      setEstado(section.key, { resultado: data, arquivo: null });
+      if (fileRefs[section.key]?.current) fileRefs[section.key].current!.value = '';
+    } catch (e: any) {
+      setEstado(section.key, { erro: e.message });
+    } finally {
+      setEstado(section.key, { loading: false });
+    }
+  }
+
+  return (
+    <div className="p-4 space-y-5">
+      {/* Banner */}
+      <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 flex items-start gap-3">
+        <span className="text-2xl">🏭</span>
+        <div>
+          <p className="text-purple-300 font-semibold text-sm">Central de Importação — TM Importação</p>
+          <p className="text-zinc-400 text-xs mt-0.5">
+            Use esta área para popular o sistema: primeiro importe o catálogo de produtos, depois o estoque por loja e por último os chassis das motos.
+          </p>
+        </div>
+      </div>
+
+      {/* Ordem recomendada */}
+      <div className="flex gap-2 items-center text-xs text-zinc-500">
+        <span className="bg-zinc-800 px-2 py-1 rounded font-medium text-zinc-300">1. Catálogo</span>
+        <span>→</span>
+        <span className="bg-zinc-800 px-2 py-1 rounded font-medium text-zinc-300">2. Estoque por Loja</span>
+        <span>→</span>
+        <span className="bg-zinc-800 px-2 py-1 rounded font-medium text-zinc-300">3. Chassis</span>
+      </div>
+
+      {IMPORT_SECTIONS.map((section, idx) => {
+        const st = estados[section.key];
+        const resultado = st.resultado;
+
+        return (
+          <div key={section.key} className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">
+            {/* Header da seção */}
+            <div className="px-4 py-3 bg-zinc-800/50 border-b border-[#27272a] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{section.icon}</span>
+                <div>
+                  <p className="text-white font-semibold text-sm">
+                    <span className="text-zinc-500 mr-2 text-xs font-normal">Passo {idx + 1}</span>
+                    {section.title}
+                  </p>
+                  <p className="text-zinc-400 text-xs mt-0.5">{section.desc}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => baixarModelo(section.modeloTipo)}
+                className="shrink-0 flex items-center gap-1.5 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Baixar Modelo
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {/* Colunas esperadas */}
+              <div className="flex flex-wrap gap-1">
+                {section.campos.map((c, i) => (
+                  <span key={i} className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded font-mono">{c}</span>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-500">{section.obs}</p>
+
+              {/* Upload */}
+              <div className="flex gap-2 items-center">
+                <input
+                  ref={fileRefs[section.key]}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={e => setEstado(section.key, { arquivo: e.target.files?.[0] ?? null, erro: '', resultado: null })}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-orange-500 file:text-white cursor-pointer"
+                />
+                <button
+                  onClick={() => importar(section)}
+                  disabled={st.loading || !st.arquivo}
+                  className="shrink-0 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  {st.loading ? 'Importando...' : '📥 Importar'}
+                </button>
+              </div>
+
+              {st.erro && <p className="text-red-400 text-xs">{st.erro}</p>}
+
+              {/* Resultado */}
+              {resultado && (
+                <div className={`rounded-lg p-3 text-xs border ${resultado.erros > 0 ? 'bg-yellow-900/20 border-yellow-700/30' : 'bg-green-900/20 border-green-700/30'}`}>
+                  <p className={`font-semibold mb-2 ${resultado.erros > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {resultado.erros > 0 ? '⚠ Concluído com avisos' : '✓ Importação concluída!'}
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                    {resultado.totalLinhas     !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Linhas</p><p className="text-white font-bold">{resultado.totalLinhas}</p></div>}
+                    {resultado.criados         !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Criados</p><p className="text-orange-400 font-bold">{resultado.criados}</p></div>}
+                    {resultado.importados      !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Importados</p><p className="text-green-400 font-bold">{resultado.importados}</p></div>}
+                    {resultado.atualizados     !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Atualizados</p><p className="text-blue-400 font-bold">{resultado.atualizados}</p></div>}
+                    {resultado.entradasLancadas!== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Entradas</p><p className="text-green-400 font-bold">{resultado.entradasLancadas}</p></div>}
+                    {resultado.erros           !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Erros</p><p className="text-red-400 font-bold">{resultado.erros}</p></div>}
+                  </div>
+                  {/* Colunas detectadas */}
+                  {resultado.colunasDetectadas && (
+                    <div className="mt-1 mb-2">
+                      <p className="text-zinc-500 mb-1">Colunas mapeadas:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(resultado.colunasDetectadas).map(([k, v]: any) => (
+                          <span key={k} className="text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
+                            {k}: <span className="text-zinc-200">{v}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {resultado.detalhesErros?.length > 0 && (
+                    <div className="max-h-24 overflow-y-auto mt-1 space-y-0.5">
+                      {resultado.detalhesErros.map((e: string, i: number) => (
+                        <p key={i} className="text-red-400">{e}</p>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setEstado(section.key, { resultado: null })}
+                    className="mt-2 text-zinc-500 hover:text-zinc-300 text-xs underline"
+                  >
+                    Nova importação
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── View por Empresa ─────────────────────────────────────────────────────────
 
-type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes';
+type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes' | 'importacao';
 
 function ViewEmpresa({
   lojaId, minhaLojaId, isAprovador, onBack, refreshSolicitacoes, onSolicitacaoFeita, lojas, verCustos
@@ -1919,6 +2156,7 @@ function ViewEmpresa({
     { id: 'unitaria', label: isOutraLoja ? 'Unidades Disponíveis' : 'Unitária (Chassi)', count: data.unitaria.filter(u => isOutraLoja ? u.status === 'ESTOQUE' : true).length },
     { id: 'movimentacao', label: 'Movimentação', count: data.logsRecentes.length },
     { id: 'solicitacoes', label: isAprovador ? 'Solicitações' : 'Minhas Solicitações', highlight: isAprovador },
+    ...(lojaId === LOJA_IMPORTACAO_ID ? [{ id: 'importacao' as EmpresaTab, label: '📥 Importação Central', highlight: true }] : []),
   ];
 
   return (
@@ -2068,6 +2306,7 @@ function ViewEmpresa({
             refreshKey={refreshSolicitacoes}
           />
         )}
+        {aba === 'importacao' && <TabImportacaoCentral />}
       </Card>
 
       {showCadastroChassi && (
