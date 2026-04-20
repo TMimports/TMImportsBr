@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo, Fragment } from 'react';
+import { useEffect, useState, useMemo, useRef, Fragment } from 'react';
+import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useLojaContext } from '../contexts/LojaContext';
 import { api } from '../services/api';
@@ -119,9 +120,76 @@ function ModalCadastroChassi({
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [resultado, setResultado] = useState<{ criados: number; erros: number; detalhesErros: string[] } | null>(null);
+  const [importErro, setImportErro] = useState('');
+  const fileImportRef = useRef<HTMLInputElement>(null);
 
   const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
   const lbl = 'block text-xs text-zinc-400 mb-1';
+
+  function baixarModeloChassi() {
+    const nomeProduto = produtos.find(p => String(p.id) === produtoId)?.nome || 'Produto';
+    const anoAtual = new Date().getFullYear();
+    const sheetData = [
+      ['Chassi', 'Modelo', 'Cor', 'Cód. Motor', 'Ano'],
+      ['(obrigatório)', nomeProduto, '(opcional)', '(opcional)', '(opcional)'],
+      ['9C2HAXXXXXXXXXXXXX', nomeProduto, 'Preto', 'MOT001', anoAtual],
+      ['9C2HAXXXXXXXXXXXXY', nomeProduto, 'Branco', 'MOT002', anoAtual],
+      ['9C2HAXXXXXXXXXXXXXZ', nomeProduto, 'Azul', 'MOT003', anoAtual],
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 12 }, { wch: 14 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Chassis');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'modelo_cadastro_chassis.xlsx';
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  function importarPlanilha(e: React.ChangeEvent<HTMLInputElement>) {
+    setImportErro('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = new Uint8Array(ev.target!.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (raw.length < 2) { setImportErro('Planilha vazia ou sem dados.'); return; }
+
+        // Detecta índices pelas colunas do cabeçalho
+        const header = raw[0].map((h: any) => String(h).toLowerCase().trim());
+        const col = (terms: string[]) => header.findIndex((h: string) => terms.some(t => h.includes(t)));
+        const iChassi = col(['chassi', 'chassis', 'chasi']);
+        const iCor    = col(['cor', 'color', 'colour']);
+        const iMotor  = col(['motor', 'cód', 'cod', 'codigo', 'engine']);
+        const iAno    = col(['ano', 'year', 'anio']);
+
+        if (iChassi === -1) { setImportErro('Coluna "Chassi" não encontrada na planilha.'); return; }
+
+        const anoDefault = String(new Date().getFullYear());
+        const novasRows: ChassiRow[] = raw.slice(1)
+          .filter((row: any[]) => String(row[iChassi] ?? '').trim())
+          .map((row: any[]): ChassiRow => ({
+            chassi:       String(row[iChassi] ?? '').trim(),
+            cor:          iCor    >= 0 ? String(row[iCor]    ?? '').trim() : '',
+            codigoMotor:  iMotor  >= 0 ? String(row[iMotor]  ?? '').trim() : '',
+            ano:          iAno    >= 0 && row[iAno] ? String(Math.round(Number(row[iAno]))) : anoDefault,
+          }));
+
+        if (novasRows.length === 0) { setImportErro('Nenhuma linha com chassi encontrada.'); return; }
+        setRows(novasRows);
+      } catch {
+        setImportErro('Erro ao ler a planilha. Verifique o formato do arquivo.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  }
 
   useEffect(() => {
     api.get<any>('/produtos?tipo=MOTO&limit=200')
@@ -290,17 +358,40 @@ function ModalCadastroChassi({
 
           {/* Linhas de chassi */}
           <div className="border-t border-zinc-800 pt-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <p className="text-xs text-zinc-400 uppercase tracking-wide">
-                {modo === 'unitario' ? 'Dados do Chassi' : `${rows.length} chassi(s) — clique em + para adicionar`}
+                {modo === 'unitario' ? 'Dados do Chassi' : `${rows.length} chassi(s)`}
               </p>
               {modo === 'lote' && (
-                <button type="button" onClick={() => setRows(p => [...p, emptyRow()])}
-                  className="text-xs text-orange-400 hover:text-orange-300 font-medium">
-                  + Adicionar linha
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Baixar modelo */}
+                  <button type="button" onClick={baixarModeloChassi}
+                    className="text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                    ⬇ Modelo .xlsx
+                  </button>
+                  {/* Importar planilha */}
+                  <button type="button" onClick={() => fileImportRef.current?.click()}
+                    className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/40 hover:border-blue-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                    📥 Importar planilha
+                  </button>
+                  <input ref={fileImportRef} type="file" accept=".xlsx,.xls,.csv"
+                    className="hidden" onChange={importarPlanilha} />
+                  {/* Adicionar linha manual */}
+                  <button type="button" onClick={() => setRows(p => [...p, emptyRow()])}
+                    className="text-xs text-orange-400 hover:text-orange-300 font-medium">
+                    + Linha
+                  </button>
+                </div>
               )}
             </div>
+            {importErro && (
+              <p className="text-xs text-red-400 mb-2 bg-red-500/10 px-3 py-2 rounded-lg">{importErro}</p>
+            )}
+            {modo === 'lote' && rows.length > 1 && (
+              <p className="text-xs text-zinc-500 mb-2">
+                {rows.filter(r => r.chassi.trim()).length} chassi(s) com dados preenchidos
+              </p>
+            )}
 
             <div className="space-y-3">
               {rows.map((row, i) => (
