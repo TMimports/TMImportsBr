@@ -1236,21 +1236,13 @@ export function Vendas() {
 
                   {/* Resumo do total */}
                   <div className="space-y-1.5">
-                    {/* Validação entrada vs valor do produto */}
-                    <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium ${
-                      Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01
-                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                        : 'bg-red-500/10 text-red-400 border border-red-500/30'
-                    }`}>
-                      <span>
-                        {Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01
-                          ? '✓ Entrada + restante conferem'
-                          : `⚠ Falta distribuir: R$ ${Math.abs(totalPagamentosCompostos - calcularTotal()).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                      </span>
-                      <span>
-                        R$ {totalPagamentosCompostos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
+                    {/* Alerta só quando há diferença não distribuída */}
+                    {Math.abs(totalPagamentosCompostos - calcularTotal()) >= 0.01 && (
+                      <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/30">
+                        <span>⚠ Valor não distribuído</span>
+                        <span>faltam R$ {Math.abs(totalPagamentosCompostos - calcularTotal()).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                     {/* Total real com encargos */}
                     <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30">
                       <span className="text-xs font-semibold text-orange-300">💳 Total a pagar pelo cliente</span>
