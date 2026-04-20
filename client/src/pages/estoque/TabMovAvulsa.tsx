@@ -256,38 +256,62 @@ export function TabMovAvulsa({ lojas }: { lojas: Loja[] }) {
         )}
       </div>
 
-      {/* ── Loja ─────────────────────────────────────────────── */}
-      <div className="bg-zinc-800/30 border border-zinc-700 rounded-xl p-4">
-        <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium mb-3">1 — Loja / Estoque</p>
-        <select value={lojaId} onChange={e => setLojaId(e.target.value)} className={sel}>
-          <option value="">Selecione a loja...</option>
-          {lojas.map(l => <option key={l.id} value={l.id}>[{l.id}] {l.nomeFantasia}</option>)}
-        </select>
-      </div>
+      {/* ── Loja + Produto (para ENTRADA/AJUSTE) / só Loja (para SAÍDA) ── */}
+      {isSaida ? (
+        <div className="bg-zinc-800/30 border border-zinc-700 rounded-xl p-4">
+          <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium mb-3">1 — Loja / Estoque</p>
+          <select value={lojaId} onChange={e => setLojaId(e.target.value)} className={sel}>
+            <option value="">Selecione a loja...</option>
+            {lojas.map(l => <option key={l.id} value={l.id}>[{l.id}] {l.nomeFantasia}</option>)}
+          </select>
+        </div>
+      ) : (
+        <div className="bg-zinc-800/30 border border-zinc-700 rounded-xl p-4 space-y-3">
+          <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">1 — Selecionar Loja e Produto</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Loja / Estoque *</label>
+              <select value={lojaId} onChange={e => setLojaId(e.target.value)} className={sel}>
+                <option value="">Selecione...</option>
+                {lojas.map(l => <option key={l.id} value={l.id}>[{l.id}] {l.nomeFantasia}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1">Produto / Modelo *</label>
+              {isEntrada ? (
+                <select value={entProdutoId} onChange={e => { setEntProdutoId(e.target.value); setEntChassis([emptyRow()]); setEntQtd('1'); }} className={sel}>
+                  <option value="">Selecione...</option>
+                  {produtos.map(p => <option key={p.id} value={p.id}>{p.nome} ({p.tipo})</option>)}
+                </select>
+              ) : (
+                <select value={adjProdutoId} onChange={e => setAdjProdutoId(e.target.value)} className={sel}>
+                  <option value="">Selecione...</option>
+                  {produtos.map(p => <option key={p.id} value={p.id}>{p.nome} ({p.tipo})</option>)}
+                </select>
+              )}
+            </div>
+          </div>
+          {(entProdutoSel || adjProdutoSel) && (
+            <div className="flex items-center gap-2">
+              {(() => {
+                const ps = isEntrada ? entProdutoSel : adjProdutoSel;
+                return ps ? (
+                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${ps.tipo === 'MOTO' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}`}>
+                    {ps.tipo === 'MOTO' ? '🏍 MOTO' : '🔩 PEÇA'}
+                  </span>
+                ) : null;
+              })()}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════ */}
       {/* ── ENTRADA ────────────────────────────────────────────── */}
       {/* ═══════════════════════════════════════════════════════ */}
-      {isEntrada && (
+      {isEntrada && entProdutoSel && (
         <div className="bg-zinc-800/30 border border-zinc-700 rounded-xl p-4 space-y-4">
-          <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">2 — Produto e Dados da Entrada</p>
-
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Produto / Modelo *</label>
-            <select value={entProdutoId} onChange={e => { setEntProdutoId(e.target.value); setEntChassis([emptyRow()]); setEntQtd('1'); }} className={sel}>
-              <option value="">Selecione...</option>
-              {produtos.map(p => <option key={p.id} value={p.id}>{p.nome} ({p.tipo})</option>)}
-            </select>
-          </div>
-
-          {entProdutoSel && (
-            <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-0.5 rounded font-medium ${entProdutoSel.tipo === 'MOTO' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}`}>
-                {entProdutoSel.tipo === 'MOTO' ? '🏍 MOTO' : '🔩 PEÇA'}
-              </span>
-              <span className="text-sm text-white font-medium">{entProdutoSel.nome}</span>
-            </div>
-          )}
+          <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">2 — Dados da Entrada</p>
 
           {entProdutoSel?.tipo === 'MOTO' && (
             <div className="space-y-2">
@@ -439,26 +463,9 @@ export function TabMovAvulsa({ lojas }: { lojas: Loja[] }) {
       {/* ═══════════════════════════════════════════════════════ */}
       {/* ── AJUSTE ────────────────────────────────────────────── */}
       {/* ═══════════════════════════════════════════════════════ */}
-      {isAjuste && (
+      {isAjuste && adjProdutoSel && (
         <div className="bg-zinc-800/30 border border-zinc-700 rounded-xl p-4 space-y-4">
-          <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">2 — Produto e Dados do Ajuste</p>
-
-          <div>
-            <label className="block text-xs font-medium text-zinc-400 mb-1">Produto / Modelo *</label>
-            <select value={adjProdutoId} onChange={e => setAdjProdutoId(e.target.value)} className={sel}>
-              <option value="">Selecione...</option>
-              {produtos.map(p => <option key={p.id} value={p.id}>{p.nome} ({p.tipo})</option>)}
-            </select>
-          </div>
-
-          {adjProdutoSel && (
-            <div className="flex items-center gap-2">
-              <span className={`text-xs px-2 py-0.5 rounded font-medium ${adjProdutoSel.tipo === 'MOTO' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'}`}>
-                {adjProdutoSel.tipo === 'MOTO' ? '🏍 MOTO' : '🔩 PEÇA'}
-              </span>
-              <span className="text-sm text-white font-medium">{adjProdutoSel.nome}</span>
-            </div>
-          )}
+          <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">2 — Dados do Ajuste</p>
 
           {adjProdutoSel?.tipo === 'MOTO' && (
             <div>
