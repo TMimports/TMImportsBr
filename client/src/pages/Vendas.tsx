@@ -63,6 +63,7 @@ interface ItemProduto {
   quantidade: number;
   preco: number;
   desconto: string;
+  descontoValor: string;
   tipo?: string;
   chassi?: string;
   motor?: string;
@@ -76,9 +77,17 @@ interface ItemMoto {
   quantidade: number;
   preco: number;
   desconto: string;
+  descontoValor: string;
   chassi: string;
   motor: string;
   displayName: string;
+}
+
+interface PagamentoComp {
+  tipo: string;
+  valor: string;
+  parcelas: string;
+  obs: string;
 }
 
 interface UnidadeDisponivel {
@@ -130,6 +139,7 @@ export function Vendas() {
   const [itensSelecionados, setItensSelecionados] = useState<ItemProduto[]>([]);
   const [motosSelecionadas, setMotosSelecionadas] = useState<ItemMoto[]>([]);
   const [unidadesDisponiveis, setUnidadesDisponiveis] = useState<UnidadeDisponivel[]>([]);
+  const [pagamentosCompostos, setPagamentosCompostos] = useState<PagamentoComp[]>([{ tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
 
   const loadProdutosLoja = async (lojaId: string) => {
     if (!lojaId) {
@@ -188,8 +198,14 @@ export function Vendas() {
     }
   }, [form.lojaId]);
 
+  // Papéis com trava de desconto em 15%
+  const rolesCap15 = ['VENDEDOR', 'DONO_LOJA'];
+  const rolesLivres = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
+  const userRole = user?.role || '';
+  const maxDescontoRole = rolesLivres.includes(userRole) ? 100 : rolesCap15.includes(userRole) ? 15 : (configDescontos.descontoMaxMoto * 2);
+
   const adicionarItem = () => {
-    setItensSelecionados([...itensSelecionados, { produtoId: '', quantidade: 1, preco: 0, desconto: '0', tipo: '', chassi: '', motor: '' }]);
+    setItensSelecionados([...itensSelecionados, { produtoId: '', quantidade: 1, preco: 0, desconto: '0', descontoValor: '0', tipo: '', chassi: '', motor: '' }]);
   };
 
   const removerItem = (index: number) => {
@@ -201,13 +217,23 @@ export function Vendas() {
     if (field === 'produtoId') {
       const produto = produtos.find(p => p.id === parseInt(value));
       if (produto && produto.estoque <= 0 && form.tipo === 'VENDA') return;
-      novos[index] = { ...novos[index], produtoId: value, preco: produto?.preco || 0, tipo: produto?.tipo || '' };
+      novos[index] = { ...novos[index], produtoId: value, preco: produto?.preco || 0, tipo: produto?.tipo || '', desconto: '0', descontoValor: '0' };
     } else if (field === 'quantidade') {
       const produto = produtos.find(p => p.id === parseInt(novos[index].produtoId));
       if (produto && form.tipo === 'VENDA' && produto.tipo !== 'MOTO') {
         value = Math.min(value, produto.estoque);
       }
       novos[index] = { ...novos[index], [field]: Math.max(1, value) };
+    } else if (field === 'desconto') {
+      // % → calcula valor fixo
+      const pct = parseFloat(value) || 0;
+      const subtotal = novos[index].preco * novos[index].quantidade;
+      novos[index] = { ...novos[index], desconto: value, descontoValor: (subtotal * pct / 100).toFixed(2) };
+    } else if (field === 'descontoValor') {
+      // R$ → calcula %
+      const subtotal = novos[index].preco * novos[index].quantidade;
+      const pct = subtotal > 0 ? (parseFloat(value) || 0) / subtotal * 100 : 0;
+      novos[index] = { ...novos[index], descontoValor: value, desconto: pct.toFixed(2) };
     } else {
       novos[index] = { ...novos[index], [field]: value };
     }
@@ -215,7 +241,7 @@ export function Vendas() {
   };
 
   const adicionarMoto = () => {
-    setMotosSelecionadas([...motosSelecionadas, { unidadeId: '', produtoId: '', quantidade: 1, preco: 0, desconto: '0', chassi: '', motor: '', displayName: '' }]);
+    setMotosSelecionadas([...motosSelecionadas, { unidadeId: '', produtoId: '', quantidade: 1, preco: 0, desconto: '0', descontoValor: '0', chassi: '', motor: '', displayName: '' }]);
   };
 
   const removerMoto = (index: number) => {
@@ -232,6 +258,8 @@ export function Vendas() {
           ...novas[index],
           produtoId: value,
           preco: produto.preco,
+          desconto: '0',
+          descontoValor: '0',
           unidadeId: unidade ? String(unidade.id) : '',
           chassi: unidade?.chassi || '',
           motor: unidade?.codigoMotor || '',
@@ -250,6 +278,15 @@ export function Vendas() {
       } else {
         novas[index] = { ...novas[index], unidadeId: '', chassi: '', motor: '' };
       }
+    } else if (field === 'desconto') {
+      // % → calcula valor fixo
+      const pct = parseFloat(value) || 0;
+      novas[index] = { ...novas[index], desconto: value, descontoValor: (novas[index].preco * pct / 100).toFixed(2) };
+    } else if (field === 'descontoValor') {
+      // R$ → calcula %
+      const preco = novas[index].preco;
+      const pct = preco > 0 ? (parseFloat(value) || 0) / preco * 100 : 0;
+      novas[index] = { ...novas[index], descontoValor: value, desconto: pct.toFixed(2) };
     } else {
       novas[index] = { ...novas[index], [field]: value };
     }
@@ -261,6 +298,14 @@ export function Vendas() {
   };
 
   const isCartao = form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO';
+  const isCombinado = form.formaPagamento === 'COMBINADO';
+
+  const totalPagamentosCompostos = pagamentosCompostos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+
+  const addPagamento = () => setPagamentosCompostos(prev => [...prev, { tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
+  const removePagamento = (i: number) => setPagamentosCompostos(prev => prev.filter((_, idx) => idx !== i));
+  const updatePagamento = (i: number, field: keyof PagamentoComp, val: string) =>
+    setPagamentosCompostos(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: val } : p));
 
   const calcularTotal = () => {
     const totalPecas = itensSelecionados.reduce((acc, item) => {
@@ -299,6 +344,26 @@ export function Vendas() {
       return;
     }
 
+    // Validação de desconto máximo no frontend
+    const todoItens = [...motosSelecionadas.map(m => ({ desconto: parseFloat(m.desconto) || 0, nome: m.displayName || 'Moto' })),
+                       ...itensSelecionados.map(i => ({ desconto: parseFloat(i.desconto) || 0, nome: i.displayName || 'Peça' }))];
+    for (const it of todoItens) {
+      if (it.desconto > maxDescontoRole) {
+        alert(`O desconto máximo permitido para este perfil é de ${maxDescontoRole}%. Item com desconto acima do limite detectado.`);
+        return;
+      }
+    }
+
+    // Validação pagamento combinado
+    const totalFinal = calcularTotal();
+    if (isCombinado) {
+      const totalPag = pagamentosCompostos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+      if (Math.abs(totalPag - totalFinal) > 0.01) {
+        alert(`A soma dos pagamentos (R$ ${totalPag.toFixed(2)}) não confere com o total da venda (R$ ${totalFinal.toFixed(2)}). Corrija os valores.`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const itensPecas = itensSelecionados
@@ -334,7 +399,8 @@ export function Vendas() {
         formaPagamento: form.formaPagamento,
         tipo: form.tipo,
         observacoes: form.observacoes,
-        valorTotalManual: calcularTotal()
+        pagamentosCompostos: isCombinado ? pagamentosCompostos : undefined,
+        valorTotalManual: totalFinal
       });
 
       setModalOpen(false);
@@ -347,6 +413,7 @@ export function Vendas() {
       });
       setItensSelecionados([]);
       setMotosSelecionadas([]);
+      setPagamentosCompostos([{ tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
       loadData();
 
       const vendaCompleta = await api.get<VendaFull>(`/vendas/${novaVenda.id}`);
@@ -639,39 +706,51 @@ export function Vendas() {
                           };
                         })}
                       />
-                      <div className="flex gap-2 items-center">
-                        <div className="relative w-28">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="100"
-                            value={item.desconto}
-                            onChange={(e) => atualizarMoto(index, 'desconto', e.target.value)}
-                            className="input text-sm pr-8 text-yellow-400"
-                            disabled={isCartao}
-                            placeholder="0"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
-                        </div>
+                      <div className="flex gap-2 items-center flex-wrap">
+                        {!isCartao && (
+                          <>
+                            <div className="relative w-24">
+                              <input
+                                type="number" step="0.1" min="0" max={maxDescontoRole}
+                                value={item.desconto}
+                                onChange={(e) => atualizarMoto(index, 'desconto', e.target.value)}
+                                className={`input text-sm pr-7 ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 text-red-400' : 'text-yellow-400'}`}
+                                placeholder="0"
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                            </div>
+                            <div className="relative w-28">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">-R$</span>
+                              <input
+                                type="number" step="0.01" min="0"
+                                value={item.descontoValor}
+                                onChange={(e) => atualizarMoto(index, 'descontoValor', e.target.value)}
+                                className="input text-sm pl-9 text-yellow-400"
+                                placeholder="0,00"
+                              />
+                            </div>
+                          </>
+                        )}
                         <div className="relative w-32">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
                           <input
-                            type="number"
-                            step="0.01"
-                            min="0"
+                            type="number" step="0.01" min="0"
                             value={item.preco}
                             onChange={(e) => atualizarMoto(index, 'preco', parseFloat(e.target.value) || 0)}
                             className="input text-sm pl-8 text-green-400"
                           />
                         </div>
-                        <button type="button" onClick={() => removerMoto(index)} className="text-red-500 hover:text-red-400">
-                          X
-                        </button>
+                        <button type="button" onClick={() => removerMoto(index)} className="text-red-500 hover:text-red-400 font-bold">✕</button>
                       </div>
                     </div>
                     {item.produtoId && !isCartao && (
-                      <p className="text-xs text-gray-500 mt-1 ml-1">Max desconto moto: {configDescontos.descontoMaxMoto}% (Gerentes: {configDescontos.descontoMaxMoto * 2}%)</p>
+                      <div className="mt-1 ml-1">
+                        {parseFloat(item.desconto) > maxDescontoRole ? (
+                          <p className="text-xs text-red-400 font-medium">⚠ O desconto máximo permitido para este perfil é de {maxDescontoRole}%.</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">Desconto máx. para este perfil: {maxDescontoRole}%</p>
+                        )}
+                      </div>
                     )}
                     {item.produtoId && (
                       <>
@@ -754,46 +833,56 @@ export function Vendas() {
                         };
                       })}
                     />
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center flex-wrap">
                       <input
-                        type="number"
-                        min="1"
-                        max={maxQtd}
+                        type="number" min="1" max={maxQtd}
                         value={item.quantidade}
                         onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value) || 1)}
                         className="input w-16"
                       />
-                      <div className="relative w-28">
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="100"
-                          value={item.desconto}
-                          onChange={(e) => atualizarItem(index, 'desconto', e.target.value)}
-                          className="input text-sm pr-8 text-yellow-400"
-                          disabled={isCartao}
-                          placeholder="0"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
-                      </div>
+                      {!isCartao && (
+                        <>
+                          <div className="relative w-24">
+                            <input
+                              type="number" step="0.1" min="0" max={maxDescontoRole}
+                              value={item.desconto}
+                              onChange={(e) => atualizarItem(index, 'desconto', e.target.value)}
+                              className={`input text-sm pr-7 ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 text-red-400' : 'text-yellow-400'}`}
+                              placeholder="0"
+                            />
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                          </div>
+                          <div className="relative w-28">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">-R$</span>
+                            <input
+                              type="number" step="0.01" min="0"
+                              value={item.descontoValor}
+                              onChange={(e) => atualizarItem(index, 'descontoValor', e.target.value)}
+                              className="input text-sm pl-9 text-yellow-400"
+                              placeholder="0,00"
+                            />
+                          </div>
+                        </>
+                      )}
                       <div className="relative w-28">
                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
                         <input
-                          type="number"
-                          step="0.01"
-                          min="0"
+                          type="number" step="0.01" min="0"
                           value={item.preco}
                           onChange={(e) => atualizarItem(index, 'preco', parseFloat(e.target.value) || 0)}
                           className="input text-sm pl-8 text-green-400"
                         />
                       </div>
-                      <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400">
-                        X
-                      </button>
+                      <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400 font-bold">✕</button>
                     </div>
                     {item.produtoId && !isCartao && (
-                      <p className="text-xs text-gray-500 mt-1">Max desconto peca: {configDescontos.descontoMaxPeca}% (Gerentes: {configDescontos.descontoMaxPeca * 2}%)</p>
+                      <div className="mt-1">
+                        {parseFloat(item.desconto) > maxDescontoRole ? (
+                          <p className="text-xs text-red-400 font-medium">⚠ O desconto máximo permitido para este perfil é de {maxDescontoRole}%.</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">Desconto máx. para este perfil: {maxDescontoRole}%</p>
+                        )}
+                      </div>
                     )}
                   </div>
                   );
@@ -813,7 +902,8 @@ export function Vendas() {
                 { value: 'DINHEIRO', label: 'Dinheiro' },
                 { value: 'CARTAO_DEBITO', label: 'Cartao Debito' },
                 { value: 'CARTAO_CREDITO', label: 'Cartao Credito' },
-                { value: 'FINANCIAMENTO', label: 'Financiamento' }
+                { value: 'FINANCIAMENTO', label: 'Financiamento' },
+                { value: 'COMBINADO', label: 'Combinado (multiplas formas)' }
               ]}
             />
             {isCartao && (
@@ -822,6 +912,67 @@ export function Vendas() {
                 <p className="text-sm text-blue-300">
                   Vendas no cartao nao possuem desconto. O valor sera cobrado integralmente.
                 </p>
+              </div>
+            )}
+            {isCombinado && (
+              <div className="mt-3 p-3 bg-zinc-800 rounded-lg space-y-2 border border-zinc-700">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-sm font-medium text-orange-400">Detalhe dos Pagamentos</p>
+                  <button type="button" onClick={addPagamento} className="btn btn-sm btn-secondary text-xs">+ Adicionar</button>
+                </div>
+                {pagamentosCompostos.map((pag, i) => (
+                  <div key={i} className="flex gap-2 flex-wrap items-center border-b border-zinc-700/50 pb-2 last:border-0">
+                    <select
+                      value={pag.tipo}
+                      onChange={(e) => updatePagamento(i, 'tipo', e.target.value)}
+                      className="input text-sm w-36"
+                    >
+                      <option value="PIX">PIX</option>
+                      <option value="DINHEIRO">Dinheiro</option>
+                      <option value="CARTAO_DEBITO">Cartao Debito</option>
+                      <option value="CARTAO_CREDITO">Cartao Credito</option>
+                      <option value="FINANCIAMENTO">Financiamento</option>
+                    </select>
+                    <div className="relative w-32">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+                      <input
+                        type="number" step="0.01" min="0"
+                        value={pag.valor}
+                        onChange={(e) => updatePagamento(i, 'valor', e.target.value)}
+                        className="input text-sm pl-8"
+                        placeholder="0,00"
+                      />
+                    </div>
+                    {(pag.tipo === 'CARTAO_CREDITO' || pag.tipo === 'FINANCIAMENTO') && (
+                      <div className="relative w-20">
+                        <input
+                          type="number" min="1" max="72"
+                          value={pag.parcelas}
+                          onChange={(e) => updatePagamento(i, 'parcelas', e.target.value)}
+                          className="input text-sm pr-6"
+                          placeholder="1"
+                        />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">x</span>
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={pag.obs}
+                      onChange={(e) => updatePagamento(i, 'obs', e.target.value)}
+                      className="input text-sm flex-1 min-w-24"
+                      placeholder="Obs..."
+                    />
+                    {pagamentosCompostos.length > 1 && (
+                      <button type="button" onClick={() => removePagamento(i)} className="text-red-500 hover:text-red-400 font-bold text-sm">✕</button>
+                    )}
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-xs text-gray-500">Total informado:</span>
+                  <span className={`text-sm font-semibold ${Math.abs(totalPagamentosCompostos - calcularTotal()) < 0.01 ? 'text-green-400' : 'text-red-400'}`}>
+                    R$ {totalPagamentosCompostos.toFixed(2)} / R$ {calcularTotal().toFixed(2)}
+                  </span>
+                </div>
               </div>
             )}
           </div>

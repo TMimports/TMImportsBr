@@ -239,6 +239,8 @@ model Venda {
   valorTotal           Decimal        @db.Decimal(10, 2)
   valorBruto           Decimal?       @db.Decimal(10, 2)
   parcelas             Int?
+  observacoes          String?
+  pagamentosJson       String?
   confirmadaFinanceiro Boolean        @default(false)
   deletedAt            DateTime?
   deletedBy            Int?
@@ -960,6 +962,7 @@ enum FormaPagamento {
   CARTAO_DEBITO
   CARTAO_CREDITO
   FINANCIAMENTO
+  COMBINADO
 }
 
 enum StatusTransferencia {

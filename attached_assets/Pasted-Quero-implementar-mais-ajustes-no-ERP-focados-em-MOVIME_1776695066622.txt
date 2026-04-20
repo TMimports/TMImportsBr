@@ -1,0 +1,205 @@
+Quero implementar mais ajustes no ERP, focados em MOVIMENTAÇÃO AVULSA e VENDAS, sem quebrar o que já existe.
+
+IMPORTANTE:
+- Não quebrar estoque, financeiro, CRM, produtos, usuários ou transferências já existentes.
+- Manter o padrão visual atual do sistema.
+- Rodar build final e informar arquivos alterados.
+- Não deixar erro TypeScript.
+
+==================================================
+1. MOVIMENTAÇÃO AVULSA — SAÍDA COM MÚLTIPLAS LINHAS
+==================================================
+
+Problema:
+Na movimentação avulsa, a entrada já permite lançar mais de um item/linha, mas a saída ainda não está com a mesma flexibilidade.
+
+Objetivo:
+Permitir que na área de MOVIMENTAÇÃO AVULSA, no tipo SAÍDA, o usuário consiga lançar mais de um item na mesma operação, exatamente como já acontece na ENTRADA.
+
+Regras:
+1. A tela de SAÍDA AVULSA deve permitir adicionar múltiplas linhas.
+2. Cada linha deve permitir:
+   - produto/modelo
+   - tipo (Moto / Peça)
+   - cor
+   - chassi (quando for moto)
+   - quantidade (quando for peça)
+   - fornecedor, se aplicável
+   - valor, se aplicável
+   - observação da linha, se necessário
+3. Para MOTO:
+   - seleção prioritária por chassi
+   - ao selecionar chassi, preencher automaticamente:
+     - modelo
+     - cor
+     - fornecedor
+     - valor
+   - não permitir chassi inexistente
+   - não permitir chassi indisponível
+4. Para PEÇA:
+   - permitir quantidade por linha
+   - validar saldo disponível
+   - não permitir saída acima do saldo
+5. Permitir adicionar e remover linhas de forma prática.
+6. Ao confirmar a saída avulsa:
+   - baixar os itens do estoque correto
+   - registrar tudo no histórico
+   - não gerar financeiro automaticamente
+7. A experiência da SAÍDA deve ficar equivalente à da ENTRADA, com múltiplas linhas e operação rápida.
+
+==================================================
+2. VENDAS — TRAVA DE DESCONTO PARA PERFIS OPERACIONAIS
+==================================================
+
+Objetivo:
+Na área de VENDAS, impedir que perfis operacionais alterem livremente o valor da moto.
+
+Perfis afetados:
+- VENDEDOR
+- DONO_LOJA
+- e qualquer outro perfil operacional definido pelo sistema que não seja perfil com poder irrestrito
+
+Regras:
+1. O usuário pode conceder desconto máximo de 15%.
+2. Se tentar passar de 15%, o sistema deve bloquear.
+3. O usuário pode aplicar desconto de duas formas:
+   - por percentual
+   - por valor fixo
+4. Mesmo no valor fixo, o sistema deve validar a regra do desconto máximo de 15%.
+5. Se o valor fixo ultrapassar o equivalente a 15%, travar e mostrar mensagem clara.
+6. O sistema deve recalcular automaticamente:
+   - preço original
+   - desconto em %
+   - desconto em valor
+   - preço final
+7. Perfis autorizados de nível superior (ex.: ADMIN_GERAL, se fizer sentido na regra atual) podem continuar com comportamento especial, se já existir no sistema.
+8. Para perfis operacionais, a trava dos 15% é obrigatória.
+
+Mensagens desejadas:
+- “O desconto máximo permitido para este perfil é de 15%.”
+- “O valor informado ultrapassa o desconto máximo permitido.”
+
+==================================================
+3. VENDAS — DESCONTO POR PERCENTUAL OU VALOR FIXO
+==================================================
+
+Objetivo:
+Dar flexibilidade comercial sem perder a regra.
+
+Na área de vendas, o usuário deve conseguir:
+- informar percentual de desconto
+OU
+- informar valor fixo de desconto
+
+Regras:
+1. Se preencher percentual, o sistema calcula o valor fixo automaticamente.
+2. Se preencher valor fixo, o sistema calcula o percentual automaticamente.
+3. Os dois campos devem ficar sincronizados.
+4. Sempre respeitar o limite de 15% para os perfis operacionais.
+5. O preço final deve ser atualizado em tempo real.
+6. O sistema deve deixar claro:
+   - preço original
+   - valor do desconto
+   - percentual do desconto
+   - preço final
+
+==================================================
+4. VENDAS — FORMA DE PAGAMENTO FLEXÍVEL / COMBINADA
+==================================================
+
+Objetivo:
+Permitir composição de pagamento mais realista na venda.
+
+Exemplo:
+- cliente dá entrada em dinheiro ou PIX
+- e parcela o restante no cartão
+
+Quero flexibilidade real na forma de pagamento.
+
+Requisitos:
+1. Na área de forma de pagamento da venda, permitir pagamento combinado.
+2. Exemplo de combinações:
+   - PIX + cartão
+   - dinheiro + cartão
+   - PIX + dinheiro + cartão
+   - entrada + saldo parcelado
+3. O sistema deve permitir múltiplos componentes de pagamento na mesma venda.
+4. Cada componente deve ter:
+   - tipo de pagamento
+   - valor
+   - observação opcional
+5. Para pagamento em cartão:
+   - permitir informar número de parcelas
+   - valor parcelado
+6. O sistema deve validar:
+   - soma dos componentes = total final da venda
+   - não permitir sobra nem falta
+7. Exibir claramente:
+   - valor total da venda
+   - entrada
+   - saldo parcelado
+   - composição final dos pagamentos
+8. A experiência deve ser simples e comercialmente prática.
+
+==================================================
+5. HISTÓRICO / REGISTRO DA VENDA
+==================================================
+
+Na venda, registrar de forma clara:
+- preço original
+- tipo de desconto aplicado
+- percentual de desconto
+- valor de desconto
+- preço final
+- composição das formas de pagamento
+- usuário que realizou a venda
+
+==================================================
+6. VALIDAÇÕES IMPORTANTES
+==================================================
+
+Validar obrigatoriamente:
+- não permitir desconto acima de 15% para perfis operacionais
+- não permitir valor fixo de desconto acima do limite equivalente
+- não permitir venda com composição de pagamento incompleta
+- não permitir soma de pagamentos diferente do valor final
+- não permitir quantidade inválida
+- não permitir venda com valores negativos
+- manter integridade da venda
+
+==================================================
+7. COMPATIBILIDADE
+==================================================
+
+Não quebrar:
+- fluxo atual de vendas
+- financeiro
+- estoque
+- relatórios
+- comissões
+- histórico
+- CRM
+- usuários
+
+Se necessário:
+- ajustar componentes da tela de venda
+- ajustar validações frontend/backend
+- ajustar schema/modelos, se realmente precisar
+- adaptar persistência da composição de pagamento
+
+==================================================
+8. ENTREGA FINAL
+==================================================
+
+Ao final:
+- informar arquivos alterados
+- informar rotas alteradas
+- informar models Prisma alterados, se houver
+- explicar como testar:
+  1. saída avulsa com múltiplas linhas
+  2. desconto por percentual
+  3. desconto por valor fixo
+  4. trava de 15%
+  5. pagamento combinado (PIX + cartão, dinheiro + cartão etc.)
+- rodar build final
+- garantir sem erros TypeScript

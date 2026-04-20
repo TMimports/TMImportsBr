@@ -187,7 +187,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { tipo, clienteId, vendedorId, lojaId, formaPagamento, parcelas, itens, valorTotalManual } = req.body;
+    const { tipo, clienteId, vendedorId, lojaId, formaPagamento, parcelas, itens, valorTotalManual, observacoes, pagamentosCompostos } = req.body;
 
     if (!clienteId || !lojaId || !formaPagamento || !itens?.length) {
       return res.status(400).json({ error: 'Dados incompletos' });
@@ -224,19 +224,30 @@ router.post('/', async (req: AuthRequest, res) => {
       let precoUnitario = Number(item.precoUnitario);
       let desconto = Number(item.desconto || 0);
 
-      if (item.produtoId) {
-        const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
-        if (produto) {
-          let maxDesconto = produto.tipo === 'MOTO' ? Number(config?.descontoMaxMoto || 3.5) : Number(config?.descontoMaxPeca || 10);
-          
-          if (userRole === 'GERENTE_LOJA') {
-            maxDesconto = maxDesconto * 2;
-          }
-          
-          if (desconto > maxDesconto) {
-            return res.status(400).json({ 
-              error: `Desconto de ${desconto}% excede o maximo permitido para seu perfil (${maxDesconto}%)` 
-            });
+      if (item.produtoId && desconto > 0) {
+        // ADMIN_GERAL, ADMIN_FINANCEIRO, ADMIN_REDE: sem limite de desconto
+        const rolesLivres = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
+        if (!rolesLivres.includes(userRole || '')) {
+          // Perfis operacionais: trava de 15%
+          const rolesCap15 = ['VENDEDOR', 'DONO_LOJA'];
+          if (rolesCap15.includes(userRole || '')) {
+            if (desconto > 15) {
+              return res.status(400).json({
+                error: `O desconto máximo permitido para este perfil é de 15%. Desconto informado: ${desconto}%`
+              });
+            }
+          } else {
+            // GERENTE_LOJA e outros: usa config * 2
+            const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
+            if (produto) {
+              let maxDesconto = produto.tipo === 'MOTO' ? Number(config?.descontoMaxMoto || 3.5) : Number(config?.descontoMaxPeca || 10);
+              if (userRole === 'GERENTE_LOJA') maxDesconto = maxDesconto * 2;
+              if (desconto > maxDesconto) {
+                return res.status(400).json({
+                  error: `Desconto de ${desconto}% excede o máximo permitido para seu perfil (${maxDesconto}%)`
+                });
+              }
+            }
           }
         }
       }
@@ -279,6 +290,8 @@ router.post('/', async (req: AuthRequest, res) => {
         parcelas: parcelas ? Number(parcelas) : null,
         valorBruto,
         valorTotal,
+        observacoes: observacoes?.trim() || null,
+        pagamentosJson: pagamentosCompostos ? JSON.stringify(pagamentosCompostos) : null,
         confirmadaFinanceiro: confirmarAutomaticamente,
         createdBy: req.user!.id,
         itens: { create: itensProcessados }
