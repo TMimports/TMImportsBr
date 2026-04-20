@@ -127,6 +127,10 @@ export function Vendas() {
   const [showQuickCliente, setShowQuickCliente] = useState(false);
   const [quickCliente, setQuickCliente] = useState({ nome: '', cpfCnpj: '', telefone: '' });
   const [quickClienteLoading, setQuickClienteLoading] = useState(false);
+  const [buscaVendas, setBuscaVendas] = useState('');
+  const [filtroTipoVenda, setFiltroTipoVenda] = useState('');
+  const [filtroStatusVenda, setFiltroStatusVenda] = useState('');
+  const [formErro, setFormErro] = useState('');
 
   const [form, setForm] = useState({
     clienteId: '',
@@ -355,20 +359,21 @@ export function Vendas() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErro('');
 
     if (!form.lojaId) {
-      alert('Selecione uma loja');
+      setFormErro('⚠️ Selecione uma loja antes de continuar.');
       return;
     }
 
     if (itensSelecionados.length === 0 && motosSelecionadas.length === 0) {
-      alert('Adicione pelo menos um produto ou moto');
+      setFormErro('⚠️ Adicione pelo menos um produto ou moto à venda.');
       return;
     }
 
     const motosIncompletas = motosSemDadosCompletos();
     if (motosIncompletas.length > 0) {
-      alert('Preencha o numero do chassi e motor para todas as motos');
+      setFormErro(`🏍️ Preencha o número de chassi e motor para todas as motos (${motosIncompletas.length} moto(s) incompleta(s)).`);
       return;
     }
 
@@ -377,7 +382,7 @@ export function Vendas() {
                        ...itensSelecionados.map(i => ({ desconto: parseFloat(i.desconto) || 0, nome: i.displayName || 'Peça' }))];
     for (const it of todoItens) {
       if (it.desconto > maxDescontoRole) {
-        alert(`O desconto máximo permitido para este perfil é de ${maxDescontoRole}%. Item com desconto acima do limite detectado.`);
+        setFormErro(`⚠️ Desconto máximo permitido: ${maxDescontoRole}%. Um ou mais itens estão acima do limite.`);
         return;
       }
     }
@@ -387,7 +392,7 @@ export function Vendas() {
     if (isCombinado) {
       const totalPag = pagamentosCompostos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
       if (Math.abs(totalPag - totalFinal) > 0.01) {
-        alert(`A soma dos pagamentos (R$ ${totalPag.toFixed(2)}) não confere com o total da venda (R$ ${totalFinal.toFixed(2)}). Corrija os valores.`);
+        setFormErro(`⚠️ Soma dos pagamentos (R$ ${totalPag.toFixed(2)}) ≠ total da venda (R$ ${totalFinal.toFixed(2)}). Corrija os valores.`);
         return;
       }
     }
@@ -573,6 +578,21 @@ export function Vendas() {
     return <div className="flex items-center justify-center h-64">Carregando...</div>;
   }
 
+  const vendasFiltradas = vendas.filter(v => {
+    if (filtroTipoVenda && v.tipo !== filtroTipoVenda) return false;
+    if (filtroStatusVenda === 'confirmada' && !v.confirmadaFinanceiro) return false;
+    if (filtroStatusVenda === 'pendente' && v.confirmadaFinanceiro) return false;
+    if (filtroStatusVenda === 'cancelada' && !v.deletedAt) return false;
+    if (buscaVendas) {
+      const q = buscaVendas.toLowerCase();
+      return String(v.id).includes(q) ||
+        (v.cliente?.nome || '').toLowerCase().includes(q) ||
+        (v.vendedor?.nome || '').toLowerCase().includes(q) ||
+        (v.formaPagamento || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -580,13 +600,51 @@ export function Vendas() {
         <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova Venda</button>
       </div>
 
-      {vendas.length === 0 ? (
+      {/* Filtros de busca */}
+      <div className="flex gap-2 flex-wrap mb-4">
+        <input
+          value={buscaVendas}
+          onChange={e => setBuscaVendas(e.target.value)}
+          placeholder="🔍 Buscar cliente, vendedor, ID..."
+          className="flex-1 min-w-40 bg-[#18181b] border border-[#27272a] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500"
+        />
+        <select
+          value={filtroTipoVenda}
+          onChange={e => setFiltroTipoVenda(e.target.value)}
+          className="bg-[#18181b] border border-[#27272a] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+        >
+          <option value="">Todos os tipos</option>
+          <option value="VENDA">Venda</option>
+          <option value="ORCAMENTO">Orçamento</option>
+        </select>
+        <select
+          value={filtroStatusVenda}
+          onChange={e => setFiltroStatusVenda(e.target.value)}
+          className="bg-[#18181b] border border-[#27272a] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+        >
+          <option value="">Todos os status</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="pendente">Pendente</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+        {(buscaVendas || filtroTipoVenda || filtroStatusVenda) && (
+          <button
+            onClick={() => { setBuscaVendas(''); setFiltroTipoVenda(''); setFiltroStatusVenda(''); }}
+            className="text-xs text-zinc-500 hover:text-zinc-300 px-2 transition-colors"
+          >✕ Limpar</button>
+        )}
+      </div>
+      {(buscaVendas || filtroTipoVenda || filtroStatusVenda) && (
+        <p className="text-xs text-zinc-500 mb-3">{vendasFiltradas.length} de {vendas.length} vendas</p>
+      )}
+
+      {vendasFiltradas.length === 0 ? (
         <div className="card p-8 text-center text-gray-500">
-          Nenhuma venda encontrada
+          {vendas.length === 0 ? 'Nenhuma venda encontrada' : 'Nenhuma venda corresponde ao filtro'}
         </div>
       ) : (
         <div className="space-y-3">
-          {vendas.map(venda => (
+          {vendasFiltradas.map(venda => (
             <div key={venda.id} className="card">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3">
@@ -1221,8 +1279,14 @@ export function Vendas() {
             </div>
           </div>
 
+          {formErro && (
+            <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-400 text-sm font-medium">
+              {formErro}
+            </div>
+          )}
+
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
+            <button type="button" onClick={() => { setModalOpen(false); setFormErro(''); }} className="btn btn-secondary">
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>

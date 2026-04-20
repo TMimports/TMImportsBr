@@ -463,6 +463,29 @@ router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', '
   }
 });
 
+// ─── Remover produto do estoque (apenas qtd=0 e sem chassi em ESTOQUE) ────────
+router.delete('/:id(\\d+)', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    const estoque = await prisma.estoque.findUnique({
+      where: { id },
+      include: { produto: true }
+    });
+    if (!estoque) return res.status(404).json({ error: 'Registro de estoque não encontrado' });
+    if (estoque.quantidade > 0) return res.status(400).json({ error: `Estoque deve estar zerado para remover. Quantidade atual: ${estoque.quantidade}` });
+
+    const chassiAtivos = await prisma.unidadeFisica.count({
+      where: { produtoId: estoque.produtoId, lojaId: estoque.lojaId, status: 'ESTOQUE' }
+    });
+    if (chassiAtivos > 0) return res.status(400).json({ error: `Existem ${chassiAtivos} chassi(s) com status ESTOQUE. Remova-os primeiro.` });
+
+    await prisma.estoque.delete({ where: { id } });
+    res.json({ sucesso: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erro interno' });
+  }
+});
+
 // ─── VISÃO GERENCIAL POR EMPRESA / CNPJ ──────────────────────────────────────
 router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
   try {

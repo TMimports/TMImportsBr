@@ -820,7 +820,7 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
 
 // ─── TabGerencial ─────────────────────────────────────────────────────────────
 
-function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido, onVerUnitaria }: {
+function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido, onVerUnitaria, onRefresh }: {
   itens: ItemGerencial[];
   busca: string;
   lojas: Loja[];
@@ -828,6 +828,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   minhaLojaId: number | null;
   onTransferido?: () => void;
   onVerUnitaria?: (nome: string) => void;
+  onRefresh?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDestinoId, setExpandedDestinoId] = useState<number | ''>('');
@@ -836,10 +837,58 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   const [expandedErro, setExpandedErro] = useState('');
   const [expandedSucesso, setExpandedSucesso] = useState(false);
 
+  // Edit/Delete state
+  const [editandoItem, setEditandoItem] = useState<ItemGerencial | null>(null);
+  const [editForm, setEditForm] = useState({ precoVenda: '', estoqueMinimo: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErro, setEditErro] = useState('');
+  const [deletandoEstoqueId, setDeletandoEstoqueId] = useState<number | null>(null);
+
   const { user: userTabG } = useAuth();
   const verCustos = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(userTabG?.role || '');
   const isAdmin = minhaLojaId === null;
   const podeTransferir = isAdmin || lojaId === minhaLojaId;
+  const podeEditarEstoque = userTabG && ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userTabG.role);
+
+  function abrirEditarItem(it: ItemGerencial) {
+    setEditandoItem(it);
+    setEditForm({ precoVenda: String(it.precoVenda || ''), estoqueMinimo: String(it.estoqueMinimo || 0) });
+    setEditErro('');
+  }
+
+  async function salvarEdicaoItem() {
+    if (!editandoItem) return;
+    setEditSaving(true); setEditErro('');
+    try {
+      await api.put(`/estoque/${editandoItem.id}`, {
+        precoVenda: editForm.precoVenda ? Number(editForm.precoVenda) : null,
+        estoqueMinimo: Number(editForm.estoqueMinimo || 0),
+      });
+      setEditandoItem(null);
+      onRefresh?.();
+    } catch (e: any) {
+      setEditErro(e.message || 'Erro ao salvar');
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function removerDoEstoque(it: ItemGerencial) {
+    const msg = it.quantidade > 0
+      ? `Não é possível remover "${it.nome}" pois há ${it.quantidade} unidade(s) em estoque. Zere o estoque antes.`
+      : `Remover "${it.nome}" do estoque desta loja?\nEsta ação não exclui o produto do catálogo, apenas remove o registro desta loja.`;
+    if (!confirm(msg)) return;
+    if (it.quantidade > 0) return;
+    setDeletandoEstoqueId(it.id);
+    try {
+      await api.delete(`/estoque/${it.id}`);
+      onRefresh?.();
+    } catch (e: any) {
+      alert(e.message || 'Erro ao remover do estoque');
+    } finally {
+      setDeletandoEstoqueId(null);
+    }
+  }
   const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
 
   const filtrados = useMemo(() => {
@@ -881,7 +930,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
 
   const motos = filtrados.filter(i => i.tipo === 'MOTO');
   const pecas = filtrados.filter(i => i.tipo === 'PECA');
-  const colSpan = podeTransferir ? 8 : 7;
+  const colSpan = verCustos ? 9 : 7;
 
   function GrupoTipo({ titulo, lista }: { titulo: string; lista: ItemGerencial[] }) {
     if (!lista.length) return null;
@@ -899,7 +948,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
                 {verCustos && <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (CM)</th>}
                 <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (PV)</th>
                 <th className="text-left p-3 font-medium">Status</th>
-                {podeTransferir && <th className="text-center p-3 font-medium">Ação</th>}
+                <th className="text-right p-3 font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -932,37 +981,56 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
                             : <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30">OK</span>
                         }
                       </td>
-                      {podeTransferir && (
-                        <td className="p-3 text-center">
-                          {it.tipo === 'MOTO' ? (
-                            <button
-                              onClick={() => onVerUnitaria?.(it.nome)}
-                              disabled={it.quantidade === 0}
-                              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
-                                it.quantidade === 0
-                                  ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
-                                  : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
-                              }`}
-                            >
-                              📋 Ver Unidades
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => toggleExpand(it.produtoId, it.quantidade)}
-                              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
-                                isExp
-                                  ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
-                                  : it.quantidade === 0
-                                    ? 'opacity-40 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
-                                    : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
-                              }`}
-                              disabled={it.quantidade === 0 && !isExp}
-                            >
-                              {isExp ? '✕' : '↔'}
-                            </button>
+                      <td className="p-3">
+                        <div className="flex items-center gap-1 justify-end">
+                          {podeEditarEstoque && (
+                            <>
+                              <button
+                                onClick={() => abrirEditarItem(it)}
+                                title="Editar preço e estoque mínimo"
+                                className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-zinc-700/50 text-zinc-300 hover:bg-zinc-700 border-zinc-600"
+                              >✏️</button>
+                              <button
+                                onClick={() => removerDoEstoque(it)}
+                                disabled={deletandoEstoqueId === it.id}
+                                title={it.quantidade > 0 ? 'Zere o estoque antes de remover' : 'Remover do estoque desta loja'}
+                                className={`text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors ${
+                                  it.quantidade > 0
+                                    ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                    : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20'
+                                } disabled:opacity-40`}
+                              >{deletandoEstoqueId === it.id ? '...' : '🗑️'}</button>
+                            </>
                           )}
-                        </td>
-                      )}
+                          {podeTransferir && (
+                            it.tipo === 'MOTO' ? (
+                              <button
+                                onClick={() => onVerUnitaria?.(it.nome)}
+                                disabled={it.quantidade === 0}
+                                className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                                  it.quantidade === 0
+                                    ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                    : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
+                                }`}
+                              >📋</button>
+                            ) : (
+                              <button
+                                onClick={() => toggleExpand(it.produtoId, it.quantidade)}
+                                className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                                  isExp
+                                    ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                                    : it.quantidade === 0
+                                      ? 'opacity-40 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                      : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
+                                }`}
+                                disabled={it.quantidade === 0 && !isExp}
+                              >
+                                {isExp ? '✕' : '↔'}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </td>
                     </tr>
 
                     {/* Painel inline de transferência */}
@@ -1042,6 +1110,56 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
       {filtrados.length === 0 && (
         <div className="text-center py-12 text-zinc-500">Nenhum produto encontrado</div>
       )}
+
+      {/* ── Modal de edição de produto no estoque ── */}
+      {editandoItem && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-bold text-lg">✏️ Editar Produto</h3>
+              <button onClick={() => setEditandoItem(null)} className="text-zinc-400 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <p className="text-zinc-300 font-medium mb-1">{editandoItem.nome}</p>
+            <p className="text-zinc-500 text-xs font-mono mb-4">{editandoItem.codigo}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Preço de Venda (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editForm.precoVenda}
+                  onChange={e => setEditForm(f => ({ ...f, precoVenda: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                  placeholder="0,00"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Estoque Mínimo</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.estoqueMinimo}
+                  onChange={e => setEditForm(f => ({ ...f, estoqueMinimo: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                />
+              </div>
+            </div>
+            {editErro && <p className="text-red-400 text-sm mt-3">{editErro}</p>}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setEditandoItem(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-zinc-600 text-zinc-300 text-sm hover:bg-zinc-800 transition-colors"
+              >Cancelar</button>
+              <button
+                onClick={salvarEdicaoItem}
+                disabled={editSaving}
+                className="flex-1 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
+              >{editSaving ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1049,7 +1167,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
 // ─── TabUnitaria ──────────────────────────────────────────────────────────────
 
 function TabUnitaria({
-  itens, busca, lojas, lojaId, minhaLojaId, onTransferido
+  itens, busca, lojas, lojaId, minhaLojaId, onTransferido, onRefresh
 }: {
   itens: ItemUnitario[];
   busca: string;
@@ -1057,6 +1175,7 @@ function TabUnitaria({
   lojaId: number;
   minhaLojaId: number | null;
   onTransferido?: () => void;
+  onRefresh?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDestinoId, setExpandedDestinoId] = useState<number | ''>('');
@@ -1068,6 +1187,53 @@ function TabUnitaria({
   const [loteLoading, setLoteLoading] = useState(false);
   const [loteErro, setLoteErro] = useState('');
   const [loteSucesso, setLoteSucesso] = useState(false);
+
+  // Edit/Delete state
+  const [editandoUnidade, setEditandoUnidade] = useState<ItemUnitario | null>(null);
+  const [editForm, setEditForm] = useState({ chassi: '', cor: '', codigoMotor: '', ano: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErro, setEditErro] = useState('');
+  const [deletandoId, setDeletandoId] = useState<number | null>(null);
+
+  const { user: userTabU } = useAuth();
+  const podeEditarExcluir = userTabU && ['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userTabU.role);
+
+  function abrirEditar(u: ItemUnitario) {
+    setEditandoUnidade(u);
+    setEditForm({ chassi: u.chassi || '', cor: u.cor || '', codigoMotor: u.codigoMotor || '', ano: String(u.ano || '') });
+    setEditErro('');
+  }
+
+  async function salvarEdicao() {
+    if (!editandoUnidade) return;
+    setEditSaving(true); setEditErro('');
+    try {
+      await api.put(`/unidades/${editandoUnidade.id}`, {
+        chassi: editForm.chassi.trim(),
+        cor: editForm.cor.trim(),
+        codigoMotor: editForm.codigoMotor.trim(),
+        ano: editForm.ano ? Number(editForm.ano) : undefined,
+      });
+      setEditandoUnidade(null);
+      onRefresh?.();
+    } catch (e: any) {
+      setEditErro(e.message || 'Erro ao salvar');
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function excluirUnidade(id: number) {
+    setDeletandoId(id);
+    try {
+      await api.delete(`/unidades/${id}`);
+      onRefresh?.();
+    } catch (e: any) {
+      alert(e.message || 'Erro ao excluir chassi');
+    } finally {
+      setDeletandoId(null);
+    }
+  }
 
   const isAdmin = minhaLojaId === null;
   const isOutraLoja = !isAdmin && lojaId !== minhaLojaId;
@@ -1232,22 +1398,42 @@ function TabUnitaria({
                       {u.status}
                     </span>
                   </td>
-                  <td className="p-3 text-center">
-                    <button
-                      onClick={() => podeAcionar && toggleExpand(u.id, isOutraLoja ? (minhaLojaId ?? undefined) : undefined)}
-                      disabled={!podeAcionar}
-                      className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
-                        !podeAcionar
-                          ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
-                          : isExp
-                            ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
-                            : isOutraLoja
-                              ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
-                              : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
-                      }`}
-                    >
-                      {isExp ? '✕' : isOutraLoja ? 'Solicitar' : '↔ Transferir'}
-                    </button>
+                  <td className="p-3">
+                    <div className="flex items-center gap-1 justify-end">
+                      {podeEditarExcluir && u.status === 'ESTOQUE' && (
+                        <>
+                          <button
+                            onClick={() => abrirEditar(u)}
+                            title="Editar chassi"
+                            className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-zinc-700/50 text-zinc-300 hover:bg-zinc-700 border-zinc-600"
+                          >✏️</button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Excluir chassi ${u.chassi || 'sem chassi'} de ${u.modeloNome}?\nEsta ação reduzirá o estoque em 1 unidade.`))
+                                excluirUnidade(u.id);
+                            }}
+                            disabled={deletandoId === u.id}
+                            title="Excluir chassi"
+                            className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20 disabled:opacity-40"
+                          >{deletandoId === u.id ? '...' : '🗑️'}</button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => podeAcionar && toggleExpand(u.id, isOutraLoja ? (minhaLojaId ?? undefined) : undefined)}
+                        disabled={!podeAcionar}
+                        className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                          !podeAcionar
+                            ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                            : isExp
+                              ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                              : isOutraLoja
+                                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
+                                : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
+                        }`}
+                      >
+                        {isExp ? '✕' : isOutraLoja ? 'Solicitar' : '↔'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
 
@@ -1421,60 +1607,185 @@ function TabUnitaria({
           )}
         </div>
       )}
+
+      {/* ── Modal de edição de chassi ── */}
+      {editandoUnidade && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-white font-bold text-lg">✏️ Editar Chassi</h3>
+              <button onClick={() => setEditandoUnidade(null)} className="text-zinc-400 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <p className="text-zinc-400 text-sm mb-4">{editandoUnidade.modeloNome}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Chassi</label>
+                <input
+                  value={editForm.chassi}
+                  onChange={e => setEditForm(f => ({ ...f, chassi: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 font-mono"
+                  placeholder="Número do chassi"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Cor</label>
+                <input
+                  value={editForm.cor}
+                  onChange={e => setEditForm(f => ({ ...f, cor: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                  placeholder="Ex: Branco Pérola"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Código do Motor</label>
+                <input
+                  value={editForm.codigoMotor}
+                  onChange={e => setEditForm(f => ({ ...f, codigoMotor: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 font-mono"
+                  placeholder="Código do motor"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Ano</label>
+                <input
+                  type="number"
+                  value={editForm.ano}
+                  onChange={e => setEditForm(f => ({ ...f, ano: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                  placeholder="2024"
+                  min="2000" max="2030"
+                />
+              </div>
+            </div>
+            {editErro && <p className="text-red-400 text-sm mt-3">{editErro}</p>}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setEditandoUnidade(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-zinc-600 text-zinc-300 text-sm hover:bg-zinc-800 transition-colors"
+              >Cancelar</button>
+              <button
+                onClick={salvarEdicao}
+                disabled={editSaving}
+                className="flex-1 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
+              >{editSaving ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── TabMovimentacao ──────────────────────────────────────────────────────────
 
+const TIPO_MOV_LABEL: Record<string, string> = {
+  ENTRADA: '📦 Entrada', SAIDA: '📤 Saída', PEDIDO_COMPRA: '🛒 Pedido Compra',
+  TRANSFERENCIA: '🔄 Transferência', AJUSTE: '⚙️ Ajuste', VENDA: '🛍️ Venda',
+  OS: '🔧 Ordem Serviço', DEVOLUCAO: '↩️ Devolução', PERDA: '❌ Perda',
+  AVARIA: '💥 Avaria', RESERVA: '🔒 Reserva', ENTRADA_AVULSA: '📥 Entrada Avulsa',
+  IMPORTACAO_ESTOQUE: '📊 Importação', AJUSTE_MANUAL: '✏️ Ajuste Manual',
+};
+const TIPO_MOV_COR: Record<string, string> = {
+  ENTRADA: 'bg-green-500/15 text-green-400 border-green-500/30',
+  ENTRADA_AVULSA: 'bg-green-500/15 text-green-400 border-green-500/30',
+  IMPORTACAO_ESTOQUE: 'bg-green-500/15 text-green-400 border-green-500/30',
+  SAIDA: 'bg-red-500/15 text-red-400 border-red-500/30',
+  PEDIDO_COMPRA: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  TRANSFERENCIA: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+  AJUSTE: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+  AJUSTE_MANUAL: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+  VENDA: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  OS: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  DEVOLUCAO: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+  PERDA: 'bg-red-700/15 text-red-500 border-red-700/30',
+  AVARIA: 'bg-red-700/15 text-red-500 border-red-700/30',
+  RESERVA: 'bg-yellow-600/15 text-yellow-500 border-yellow-600/30',
+};
+
 function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
-  const TIPO_COR: Record<string, string> = {
-    ENTRADA: 'text-green-400', SAIDA: 'text-red-400', PEDIDO_COMPRA: 'text-blue-400',
-    TRANSFERENCIA: 'text-purple-400', AJUSTE: 'text-yellow-400', VENDA: 'text-orange-400',
-    OS: 'text-orange-400', DEVOLUCAO: 'text-teal-400', PERDA: 'text-red-500',
-    AVARIA: 'text-red-500', RESERVA: 'text-yellow-500',
-  };
-  return (
-    <div className="overflow-x-auto">
-      {logs.length === 0
-        ? <div className="text-center py-12 text-zinc-500">Sem movimentações recentes</div>
-        : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
-                <th className="text-left p-3 font-medium">Data</th>
-                <th className="text-left p-3 font-medium">Tipo</th>
-                <th className="text-left p-3 font-medium">ID Mov.</th>
-                <th className="text-left p-3 font-medium">Produto</th>
-                <th className="text-right p-3 font-medium">Qtd</th>
-                <th className="text-right p-3 font-medium">Anterior</th>
-                <th className="text-right p-3 font-medium">Novo</th>
-                <th className="text-left p-3 font-medium">Usuário</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map(l => (
-                <tr key={l.id} className="border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors">
-                  <td className="p-3 text-zinc-400 text-xs">{fmtDate(l.createdAt)}</td>
-                  <td className="p-3">
-                    <span className={`text-xs font-medium ${TIPO_COR[l.tipo] || 'text-zinc-300'}`}>{l.tipo}</span>
-                  </td>
-                  <td className="p-3 text-zinc-500 text-xs font-mono">
-                    {l.origemId ? `#${l.origemId}` : `mov:${l.id}`}
-                  </td>
-                  <td className="p-3 text-zinc-200">{l.produto?.nome || '—'}</td>
-                  <td className={`p-3 text-right font-bold ${l.quantidade > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {l.quantidade > 0 ? '+' : ''}{l.quantidade}
-                  </td>
-                  <td className="p-3 text-right text-zinc-400">{l.quantidadeAnterior}</td>
-                  <td className="p-3 text-right text-white">{l.quantidadeNova}</td>
-                  <td className="p-3 text-zinc-400 text-xs">{l.usuario?.nome || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroBusca, setFiltroBusca] = useState('');
+
+  const tiposPresentes = useMemo(() => [...new Set(logs.map(l => l.tipo))].sort(), [logs]);
+
+  const filtrados = useMemo(() => {
+    return logs.filter(l => {
+      if (filtroTipo && l.tipo !== filtroTipo) return false;
+      if (filtroBusca) {
+        const q = filtroBusca.toLowerCase();
+        return (l.produto?.nome || '').toLowerCase().includes(q) ||
+               (l.usuario?.nome || '').toLowerCase().includes(q) ||
+               String(l.origemId || '').includes(q);
       }
+      return true;
+    });
+  }, [logs, filtroTipo, filtroBusca]);
+
+  return (
+    <div className="space-y-3">
+      {/* Filtros */}
+      <div className="flex gap-2 flex-wrap">
+        <input
+          value={filtroBusca}
+          onChange={e => setFiltroBusca(e.target.value)}
+          placeholder="🔍 Buscar produto, usuário..."
+          className="flex-1 min-w-40 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500"
+        />
+        <select
+          value={filtroTipo}
+          onChange={e => setFiltroTipo(e.target.value)}
+          className="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+        >
+          <option value="">Todos os tipos</option>
+          {tiposPresentes.map(t => (
+            <option key={t} value={t}>{TIPO_MOV_LABEL[t] || t}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="overflow-x-auto">
+        {filtrados.length === 0
+          ? <div className="text-center py-12 text-zinc-500">Sem movimentações</div>
+          : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
+                  <th className="text-left p-3 font-medium">Data</th>
+                  <th className="text-left p-3 font-medium">Tipo</th>
+                  <th className="text-left p-3 font-medium">Ref.</th>
+                  <th className="text-left p-3 font-medium">Produto</th>
+                  <th className="text-right p-3 font-medium">Qtd</th>
+                  <th className="text-right p-3 font-medium">Anterior</th>
+                  <th className="text-right p-3 font-medium">Novo</th>
+                  <th className="text-left p-3 font-medium">Usuário</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map(l => (
+                  <tr key={l.id} className="border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors">
+                    <td className="p-3 text-zinc-400 text-xs whitespace-nowrap">{fmtDate(l.createdAt)}</td>
+                    <td className="p-3">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded border ${TIPO_MOV_COR[l.tipo] || 'bg-zinc-700/50 text-zinc-300 border-zinc-600'}`}>
+                        {TIPO_MOV_LABEL[l.tipo] || l.tipo}
+                      </span>
+                    </td>
+                    <td className="p-3 text-zinc-500 text-xs font-mono">
+                      {l.origemId ? `#${l.origemId}` : `—`}
+                    </td>
+                    <td className="p-3 text-zinc-200">{l.produto?.nome || '—'}</td>
+                    <td className={`p-3 text-right font-bold ${l.quantidade > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {l.quantidade > 0 ? '+' : ''}{l.quantidade}
+                    </td>
+                    <td className="p-3 text-right text-zinc-400">{l.quantidadeAnterior}</td>
+                    <td className="p-3 text-right text-white font-medium">{l.quantidadeNova}</td>
+                    <td className="p-3 text-zinc-400 text-xs">{l.usuario?.nome || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        }
+      </div>
     </div>
   );
 }
@@ -2441,6 +2752,7 @@ function ViewEmpresa({
             minhaLojaId={minhaLojaId}
             onTransferido={onSolicitacaoFeita}
             onVerUnitaria={(nome) => { setBusca(nome); setAba('unitaria'); }}
+            onRefresh={() => setRefreshKey(k => k + 1)}
           />
         )}
         {aba === 'unitaria' && (
@@ -2451,6 +2763,7 @@ function ViewEmpresa({
             lojaId={lojaId}
             minhaLojaId={minhaLojaId}
             onTransferido={onSolicitacaoFeita}
+            onRefresh={() => setRefreshKey(k => k + 1)}
           />
         )}
         {aba === 'movimentacao' && <TabMovimentacao logs={data.logsRecentes} />}
