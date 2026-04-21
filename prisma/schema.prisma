@@ -1049,6 +1049,8 @@ enum TipoInteracaoLead {
   EMAIL
   OBSERVACAO
   FOLLOW_UP
+  REUNIAO
+  VISITA
 }
 
 model Lead {
