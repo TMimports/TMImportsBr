@@ -206,6 +206,9 @@ async function sincronizarColunas() {
     `ALTER TABLE "Venda" ADD COLUMN IF NOT EXISTS "observacoes" TEXT`,
     `ALTER TABLE "Venda" ADD COLUMN IF NOT EXISTS "pagamentosJson" TEXT`,
 
+    // --- Enum FormaPagamento: valor COMBINADO ---
+    `ALTER TYPE "FormaPagamento" ADD VALUE IF NOT EXISTS 'COMBINADO'`,
+
     // --- Loja: colunas de geolocalização ---
     `ALTER TABLE "Loja" ADD COLUMN IF NOT EXISTS "regiao" TEXT`,
     `ALTER TABLE "Loja" ADD COLUMN IF NOT EXISTS "cidade" TEXT`,
