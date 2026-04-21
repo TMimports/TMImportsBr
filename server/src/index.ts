@@ -200,7 +200,69 @@ if (!isDev) {
 
 const PORT = isDev ? 3001 : (process.env.PORT ? Number(process.env.PORT) : 5000);
 
+async function sincronizarColunas() {
+  const sqls: string[] = [
+    // --- Venda: colunas adicionadas após o deploy inicial ---
+    `ALTER TABLE "Venda" ADD COLUMN IF NOT EXISTS "observacoes" TEXT`,
+    `ALTER TABLE "Venda" ADD COLUMN IF NOT EXISTS "pagamentosJson" TEXT`,
+
+    // --- Enums necessários para a tabela Lead ---
+    `DO $$ BEGIN CREATE TYPE "OrigemLead" AS ENUM ('META','GOOGLE','SITE','WHATSAPP','INDICACAO','ORGANICO','OUTRO'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `DO $$ BEGIN CREATE TYPE "InteresseLead" AS ENUM ('MOTO','PECA','SERVICO','CURSO','OUTRO'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `DO $$ BEGIN CREATE TYPE "StatusLead" AS ENUM ('NOVO','EM_ATENDIMENTO','PROPOSTA_ENVIADA','GANHO','PERDIDO','CANCELADO'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `DO $$ BEGIN CREATE TYPE "PrioridadeLead" AS ENUM ('BAIXA','MEDIA','ALTA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `DO $$ BEGIN CREATE TYPE "TipoInteracaoLead" AS ENUM ('LIGACAO','WHATSAPP','EMAIL','REUNIAO','VISITA','OUTRO'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+
+    // --- Tabela Lead ---
+    `CREATE TABLE IF NOT EXISTS "Lead" (
+      "id" SERIAL PRIMARY KEY,
+      "nome" TEXT NOT NULL,
+      "telefone" TEXT,
+      "email" TEXT,
+      "origem" "OrigemLead" NOT NULL DEFAULT 'OUTRO',
+      "campanha" TEXT,
+      "interesse" "InteresseLead",
+      "lojaId" INTEGER REFERENCES "Loja"("id"),
+      "vendedorId" INTEGER REFERENCES "User"("id"),
+      "status" "StatusLead" NOT NULL DEFAULT 'NOVO',
+      "prioridade" "PrioridadeLead",
+      "resumo" TEXT,
+      "proximaAcao" TEXT,
+      "dataProximoFollowUp" TIMESTAMP,
+      "observacoes" TEXT,
+      "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+      "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+      "interesseCorrigido" BOOLEAN NOT NULL DEFAULT FALSE,
+      "mensagemWhatsApp" TEXT,
+      "canalOrigem" TEXT,
+      "dataRepasseVendedor" TIMESTAMP,
+      "linkConversa" TEXT,
+      "mensagemRecebida" TEXT,
+      "repassadoPorId" INTEGER REFERENCES "User"("id"),
+      "whatsappComercialOrigem" TEXT,
+      "bairroCliente" TEXT,
+      "cidadeCliente" TEXT,
+      "lojaSugerida" TEXT,
+      "motivoLojaSugerida" TEXT,
+      "regiaoCliente" TEXT,
+      "ufCliente" TEXT,
+      "origemRepasse" TEXT
+    )`,
+  ];
+
+  for (const sql of sqls) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err: any) {
+      console.warn(`[Sync] Aviso:`, err?.message?.slice(0, 120));
+    }
+  }
+  console.log('[Sync] Schema verificado/atualizado.');
+}
+
 async function initializeDatabase() {
+  await sincronizarColunas();
+
   const bcrypt = await import('bcryptjs');
   
   const adminExiste = await prisma.user.findFirst({ where: { role: 'ADMIN_GERAL' } });
