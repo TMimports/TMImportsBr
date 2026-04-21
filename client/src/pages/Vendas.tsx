@@ -530,35 +530,224 @@ export function Vendas() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    const logoUrl = `${window.location.origin}/logo-tm.png`;
+    const isOrcamento = vendaDetalhada?.tipo === 'ORCAMENTO';
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${vendaDetalhada?.tipo === 'ORCAMENTO' ? 'Orcamento' : 'Venda'} #${vendaDetalhada?.id}</title>
+          <title>${isOrcamento ? 'Orcamento' : 'Comprovante de Venda'} #${vendaDetalhada?.id}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-            .header h1 { font-size: 24px; margin-bottom: 5px; }
-            .header p { font-size: 12px; color: #666; }
-            .info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
-            .info-box { width: 48%; }
-            .info-box h3 { font-size: 14px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px; }
-            .info-box p { font-size: 12px; margin-bottom: 5px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 12px; }
-            th { background: #f5f5f5; }
-            .total { text-align: right; font-size: 16px; font-weight: bold; }
-            .obs { margin-top: 20px; padding: 10px; background: #f9f9f9; border: 1px solid #ccc; font-size: 12px; }
-            .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #666; }
-            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
-            .badge-orcamento { background: #fef3c7; color: #92400e; }
-            .badge-venda { background: #d1fae5; color: #065f46; }
-            @media print { body { padding: 0; } }
+            body { font-family: Arial, sans-serif; color: #1a1a1a; background: #fff; }
+
+            /* ── Listra de topo ── */
+            .brand-stripe {
+              display: flex;
+              height: 22px;
+              width: 100%;
+            }
+            .stripe-black  { background: #0a0a0a; flex: 2; }
+            .stripe-orange { background: #f97316; flex: 5; }
+            .stripe-white  { background: #ffffff; flex: 1; border-top: 1px solid #e5e5e5; }
+
+            /* ── Cabeçalho com logo ── */
+            .brand-header {
+              background: #111111;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 18px 32px;
+            }
+            .brand-header img { height: 64px; object-fit: contain; }
+            .brand-header-right { text-align: right; }
+            .brand-header-right .doc-type {
+              font-size: 11px;
+              font-weight: 700;
+              letter-spacing: 2px;
+              color: #f97316;
+              text-transform: uppercase;
+            }
+            .brand-header-right .doc-num {
+              font-size: 22px;
+              font-weight: 800;
+              color: #ffffff;
+              line-height: 1.1;
+            }
+            .brand-header-right .doc-date {
+              font-size: 11px;
+              color: #9ca3af;
+              margin-top: 2px;
+            }
+            .brand-header-right .loja-name {
+              font-size: 12px;
+              color: #d1d5db;
+              margin-top: 4px;
+            }
+
+            /* ── Linha laranja divisória ── */
+            .orange-line { height: 3px; background: #f97316; }
+
+            /* ── Corpo do documento ── */
+            .body-wrap { padding: 24px 32px; }
+
+            /* ── Seções de info ── */
+            .info-grid { display: flex; gap: 24px; margin-bottom: 20px; }
+            .info-box { flex: 1; }
+            .info-box-label {
+              font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+              text-transform: uppercase; color: #f97316;
+              border-bottom: 1px solid #f97316; padding-bottom: 4px; margin-bottom: 8px;
+            }
+            .info-box p { font-size: 12px; margin-bottom: 3px; color: #1a1a1a; }
+            .info-box .val { font-weight: 600; }
+
+            /* ── Tabela de itens ── */
+            table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+            thead tr { background: #111111; color: #ffffff; }
+            th { padding: 8px 10px; font-size: 11px; font-weight: 600; text-align: left; }
+            th:last-child, td:last-child { text-align: right; }
+            th:nth-child(2), td:nth-child(2) { text-align: center; }
+            tbody tr:nth-child(even) { background: #f9f9f9; }
+            td { padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #e5e5e5; }
+
+            /* ── Totais ── */
+            .totals-wrap { margin-left: auto; width: 260px; }
+            .totals-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; color: #555; }
+            .totals-row.discount { color: #dc2626; }
+            .totals-final {
+              display: flex; justify-content: space-between;
+              font-size: 16px; font-weight: 800;
+              border-top: 2px solid #f97316;
+              padding-top: 8px; margin-top: 6px;
+              color: #1a1a1a;
+            }
+            .totals-final .amount { color: #16a34a; }
+
+            /* ── Garantias / Obs ── */
+            .info-block {
+              margin-top: 18px; padding: 12px 14px;
+              background: #f9f9f9; border-left: 3px solid #f97316;
+              font-size: 11px; color: #333;
+            }
+            .info-block strong { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #f97316; }
+
+            /* ── Rodapé ── */
+            .doc-footer {
+              margin-top: 32px; padding-top: 14px;
+              border-top: 1px solid #e5e5e5;
+              text-align: center; font-size: 10px; color: #9ca3af;
+            }
+
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
           </style>
         </head>
         <body>
-          ${printContent}
+
+          <!-- Listra de topo -->
+          <div class="brand-stripe">
+            <div class="stripe-black"></div>
+            <div class="stripe-orange"></div>
+            <div class="stripe-white"></div>
+          </div>
+
+          <!-- Cabeçalho com logo -->
+          <div class="brand-header">
+            <img src="${logoUrl}" alt="TM Imports" />
+            <div class="brand-header-right">
+              <div class="doc-type">${isOrcamento ? 'Orçamento' : 'Comprovante de Venda'}</div>
+              <div class="doc-num">#${vendaDetalhada?.id?.toString().padStart(5, '0')}</div>
+              <div class="doc-date">${vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}</div>
+              <div class="loja-name">${vendaDetalhada?.loja?.nomeFantasia || ''}</div>
+            </div>
+          </div>
+          <div class="orange-line"></div>
+
+          <!-- Corpo -->
+          <div class="body-wrap">
+
+            <!-- Infos: cliente + detalhes -->
+            <div class="info-grid">
+              <div class="info-box">
+                <div class="info-box-label">Cliente</div>
+                <p class="val">${vendaDetalhada?.cliente?.nome || '-'}</p>
+                ${vendaDetalhada?.cliente?.cpfCnpj ? `<p>CPF/CNPJ: ${vendaDetalhada.cliente.cpfCnpj}</p>` : ''}
+                ${vendaDetalhada?.cliente?.telefone ? `<p>Tel: ${vendaDetalhada.cliente.telefone}</p>` : ''}
+              </div>
+              <div class="info-box">
+                <div class="info-box-label">Dados da Venda</div>
+                <p>Vendedor: <span class="val">${vendaDetalhada?.vendedor?.nome || '-'}</span></p>
+                <p>Pagamento: <span class="val">${vendaDetalhada?.formaPagamento === 'COMBINADO' ? 'Pagamento Combinado' : (vendaDetalhada?.formaPagamento || '-')}</span></p>
+                ${vendaDetalhada?.parcelas && vendaDetalhada.parcelas > 1 ? `<p>Parcelas: <span class="val">${vendaDetalhada.parcelas}x</span></p>` : ''}
+              </div>
+            </div>
+
+            <!-- Tabela de itens -->
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto / Serviço</th>
+                  <th>Qtd</th>
+                  <th>Valor Unit.</th>
+                  <th>Desc.</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(vendaDetalhada?.itens || []).map((item: any) => {
+                  const desc = Number(item.desconto || 0);
+                  const bruto = Number(item.precoUnitario) * item.quantidade;
+                  const final = bruto * (1 - desc / 100);
+                  const nome = item.produto?.nome || item.servico?.nome || '-';
+                  return `<tr>
+                    <td>${nome}</td>
+                    <td style="text-align:center">${item.quantidade}</td>
+                    <td style="text-align:right">R$ ${Number(item.precoUnitario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                    <td style="text-align:right; color:${desc > 0 ? '#ca8a04' : '#999'}">${desc > 0 ? desc + '%' : '-'}</td>
+                    <td style="text-align:right; font-weight:600">R$ ${final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+
+            <!-- Totais -->
+            <div class="totals-wrap">
+              ${vendaDetalhada?.valorBruto && vendaDetalhada.valorBruto !== vendaDetalhada.valorTotal ? `
+                <div class="totals-row"><span>Subtotal:</span><span>R$ ${Number(vendaDetalhada.valorBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
+                <div class="totals-row discount"><span>Desconto:</span><span>- R$ ${(Number(vendaDetalhada.valorBruto) - Number(vendaDetalhada.valorTotal)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>
+              ` : ''}
+              <div class="totals-final">
+                <span>TOTAL</span>
+                <span class="amount">R$ ${Number(vendaDetalhada?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+
+            <!-- Garantias -->
+            ${(vendaDetalhada?.itens || []).some((i: any) => i.unidadeFisicaId) && vendaDetalhada?.tipo === 'VENDA' ? `
+              <div class="info-block">
+                <strong>Garantias Inclusas</strong>
+                <p style="margin-top:6px">• Garantia Geral: 3 meses &nbsp;|&nbsp; • Motor: 12 meses &nbsp;|&nbsp; • Módulo: 12 meses &nbsp;|&nbsp; • Bateria: 12 meses</p>
+                <p style="margin-top:4px;color:#888">* A garantia requer revisões a cada 3 meses. A primeira revisão é gratuita.</p>
+              </div>
+            ` : ''}
+
+            <!-- Observações -->
+            ${vendaDetalhada?.observacoes ? `
+              <div class="info-block" style="margin-top:10px">
+                <strong>Observações</strong>
+                <p style="margin-top:6px">${vendaDetalhada.observacoes}</p>
+              </div>
+            ` : ''}
+
+            <!-- Rodapé -->
+            <div class="doc-footer">
+              TM Imports &nbsp;·&nbsp; Tecnologia em Mobilidade Elétrica<br>
+              Documento gerado em ${new Date().toLocaleString('pt-BR')}
+            </div>
+
+          </div>
         </body>
       </html>
     `);
@@ -569,9 +758,12 @@ export function Vendas() {
   const pagamentoLabels: Record<string, string> = {
     PIX: 'PIX',
     DINHEIRO: 'Dinheiro',
-    CARTAO_DEBITO: 'Cartao Debito',
-    CARTAO_CREDITO: 'Cartao Credito',
-    FINANCIAMENTO: 'Financiamento'
+    CARTAO: 'Cartão',
+    CARTAO_DEBITO: 'Cartão Débito',
+    CARTAO_CREDITO: 'Cartão Crédito',
+    FINANCIAMENTO: 'Financiamento',
+    BOLETO: 'Boleto',
+    COMBINADO: 'Pagamento Combinado'
   };
 
   const criarClienteRapido = async () => {
@@ -1364,12 +1556,32 @@ export function Vendas() {
       <Modal isOpen={viewModalOpen} onClose={() => setViewModalOpen(false)} title={vendaDetalhada?.tipo === 'ORCAMENTO' ? 'Orcamento' : 'Comprovante de Venda'}>
         <div className="space-y-4">
           <div ref={printRef}>
-            <div className="header text-center mb-4 pb-4 border-b border-zinc-700">
-              <h1 className="text-xl font-bold">
-                {vendaDetalhada?.tipo === 'ORCAMENTO' ? 'ORCAMENTO' : 'COMPROVANTE DE VENDA'}
-              </h1>
-              <p className="text-gray-400">#{vendaDetalhada?.id}</p>
-              <p className="text-sm text-gray-500">{vendaDetalhada?.loja?.nomeFantasia}</p>
+            {/* Listra topo + cabeçalho com logo */}
+            <div className="-mx-4 -mt-2 mb-5">
+              {/* Listra horizontal: preto | laranja | branco */}
+              <div className="flex h-[18px]">
+                <div className="flex-[2] bg-black" />
+                <div className="flex-[5] bg-orange-500" />
+                <div className="flex-[1] bg-white border-t border-zinc-200" />
+              </div>
+              {/* Cabeçalho escuro com logo */}
+              <div className="bg-[#111111] flex items-center justify-between px-6 py-4">
+                <img src="/logo-tm.png" alt="TM Imports" className="h-14 object-contain" />
+                <div className="text-right">
+                  <p className="text-[10px] font-bold tracking-[2px] text-orange-500 uppercase">
+                    {vendaDetalhada?.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Comprovante de Venda'}
+                  </p>
+                  <p className="text-2xl font-black text-white leading-tight">
+                    #{vendaDetalhada?.id?.toString().padStart(5, '0')}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    {vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}
+                  </p>
+                  <p className="text-[12px] text-gray-300 mt-1">{vendaDetalhada?.loja?.nomeFantasia}</p>
+                </div>
+              </div>
+              {/* Linha laranja divisória */}
+              <div className="h-[3px] bg-orange-500" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
