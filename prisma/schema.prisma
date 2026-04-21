@@ -866,6 +866,7 @@ enum FormaPagamento {
   CARTAO_DEBITO
   CARTAO_CREDITO
   FINANCIAMENTO
+  COMBINADO
 }
 
 enum StatusTransferencia {
