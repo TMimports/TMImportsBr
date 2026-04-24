@@ -430,8 +430,8 @@ export function OrdensServico() {
                   <p className="text-gray-300">{os.tecnico || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs">Data</p>
-                  <p className="text-gray-300">{new Date(os.createdAt).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-gray-500 text-xs">Data / Hora</p>
+                  <p className="text-gray-300">{new Date(os.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-zinc-700 flex justify-between items-center">
@@ -788,7 +788,7 @@ export function OrdensServico() {
               </div>
               <div className="info-box">
                 <h3 className="font-semibold text-sm mb-2 text-gray-400">Informacoes</h3>
-                <p className="text-sm text-gray-400">Data: {osDetalhada?.createdAt ? new Date(osDetalhada.createdAt).toLocaleDateString('pt-BR') : '-'}</p>
+                <p className="text-sm text-gray-400">Data: {osDetalhada?.createdAt ? new Date(osDetalhada.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</p>
                 {osDetalhada?.tecnico && <p className="text-sm text-gray-400">Tecnico: {osDetalhada.tecnico}</p>}
                 {osDetalhada?.motoDescricao && <p className="text-sm text-gray-400">Veiculo: {osDetalhada.motoDescricao}</p>}
               </div>

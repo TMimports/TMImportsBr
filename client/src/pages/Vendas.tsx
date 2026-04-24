@@ -1134,8 +1134,8 @@ export function Vendas() {
                   <p className="text-gray-300">{pagamentoLabels[venda.formaPagamento] || venda.formaPagamento}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs">Data</p>
-                  <p className="text-gray-300">{new Date(venda.createdAt).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-gray-500 text-xs">Data / Hora</p>
+                  <p className="text-gray-300">{new Date(venda.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-zinc-700 flex justify-between items-center">
@@ -1870,7 +1870,7 @@ export function Vendas() {
                       <h3 className="text-[10px] font-bold tracking-widest text-orange-500 uppercase border-b border-orange-500/40 pb-1 mb-2">Informações</h3>
                       <p className="text-sm text-gray-400">Vendedor: <span className="text-white">{vendaDetalhada?.vendedor?.nome}</span></p>
                       <p className="text-sm text-gray-400">Loja: <span className="text-white">{vendaDetalhada?.loja?.nomeFantasia || '-'}</span></p>
-                      <p className="text-sm text-gray-400">Data: <span className="text-white">{vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleDateString('pt-BR') : '-'}</span></p>
+                      <p className="text-sm text-gray-400">Data: <span className="text-white">{vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</span></p>
                     </div>
                   </div>
 
