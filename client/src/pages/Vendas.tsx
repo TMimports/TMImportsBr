@@ -899,8 +899,10 @@ export function Vendas() {
       'ID', 'Data/Hora', 'Tipo', 'Cliente', 'CPF/CNPJ', 'Telefone',
       'Loja', 'Vendedor',
       'Produto / Serviço', 'Especificação', 'Cor', 'Chassi', 'Cód Motor',
-      'Forma de Pagamento', '1ª Forma', '1º Valor (R$)', '2ª Forma', '2º Valor (R$)',
-      'Parcelas', 'Valor Base (R$)', 'Valor Final (R$)', 'Status Financeiro'
+      'Forma de Pagamento',
+      '1ª Forma', '1º Valor (R$)', '1ª Parcelas',
+      '2ª Forma', '2º Valor (R$)', '2ª Parcelas',
+      'Valor Base (R$)', 'Valor Final (R$)', 'Status Financeiro'
     ];
 
     const rows: (string | number)[][] = [];
@@ -909,15 +911,26 @@ export function Vendas() {
       // Extrair pagamentos compostos (COMBINADO)
       let pag1Forma = '-', pag2Forma = '-';
       let pag1Valor: number | string = '-', pag2Valor: number | string = '-';
+      let pag1Parcelas: number | string = '-', pag2Parcelas: number | string = '-';
+
       if (v.formaPagamento === 'COMBINADO' && (v as any).pagamentosJson) {
         try {
           const compostos: {tipo: string; valor: number; parcelas?: number}[] = JSON.parse((v as any).pagamentosJson);
-          if (compostos[0]) { pag1Forma = labelPagXls(compostos[0].tipo); pag1Valor = fmtValor(Number(compostos[0].valor)); }
-          if (compostos[1]) { pag2Forma = labelPagXls(compostos[1].tipo); pag2Valor = fmtValor(Number(compostos[1].valor)); }
+          if (compostos[0]) {
+            pag1Forma = labelPagXls(compostos[0].tipo);
+            pag1Valor = fmtValor(Number(compostos[0].valor));
+            pag1Parcelas = Number(compostos[0].parcelas) || 1;
+          }
+          if (compostos[1]) {
+            pag2Forma = labelPagXls(compostos[1].tipo);
+            pag2Valor = fmtValor(Number(compostos[1].valor));
+            pag2Parcelas = Number(compostos[1].parcelas) || 1;
+          }
         } catch (_) {}
       } else {
         pag1Forma = labelPagXls(v.formaPagamento);
         pag1Valor = fmtValor(Number(v.valorTotal));
+        pag1Parcelas = v.parcelas || 1;
       }
 
       const dataHoraVenda = new Date(v.createdAt).toLocaleString('pt-BR', {
@@ -930,7 +943,6 @@ export function Vendas() {
       const loja = v.loja?.nomeFantasia || '-';
       const vendedor = v.vendedor?.nome || '-';
       const formaPag = labelPagXls(v.formaPagamento);
-      const parcelas = v.parcelas || 1;
       const valorBase = fmtValor(Number(v.valorBruto || v.valorTotal));
       const valorFinal = fmtValor(Number(v.valorTotal));
       const statusFin = v.confirmadaFinanceiro ? 'Confirmada' : 'Pendente';
@@ -940,8 +952,10 @@ export function Vendas() {
         rows.push([
           v.id, dataHoraVenda, tipo, cliente, cpf, tel, loja, vendedor,
           '-', '-', '-', '-', '-',
-          formaPag, pag1Forma, pag1Valor, pag2Forma, pag2Valor,
-          parcelas, valorBase, valorFinal, statusFin
+          formaPag,
+          pag1Forma, pag1Valor, pag1Parcelas,
+          pag2Forma, pag2Valor, pag2Parcelas,
+          valorBase, valorFinal, statusFin
         ]);
       } else {
         itensDaVenda.forEach((item: any) => {
@@ -953,8 +967,10 @@ export function Vendas() {
           rows.push([
             v.id, dataHoraVenda, tipo, cliente, cpf, tel, loja, vendedor,
             nomeProduto, especificacao, cor, chassi, motor,
-            formaPag, pag1Forma, pag1Valor, pag2Forma, pag2Valor,
-            parcelas, valorBase, valorFinal, statusFin
+            formaPag,
+            pag1Forma, pag1Valor, pag1Parcelas,
+            pag2Forma, pag2Valor, pag2Parcelas,
+            valorBase, valorFinal, statusFin
           ]);
         });
       }
@@ -965,8 +981,10 @@ export function Vendas() {
       { wch: 6 }, { wch: 16 }, { wch: 9 }, { wch: 28 }, { wch: 16 }, { wch: 14 },
       { wch: 22 }, { wch: 22 },
       { wch: 30 }, { wch: 28 }, { wch: 12 }, { wch: 20 }, { wch: 20 },
-      { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
-      { wch: 9 }, { wch: 14 }, { wch: 14 }, { wch: 16 }
+      { wch: 20 },
+      { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 16 }
     ];
     XLSX.utils.book_append_sheet(wb, ws, 'Vendas Detalhadas');
 
