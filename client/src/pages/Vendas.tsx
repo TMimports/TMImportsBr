@@ -751,7 +751,7 @@ export function Vendas() {
             <div class="brand-header-right">
               <div class="doc-type">${isOrcamento ? 'Orçamento' : 'Comprovante de Venda'}</div>
               <div class="doc-num">#${vendaDetalhada?.id?.toString().padStart(5, '0')}</div>
-              <div class="doc-meta">${vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}</div>
+              <div class="doc-meta">${vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</div>
               <div class="loja-name">${vendaDetalhada?.loja?.nomeFantasia || ''}</div>
             </div>
           </div>
@@ -887,94 +887,104 @@ export function Vendas() {
   const handleExportExcel = () => {
     const wb = XLSX.utils.book_new();
 
-    // ── Aba 1: Resumo de Vendas ────────────────────────────────────────────
-    const resumoHeaders = [
-      'ID', 'Tipo', 'Data', 'Cliente', 'CPF/CNPJ', 'Telefone',
-      'Loja', 'Vendedor', 'Forma de Pagamento', 'Parcelas',
-      'Valor Base (R$)', 'Valor Final (R$)', 'Status Financeiro', 'Status'
+    const fmtValor = (n: number) => Number(n.toFixed(2));
+    const labelPagXls = (t: string) => ({
+      PIX: 'Pix', DINHEIRO: 'Dinheiro', CARTAO: 'Cartão', CARTAO_DEBITO: 'Cartão Débito',
+      CARTAO_CREDITO: 'Cartão Crédito', FINANCIAMENTO: 'Financiamento',
+      BOLETO: 'Boleto', COMBINADO: 'Pagamento Combinado'
+    }[t] || t);
+
+    // ── Aba 1: Vendas Detalhadas (uma linha por item) ──────────────────────
+    const headers = [
+      'ID', 'Data/Hora', 'Tipo', 'Cliente', 'CPF/CNPJ', 'Telefone',
+      'Loja', 'Vendedor',
+      'Produto / Serviço', 'Especificação', 'Cor', 'Chassi', 'Cód Motor',
+      'Forma de Pagamento', '1ª Forma', '1º Valor (R$)', '2ª Forma', '2º Valor (R$)',
+      'Parcelas', 'Valor Base (R$)', 'Valor Final (R$)', 'Status Financeiro'
     ];
 
-    const resumoRows = vendas
-      .filter(v => !v.deletedAt)
-      .map(v => {
-        return [
-          v.id,
-          v.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Venda',
-          new Date(v.createdAt).toLocaleDateString('pt-BR'),
-          v.cliente?.nome || '-',
-          v.cliente?.cpfCnpj || '-',
-          v.cliente?.telefone || '-',
-          v.loja?.nomeFantasia || '-',
-          v.vendedor?.nome || '-',
-          pagamentoLabels[v.formaPagamento] || v.formaPagamento,
-          v.parcelas || 1,
-          Number(v.valorBruto || v.valorTotal).toFixed(2).replace('.', ','),
-          Number(v.valorTotal).toFixed(2).replace('.', ','),
-          v.confirmadaFinanceiro ? 'Confirmada' : 'Pendente',
-          v.deletedAt ? 'Cancelada' : 'Ativa'
-        ];
-      });
+    const rows: (string | number)[][] = [];
 
-    const wsResumo = XLSX.utils.aoa_to_sheet([resumoHeaders, ...resumoRows]);
-
-    // Larguras das colunas
-    wsResumo['!cols'] = [
-      { wch: 6 }, { wch: 10 }, { wch: 12 }, { wch: 28 }, { wch: 16 },
-      { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 20 }, { wch: 9 },
-      { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 10 }
-    ];
-    XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo de Vendas');
-
-    // ── Aba 2: Itens Detalhados ───────────────────────────────────────────
-    const itensHeaders = [
-      'Venda ID', 'Data', 'Tipo', 'Cliente', 'Loja', 'Vendedor',
-      'Produto / Serviço', 'Qtd', 'Preço Unitário (R$)', 'Desconto (%)',
-      'Subtotal (R$)', 'Chassi', 'Nº Motor'
-    ];
-
-    const itensRows: (string | number)[][] = [];
     vendas.filter(v => !v.deletedAt).forEach(v => {
+      // Extrair pagamentos compostos (COMBINADO)
+      let pag1Forma = '-', pag2Forma = '-';
+      let pag1Valor: number | string = '-', pag2Valor: number | string = '-';
+      if (v.formaPagamento === 'COMBINADO' && (v as any).pagamentosJson) {
+        try {
+          const compostos: {tipo: string; valor: number; parcelas?: number}[] = JSON.parse((v as any).pagamentosJson);
+          if (compostos[0]) { pag1Forma = labelPagXls(compostos[0].tipo); pag1Valor = fmtValor(Number(compostos[0].valor)); }
+          if (compostos[1]) { pag2Forma = labelPagXls(compostos[1].tipo); pag2Valor = fmtValor(Number(compostos[1].valor)); }
+        } catch (_) {}
+      } else {
+        pag1Forma = labelPagXls(v.formaPagamento);
+        pag1Valor = fmtValor(Number(v.valorTotal));
+      }
+
+      const dataHoraVenda = new Date(v.createdAt).toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      const tipo = v.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Venda';
+      const cliente = v.cliente?.nome || '-';
+      const cpf = v.cliente?.cpfCnpj || '-';
+      const tel = v.cliente?.telefone || '-';
+      const loja = v.loja?.nomeFantasia || '-';
+      const vendedor = v.vendedor?.nome || '-';
+      const formaPag = labelPagXls(v.formaPagamento);
+      const parcelas = v.parcelas || 1;
+      const valorBase = fmtValor(Number(v.valorBruto || v.valorTotal));
+      const valorFinal = fmtValor(Number(v.valorTotal));
+      const statusFin = v.confirmadaFinanceiro ? 'Confirmada' : 'Pendente';
+
       const itensDaVenda = v.itens || [];
       if (itensDaVenda.length === 0) {
-        itensRows.push([
-          v.id,
-          new Date(v.createdAt).toLocaleDateString('pt-BR'),
-          v.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Venda',
-          v.cliente?.nome || '-',
-          v.loja?.nomeFantasia || '-',
-          v.vendedor?.nome || '-',
-          '-', 0, 0, 0, 0, '-', '-'
+        rows.push([
+          v.id, dataHoraVenda, tipo, cliente, cpf, tel, loja, vendedor,
+          '-', '-', '-', '-', '-',
+          formaPag, pag1Forma, pag1Valor, pag2Forma, pag2Valor,
+          parcelas, valorBase, valorFinal, statusFin
         ]);
       } else {
-        itensDaVenda.forEach(item => {
-          const desc    = Number(item.desconto || 0);
-          const preco   = Number(item.precoUnitario);
-          const sub     = preco * item.quantidade * (1 - desc / 100);
-          itensRows.push([
-            v.id,
-            new Date(v.createdAt).toLocaleDateString('pt-BR'),
-            v.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Venda',
-            v.cliente?.nome || '-',
-            v.loja?.nomeFantasia || '-',
-            v.vendedor?.nome || '-',
-            item.produto?.nome || item.servico?.nome || '-',
-            item.quantidade,
-            preco.toFixed(2).replace('.', ','),
-            desc > 0 ? `${desc}%` : '-',
-            sub.toFixed(2).replace('.', ','),
-            item.unidadeFisica?.chassi || '-',
-            item.unidadeFisica?.codigoMotor || '-'
+        itensDaVenda.forEach((item: any) => {
+          const nomeProduto = item.produto?.nome || item.servico?.nome || '-';
+          const especificacao = item.produto?.descricao || '-';
+          const cor = item.unidadeFisica?.cor || '-';
+          const chassi = item.unidadeFisica?.chassi || '-';
+          const motor = item.unidadeFisica?.codigoMotor || '-';
+          rows.push([
+            v.id, dataHoraVenda, tipo, cliente, cpf, tel, loja, vendedor,
+            nomeProduto, especificacao, cor, chassi, motor,
+            formaPag, pag1Forma, pag1Valor, pag2Forma, pag2Valor,
+            parcelas, valorBase, valorFinal, statusFin
           ]);
         });
       }
     });
 
-    const wsItens = XLSX.utils.aoa_to_sheet([itensHeaders, ...itensRows]);
-    wsItens['!cols'] = [
-      { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 28 }, { wch: 22 }, { wch: 22 },
-      { wch: 30 }, { wch: 5 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 20 }, { wch: 20 }
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [
+      { wch: 6 }, { wch: 16 }, { wch: 9 }, { wch: 28 }, { wch: 16 }, { wch: 14 },
+      { wch: 22 }, { wch: 22 },
+      { wch: 30 }, { wch: 28 }, { wch: 12 }, { wch: 20 }, { wch: 20 },
+      { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+      { wch: 9 }, { wch: 14 }, { wch: 14 }, { wch: 16 }
     ];
-    XLSX.utils.book_append_sheet(wb, wsItens, 'Itens Detalhados');
+    XLSX.utils.book_append_sheet(wb, ws, 'Vendas Detalhadas');
+
+    // ── Aba 2: Resumo por Vendedor ─────────────────────────────────────────
+    const porVendedor: Record<string, { qtd: number; total: number }> = {};
+    vendas.filter(v => !v.deletedAt).forEach(v => {
+      const nome = v.vendedor?.nome || 'Sem vendedor';
+      if (!porVendedor[nome]) porVendedor[nome] = { qtd: 0, total: 0 };
+      porVendedor[nome].qtd += 1;
+      porVendedor[nome].total += Number(v.valorTotal);
+    });
+    const resumoHeaders = ['Vendedor', 'Qtd Vendas', 'Total (R$)'];
+    const resumoRows = Object.entries(porVendedor).map(([nome, d]) => [
+      nome, d.qtd, fmtValor(d.total)
+    ]);
+    const wsResumo = XLSX.utils.aoa_to_sheet([resumoHeaders, ...resumoRows]);
+    wsResumo['!cols'] = [{ wch: 28 }, { wch: 12 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo por Vendedor');
 
     // ── Exportar ───────────────────────────────────────────────────────────
     const dataHora = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
@@ -1849,7 +1859,7 @@ export function Vendas() {
                         </p>
                         <p className="text-[11px] text-gray-400 mt-0.5">
                           {vendaDetalhada?.createdAt
-                            ? new Date(vendaDetalhada.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+                            ? new Date(vendaDetalhada.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                             : ''}
                         </p>
                         <p className="text-[12px] text-gray-300 mt-1">{vendaDetalhada?.loja?.nomeFantasia}</p>
