@@ -897,9 +897,6 @@ export function Vendas() {
     const resumoRows = vendas
       .filter(v => !v.deletedAt)
       .map(v => {
-        const encargos = (v.valorBruto && Number(v.valorBruto) > 0)
-          ? Number(v.valorTotal) - Number(v.valorBruto)
-          : 0;
         return [
           v.id,
           v.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Venda',

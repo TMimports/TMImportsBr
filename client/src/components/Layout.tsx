@@ -82,9 +82,6 @@ const FIN_GROUP = group('fin-group', 'Financeiro', '💵', [
   { id: 'fin-categorias',     label: 'Categorias',     icon: '🏷' },
 ]);
 
-// WhatsApp CRM
-const WHATSAPP_ITEM = item('whatsapp-crm', 'WhatsApp CRM', '💬');
-
 // Configurações
 const CONFIG_ITEM = item('configuracoes', 'Configurações', '⚙️');
 
@@ -95,13 +92,6 @@ const REDE_GROUP = group('rede-group', 'Rede de Franquias', '🏢', [
   { id: 'grupos',              label: 'Grupos / Franquias',  icon: '🏢' },
   { id: 'lojas',               label: 'Lojas',               icon: '🏪' },
   { id: 'financeiro-empresa',  label: 'Financeiro por Loja', icon: '💰' },
-]);
-
-// Grupo comercial para ADMIN_FINANCEIRO (acesso de leitura ao contexto de vendas)
-const COMERCIAL_FIN_GROUP = group('comercial-fin-group', 'Comercial', '🛍️', [
-  { id: 'clientes', label: 'Clientes', icon: '👤' },
-  { id: 'vendas',   label: 'Vendas',   icon: '🛍️' },
-  { id: 'os',       label: 'Ordens de Serviço', icon: '🔩' },
 ]);
 
 // Menu do Técnico — foco em OS e comissões

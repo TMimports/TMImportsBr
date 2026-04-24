@@ -10,6 +10,7 @@ interface LogEntry {
   entidade: string;
   entidadeId: number | null;
   detalhes: string | null;
+  dados: string | null;
   ip: string | null;
   createdAt: string;
   usuario: { id: number; nome: string; role: string } | null;
