@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../index.js';
 import { verifyToken, applyTenantFilter, requireRole, AuthRequest } from '../middleware/auth.js';
 import { InventoryService } from '../services/InventoryService.js';
+import { registrarLog, obterIp } from '../services/logService.js';
 
 const router = Router();
 
@@ -360,6 +361,17 @@ router.post('/', async (req: AuthRequest, res) => {
       await criarGarantiasVenda(venda.id, Number(clienteId), venda.itens);
     }
 
+    registrarLog({
+      usuarioId:  req.user!.id,
+      userName:   req.user!.nome,
+      userRole:   req.user!.role,
+      acao:       tipoVenda === 'ORCAMENTO' ? 'CRIAR_ORCAMENTO' : 'CRIAR_VENDA',
+      entidade:   'VENDA',
+      entidadeId: venda.id,
+      detalhes:   `${tipoVenda === 'ORCAMENTO' ? 'Orçamento' : 'Venda'} #${venda.id} criado para "${(venda as any).cliente?.nome || clienteId}" — R$ ${valorTotal.toFixed(2)}`,
+      ip: obterIp(req),
+    });
+
     res.status(201).json(venda);
   } catch (error: any) {
     console.error('Erro ao criar venda:', error);
@@ -691,14 +703,15 @@ router.delete('/:id', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), a
       }
     });
 
-    await prisma.logAuditoria.create({
-      data: {
-        usuarioId: req.user!.id,
-        acao: 'DELETE',
-        entidade: 'Venda',
-        entidadeId: Number(req.params.id),
-        dados: JSON.stringify(venda)
-      }
+    registrarLog({
+      usuarioId:  req.user!.id,
+      userName:   req.user!.nome,
+      userRole:   req.user!.role,
+      acao:       'EXCLUIR_VENDA',
+      entidade:   'VENDA',
+      entidadeId: Number(req.params.id),
+      detalhes:   `Venda/Orçamento #${req.params.id} excluído (tipo: ${venda.tipo}, valor: R$ ${Number(venda.valorTotal).toFixed(2)})`,
+      ip: obterIp(req),
     });
 
     res.json({ message: 'Orçamento excluído' });

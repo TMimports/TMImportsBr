@@ -37,6 +37,7 @@ import notasFiscaisRoutes from './routes/notas-fiscais.js';
 import conciliacaoBancariaRoutes from './routes/conciliacao-bancaria.js';
 import relatoriosRoutes from './routes/relatorios.js';
 import whatsappRoutes from './routes/whatsapp.js';
+import logAtividadesRoutes from './routes/log-atividades.js';
 import { iniciarScheduler } from './services/scheduler.js';
 
 export const prisma = new PrismaClient({
@@ -142,6 +143,7 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/notas-fiscais', notasFiscaisRoutes);
 app.use('/api/conciliacao-bancaria', conciliacaoBancariaRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
+app.use('/api/log-atividades', logAtividadesRoutes);
 
 if (isDev) app.get('/api/debug-build', (req, res) => {
   const fs = require('fs');
@@ -267,6 +269,15 @@ async function sincronizarColunas() {
       "descricao" TEXT NOT NULL,
       "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
     )`,
+
+    // --- LogAuditoria: novos campos para auditoria de atividades ---
+    `ALTER TABLE "LogAuditoria" ALTER COLUMN "usuarioId"  DROP NOT NULL`,
+    `ALTER TABLE "LogAuditoria" ALTER COLUMN "entidade"   SET DEFAULT ''`,
+    `ALTER TABLE "LogAuditoria" ALTER COLUMN "entidadeId" DROP NOT NULL`,
+    `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "userName"  TEXT`,
+    `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "userRole"  TEXT`,
+    `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "detalhes"  TEXT`,
+    `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "ip"        TEXT`,
   ];
 
   for (const sql of sqls) {

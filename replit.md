@@ -42,6 +42,7 @@ This project is a comprehensive multi-company ERP system designed for TM Imports
     - **Automated Reporting:** Role-based email reports with XLSX attachments and scheduled delivery.
     - **WhatsApp CRM:** Template-based messaging system, bulk dispatch, and quick access from client/supplier records.
     - **Sequential Codes:** Automated generation and normalization of sequential IDs for OS, Products.
+    - **Activity Audit Log:** Full system activity tracking via `LogAuditoria` table — logs logins, sales creation/deletion, client changes, Excel exports, and password changes. Visible only to ADMIN_GERAL at `/log-atividades`. Backend service at `server/src/services/logService.ts`. New optional columns (userName, userRole, detalhes, ip) added via `sincronizarColunas()`.
     - **API Patterns:** Consistent use of an `api` service for requests; named exports/imports; careful handling of legacy fields.
 
 ## External Dependencies

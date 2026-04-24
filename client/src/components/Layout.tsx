@@ -122,6 +122,7 @@ const menuItems: Record<string, NavEntry[]> = {
     WHATSAPP_ITEM,
     RELATORIOS_ITEM,
     item('crm-leads-beta', 'CRM Leads (Beta)', '🎯'),
+    item('log-atividades', 'Log de Atividades', '🔍'),
     CONFIG_ITEM,
   ],
   ADMIN_FINANCEIRO: [

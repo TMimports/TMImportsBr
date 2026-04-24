@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
 import { verifyToken, AuthRequest } from '../middleware/auth.js';
+import { registrarLog, obterIp } from '../services/logService.js';
 
 const router = Router();
 
@@ -144,6 +145,17 @@ router.post('/', async (req: AuthRequest, res) => {
       }
     });
 
+    registrarLog({
+      usuarioId:  req.user!.id,
+      userName:   req.user!.nome,
+      userRole:   req.user!.role,
+      acao:       'CRIAR_CLIENTE',
+      entidade:   'CLIENTE',
+      entidadeId: cliente.id,
+      detalhes:   `Cliente "${nome}" (${cpfCnpj || 'sem CPF/CNPJ'}) criado`,
+      ip: obterIp(req),
+    });
+
     res.status(201).json(cliente);
   } catch (error) {
     console.error('Erro ao criar cliente:', error);
@@ -160,6 +172,17 @@ router.put('/:id', async (req: AuthRequest, res) => {
       data: { nome, cpfCnpj, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, estado }
     });
 
+    registrarLog({
+      usuarioId:  (req as AuthRequest).user?.id,
+      userName:   (req as AuthRequest).user?.nome,
+      userRole:   (req as AuthRequest).user?.role,
+      acao:       'EDITAR_CLIENTE',
+      entidade:   'CLIENTE',
+      entidadeId: cliente.id,
+      detalhes:   `Cliente "${cliente.nome}" atualizado`,
+      ip: obterIp(req),
+    });
+
     res.json(cliente);
   } catch (error) {
     console.error('Erro ao atualizar cliente:', error);
@@ -167,7 +190,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req: AuthRequest, res) => {
   try {
     const clienteId = Number(req.params.id);
 
@@ -185,8 +208,21 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
+    const clienteParaExcluir = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { nome: true } });
+
     await prisma.cliente.delete({
       where: { id: clienteId }
+    });
+
+    registrarLog({
+      usuarioId:  req.user?.id,
+      userName:   req.user?.nome,
+      userRole:   req.user?.role,
+      acao:       'EXCLUIR_CLIENTE',
+      entidade:   'CLIENTE',
+      entidadeId: clienteId,
+      detalhes:   `Cliente "${clienteParaExcluir?.nome || clienteId}" excluído`,
+      ip: obterIp(req),
     });
 
     res.json({ message: 'Cliente excluído' });

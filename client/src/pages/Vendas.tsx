@@ -982,6 +982,12 @@ export function Vendas() {
     // ── Exportar ───────────────────────────────────────────────────────────
     const dataHora = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
     XLSX.writeFile(wb, `Vendas_${dataHora}.xlsx`);
+
+    api.post('/log-atividades/acao', {
+      acao: 'EXPORTAR_EXCEL',
+      entidade: 'VENDA',
+      detalhes: `Planilha de vendas exportada — ${vendas.filter(v => !v.deletedAt).length} registros`,
+    }).catch(() => {});
   };
 
   const criarClienteRapido = async () => {

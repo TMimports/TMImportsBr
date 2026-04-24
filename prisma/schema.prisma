@@ -397,14 +397,18 @@ model ContaPagar {
 }
 
 model LogAuditoria {
-  id         Int      @id @default(autoincrement())
-  usuarioId  Int
-  acao       String
-  entidade   String
-  entidadeId Int
-  dados      String?
-  createdAt  DateTime @default(now())
-  usuario    User     @relation(fields: [usuarioId], references: [id])
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int?
+  userName    String?
+  userRole    String?
+  acao        String
+  entidade    String   @default("")
+  entidadeId  Int?
+  detalhes    String?
+  dados       String?
+  ip          String?
+  createdAt   DateTime @default(now())
+  usuario     User?    @relation(fields: [usuarioId], references: [id])
 }
 
 model Comissao {
