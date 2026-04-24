@@ -10,7 +10,9 @@ interface VendaItem {
   quantidade: number;
   precoUnitario: number;
   desconto: number;
-  produto: { nome: string };
+  unidadeFisicaId?: number;
+  produto?: { nome: string };
+  servico?: { nome: string };
 }
 
 interface VendaFull {
@@ -19,11 +21,13 @@ interface VendaFull {
   valorTotal: number;
   valorBruto: number;
   formaPagamento: string;
+  parcelas?: number | null;
+  pagamentosJson?: string | null;
   confirmadaFinanceiro: boolean;
   observacoes?: string;
-  cliente: { id: number; nome: string; cpfCnpj?: string; telefone?: string; endereco?: string };
+  cliente: { id: number; nome: string; cpfCnpj?: string; telefone?: string; email?: string; endereco?: string };
   vendedor: { nome: string };
-  loja: { nomeFantasia: string; cnpj?: string; telefone?: string; endereco?: string };
+  loja: { id: number; nomeFantasia: string; cnpj?: string; telefone?: string; endereco?: string };
   itens: VendaItem[];
   createdAt: string;
 }
@@ -417,6 +421,22 @@ export function Vendas() {
       }
     }
 
+    // ── Calcular o valor final que o cliente irá pagar (com encargos) ──────
+    let valorParaSalvar: number;
+    if (isCombinado) {
+      // Para COMBINADO: soma de cada método já com sua taxa individual
+      valorParaSalvar = totalComEncargos;
+    } else if (isCredito) {
+      // Para Cartão Crédito / Financiamento: aplica a taxa da máquina
+      const nParcelas = parseInt(form.parcelas) || 1;
+      const taxa = TAXAS_MAQUINA[nParcelas] ?? 0;
+      const comTaxa = totalFinal * (1 + taxa);
+      valorParaSalvar = comTaxa % 1 !== 0 ? Math.ceil(comTaxa) : comTaxa;
+    } else {
+      // PIX, Dinheiro, Débito: sem encargo
+      valorParaSalvar = totalFinal;
+    }
+
     setSaving(true);
     try {
       const itensPecas = itensSelecionados
@@ -454,7 +474,7 @@ export function Vendas() {
         tipo: form.tipo,
         observacoes: form.observacoes,
         pagamentosCompostos: isCombinado ? pagamentosCompostos : undefined,
-        valorTotalManual: totalFinal
+        valorTotalManual: valorParaSalvar
       });
 
       setModalOpen(false);
@@ -1624,7 +1644,7 @@ export function Vendas() {
             {/* ── Logo dinâmica baseada na loja ── */}
             {(() => {
               const nf = (vendaDetalhada?.loja?.nomeFantasia || '').toLowerCase();
-              const isTM = (vendaDetalhada?.loja as any)?.id === 4
+              const isTM = vendaDetalhada?.loja?.id === 4
                 || nf.includes('tm import') || nf.includes('importa');
               const logo = isTM ? '/logo-tm.png' : '/logo.png';
               const brand = isTM ? 'TM Imports' : 'Tecle Motos';
@@ -1644,8 +1664,8 @@ export function Vendas() {
 
               // Pagamentos compostos
               let pagsComp: {tipo:string; valor:number; parcelas:number}[] = [];
-              if (vendaDetalhada?.formaPagamento === 'COMBINADO' && (vendaDetalhada as any)?.pagamentosJson) {
-                try { pagsComp = JSON.parse((vendaDetalhada as any).pagamentosJson); } catch (_) {}
+              if (vendaDetalhada?.formaPagamento === 'COMBINADO' && vendaDetalhada?.pagamentosJson) {
+                try { pagsComp = JSON.parse(vendaDetalhada.pagamentosJson); } catch (_) {}
               }
               const TAXAS_M: Record<number,number> = {
                 1:0.0604,2:0.0736,3:0.0799,4:0.0865,5:0.0931,6:0.0999,
