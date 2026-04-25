@@ -79,130 +79,27 @@ const BANCOS_BRASIL = [
   { value: 'Outro', label: 'Outro' },
 ];
 
-// Definição visual de cada perfil de acesso
-const TODOS_OS_PERFIS = [
-  {
-    role: 'ADMIN_GERAL',
-    label: 'Administrador Geral',
-    icon: '👑',
-    cor: 'border-orange-500 bg-orange-500/10',
-    corSel: 'border-orange-400 bg-orange-500/25 ring-2 ring-orange-500',
-    desc: 'Acesso total: produtos, custos, estoque, usuários, financeiro e todas as lojas/franquias.',
-    grupo: 'TM Imports',
-  },
-  {
-    role: 'ADMIN_FINANCEIRO',
-    label: 'Administrador Financeiro',
-    icon: '💰',
-    cor: 'border-emerald-600 bg-emerald-600/10',
-    corSel: 'border-emerald-400 bg-emerald-600/25 ring-2 ring-emerald-500',
-    desc: 'Acesso completo a toda a área financeira de todas as lojas. Visualiza vendas e clientes.',
-    grupo: 'TM Imports',
-  },
-  {
-    role: 'ADMIN_COMERCIAL',
-    label: 'Administrador Comercial',
-    icon: '📊',
-    cor: 'border-blue-600 bg-blue-600/10',
-    corSel: 'border-blue-400 bg-blue-600/25 ring-2 ring-blue-500',
-    desc: 'Visão comercial da rede: volume de vendas, top produtos e estoque. Sem acesso a custos.',
-    grupo: 'TM Imports',
-  },
-  {
-    role: 'ADMIN_REDE',
-    label: 'Administrador de Rede',
-    icon: '🌐',
-    cor: 'border-violet-600 bg-violet-600/10',
-    corSel: 'border-violet-400 bg-violet-600/25 ring-2 ring-violet-500',
-    desc: 'Gerencia a rede de franquias: cadastra lojas, usuários e acompanha relatórios de toda a rede.',
-    grupo: 'Rede',
-  },
-  {
-    role: 'DONO_LOJA',
-    label: 'Dono da Loja',
-    icon: '🏪',
-    cor: 'border-yellow-600 bg-yellow-600/10',
-    corSel: 'border-yellow-400 bg-yellow-600/25 ring-2 ring-yellow-500',
-    desc: 'Gerencia seu grupo de lojas: cadastra funcionários, vê estoque, vendas, OS e financeiro do grupo.',
-    grupo: 'Loja',
-  },
-  {
-    role: 'GERENTE_LOJA',
-    label: 'Gerente da Loja',
-    icon: '🗂️',
-    cor: 'border-cyan-600 bg-cyan-600/10',
-    corSel: 'border-cyan-400 bg-cyan-600/25 ring-2 ring-cyan-500',
-    desc: 'Supervisiona vendas, estoque, OS e comissões da unidade. Sem acesso a custos de produtos.',
-    grupo: 'Loja',
-  },
-  {
-    role: 'VENDEDOR',
-    label: 'Vendedor',
-    icon: '🛍️',
-    cor: 'border-pink-600 bg-pink-600/10',
-    corSel: 'border-pink-400 bg-pink-600/25 ring-2 ring-pink-500',
-    desc: 'Cria vendas e orçamentos, atende clientes. Vê apenas suas próprias comissões.',
-    grupo: 'Loja',
-  },
-  {
-    role: 'TECNICO',
-    label: 'Técnico',
-    icon: '🔧',
-    cor: 'border-gray-500 bg-gray-500/10',
-    corSel: 'border-gray-300 bg-gray-500/25 ring-2 ring-gray-400',
-    desc: 'Executa ordens de serviço, registra peças utilizadas e acompanha suas próprias comissões.',
-    grupo: 'Loja',
-  },
-];
+const roleLabels: Record<string, string> = {
+  ADMIN_GERAL:      'Administrador Geral',
+  ADMIN_FINANCEIRO: 'Administrador Financeiro',
+  ADMIN_COMERCIAL:  'Administrador Comercial',
+  ADMIN_REDE:       'Administrador de Rede',
+  DONO_LOJA:        'Dono da Loja',
+  GERENTE_LOJA:     'Gerente da Loja',
+  VENDEDOR:         'Vendedor',
+  TECNICO:          'Técnico',
+};
 
-const roleLabels: Record<string, string> = Object.fromEntries(
-  TODOS_OS_PERFIS.map(p => [p.role, p.label])
-);
-
-// Seletor visual de perfis
-function SeletorPerfil({ value, onChange, rolesPermitidos }: {
-  value: string;
-  onChange: (r: string) => void;
-  rolesPermitidos: string[];
-}) {
-  const grupos = ['TM Imports', 'Rede', 'Loja'];
-  return (
-    <div className="space-y-4">
-      <label className="label">Perfil de Acesso *</label>
-      {grupos.map(grupo => {
-        const perfis = TODOS_OS_PERFIS.filter(p => p.grupo === grupo && rolesPermitidos.includes(p.role));
-        if (perfis.length === 0) return null;
-        return (
-          <div key={grupo}>
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">{grupo}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {perfis.map(p => {
-                const selecionado = value === p.role;
-                return (
-                  <button
-                    key={p.role}
-                    type="button"
-                    onClick={() => onChange(p.role)}
-                    className={`text-left rounded-lg border p-3 transition-all cursor-pointer ${selecionado ? p.corSel : p.cor + ' hover:opacity-80'}`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-lg">{p.icon}</span>
-                      <span className="font-semibold text-sm text-white">{p.label}</span>
-                      {selecionado && (
-                        <span className="ml-auto text-xs font-bold text-white bg-white/20 rounded px-1.5 py-0.5">✓ Selecionado</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-400 leading-snug">{p.desc}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+const roleDescriptions: Record<string, string> = {
+  ADMIN_GERAL:      'Acesso total: produtos, custos, estoque, usuários, financeiro e todas as lojas/franquias.',
+  ADMIN_FINANCEIRO: 'Acesso completo a toda a área financeira de todas as lojas. Visualiza vendas e clientes.',
+  ADMIN_COMERCIAL:  'Visão comercial da rede: volume de vendas, top produtos e estoque. Sem acesso a custos.',
+  ADMIN_REDE:       'Gerencia a rede de franquias: cadastra lojas, usuários e acompanha relatórios de toda a rede.',
+  DONO_LOJA:        'Gerencia seu grupo de lojas: cadastra funcionários, vê estoque, vendas, OS e financeiro do grupo.',
+  GERENTE_LOJA:     'Supervisiona vendas, estoque, OS e comissões da unidade. Sem acesso a custos de produtos.',
+  VENDEDOR:         'Cria vendas e orçamentos, atende clientes. Vê apenas suas próprias comissões.',
+  TECNICO:          'Executa ordens de serviço, registra peças utilizadas e acompanha suas próprias comissões.',
+};
 
 export function Usuarios() {
   const { user } = useAuth();
@@ -441,161 +338,162 @@ export function Usuarios() {
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Usuário' : 'Novo Usuário'}>
         <form onSubmit={handleSubmit} className="space-y-4">
 
-          {/* ── 1. FUNÇÃO PRIMEIRO ─────────────────────────────── */}
-          <SeletorPerfil
-            value={form.role}
-            onChange={(r) => setForm({ ...form, role: r, lojaId: '', grupoId: '' })}
-            rolesPermitidos={rolesPermitidos}
-          />
+          <div>
+            <label className="label">Nome *</label>
+            <input
+              type="text"
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              className="input"
+              required
+            />
+          </div>
 
-          {/* ── 2. DADOS DO USUÁRIO (só aparecem após escolher função) ─ */}
-          {form.role && (
+          <div>
+            <label className="label">Email *</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="input"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">{editando ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}</label>
+            <input
+              type="password"
+              value={form.senha}
+              onChange={(e) => setForm({ ...form, senha: e.target.value })}
+              className="input"
+              required={!editando}
+              minLength={8}
+            />
+            <p className="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres</p>
+          </div>
+
+          <div>
+            <label className="label">Função / Acesso *</label>
+            <select
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value, lojaId: '', grupoId: '' })}
+              className="input"
+              required
+            >
+              <option value="">— Selecione a função —</option>
+              {rolesPermitidos.map(r => (
+                <option key={r} value={r}>{roleLabels[r]}</option>
+              ))}
+            </select>
+            {form.role && (
+              <p className="text-xs text-gray-500 mt-1">{roleDescriptions[form.role]}</p>
+            )}
+          </div>
+
+          {/* Vínculo de loja/grupo — somente para perfis de loja */}
+          {form.role && ROLES_COM_LOJA.includes(form.role) && (
+            <CustomSelect
+              label="Loja *"
+              value={form.lojaId}
+              onChange={(val) => setForm({ ...form, lojaId: val })}
+              options={[
+                { value: '', label: 'Selecione a loja' },
+                ...lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))
+              ]}
+            />
+          )}
+          {form.role && ROLES_COM_GRUPO.includes(form.role) && (
+            <CustomSelect
+              label="Grupo (Franquia) *"
+              value={form.grupoId}
+              onChange={(val) => setForm({ ...form, grupoId: val })}
+              options={[
+                { value: '', label: 'Selecione o grupo' },
+                ...grupos.map(g => ({ value: String(g.id), label: g.nome }))
+              ]}
+            />
+          )}
+
+          {form.role === 'VENDEDOR' && (
             <>
               <div className="border-t border-zinc-700 pt-4">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Dados do Usuário
-                </h3>
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Dados Pessoais</h3>
               </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">CPF</label>
+                  <input
+                    type="text"
+                    value={form.cpf}
+                    onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                    className="input"
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+                <div>
+                  <label className="label">Telefone</label>
+                  <input
+                    type="text"
+                    value={form.telefone}
+                    onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                    className="input"
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+              </div>
+              <div className="border-t border-zinc-700 pt-4">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Dados Bancários</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <CustomSelect
+                  label="Banco"
+                  value={form.banco}
+                  onChange={(val) => setForm({ ...form, banco: val })}
+                  options={BANCOS_BRASIL}
+                />
+                <CustomSelect
+                  label="Tipo de Conta"
+                  value={form.tipoConta}
+                  onChange={(val) => setForm({ ...form, tipoConta: val })}
+                  options={[
+                    { value: 'CORRENTE', label: 'Corrente' },
+                    { value: 'POUPANCA', label: 'Poupança' }
+                  ]}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Agência</label>
+                  <input
+                    type="text"
+                    value={form.agencia}
+                    onChange={(e) => setForm({ ...form, agencia: e.target.value })}
+                    className="input"
+                    placeholder="0000"
+                  />
+                </div>
+                <div>
+                  <label className="label">Conta</label>
+                  <input
+                    type="text"
+                    value={form.conta}
+                    onChange={(e) => setForm({ ...form, conta: e.target.value })}
+                    className="input"
+                    placeholder="00000-0"
+                  />
+                </div>
+              </div>
               <div>
-                <label className="label">Nome *</label>
+                <label className="label">Chave PIX</label>
                 <input
                   type="text"
-                  value={form.nome}
-                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  value={form.chavePix}
+                  onChange={(e) => setForm({ ...form, chavePix: e.target.value })}
                   className="input"
-                  required
+                  placeholder="CPF, Email, Telefone ou Chave Aleatória"
                 />
               </div>
-              <div>
-                <label className="label">Email *</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">{editando ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}</label>
-                <input
-                  type="password"
-                  value={form.senha}
-                  onChange={(e) => setForm({ ...form, senha: e.target.value })}
-                  className="input"
-                  required={!editando}
-                  minLength={8}
-                />
-                <p className="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres</p>
-              </div>
-
-              {/* ── Vínculo de loja/grupo — somente para perfis de loja ── */}
-              {ROLES_COM_LOJA.includes(form.role) && (
-                <CustomSelect
-                  label="Loja *"
-                  value={form.lojaId}
-                  onChange={(val) => setForm({ ...form, lojaId: val })}
-                  options={[
-                    { value: '', label: 'Selecione a loja' },
-                    ...lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))
-                  ]}
-                />
-              )}
-              {ROLES_COM_GRUPO.includes(form.role) && (
-                <CustomSelect
-                  label="Grupo (Franquia) *"
-                  value={form.grupoId}
-                  onChange={(val) => setForm({ ...form, grupoId: val })}
-                  options={[
-                    { value: '', label: 'Selecione o grupo' },
-                    ...grupos.map(g => ({ value: String(g.id), label: g.nome }))
-                  ]}
-                />
-              )}
-
-              {/* ── Dados pessoais e bancários — somente vendedor ── */}
-              {form.role === 'VENDEDOR' && (
-                <>
-                  <div className="border-t border-zinc-700 pt-4">
-                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Dados Pessoais</h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">CPF</label>
-                      <input
-                        type="text"
-                        value={form.cpf}
-                        onChange={(e) => setForm({ ...form, cpf: e.target.value })}
-                        className="input"
-                        placeholder="000.000.000-00"
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Telefone</label>
-                      <input
-                        type="text"
-                        value={form.telefone}
-                        onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-                        className="input"
-                        placeholder="(00) 00000-0000"
-                      />
-                    </div>
-                  </div>
-                  <div className="border-t border-zinc-700 pt-4">
-                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Dados Bancários</h3>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <CustomSelect
-                      label="Banco"
-                      value={form.banco}
-                      onChange={(val) => setForm({ ...form, banco: val })}
-                      options={BANCOS_BRASIL}
-                    />
-                    <CustomSelect
-                      label="Tipo de Conta"
-                      value={form.tipoConta}
-                      onChange={(val) => setForm({ ...form, tipoConta: val })}
-                      options={[
-                        { value: 'CORRENTE', label: 'Corrente' },
-                        { value: 'POUPANCA', label: 'Poupança' }
-                      ]}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="label">Agência</label>
-                      <input
-                        type="text"
-                        value={form.agencia}
-                        onChange={(e) => setForm({ ...form, agencia: e.target.value })}
-                        className="input"
-                        placeholder="0000"
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Conta</label>
-                      <input
-                        type="text"
-                        value={form.conta}
-                        onChange={(e) => setForm({ ...form, conta: e.target.value })}
-                        className="input"
-                        placeholder="00000-0"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="label">Chave PIX</label>
-                    <input
-                      type="text"
-                      value={form.chavePix}
-                      onChange={(e) => setForm({ ...form, chavePix: e.target.value })}
-                      className="input"
-                      placeholder="CPF, Email, Telefone ou Chave Aleatória"
-                    />
-                  </div>
-                </>
-              )}
             </>
           )}
 
@@ -603,7 +501,7 @@ export function Usuarios() {
             <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving || !form.role}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
