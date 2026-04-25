@@ -440,155 +440,162 @@ export function Usuarios() {
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Usuário' : 'Novo Usuário'}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="label">Nome *</label>
-            <input
-              type="text"
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              className="input"
-              required
-            />
-          </div>
-          <div>
-            <label className="label">Email *</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="input"
-              required
-            />
-          </div>
-          <div>
-            <label className="label">{editando ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}</label>
-            <input
-              type="password"
-              value={form.senha}
-              onChange={(e) => setForm({ ...form, senha: e.target.value })}
-              className="input"
-              required={!editando}
-              minLength={8}
-            />
-            <p className="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres</p>
-          </div>
 
-          {/* Seletor visual de perfis */}
+          {/* ── 1. FUNÇÃO PRIMEIRO ─────────────────────────────── */}
           <SeletorPerfil
             value={form.role}
             onChange={(r) => setForm({ ...form, role: r, lojaId: '', grupoId: '' })}
             rolesPermitidos={rolesPermitidos}
           />
 
-          {/* Vínculo de loja/grupo conforme perfil */}
-          {form.role && ROLES_COM_LOJA.includes(form.role) && (
-            <CustomSelect
-              label="Loja *"
-              value={form.lojaId}
-              onChange={(val) => setForm({ ...form, lojaId: val })}
-              options={[
-                { value: '', label: 'Selecione a loja' },
-                ...lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))
-              ]}
-            />
-          )}
-          {form.role && ROLES_COM_GRUPO.includes(form.role) && (
-            <CustomSelect
-              label="Grupo (Franquia) *"
-              value={form.grupoId}
-              onChange={(val) => setForm({ ...form, grupoId: val })}
-              options={[
-                { value: '', label: 'Selecione o grupo' },
-                ...grupos.map(g => ({ value: String(g.id), label: g.nome }))
-              ]}
-            />
-          )}
-          {form.role && ROLES_SEM_VINCULO.includes(form.role) && (
-            <p className="text-xs text-gray-500 bg-zinc-800 rounded p-2">
-              Este perfil tem acesso global — não precisa de loja ou grupo vinculado.
-            </p>
-          )}
-
-          {/* Dados extras para vendedor */}
-          {form.role === 'VENDEDOR' && (
+          {/* ── 2. DADOS DO USUÁRIO (só aparecem após escolher função) ─ */}
+          {form.role && (
             <>
-              <div className="border-t border-zinc-700 pt-4 mt-4">
-                <h3 className="text-lg font-semibold text-white mb-3">Dados Pessoais</h3>
+              <div className="border-t border-zinc-700 pt-4">
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  Dados do Usuário
+                </h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">CPF</label>
-                  <input
-                    type="text"
-                    value={form.cpf}
-                    onChange={(e) => setForm({ ...form, cpf: e.target.value })}
-                    className="input"
-                    placeholder="000.000.000-00"
-                  />
-                </div>
-                <div>
-                  <label className="label">Telefone</label>
-                  <input
-                    type="text"
-                    value={form.telefone}
-                    onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-                    className="input"
-                    placeholder="(00) 00000-0000"
-                  />
-                </div>
-              </div>
-              <div className="border-t border-zinc-700 pt-4 mt-4">
-                <h3 className="text-lg font-semibold text-white mb-3">Dados Bancários</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <CustomSelect
-                  label="Banco"
-                  value={form.banco}
-                  onChange={(val) => setForm({ ...form, banco: val })}
-                  options={BANCOS_BRASIL}
-                />
-                <CustomSelect
-                  label="Tipo de Conta"
-                  value={form.tipoConta}
-                  onChange={(val) => setForm({ ...form, tipoConta: val })}
-                  options={[
-                    { value: 'CORRENTE', label: 'Corrente' },
-                    { value: 'POUPANCA', label: 'Poupança' }
-                  ]}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Agência</label>
-                  <input
-                    type="text"
-                    value={form.agencia}
-                    onChange={(e) => setForm({ ...form, agencia: e.target.value })}
-                    className="input"
-                    placeholder="0000"
-                  />
-                </div>
-                <div>
-                  <label className="label">Conta</label>
-                  <input
-                    type="text"
-                    value={form.conta}
-                    onChange={(e) => setForm({ ...form, conta: e.target.value })}
-                    className="input"
-                    placeholder="00000-0"
-                  />
-                </div>
-              </div>
+
               <div>
-                <label className="label">Chave PIX</label>
+                <label className="label">Nome *</label>
                 <input
                   type="text"
-                  value={form.chavePix}
-                  onChange={(e) => setForm({ ...form, chavePix: e.target.value })}
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
                   className="input"
-                  placeholder="CPF, Email, Telefone ou Chave Aleatória"
+                  required
                 />
               </div>
+              <div>
+                <label className="label">Email *</label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label">{editando ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}</label>
+                <input
+                  type="password"
+                  value={form.senha}
+                  onChange={(e) => setForm({ ...form, senha: e.target.value })}
+                  className="input"
+                  required={!editando}
+                  minLength={8}
+                />
+                <p className="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres</p>
+              </div>
+
+              {/* ── Vínculo de loja/grupo — somente para perfis de loja ── */}
+              {ROLES_COM_LOJA.includes(form.role) && (
+                <CustomSelect
+                  label="Loja *"
+                  value={form.lojaId}
+                  onChange={(val) => setForm({ ...form, lojaId: val })}
+                  options={[
+                    { value: '', label: 'Selecione a loja' },
+                    ...lojas.map(l => ({ value: String(l.id), label: l.nomeFantasia }))
+                  ]}
+                />
+              )}
+              {ROLES_COM_GRUPO.includes(form.role) && (
+                <CustomSelect
+                  label="Grupo (Franquia) *"
+                  value={form.grupoId}
+                  onChange={(val) => setForm({ ...form, grupoId: val })}
+                  options={[
+                    { value: '', label: 'Selecione o grupo' },
+                    ...grupos.map(g => ({ value: String(g.id), label: g.nome }))
+                  ]}
+                />
+              )}
+
+              {/* ── Dados pessoais e bancários — somente vendedor ── */}
+              {form.role === 'VENDEDOR' && (
+                <>
+                  <div className="border-t border-zinc-700 pt-4">
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Dados Pessoais</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">CPF</label>
+                      <input
+                        type="text"
+                        value={form.cpf}
+                        onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                        className="input"
+                        placeholder="000.000.000-00"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Telefone</label>
+                      <input
+                        type="text"
+                        value={form.telefone}
+                        onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+                        className="input"
+                        placeholder="(00) 00000-0000"
+                      />
+                    </div>
+                  </div>
+                  <div className="border-t border-zinc-700 pt-4">
+                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Dados Bancários</h3>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <CustomSelect
+                      label="Banco"
+                      value={form.banco}
+                      onChange={(val) => setForm({ ...form, banco: val })}
+                      options={BANCOS_BRASIL}
+                    />
+                    <CustomSelect
+                      label="Tipo de Conta"
+                      value={form.tipoConta}
+                      onChange={(val) => setForm({ ...form, tipoConta: val })}
+                      options={[
+                        { value: 'CORRENTE', label: 'Corrente' },
+                        { value: 'POUPANCA', label: 'Poupança' }
+                      ]}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">Agência</label>
+                      <input
+                        type="text"
+                        value={form.agencia}
+                        onChange={(e) => setForm({ ...form, agencia: e.target.value })}
+                        className="input"
+                        placeholder="0000"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Conta</label>
+                      <input
+                        type="text"
+                        value={form.conta}
+                        onChange={(e) => setForm({ ...form, conta: e.target.value })}
+                        className="input"
+                        placeholder="00000-0"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label">Chave PIX</label>
+                    <input
+                      type="text"
+                      value={form.chavePix}
+                      onChange={(e) => setForm({ ...form, chavePix: e.target.value })}
+                      className="input"
+                      placeholder="CPF, Email, Telefone ou Chave Aleatória"
+                    />
+                  </div>
+                </>
+              )}
             </>
           )}
 
