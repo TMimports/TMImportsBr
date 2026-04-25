@@ -189,7 +189,6 @@ function groupContainsPage(g: NavGroup, page: string) {
 
 const ROLES_CAN_SELECT_LOJA = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'ADMIN_COMERCIAL'];
 
-const ADMIN_ROLES = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, logout } = useAuth();

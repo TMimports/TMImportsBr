@@ -26,7 +26,6 @@ interface Grupo {
 
 const ROLES_COM_LOJA    = ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
 const ROLES_COM_GRUPO   = ['DONO_LOJA', 'ADMIN_REDE'];
-const ROLES_SEM_VINCULO = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_COMERCIAL'];
 
 const initialForm = {
   id: 0,
@@ -316,9 +315,6 @@ export function Usuarios() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-500">Perfil:</span>
-                      <span className="text-lg">
-                        {TODOS_OS_PERFIS.find(p => p.role === usuario.role)?.icon}
-                      </span>
                       <span className="badge badge-primary">
                         {roleLabels[usuario.role] || usuario.role}
                       </span>
