@@ -35,7 +35,12 @@ router.get('/consultar-cnpj/:cnpj', requireAdminRede, async (req, res) => {
   try {
     const cnpj = String(req.params.cnpj).replace(/\D/g, '');
 
-    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; TMImports-ERP/1.0)',
+        'Accept': 'application/json',
+      }
+    });
 
     if (!response.ok) {
       return res.status(404).json({ error: 'CNPJ não encontrado' });
