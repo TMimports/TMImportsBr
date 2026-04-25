@@ -129,20 +129,25 @@ function ModalForm({
 
   const buscarCNPJ = useCallback(async (cnpjDigits: string) => {
     const digits = cnpjDigits.replace(/\D/g, '');
+    console.log('[CNPJ] buscarCNPJ chamado com:', cnpjDigits, '| digits:', digits, '| len:', digits.length);
     if (digits.length !== 14) {
-      setCnpjStatus({ tipo: 'erro', msg: 'Digite os 14 dígitos do CNPJ' });
+      setCnpjStatus({ tipo: 'erro', msg: `Digite os 14 dígitos do CNPJ (atual: ${digits.length})` });
       return;
     }
-    if (buscandoRef.current) return;
+    if (buscandoRef.current) {
+      console.log('[CNPJ] Já buscando, ignorando.');
+      return;
+    }
     buscandoRef.current = true;
     setBuscando(true);
-    setCnpjStatus({ tipo: 'info', msg: '⏳ Consultando Receita Federal...' });
+    setCnpjStatus({ tipo: 'info', msg: `⏳ Buscando CNPJ ${digits}...` });
     try {
+      console.log('[CNPJ] Chamando BrasilAPI...');
       // Chamada DIRETA do browser para BrasilAPI (CORS: access-control-allow-origin: *)
-      // Evita bloqueios de IP no servidor VPS
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, {
         headers: { 'Accept': 'application/json' }
       });
+      console.log('[CNPJ] BrasilAPI status:', res.status);
 
       if (!res.ok) {
         throw new Error('CNPJ não encontrado na Receita Federal');
