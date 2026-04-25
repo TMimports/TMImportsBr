@@ -111,15 +111,47 @@ function ModalDetalhes({ loja, onClose, onEditar }: { loja: Loja; onClose: () =>
 // ── Formulário (Criar / Editar) ────────────────────────────────────────────────
 
 function ModalForm({
-  form, setForm, grupos, saving, buscando, onBuscarCNPJ, onSubmit, onClose, editando,
+  form, setForm, grupos, saving, onSubmit, onClose, editando,
 }: {
   form: typeof emptyForm; setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>;
-  grupos: Grupo[]; saving: boolean; buscando: boolean;
-  onBuscarCNPJ: (cnpj?: string) => void; onSubmit: (e: React.FormEvent) => void;
+  grupos: Grupo[]; saving: boolean;
+  onSubmit: (e: React.FormEvent) => void;
   onClose: () => void; editando: boolean;
 }) {
   const inp = "w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500 transition-colors";
   const lbl = "block text-xs text-zinc-400 mb-1";
+
+  const [buscando, setBuscando] = useState(false);
+  const [msgCnpj, setMsgCnpj] = useState('');
+
+  const buscarCNPJ = async (cnpjDigits: string) => {
+    if (cnpjDigits.length !== 14 || buscando) return;
+    setBuscando(true);
+    setMsgCnpj('Consultando Receita Federal...');
+    try {
+      const d = await api.get<any>(`/lojas/consultar-cnpj/${cnpjDigits}`);
+      setForm(p => ({
+        ...p,
+        cnpj: cnpjDigits,
+        razaoSocial: d.razaoSocial || p.razaoSocial,
+        nomeFantasia: d.nomeFantasia || p.nomeFantasia,
+        endereco: d.endereco || p.endereco,
+        cep: d.cep || p.cep,
+        bairro: d.bairro || p.bairro,
+        cidade: d.cidade || p.cidade,
+        uf: d.uf || p.uf,
+        telefone: d.telefone || p.telefone,
+        email: d.email || p.email,
+      }));
+      setMsgCnpj('✅ Dados preenchidos automaticamente!');
+      setTimeout(() => setMsgCnpj(''), 3000);
+    } catch (e: any) {
+      setMsgCnpj(`❌ ${e.message || 'CNPJ não encontrado na Receita Federal'}`);
+      setTimeout(() => setMsgCnpj(''), 4000);
+    } finally {
+      setBuscando(false);
+    }
+  };
 
   return (
     <Modal title={editando ? '✏️ Editar Loja' : '🏪 Nova Loja'} onClose={onClose}>
@@ -134,22 +166,28 @@ function ModalForm({
                 const val = e.target.value;
                 setForm(p => ({ ...p, cnpj: val }));
                 const digits = val.replace(/\D/g, '');
-                if (digits.length === 14 && !buscando) {
-                  onBuscarCNPJ(digits);
-                }
+                if (digits.length === 14) buscarCNPJ(digits);
               }}
               className={inp}
               placeholder="00.000.000/0000-00"
               maxLength={18}
             />
-            <button type="button" onClick={() => onBuscarCNPJ()} disabled={buscando}
+            <button
+              type="button"
+              disabled={buscando}
+              onClick={() => buscarCNPJ(form.cnpj.replace(/\D/g, ''))}
               className="flex-shrink-0 bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap">
-              {buscando ? '⏳ Buscando...' : '🔍 Buscar'}
+              {buscando ? '⏳' : '🔍 Buscar'}
             </button>
           </div>
-          <p className="text-xs text-zinc-500 mt-1">
-            {buscando ? '⏳ Consultando Receita Federal...' : 'Preenche automaticamente ao digitar o CNPJ completo'}
-          </p>
+          {msgCnpj && (
+            <p className={`text-xs mt-1 ${msgCnpj.startsWith('✅') ? 'text-green-400' : msgCnpj.startsWith('❌') ? 'text-red-400' : 'text-zinc-400'}`}>
+              {msgCnpj}
+            </p>
+          )}
+          {!msgCnpj && (
+            <p className="text-xs text-zinc-500 mt-1">Digite o CNPJ e clique em Buscar (ou preenche automático ao completar 14 dígitos)</p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -325,7 +363,6 @@ export function Lojas() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [buscando, setBuscando] = useState(false);
   const [busca, setBusca] = useState('');
 
   const [modalDetalhes, setModalDetalhes] = useState<Loja | null>(null);
@@ -362,37 +399,6 @@ export function Lojas() {
     loadLojas();
     loadGrupos();
   }, []);
-
-  const handleBuscarCNPJ = async (cnpjOverride?: string) => {
-    const valorCnpj = (typeof cnpjOverride === 'string' ? cnpjOverride : null) ?? String(form.cnpj || '');
-    const cnpjLimpo = valorCnpj.trim().replace(/\D/g, '');
-    if (cnpjLimpo.length !== 14) {
-      if (!cnpjOverride) flash('Digite um CNPJ válido com 14 dígitos', 'erro');
-      return;
-    }
-    setBuscando(true);
-    try {
-      const d = await api.get<any>(`/lojas/consultar-cnpj/${cnpjLimpo}`);
-      setForm(p => ({
-        ...p,
-        cnpj: d.cnpj ?? p.cnpj,
-        razaoSocial: d.razaoSocial ?? p.razaoSocial,
-        nomeFantasia: d.nomeFantasia ?? p.nomeFantasia,
-        endereco: d.endereco ?? p.endereco,
-        cep: d.cep ?? p.cep,
-        bairro: d.bairro ?? p.bairro,
-        cidade: d.cidade ?? p.cidade,
-        uf: d.uf ?? p.uf,
-        telefone: d.telefone ?? p.telefone,
-        email: d.email ?? p.email,
-      }));
-      flash('Dados preenchidos automaticamente!', 'ok');
-    } catch (e: any) {
-      flash(e.message || 'CNPJ não encontrado na Receita Federal', 'erro');
-    } finally {
-      setBuscando(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -543,8 +549,7 @@ export function Lojas() {
       {modalForm && (
         <ModalForm
           form={form} setForm={setForm}
-          grupos={grupos} saving={saving} buscando={buscando}
-          onBuscarCNPJ={handleBuscarCNPJ}
+          grupos={grupos} saving={saving}
           onSubmit={handleSubmit}
           onClose={() => { setModalForm(false); setForm(emptyForm); setEditando(false); }}
           editando={editando}
