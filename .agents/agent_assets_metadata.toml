@@ -18,3 +18,9 @@ id = "5GqBs6XoNbsPYoiDbeoON"
 uri = "file://Manual_TM_Imports_ERP_v4.pdf"
 type = "pdf"
 title = "Manual ERP v4 — Estoque corrigido com vista completa dos KPIs"
+
+[[outputs]]
+id = "OjlCwqxyxYu2PpGqhD0_c"
+uri = "file://MANUAL_SISTEMA.md"
+type = "text"
+title = "Manual do Sistema — TM Imports ERP"

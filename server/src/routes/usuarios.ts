@@ -11,7 +11,7 @@ router.get('/', async (req: AuthRequest, res) => {
   try {
     const filter = applyTenantFilter(req);
 
-    const where: any = {};
+    const where: any = { role: { not: 'SUPER_ADMIN' } };
     if (filter.lojaId) where.lojaId = filter.lojaId;
     if (filter.grupoId) where.grupoId = filter.grupoId;
 

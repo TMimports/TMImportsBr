@@ -830,6 +830,7 @@ model DisparoWhatsApp {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN_GERAL
   ADMIN_REDE
   DONO_LOJA
