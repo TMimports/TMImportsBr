@@ -138,26 +138,71 @@ function ModalForm({
     setBuscando(true);
     setCnpjStatus({ tipo: 'info', msg: '⏳ Consultando Receita Federal...' });
     try {
-      const d = await api.get<any>(`/lojas/consultar-cnpj/${digits}`);
+      // Chamada DIRETA do browser para BrasilAPI (CORS: access-control-allow-origin: *)
+      // Evita bloqueios de IP no servidor VPS
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+
+      if (!res.ok) {
+        throw new Error('CNPJ não encontrado na Receita Federal');
+      }
+
+      const data = await res.json();
+
+      const logradouro = [
+        data.descricao_tipo_logradouro,
+        data.logradouro,
+        data.numero,
+        data.complemento,
+      ].filter(Boolean).join(' ');
+
+      const telefone = data.ddd_telefone_1
+        ? data.ddd_telefone_1.replace(/\D/g, '').replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3')
+        : '';
+
+      const cep = String(data.cep || '').replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2');
+
       setForm(prev => ({
         ...prev,
         cnpj: digits,
-        razaoSocial: d.razaoSocial ?? prev.razaoSocial,
-        nomeFantasia: d.nomeFantasia ?? prev.nomeFantasia,
-        endereco: d.endereco ?? prev.endereco,
-        cep: d.cep ?? prev.cep,
-        bairro: d.bairro ?? prev.bairro,
-        cidade: d.cidade ?? prev.cidade,
-        uf: d.uf ?? prev.uf,
-        telefone: d.telefone ?? prev.telefone,
-        email: (d.email ?? prev.email) || '',
+        razaoSocial: data.razao_social || prev.razaoSocial,
+        nomeFantasia: data.nome_fantasia || data.razao_social || prev.nomeFantasia,
+        endereco: logradouro || prev.endereco,
+        cep: cep || prev.cep,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.municipio || prev.cidade,
+        uf: data.uf || prev.uf,
+        telefone: telefone || prev.telefone,
+        email: data.email || prev.email || '',
       }));
+
       setCnpjStatus({ tipo: 'ok', msg: '✅ Dados preenchidos com sucesso!' });
       setTimeout(() => setCnpjStatus(null), 4000);
     } catch (err: any) {
-      const msg = err?.message || 'CNPJ não encontrado';
-      setCnpjStatus({ tipo: 'erro', msg: `❌ ${msg}` });
-      setTimeout(() => setCnpjStatus(null), 5000);
+      // Fallback: tenta pelo backend (caso BrasilAPI falhe no browser)
+      try {
+        const d = await api.get<any>(`/lojas/consultar-cnpj/${digits}`);
+        setForm(prev => ({
+          ...prev,
+          cnpj: digits,
+          razaoSocial: d.razaoSocial || prev.razaoSocial,
+          nomeFantasia: d.nomeFantasia || prev.nomeFantasia,
+          endereco: d.endereco || prev.endereco,
+          cep: d.cep || prev.cep,
+          bairro: d.bairro || prev.bairro,
+          cidade: d.cidade || prev.cidade,
+          uf: d.uf || prev.uf,
+          telefone: d.telefone || prev.telefone,
+          email: d.email || prev.email || '',
+        }));
+        setCnpjStatus({ tipo: 'ok', msg: '✅ Dados preenchidos com sucesso!' });
+        setTimeout(() => setCnpjStatus(null), 4000);
+      } catch (err2: any) {
+        const msg = err2?.message || err?.message || 'CNPJ não encontrado na Receita Federal';
+        setCnpjStatus({ tipo: 'erro', msg: `❌ ${msg}` });
+        setTimeout(() => setCnpjStatus(null), 5000);
+      }
     } finally {
       buscandoRef.current = false;
       setBuscando(false);
