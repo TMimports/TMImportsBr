@@ -33,8 +33,8 @@ export function Login() {
       <div className="card w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-6 mb-2">
-            <img src="/logo-tm.png" alt="TM Imports" className="w-36 h-36 object-contain" />
-            <img src="/logo.png" alt="Tecle Motos" className="w-36 h-36 object-contain" />
+            <img src="/logo-tm.png" alt="TM Imports" className="w-56 h-56 object-contain" />
+            <img src="/logo.png" alt="Tecle Motos" className="w-56 h-56 object-contain" />
           </div>
           <p className="text-gray-400">Sistema Integrado de Gestão</p>
         </div>
