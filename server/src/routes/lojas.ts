@@ -43,22 +43,28 @@ router.get('/consultar-cnpj/:cnpj', requireAdminRede, async (req, res) => {
 
     const data = await response.json();
 
+    const logradouro = [
+      data.descricao_tipo_logradouro,
+      data.logradouro,
+      data.numero,
+      data.complemento
+    ].filter(Boolean).join(' ');
+
+    const telefone = data.ddd_telefone_1
+      ? data.ddd_telefone_1.replace(/\D/g, '').replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3')
+      : '';
+
     res.json({
       cnpj: data.cnpj,
       razaoSocial: data.razao_social,
-      nomeFantasia: data.nome_fantasia,
-      endereco: [
-        data.descricao_tipo_logradouro,
-        data.logradouro,
-        data.numero,
-        data.complemento,
-        data.bairro,
-        data.municipio,
-        data.uf,
-        data.cep
-      ].filter(Boolean).join(', '),
-      telefone: data.ddd_telefone_1,
-      email: data.email
+      nomeFantasia: data.nome_fantasia || data.razao_social,
+      endereco: logradouro,
+      cep: String(data.cep || '').replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2'),
+      bairro: data.bairro,
+      cidade: data.municipio,
+      uf: data.uf,
+      telefone,
+      email: data.email,
     });
   } catch (error) {
     console.error('Erro ao consultar CNPJ:', error);
