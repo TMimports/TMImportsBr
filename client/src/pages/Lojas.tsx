@@ -142,7 +142,7 @@ function ModalForm({
               placeholder="00.000.000/0000-00"
               maxLength={18}
             />
-            <button type="button" onClick={onBuscarCNPJ} disabled={buscando}
+            <button type="button" onClick={() => onBuscarCNPJ()} disabled={buscando}
               className="flex-shrink-0 bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap">
               {buscando ? '⏳ Buscando...' : '🔍 Buscar'}
             </button>
@@ -364,7 +364,7 @@ export function Lojas() {
   }, []);
 
   const handleBuscarCNPJ = async (cnpjOverride?: string) => {
-    const valorCnpj = cnpjOverride ?? String(form.cnpj || '');
+    const valorCnpj = (typeof cnpjOverride === 'string' ? cnpjOverride : null) ?? String(form.cnpj || '');
     const cnpjLimpo = valorCnpj.trim().replace(/\D/g, '');
     if (cnpjLimpo.length !== 14) {
       if (!cnpjOverride) flash('Digite um CNPJ válido com 14 dígitos', 'erro');
