@@ -24,8 +24,8 @@ interface Grupo {
   nome: string;
 }
 
-const ROLES_COM_LOJA = ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
-const ROLES_COM_GRUPO = ['DONO_LOJA', 'ADMIN_REDE'];
+const ROLES_COM_LOJA    = ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
+const ROLES_COM_GRUPO   = ['DONO_LOJA', 'ADMIN_REDE'];
 const ROLES_SEM_VINCULO = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_COMERCIAL'];
 
 const initialForm = {
@@ -33,7 +33,7 @@ const initialForm = {
   nome: '',
   email: '',
   senha: '',
-  role: 'VENDEDOR',
+  role: '',
   lojaId: '',
   grupoId: '',
   cpf: '',
@@ -79,27 +79,130 @@ const BANCOS_BRASIL = [
   { value: 'Outro', label: 'Outro' },
 ];
 
-const roleLabels: Record<string, string> = {
-  ADMIN_GERAL:      'Administrador Geral',
-  ADMIN_FINANCEIRO: 'Administrador Financeiro',
-  ADMIN_COMERCIAL:  'Administrador Comercial',
-  ADMIN_REDE:       'Administrador de Rede',
-  DONO_LOJA:        'Dono da Loja',
-  GERENTE_LOJA:     'Gerente da Loja',
-  VENDEDOR:         'Vendedor',
-  TECNICO:          'Técnico',
-};
+// Definição visual de cada perfil de acesso
+const TODOS_OS_PERFIS = [
+  {
+    role: 'ADMIN_GERAL',
+    label: 'Administrador Geral',
+    icon: '👑',
+    cor: 'border-orange-500 bg-orange-500/10',
+    corSel: 'border-orange-400 bg-orange-500/25 ring-2 ring-orange-500',
+    desc: 'Acesso total: produtos, custos, estoque, usuários, financeiro e todas as lojas/franquias.',
+    grupo: 'TM Imports',
+  },
+  {
+    role: 'ADMIN_FINANCEIRO',
+    label: 'Administrador Financeiro',
+    icon: '💰',
+    cor: 'border-emerald-600 bg-emerald-600/10',
+    corSel: 'border-emerald-400 bg-emerald-600/25 ring-2 ring-emerald-500',
+    desc: 'Acesso completo a toda a área financeira de todas as lojas. Visualiza vendas e clientes.',
+    grupo: 'TM Imports',
+  },
+  {
+    role: 'ADMIN_COMERCIAL',
+    label: 'Administrador Comercial',
+    icon: '📊',
+    cor: 'border-blue-600 bg-blue-600/10',
+    corSel: 'border-blue-400 bg-blue-600/25 ring-2 ring-blue-500',
+    desc: 'Visão comercial da rede: volume de vendas, top produtos e estoque. Sem acesso a custos.',
+    grupo: 'TM Imports',
+  },
+  {
+    role: 'ADMIN_REDE',
+    label: 'Administrador de Rede',
+    icon: '🌐',
+    cor: 'border-violet-600 bg-violet-600/10',
+    corSel: 'border-violet-400 bg-violet-600/25 ring-2 ring-violet-500',
+    desc: 'Gerencia a rede de franquias: cadastra lojas, usuários e acompanha relatórios de toda a rede.',
+    grupo: 'Rede',
+  },
+  {
+    role: 'DONO_LOJA',
+    label: 'Dono da Loja',
+    icon: '🏪',
+    cor: 'border-yellow-600 bg-yellow-600/10',
+    corSel: 'border-yellow-400 bg-yellow-600/25 ring-2 ring-yellow-500',
+    desc: 'Gerencia seu grupo de lojas: cadastra funcionários, vê estoque, vendas, OS e financeiro do grupo.',
+    grupo: 'Loja',
+  },
+  {
+    role: 'GERENTE_LOJA',
+    label: 'Gerente da Loja',
+    icon: '🗂️',
+    cor: 'border-cyan-600 bg-cyan-600/10',
+    corSel: 'border-cyan-400 bg-cyan-600/25 ring-2 ring-cyan-500',
+    desc: 'Supervisiona vendas, estoque, OS e comissões da unidade. Sem acesso a custos de produtos.',
+    grupo: 'Loja',
+  },
+  {
+    role: 'VENDEDOR',
+    label: 'Vendedor',
+    icon: '🛍️',
+    cor: 'border-pink-600 bg-pink-600/10',
+    corSel: 'border-pink-400 bg-pink-600/25 ring-2 ring-pink-500',
+    desc: 'Cria vendas e orçamentos, atende clientes. Vê apenas suas próprias comissões.',
+    grupo: 'Loja',
+  },
+  {
+    role: 'TECNICO',
+    label: 'Técnico',
+    icon: '🔧',
+    cor: 'border-gray-500 bg-gray-500/10',
+    corSel: 'border-gray-300 bg-gray-500/25 ring-2 ring-gray-400',
+    desc: 'Executa ordens de serviço, registra peças utilizadas e acompanha suas próprias comissões.',
+    grupo: 'Loja',
+  },
+];
 
-const roleDescriptions: Record<string, string> = {
-  ADMIN_GERAL:      'Acesso total ao sistema: produtos, precos, estoque, usuarios, financeiro, todas as lojas e franquias.',
-  ADMIN_FINANCEIRO: 'Acesso completo a toda a area financeira de todas as lojas. Visualiza vendas e clientes para contexto.',
-  ADMIN_COMERCIAL:  'Visão comercial da rede: volume de vendas, top produtos, top vendedores e estoque. Sem acesso a custos ou dados financeiros.',
-  ADMIN_REDE:       'Gerencia a rede de franquias: cadastra lojas, usuarios e acompanha relatorios de toda a rede.',
-  DONO_LOJA:        'Gerencia seu grupo de lojas: cadastra funcionarios, ve estoque, vendas, OS e financeiro do grupo.',
-  GERENTE_LOJA:     'Gerencia a loja: supervisiona vendas, estoque, OS, comissoes e financeiro da unidade.',
-  VENDEDOR:         'Cria vendas e orcamentos, atende clientes. Ve apenas suas proprias comissoes.',
-  TECNICO:          'Executa ordens de servico, registra pecas utilizadas e acompanha suas proprias comissoes.',
-};
+const roleLabels: Record<string, string> = Object.fromEntries(
+  TODOS_OS_PERFIS.map(p => [p.role, p.label])
+);
+
+// Seletor visual de perfis
+function SeletorPerfil({ value, onChange, rolesPermitidos }: {
+  value: string;
+  onChange: (r: string) => void;
+  rolesPermitidos: string[];
+}) {
+  const grupos = ['TM Imports', 'Rede', 'Loja'];
+  return (
+    <div className="space-y-4">
+      <label className="label">Perfil de Acesso *</label>
+      {grupos.map(grupo => {
+        const perfis = TODOS_OS_PERFIS.filter(p => p.grupo === grupo && rolesPermitidos.includes(p.role));
+        if (perfis.length === 0) return null;
+        return (
+          <div key={grupo}>
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">{grupo}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {perfis.map(p => {
+                const selecionado = value === p.role;
+                return (
+                  <button
+                    key={p.role}
+                    type="button"
+                    onClick={() => onChange(p.role)}
+                    className={`text-left rounded-lg border p-3 transition-all cursor-pointer ${selecionado ? p.corSel : p.cor + ' hover:opacity-80'}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-lg">{p.icon}</span>
+                      <span className="font-semibold text-sm text-white">{p.label}</span>
+                      {selecionado && (
+                        <span className="ml-auto text-xs font-bold text-white bg-white/20 rounded px-1.5 py-0.5">✓ Selecionado</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 leading-snug">{p.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function Usuarios() {
   const { user } = useAuth();
@@ -113,9 +216,13 @@ export function Usuarios() {
   const [form, setForm] = useState(initialForm);
   const [selecionados, setSelecionados] = useState<number[]>([]);
 
-  const rolesDisponiveis = user?.role === 'DONO_LOJA'
-    ? ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO']
-    : ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_COMERCIAL', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA', 'VENDEDOR', 'TECNICO'];
+  const isAdminGeral = user?.role === 'ADMIN_GERAL' || user?.role === 'SUPER_ADMIN';
+
+  const rolesPermitidos: string[] = isAdminGeral
+    ? ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_COMERCIAL', 'ADMIN_REDE', 'DONO_LOJA', 'GERENTE_LOJA', 'VENDEDOR', 'TECNICO']
+    : user?.role === 'DONO_LOJA'
+      ? ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO']
+      : ['VENDEDOR', 'GERENTE_LOJA', 'TECNICO'];
 
   const loadData = () => {
     setLoading(true);
@@ -133,12 +240,14 @@ export function Usuarios() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.role) {
+      alert('Selecione um perfil de acesso para o usuário.');
+      return;
+    }
     if (!editando && form.senha.length < 8) {
       alert('A senha deve ter no mínimo 8 caracteres.');
       return;
@@ -164,7 +273,7 @@ export function Usuarios() {
         tipoConta: form.tipoConta || null,
         chavePix: form.chavePix || null
       };
-      
+
       if (editando && form.id) {
         await api.put(`/usuarios/${form.id}`, dados);
       } else {
@@ -215,7 +324,6 @@ export function Usuarios() {
   const handleExcluirSelecionados = async () => {
     if (selecionados.length === 0) return;
     if (!confirm(`Tem certeza que deseja excluir ${selecionados.length} usuario(s)?`)) return;
-    
     try {
       await Promise.all(selecionados.map(id => api.delete(`/usuarios/${id}`)));
       setSelecionados([]);
@@ -226,7 +334,7 @@ export function Usuarios() {
   };
 
   const toggleSelecao = (id: number) => {
-    setSelecionados(prev => 
+    setSelecionados(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
@@ -244,10 +352,10 @@ export function Usuarios() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Usuarios</h1>
+        <h1 className="text-2xl font-bold">Usuários</h1>
         <div className="flex flex-wrap gap-2">
           {usuarios.length > 0 && (
-            <button 
+            <button
               onClick={() => selecionados.length === usuarios.length ? setSelecionados([]) : setSelecionados(usuarios.map(u => u.id))}
               className="btn btn-secondary text-sm"
             >
@@ -259,13 +367,13 @@ export function Usuarios() {
               Excluir ({selecionados.length})
             </button>
           )}
-          <button onClick={abrirNovo} className="btn btn-primary">+ Novo Usuario</button>
+          <button onClick={abrirNovo} className="btn btn-primary">+ Novo Usuário</button>
         </div>
       </div>
 
       {usuarios.length === 0 ? (
         <div className="card p-8 text-center text-gray-500">
-          Nenhum usuario encontrado
+          Nenhum usuário encontrado
         </div>
       ) : (
         <div className="space-y-3">
@@ -309,9 +417,14 @@ export function Usuarios() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-gray-500">Perfil: </span>
-                      <span className="badge badge-primary">{roleLabels[usuario.role] || usuario.role}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500">Perfil:</span>
+                      <span className="text-lg">
+                        {TODOS_OS_PERFIS.find(p => p.role === usuario.role)?.icon}
+                      </span>
+                      <span className="badge badge-primary">
+                        {roleLabels[usuario.role] || usuario.role}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Loja: </span>
@@ -325,7 +438,7 @@ export function Usuarios() {
         </div>
       )}
 
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Usuario' : 'Novo Usuario'}>
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editando ? 'Editar Usuário' : 'Novo Usuário'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="label">Nome *</label>
@@ -359,19 +472,16 @@ export function Usuarios() {
             />
             <p className="text-xs text-gray-500 mt-1">Mínimo de 8 caracteres</p>
           </div>
-          <div>
-            <CustomSelect
-              label="Perfil"
-              required
-              value={form.role}
-              onChange={(val) => setForm({ ...form, role: val })}
-              options={rolesDisponiveis.map(role => ({ value: role, label: roleLabels[role] }))}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              {roleDescriptions[form.role]}
-            </p>
-          </div>
-          {ROLES_COM_LOJA.includes(form.role) && (
+
+          {/* Seletor visual de perfis */}
+          <SeletorPerfil
+            value={form.role}
+            onChange={(r) => setForm({ ...form, role: r, lojaId: '', grupoId: '' })}
+            rolesPermitidos={rolesPermitidos}
+          />
+
+          {/* Vínculo de loja/grupo conforme perfil */}
+          {form.role && ROLES_COM_LOJA.includes(form.role) && (
             <CustomSelect
               label="Loja *"
               value={form.lojaId}
@@ -382,7 +492,7 @@ export function Usuarios() {
               ]}
             />
           )}
-          {ROLES_COM_GRUPO.includes(form.role) && (
+          {form.role && ROLES_COM_GRUPO.includes(form.role) && (
             <CustomSelect
               label="Grupo (Franquia) *"
               value={form.grupoId}
@@ -393,12 +503,13 @@ export function Usuarios() {
               ]}
             />
           )}
-          {ROLES_SEM_VINCULO.includes(form.role) && (
+          {form.role && ROLES_SEM_VINCULO.includes(form.role) && (
             <p className="text-xs text-gray-500 bg-zinc-800 rounded p-2">
-              Este perfil tem acesso global — não precisa de loja ou grupo.
+              Este perfil tem acesso global — não precisa de loja ou grupo vinculado.
             </p>
           )}
 
+          {/* Dados extras para vendedor */}
           {form.role === 'VENDEDOR' && (
             <>
               <div className="border-t border-zinc-700 pt-4 mt-4">
@@ -426,34 +537,29 @@ export function Usuarios() {
                   />
                 </div>
               </div>
-
               <div className="border-t border-zinc-700 pt-4 mt-4">
-                <h3 className="text-lg font-semibold text-white mb-3">Dados Bancarios</h3>
+                <h3 className="text-lg font-semibold text-white mb-3">Dados Bancários</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <CustomSelect
+                  label="Banco"
+                  value={form.banco}
+                  onChange={(val) => setForm({ ...form, banco: val })}
+                  options={BANCOS_BRASIL}
+                />
+                <CustomSelect
+                  label="Tipo de Conta"
+                  value={form.tipoConta}
+                  onChange={(val) => setForm({ ...form, tipoConta: val })}
+                  options={[
+                    { value: 'CORRENTE', label: 'Corrente' },
+                    { value: 'POUPANCA', label: 'Poupança' }
+                  ]}
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <CustomSelect
-                    label="Banco"
-                    value={form.banco}
-                    onChange={(val) => setForm({ ...form, banco: val })}
-                    options={BANCOS_BRASIL}
-                  />
-                </div>
-                <div>
-                  <CustomSelect
-                    label="Tipo de Conta"
-                    value={form.tipoConta}
-                    onChange={(val) => setForm({ ...form, tipoConta: val })}
-                    options={[
-                      { value: 'CORRENTE', label: 'Corrente' },
-                      { value: 'POUPANCA', label: 'Poupança' }
-                    ]}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Agencia</label>
+                  <label className="label">Agência</label>
                   <input
                     type="text"
                     value={form.agencia}
@@ -480,17 +586,17 @@ export function Usuarios() {
                   value={form.chavePix}
                   onChange={(e) => setForm({ ...form, chavePix: e.target.value })}
                   className="input"
-                  placeholder="CPF, Email, Telefone ou Chave Aleatoria"
+                  placeholder="CPF, Email, Telefone ou Chave Aleatória"
                 />
               </div>
             </>
           )}
 
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-end pt-2">
             <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
+            <button type="submit" className="btn btn-primary" disabled={saving || !form.role}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
