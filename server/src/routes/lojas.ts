@@ -31,19 +31,53 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/consultar-cnpj/:cnpj', requireAdminRede, async (req, res) => {
+router.get('/consultar-cnpj/:cnpj', async (req, res) => {
   try {
     const cnpj = String(req.params.cnpj).replace(/\D/g, '');
 
+    if (cnpj.length !== 14) {
+      return res.status(400).json({ error: 'CNPJ inválido' });
+    }
+
     const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; TMImports-ERP/1.0)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json',
+        'Accept-Language': 'pt-BR,pt;q=0.9',
       }
     });
 
     if (!response.ok) {
-      return res.status(404).json({ error: 'CNPJ não encontrado' });
+      console.error(`[CNPJ] BrasilAPI retornou ${response.status} para CNPJ ${cnpj}`);
+      // Fallback: tenta a API da Receita WS
+      const fallback = await fetch(`https://receitaws.com.br/v1/cnpj/${cnpj}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+        }
+      }).catch(() => null);
+
+      if (fallback && fallback.ok) {
+        const fb = await fallback.json();
+        if (fb.status === 'ERROR') {
+          return res.status(404).json({ error: 'CNPJ não encontrado na Receita Federal' });
+        }
+        const telFb = (fb.telefone || '').replace(/\D/g, '').replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3');
+        return res.json({
+          cnpj: fb.cnpj?.replace(/\D/g, '') ?? cnpj,
+          razaoSocial: fb.nome,
+          nomeFantasia: fb.fantasia || fb.nome,
+          endereco: [fb.logradouro, fb.numero, fb.complemento].filter(Boolean).join(' '),
+          cep: (fb.cep || '').replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2'),
+          bairro: fb.bairro,
+          cidade: fb.municipio,
+          uf: fb.uf,
+          telefone: telFb,
+          email: fb.email,
+        });
+      }
+
+      return res.status(404).json({ error: 'CNPJ não encontrado na Receita Federal' });
     }
 
     const data = await response.json();
