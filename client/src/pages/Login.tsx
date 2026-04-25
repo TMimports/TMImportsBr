@@ -34,22 +34,15 @@ export function Login() {
 
         {/* ── Logo ── */}
         <div className="text-center mb-8">
-          <div className="mb-4">
-            <span className="text-5xl font-black tracking-tight text-white">
+          <div className="mb-3">
+            <span className="text-6xl font-black tracking-tight text-white">
               TM
             </span>
-            <span className="text-5xl font-black tracking-tight text-orange-500">
+            <span className="text-6xl font-black tracking-tight text-orange-500">
               {' '}Imports
             </span>
           </div>
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <div className="h-px flex-1 bg-zinc-700" />
-            <span className="text-xs uppercase tracking-widest text-zinc-500 font-semibold">
-              Tecle Motos
-            </span>
-            <div className="h-px flex-1 bg-zinc-700" />
-          </div>
-          <p className="text-zinc-500 text-sm mt-2">Sistema Integrado de Gestão</p>
+          <p className="text-zinc-500 text-sm">Sistema Integrado de Gestão</p>
         </div>
 
         {/* ── Form ── */}
