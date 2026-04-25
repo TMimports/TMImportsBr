@@ -204,7 +204,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   };
   const canSelectLoja = user?.role ? ROLES_CAN_SELECT_LOJA.includes(user.role) : false;
 
-  const isTMImportsView = !selectedLojaId && ADMIN_ROLES.includes(user?.role || '');
+  const TM_IMPORTS_ROLES = ['SUPER_ADMIN', 'ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_COMERCIAL'];
+  const isTMImportsView = TM_IMPORTS_ROLES.includes(user?.role || '');
   const logoSrc  = isTMImportsView ? '/logo-tm.png' : '/logo.png';
   const logoAlt  = isTMImportsView ? 'TM Imports'  : 'Tecle Motos';
   const brandName = isTMImportsView ? 'TM Imports' : 'Tecle Motos';

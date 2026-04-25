@@ -32,9 +32,8 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-900 p-4">
       <div className="card w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-6 mb-2">
-            <img src="/logo-tm.png" alt="TM Imports" className="w-56 h-56 object-contain" />
-            <img src="/logo.png" alt="Tecle Motos" className="w-56 h-56 object-contain" />
+          <div className="flex items-center justify-center mb-3">
+            <img src="/logo-tm.png" alt="TM Imports" className="w-52 h-auto object-contain" />
           </div>
           <p className="text-gray-400">Sistema Integrado de Gestão</p>
         </div>

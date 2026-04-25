@@ -145,17 +145,6 @@ router.post('/', async (req: AuthRequest, res) => {
       }
     });
 
-    registrarLog({
-      usuarioId:  req.user!.id,
-      userName:   req.user!.nome,
-      userRole:   req.user!.role,
-      acao:       'CRIAR_CLIENTE',
-      entidade:   'CLIENTE',
-      entidadeId: cliente.id,
-      detalhes:   `Cliente "${nome}" (${cpfCnpj || 'sem CPF/CNPJ'}) criado`,
-      ip: obterIp(req),
-    });
-
     res.status(201).json(cliente);
   } catch (error) {
     console.error('Erro ao criar cliente:', error);
@@ -170,17 +159,6 @@ router.put('/:id', async (req: AuthRequest, res) => {
     const cliente = await prisma.cliente.update({
       where: { id: Number(req.params.id) },
       data: { nome, cpfCnpj, telefone, email, cep, logradouro, numero, complemento, bairro, cidade, estado }
-    });
-
-    registrarLog({
-      usuarioId:  (req as AuthRequest).user?.id,
-      userName:   (req as AuthRequest).user?.nome,
-      userRole:   (req as AuthRequest).user?.role,
-      acao:       'EDITAR_CLIENTE',
-      entidade:   'CLIENTE',
-      entidadeId: cliente.id,
-      detalhes:   `Cliente "${cliente.nome}" atualizado`,
-      ip: obterIp(req),
     });
 
     res.json(cliente);

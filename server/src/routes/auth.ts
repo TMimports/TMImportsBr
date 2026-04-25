@@ -46,17 +46,6 @@ router.post('/login', async (req, res) => {
       lojaId: user.lojaId
     });
 
-    registrarLog({
-      usuarioId: user.id,
-      userName:  user.nome,
-      userRole:  user.role,
-      acao:      'LOGIN',
-      entidade:  'USER',
-      entidadeId: user.id,
-      detalhes:  `Login efetuado com sucesso (${user.email})`,
-      ip: obterIp(req),
-    });
-
     res.json({
       token,
       user: {
