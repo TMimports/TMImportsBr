@@ -34,13 +34,8 @@ export function Login() {
 
         {/* ── Logo ── */}
         <div className="text-center mb-8">
-          <div className="mb-3">
-            <span className="text-6xl font-black tracking-tight text-white">
-              TM
-            </span>
-            <span className="text-6xl font-black tracking-tight text-orange-500">
-              {' '}Imports
-            </span>
+          <div className="flex justify-center mb-3">
+            <img src="/logo-tm.png" alt="TM Imports" className="h-28 w-auto object-contain" />
           </div>
           <p className="text-zinc-500 text-sm">Sistema Integrado de Gestão</p>
         </div>
