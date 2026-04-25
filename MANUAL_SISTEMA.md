@@ -143,57 +143,164 @@
 
 ### DONO DE LOJA
 
-**Gestão completa de sua loja.**
+**Gestão completa da sua loja — autoridade máxima dentro do ponto de venda.**
 
-| Módulo | Acesso |
-|--------|--------|
-| Dashboard | Da loja |
-| Vendas | Criar, editar, cancelar vendas da loja |
-| Estoque | Da loja |
-| Clientes | Da loja |
-| Produtos | Visualização |
-| Ordens de Serviço | Da loja |
-| Transferências | Solicitar e aprovar |
-| Usuários | Criar usuários para sua loja |
-| Financeiro | Acesso restrito ao caixa da loja |
+O Dono de Loja enxerga apenas os dados da sua própria loja, mas tem controle total sobre todas as operações dela.
+
+#### Dashboard
+- Painel com resumo de vendas do mês, estoque disponível, OS em aberto e contas a receber da loja
+- Indicadores de performance da equipe (vendas por vendedor)
+- Alertas de estoque baixo e parcelas vencidas
+
+#### Vendas
+- Criar, editar e **cancelar** vendas da loja
+- Visualizar todas as vendas registradas (de qualquer vendedor da loja)
+- Exportar planilha Excel das vendas
+- Acessar comprovante e garantia de qualquer venda da loja
+- Verificar status financeiro das vendas (confirmado/pendente)
+
+#### Estoque
+- Ver estoque completo da loja: motos (Estoque Ativo e Movimentação de Chassi) e peças
+- Visualizar custo de aquisição dos produtos (campo custo visível)
+- Fazer lançamentos de entrada manual de estoque
+- Ver histórico de movimentações (entradas, saídas, transferências)
+
+#### Clientes
+- Cadastrar, editar e visualizar clientes da loja
+- Acessar histórico de compras, OS e interações de cada cliente
+- Registrar interações (ligações, WhatsApp, reuniões) no histórico
+
+#### Leads
+- Ver todos os leads atribuídos à loja
+- Reatribuir leads entre vendedores da loja
+- Acompanhar funil e taxa de conversão
+
+#### Ordens de Serviço
+- Ver e acompanhar todas as OS abertas na loja
+- Editar status de qualquer OS da loja
+- Visualizar histórico de revisões e garantias
+
+#### Transferências
+- **Solicitar** transferência de moto ou peça de outra loja
+- **Aprovar** transferências solicitadas para sua loja
+- Acompanhar status das transferências em andamento
+
+#### Usuários
+- Criar novos usuários vinculados à sua loja (GERENTE, VENDEDOR, TÉCNICO)
+- Editar dados e inativar usuários da sua loja
+- Redefinir senha de usuários da equipe
+
+#### Financeiro (restrito)
+- Acessar o **Caixa** da loja: ver entradas e saídas do período
+- Ver resumo de **Contas a Receber** da loja (parcelas por vencer, vencidas, recebidas)
+- **Não acessa** Contas a Pagar, Conciliação Bancária nem Notas Fiscais
+
+**Restrições:**
+- Não acessa dados de outras lojas
+- Não acessa configurações gerais do sistema
+- Não cria grupos, lojas ou usuários de outras franquias
 
 ---
 
 ### GERENTE DE LOJA
 
-**Operações do dia a dia da loja.**
+**Supervisão das operações diárias — controla o fluxo sem acesso a dados sensíveis de custo e financeiro.**
 
-| Módulo | Acesso |
-|--------|--------|
-| Vendas | Criar e editar vendas |
-| Clientes | CRUD completo |
-| Estoque | Visualização (sem custos) |
-| Ordens de Serviço | Da loja |
-| Transferências | Solicitar |
+O Gerente de Loja opera de forma semelhante ao Dono, mas sem acesso a custos de produtos e sem área financeira.
+
+#### Dashboard
+- Painel com vendas do dia/mês, OS em andamento e estoque da loja
+- Indicadores de desempenho da equipe de vendas
+
+#### Vendas
+- Criar e editar vendas da loja
+- Visualizar todas as vendas de todos os vendedores da loja
+- Acessar comprovante e detalhes de cada venda
+- Acompanhar status das vendas (aguardando pagamento, finalizada, etc.)
+- **Não pode cancelar** vendas (exclusivo do Dono ou Admin)
+
+#### Clientes
+- Cadastrar, editar e buscar clientes da loja
+- Visualizar histórico completo de cada cliente (compras, OS, interações)
+- Registrar novas interações no histórico do cliente (ligação, visita, WhatsApp)
+
+#### Leads
+- Ver leads atribuídos à loja
+- Atualizar status e observações dos leads
+- Reatribuir leads entre vendedores (quando autorizado)
+
+#### Estoque
+- Visualizar todo o estoque da loja: motos e peças disponíveis
+- Ver quantidade e status das unidades (ESTOQUE, RESERVADA)
+- Verificar histórico de movimentações
+- **Não visualiza custo** de aquisição dos produtos
+
+#### Ordens de Serviço
+- Ver e editar todas as OS da loja
+- Atualizar status das OS (abrir, colocar em andamento, concluir)
+- Vincular peças utilizadas nas OS
+
+#### Transferências
+- Solicitar transferência de estoque de outra loja
+- Acompanhar transferências em andamento da loja
 
 **Restrições:**
-- Não visualiza custos de produtos
-- Não acessa financeiro
+- Não acessa Financeiro (caixa, contas a receber/pagar)
+- Não visualiza custo de produtos
+- Não cancela vendas
+- Não cria nem edita usuários
+- Não acessa configurações do sistema
 
 ---
 
 ### VENDEDOR
 
-**Cadastro de vendas e atendimento a clientes.**
+**Frente de atendimento e registro de vendas — foco total no cliente e no fechamento.**
 
-| Módulo | Acesso |
-|--------|--------|
-| Vendas | Criar novas vendas e orçamentos |
-| Clientes | Cadastrar e editar clientes |
-| Produtos | Visualização do catálogo |
-| Estoque | Verificar disponibilidade |
-| Leads | Ver e atualizar leads atribuídos a si |
-| Ordens de Serviço | Visualização |
+O Vendedor tem acesso restrito ao necessário para realizar vendas e atender clientes com qualidade.
+
+#### Vendas
+- **Criar nova venda:** selecionar cliente, produto/moto do estoque, forma de pagamento e parcelas
+- Formas de pagamento disponíveis: PIX, Dinheiro, Cartão de Crédito, Débito, Financiamento, Boleto, Combinado
+- Gerar e imprimir **comprovante** da venda para o cliente
+- Visualizar **suas próprias vendas** registradas no sistema
+- Acompanhar status de cada venda (pendente, confirmada, cancelada)
+- **Não pode editar nem cancelar** vendas após o registro
+
+#### Clientes
+- Cadastrar novo cliente (nome, CPF/CNPJ, telefone, e-mail, endereço)
+- Editar dados de clientes existentes
+- Buscar clientes já cadastrados para vincular à venda
+- Visualizar histórico de compras do cliente para oferecer melhor atendimento
+- Registrar interações: ligação realizada, mensagem WhatsApp enviada, visita
+
+#### Produtos e Estoque
+- Visualizar catálogo completo de produtos disponíveis na loja
+- Verificar **disponibilidade em estoque** (quais motos estão disponíveis, por cor/especificação)
+- Ver características do produto: modelo, cor, motor, especificações
+- **Não visualiza custo** de aquisição — apenas o preço de venda
+
+#### Leads
+- Visualizar leads **atribuídos a si** pelo sistema ou gerente
+- Atualizar status do lead: contato realizado, proposta enviada, negociação, convertido
+- Registrar observações e histórico de tentativas de contato
+- Receber notificação de novos leads atribuídos automaticamente por região
+
+#### Garantias
+- Visualizar garantia gerada automaticamente nas suas vendas de moto
+- Consultar validade e cobertura da garantia para informar o cliente
+
+#### Ordens de Serviço
+- Visualizar OS abertas relacionadas aos seus clientes
+- Acompanhar status de OS vinculadas a vendas realizadas por si
 
 **Restrições:**
-- Não acessa financeiro
-- Não cancela/exclui vendas
-- Não visualiza custos
+- Não acessa Financeiro (contas, caixa, conciliação)
+- Não cancela nem exclui vendas
+- Não visualiza custos de produtos
+- Não acessa usuários, configurações nem relatórios
+- Vê apenas suas próprias vendas (não vê as de outros vendedores)
+- Não acessa transferências entre lojas
 
 ---
 
