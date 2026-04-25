@@ -131,7 +131,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
   try {
-    const { cnpj, razaoSocial, nomeFantasia, endereco, telefone, email, grupoId: grupoIdParam } = req.body;
+    const { cnpj, razaoSocial, nomeFantasia, endereco, telefone, email, grupoId: grupoIdParam, cidade, uf } = req.body;
 
     if (!razaoSocial) {
       return res.status(400).json({ error: 'Razão social é obrigatória' });
@@ -155,6 +155,8 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
         endereco,
         telefone,
         email,
+        cidade: cidade || null,
+        uf: uf || null,
         grupoId: Number(grupoIdParam)
       }
     });
@@ -171,12 +173,14 @@ router.post('/', requireAdminRede, async (req: AuthRequest, res) => {
 
 router.put('/:id', requireAdminRede, async (req, res) => {
   try {
-    const { razaoSocial, nomeFantasia, endereco, telefone, email, ativo, grupoId, comissaoMoto, comissaoPecas, comissaoServico } = req.body;
+    const { razaoSocial, nomeFantasia, endereco, telefone, email, ativo, grupoId, comissaoMoto, comissaoPecas, comissaoServico, cidade, uf } = req.body;
 
     const loja = await prisma.loja.update({
       where: { id: Number(req.params.id) },
       data: { 
         razaoSocial, nomeFantasia, endereco, telefone, email, ativo, grupoId,
+        ...(cidade !== undefined && { cidade: cidade || null }),
+        ...(uf !== undefined && { uf: uf || null }),
         ...(comissaoMoto !== undefined && { comissaoMoto }),
         ...(comissaoPecas !== undefined && { comissaoPecas }),
         ...(comissaoServico !== undefined && { comissaoServico })
