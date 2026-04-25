@@ -105,6 +105,10 @@ export function Transferencias() {
   const [carregandoChassi, setCarregandoChassi] = useState(false);
   const [erroAprovacao, setErroAprovacao] = useState('');
 
+  // Bulk selection
+  const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
+  const [aprovandoLote, setAprovandoLote] = useState(false);
+
   // Actions
   const [atualizando, setAtualizando] = useState<number | null>(null);
   const [erroAcao, setErroAcao] = useState('');
@@ -183,10 +187,16 @@ export function Transferencias() {
   // Open approval modal (for admins) — loads available chassi from origem
   const abrirAprovacao = async (t: Transferencia) => {
     setAprovandoTransf(t);
-    setChassiSelecionado('');
     setErroAprovacao('');
     setChassiDisponiveis([]);
 
+    // Se o chassi já está definido na transferência, apenas pré-seleciona
+    if (t.unidadeFisica) {
+      setChassiSelecionado(String(t.unidadeFisica.id));
+      return;
+    }
+
+    setChassiSelecionado('');
     if (t.produto?.tipo === 'MOTO' && t.lojaOrigem) {
       setCarregandoChassi(true);
       try {
@@ -201,10 +211,51 @@ export function Transferencias() {
     }
   };
 
+  const toggleSelecionado = (id: number) => {
+    setSelecionados(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleTodosPendentes = () => {
+    const aprovavéis = grupos.pendentes.filter(t => t.produto?.tipo !== 'MOTO' || t.unidadeFisica);
+    const todosSelected = aprovavéis.length > 0 && aprovavéis.every(t => selecionados.has(t.id));
+    if (todosSelected) {
+      setSelecionados(new Set());
+    } else {
+      setSelecionados(new Set(aprovavéis.map(t => t.id)));
+    }
+  };
+
+  const aprovarLote = async () => {
+    if (selecionados.size === 0) return;
+    if (!confirm(`Aprovar ${selecionados.size} transferência(s) selecionada(s)?`)) return;
+    setAprovandoLote(true);
+    setErroAcao('');
+    try {
+      for (const id of Array.from(selecionados)) {
+        const t = transferencias.find(x => x.id === id);
+        if (!t) continue;
+        await api.put(`/transferencias/${id}/aprovar`, {
+          unidadeFisicaId: t.unidadeFisica?.id,
+        });
+      }
+      setSelecionados(new Set());
+      await carregarTransferencias();
+    } catch (err: any) {
+      setErroAcao(err.message || 'Erro ao aprovar em lote');
+    } finally {
+      setAprovandoLote(false);
+    }
+  };
+
   const confirmarAprovacao = async () => {
     if (!aprovandoTransf) return;
     const isMoto = aprovandoTransf.produto?.tipo === 'MOTO';
-    if (isMoto && !chassiSelecionado) { setErroAprovacao('Selecione o chassi para autorizar'); return; }
+    const jaTemChassi = !!aprovandoTransf.unidadeFisica;
+    if (isMoto && !jaTemChassi && !chassiSelecionado) { setErroAprovacao('Selecione o chassi para autorizar'); return; }
 
     setAtualizando(aprovandoTransf.id);
     setErroAprovacao('');
@@ -470,7 +521,9 @@ export function Transferencias() {
             <div className="p-5 border-b border-zinc-800">
               <h3 className="text-base font-bold text-white">Aprovar Transferência #{aprovandoTransf.id}</h3>
               <p className="text-zinc-400 text-sm mt-0.5">
-                {aprovandoTransf.produto?.tipo === 'MOTO' ? 'Selecione o chassi que será transferido' : 'Confirme a aprovação desta transferência'}
+                {aprovandoTransf.produto?.tipo === 'MOTO' && !aprovandoTransf.unidadeFisica
+                  ? 'Selecione o chassi que será transferido'
+                  : 'Confirme a aprovação desta transferência'}
               </p>
             </div>
             <div className="p-5 space-y-4">
@@ -491,11 +544,18 @@ export function Transferencias() {
                 </div>
               </div>
 
-              {/* Chassi selector — only for MOTO */}
+              {/* Chassi — only for MOTO */}
               {aprovandoTransf.produto?.tipo === 'MOTO' && (
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Chassi a transferir *</label>
-                  {carregandoChassi ? (
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Chassi a transferir</label>
+                  {aprovandoTransf.unidadeFisica ? (
+                    <div className="bg-green-500/10 border border-green-500/30 text-green-300 text-sm p-3 rounded-lg flex items-center gap-2">
+                      <span className="text-green-400">✓</span>
+                      <span className="font-mono font-semibold">{aprovandoTransf.unidadeFisica.chassi}</span>
+                      {aprovandoTransf.unidadeFisica.cor && <span className="text-zinc-400">· {aprovandoTransf.unidadeFisica.cor}</span>}
+                      {aprovandoTransf.unidadeFisica.ano && <span className="text-zinc-500">({aprovandoTransf.unidadeFisica.ano})</span>}
+                    </div>
+                  ) : carregandoChassi ? (
                     <div className="text-zinc-500 text-xs py-3 text-center">Carregando chassi disponíveis...</div>
                   ) : chassisDisponiveis.length === 0 ? (
                     <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-lg">
@@ -533,7 +593,7 @@ export function Transferencias() {
                 onClick={confirmarAprovacao}
                 disabled={
                   atualizando === aprovandoTransf.id ||
-                  (aprovandoTransf.produto?.tipo === 'MOTO' && (carregandoChassi || chassisDisponiveis.length === 0))
+                  (aprovandoTransf.produto?.tipo === 'MOTO' && !aprovandoTransf.unidadeFisica && (carregandoChassi || chassisDisponiveis.length === 0))
                 }
                 className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-sm font-bold rounded-lg transition-colors"
               >
@@ -567,6 +627,27 @@ export function Transferencias() {
           <div className="mx-5 mt-4 bg-red-500/10 border border-red-500/30 text-red-400 text-sm p-3 rounded-lg">{erroAcao}</div>
         )}
 
+        {/* Barra de aprovação em lote */}
+        {podeAprovar && selecionados.size > 0 && (
+          <div className="mx-5 mb-2 mt-2 bg-orange-500/10 border border-orange-500/30 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-orange-300 text-sm font-medium">
+              {selecionados.size} transferência{selecionados.size !== 1 ? 's' : ''} selecionada{selecionados.size !== 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-2">
+              <button onClick={() => setSelecionados(new Set())} className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
+                Limpar seleção
+              </button>
+              <button
+                onClick={aprovarLote}
+                disabled={aprovandoLote}
+                className="px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors"
+              >
+                {aprovandoLote ? 'Aprovando...' : `✓ Aprovar Todas (${selecionados.size})`}
+              </button>
+            </div>
+          </div>
+        )}
+
         {carregando ? (
           <div className="py-16 text-center text-zinc-500 text-sm">Carregando...</div>
         ) : listFiltrada.length === 0 ? (
@@ -576,15 +657,45 @@ export function Transferencias() {
             <div className="text-zinc-600 text-xs mt-1">Use a busca acima para solicitar uma nova transferência</div>
           </div>
         ) : (
+          <>
+          {/* Selecionar todos (apenas pendentes aprováveis) */}
+          {podeAprovar && (filtroStatus === '' || filtroStatus === 'SOLICITADA') && grupos.pendentes.some(t => t.produto?.tipo !== 'MOTO' || t.unidadeFisica) && (
+            <div className="px-4 py-2 border-b border-zinc-800 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="sel-todos"
+                checked={grupos.pendentes.filter(t => t.produto?.tipo !== 'MOTO' || t.unidadeFisica).every(t => selecionados.has(t.id))}
+                onChange={toggleTodosPendentes}
+                className="w-4 h-4 accent-orange-500 cursor-pointer"
+              />
+              <label htmlFor="sel-todos" className="text-xs text-zinc-400 cursor-pointer select-none">
+                Selecionar todos os pendentes aprovável
+              </label>
+            </div>
+          )}
           <div className="divide-y divide-zinc-800">
             {listFiltrada.map(t => {
               const isPendente  = t.status === 'SOLICITADA';
               const isTransito  = t.status === 'APROVADA';
               const possoAprovar = podeAprovar && isPendente;
               const possoReceber = isTransito && (minhaLojaId === t.lojaDestino?.id || podeAprovar);
+              const podeSelecionar = possoAprovar && (t.produto?.tipo !== 'MOTO' || !!t.unidadeFisica);
 
               return (
-                <div key={t.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div key={t.id} className={`p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${selecionados.has(t.id) ? 'bg-orange-500/5' : ''}`}>
+                  {podeSelecionar && (
+                    <input
+                      type="checkbox"
+                      checked={selecionados.has(t.id)}
+                      onChange={() => toggleSelecionado(t.id)}
+                      className="w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
+                    />
+                  )}
+                  {possoAprovar && !podeSelecionar && (
+                    <div className="w-4 h-4 flex-shrink-0" title="Chassi pendente — aprove individualmente">
+                      <span className="text-yellow-500 text-xs">!</span>
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <StatusBadge status={t.status} />
@@ -649,6 +760,7 @@ export function Transferencias() {
               );
             })}
           </div>
+          </>
         )}
       </div>
     </div>

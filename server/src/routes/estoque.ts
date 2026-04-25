@@ -120,18 +120,30 @@ router.post(
               },
             });
 
-            // Atualizar custo do produto se informado
-            const custoUnit = item.custo ? Number(item.custo) : (custo ? Number(custo) : 0);
-            if (custoUnit > 0) await prisma.produto.update({ where: { id: Number(produtoId) }, data: { custo: custoUnit } });
-
             // Log de estoque (origem = ENTRADA_AVULSA)
             const estoqueAtual = await prisma.estoque.findUnique({ where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } } });
             const qtdAnterior = estoqueAtual?.quantidade ?? 0;
-            await prisma.estoque.upsert({
-              where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
-              update: { quantidade: { increment: 1 } },
-              create: { produtoId: Number(produtoId), lojaId: Number(lojaId), quantidade: 1 },
-            });
+
+            // Calcular custo médio ponderado (CMP)
+            const custoUnit = item.custo ? Number(item.custo) : (custo ? Number(custo) : 0);
+            if (custoUnit > 0) {
+              const custoAnterior = estoqueAtual?.custoMedio ? Number(estoqueAtual.custoMedio) : (produto.custo ? Number(produto.custo) : 0);
+              const novoCMP = qtdAnterior === 0
+                ? custoUnit
+                : (qtdAnterior * custoAnterior + 1 * custoUnit) / (qtdAnterior + 1);
+              await prisma.produto.update({ where: { id: Number(produtoId) }, data: { custo: novoCMP } });
+              await prisma.estoque.upsert({
+                where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+                update: { quantidade: { increment: 1 }, custoMedio: novoCMP },
+                create: { produtoId: Number(produtoId), lojaId: Number(lojaId), quantidade: 1, custoMedio: novoCMP },
+              });
+            } else {
+              await prisma.estoque.upsert({
+                where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+                update: { quantidade: { increment: 1 } },
+                create: { produtoId: Number(produtoId), lojaId: Number(lojaId), quantidade: 1 },
+              });
+            }
             await prisma.logEstoque.create({
               data: {
                 tipo: 'ENTRADA', origem: 'ENTRADA_AVULSA', produtoId: Number(produtoId), lojaId: Number(lojaId),

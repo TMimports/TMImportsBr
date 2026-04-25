@@ -123,6 +123,8 @@ function ModalCadastroChassi({
   const [importErro, setImportErro] = useState('');
   const fileImportRef = useRef<HTMLInputElement>(null);
   const [slots, setSlots] = useState<{ estoqueQtd: number; chassisCadastrados: number; slotsDisponiveis: number } | null>(null);
+  const [multiModeloGrupos, setMultiModeloGrupos] = useState<{ produto: ProdutoMoto; rows: ChassiRow[] }[] | null>(null);
+  const [multiModeloErros, setMultiModeloErros] = useState<string[]>([]);
 
   const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
   const lbl = 'block text-xs text-zinc-400 mb-1';
@@ -151,6 +153,8 @@ function ModalCadastroChassi({
 
   function importarPlanilha(e: React.ChangeEvent<HTMLInputElement>) {
     setImportErro('');
+    setMultiModeloGrupos(null);
+    setMultiModeloErros([]);
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -165,24 +169,63 @@ function ModalCadastroChassi({
         // Detecta índices pelas colunas do cabeçalho
         const header = raw[0].map((h: any) => String(h).toLowerCase().trim());
         const col = (terms: string[]) => header.findIndex((h: string) => terms.some(t => h.includes(t)));
-        const iChassi = col(['chassi', 'chassis', 'chasi']);
-        const iCor    = col(['cor', 'color', 'colour']);
-        const iMotor  = col(['motor', 'cód', 'cod', 'codigo', 'engine']);
-        const iAno    = col(['ano', 'year', 'anio']);
+        const iChassi  = col(['chassi', 'chassis', 'chasi']);
+        const iCor     = col(['cor', 'color', 'colour']);
+        const iMotor   = col(['motor', 'cód', 'cod', 'codigo', 'engine']);
+        const iAno     = col(['ano', 'year', 'anio']);
+        const iModelo  = col(['modelo', 'model', 'produto', 'product']);
 
         if (iChassi === -1) { setImportErro('Coluna "Chassi" não encontrada na planilha.'); return; }
 
         const anoDefault = String(new Date().getFullYear());
-        const novasRows: ChassiRow[] = raw.slice(1)
+        const todasRows = raw.slice(1)
           .filter((row: any[]) => String(row[iChassi] ?? '').trim())
-          .map((row: any[]): ChassiRow => ({
+          .map((row: any[]) => ({
             chassi:       String(row[iChassi] ?? '').trim(),
-            cor:          iCor    >= 0 ? String(row[iCor]    ?? '').trim() : '',
-            codigoMotor:  iMotor  >= 0 ? String(row[iMotor]  ?? '').trim() : '',
-            ano:          iAno    >= 0 && row[iAno] ? String(Math.round(Number(row[iAno]))) : anoDefault,
+            cor:          iCor   >= 0 ? String(row[iCor]   ?? '').trim() : '',
+            codigoMotor:  iMotor >= 0 ? String(row[iMotor] ?? '').trim() : '',
+            ano:          iAno   >= 0 && row[iAno] ? String(Math.round(Number(row[iAno]))) : anoDefault,
+            modeloNome:   iModelo >= 0 ? String(row[iModelo] ?? '').trim() : '',
           }));
 
-        if (novasRows.length === 0) { setImportErro('Nenhuma linha com chassi encontrada.'); return; }
+        if (todasRows.length === 0) { setImportErro('Nenhuma linha com chassi encontrada.'); return; }
+
+        // ── Modo MULTI-MODELO: planilha tem coluna Modelo e nenhum produto selecionado ──
+        const temColunaModelo = iModelo >= 0 && todasRows.some(r => r.modeloNome);
+        if (temColunaModelo && !produtoId) {
+          const errosModelo: string[] = [];
+          const mapaGrupos: Record<string, { produto: ProdutoMoto; rows: ChassiRow[] }> = {};
+
+          for (const row of todasRows) {
+            const nomeModelo = row.modeloNome;
+            if (!nomeModelo) { errosModelo.push(`Chassi ${row.chassi}: sem modelo definido — ignorado`); continue; }
+
+            if (!mapaGrupos[nomeModelo]) {
+              const produtoEncontrado = produtos.find(p =>
+                p.nome.toLowerCase().includes(nomeModelo.toLowerCase()) ||
+                nomeModelo.toLowerCase().includes(p.nome.toLowerCase()) ||
+                p.codigo.toLowerCase() === nomeModelo.toLowerCase()
+              );
+              if (!produtoEncontrado) {
+                errosModelo.push(`Modelo "${nomeModelo}" não encontrado no sistema — chassis ignorados`);
+                continue;
+              }
+              mapaGrupos[nomeModelo] = { produto: produtoEncontrado, rows: [] };
+            }
+
+            const { modeloNome: _m, ...rowSemModelo } = row;
+            mapaGrupos[nomeModelo].rows.push(rowSemModelo as ChassiRow);
+          }
+
+          const grupos = Object.values(mapaGrupos);
+          if (grupos.length === 0) { setImportErro('Nenhum modelo reconhecido na planilha.'); return; }
+          setMultiModeloGrupos(grupos);
+          setMultiModeloErros(errosModelo);
+          return;
+        }
+
+        // ── Modo SINGLE: comportamento original ──
+        const novasRows: ChassiRow[] = todasRows.map(({ modeloNome: _m, ...r }) => r as ChassiRow);
 
         // Respeita o limite de slots disponíveis
         if (slots !== null && novasRows.length > slots.slotsDisponiveis) {
@@ -233,6 +276,40 @@ function ModalCadastroChassi({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // ── Modo MULTI-MODELO: submete um lote por grupo ──
+    if (multiModeloGrupos !== null) {
+      setSaving(true); setErro('');
+      let totalCriados = 0, totalErros = 0, todosDetalhes: string[] = [];
+      try {
+        for (const grupo of multiModeloGrupos) {
+          const itens = grupo.rows.filter(r => r.chassi.trim()).map(r => ({
+            chassi: r.chassi.trim(),
+            cor: r.cor.trim() || null,
+            codigoMotor: r.codigoMotor.trim() || null,
+            ano: Number(r.ano) || new Date().getFullYear(),
+          }));
+          if (itens.length === 0) continue;
+          const res = await api.post<{ criados: number; erros: number; detalhesErros: string[] }>(
+            '/unidades/manual/lote',
+            {
+              produtoId: grupo.produto.id,
+              lojaId: Number(lojaIdSel),
+              itens,
+              fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+              notaFiscalEntrada: notaFiscalEntrada.trim() || null,
+            }
+          );
+          totalCriados += res.criados;
+          totalErros += res.erros;
+          todosDetalhes.push(...(res.detalhesErros || []));
+        }
+        setResultado({ criados: totalCriados, erros: totalErros, detalhesErros: todosDetalhes });
+      } catch (e: any) { setErro(e.message || 'Erro ao cadastrar'); }
+      finally { setSaving(false); }
+      return;
+    }
+
     if (!produtoId) { setErro('Selecione um produto'); return; }
 
     // Valida contra slots disponíveis
@@ -450,6 +527,39 @@ function ModalCadastroChassi({
             {importErro && (
               <p className="text-xs text-red-400 mb-2 bg-red-500/10 px-3 py-2 rounded-lg">{importErro}</p>
             )}
+
+            {/* ── Preview Multi-Modelo ── */}
+            {multiModeloGrupos !== null ? (
+              <div className="border border-blue-500/30 bg-blue-500/5 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-blue-300">📋 Importação Multi-Modelo detectada</p>
+                  <button type="button" onClick={() => { setMultiModeloGrupos(null); setMultiModeloErros([]); }}
+                    className="text-xs text-zinc-400 hover:text-white transition-colors">✕ Limpar</button>
+                </div>
+                {multiModeloErros.length > 0 && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                    <p className="text-xs text-yellow-300 font-medium mb-1">⚠️ Modelos não reconhecidos na planilha:</p>
+                    <ul className="text-xs text-yellow-300 space-y-0.5">
+                      {multiModeloErros.map((e, i) => <li key={i}>• {e}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {multiModeloGrupos.map((g, i) => (
+                    <div key={i} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
+                      <span className="text-sm text-white">{g.produto.nome}</span>
+                      <span className="text-xs bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">
+                        {g.rows.length} chassi(s)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Total: {multiModeloGrupos.reduce((acc, g) => acc + g.rows.length, 0)} chassis em {multiModeloGrupos.length} modelo(s)
+                </p>
+              </div>
+            ) : (
+              <>
             {modo === 'lote' && rows.length > 1 && (
               <p className="text-xs text-zinc-500 mb-2">
                 {rows.filter(r => r.chassi.trim()).length} chassi(s) com dados preenchidos
@@ -490,6 +600,8 @@ function ModalCadastroChassi({
                 </div>
               ))}
             </div>
+              </>
+            )}
           </div>
 
           {erro && <p className="text-red-400 text-sm">{erro}</p>}
@@ -499,9 +611,15 @@ function ModalCadastroChassi({
               Cancelar
             </button>
             <button type="submit"
-              disabled={saving || (slots !== null && slots.slotsDisponiveis === 0)}
+              disabled={saving || (multiModeloGrupos === null && slots !== null && slots.slotsDisponiveis === 0)}
               className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium">
-              {saving ? 'Salvando...' : modo === 'unitario' ? 'Cadastrar Chassi' : `Cadastrar ${rows.filter(r => r.chassi.trim()).length} Chassi(s)`}
+              {saving
+                ? 'Salvando...'
+                : multiModeloGrupos !== null
+                  ? `Cadastrar ${multiModeloGrupos.reduce((a, g) => a + g.rows.length, 0)} Chassi(s) em ${multiModeloGrupos.length} Modelo(s)`
+                  : modo === 'unitario'
+                    ? 'Cadastrar Chassi'
+                    : `Cadastrar ${rows.filter(r => r.chassi.trim()).length} Chassi(s)`}
             </button>
           </div>
         </form>
