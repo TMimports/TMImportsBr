@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { ImportPlanilha } from '../components/ImportPlanilha';
 import { CustomSelect } from '../components/CustomSelect';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Produto {
   id: number;
@@ -39,6 +40,7 @@ const fmtBRL = (v: number) =>
   v > 0 ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
 
 export function Produtos() {
+  const { user } = useAuth();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -127,6 +129,17 @@ export function Produtos() {
     );
   };
 
+  const handleRecodificar = async () => {
+    if (!confirm('Isso vai reatribuir os códigos TMMOT/TMPEC de todos os produtos com base no tipo atual. Continuar?')) return;
+    try {
+      const res = await api.post<{message: string; atualizados: number; contadores: Record<string, number>}>('/produtos/recodificar', {});
+      alert(`${res.message}\n\nMotos: ${res.contadores.MOTO} | Peças: ${res.contadores.PECA} | Serviços: ${res.contadores.SERVICO}`);
+      loadProdutos();
+    } catch (err: any) {
+      alert('Erro ao recodificar: ' + err.message);
+    }
+  };
+
   const abrirNovo = () => {
     setForm(initialForm);
     setEditando(false);
@@ -170,6 +183,11 @@ export function Produtos() {
           {selecionados.length > 0 && (
             <button onClick={handleExcluirSelecionados} className="btn btn-danger">
               Excluir ({selecionados.length})
+            </button>
+          )}
+          {user?.role === 'ADMIN_GERAL' && (
+            <button onClick={handleRecodificar} className="btn btn-secondary text-sm" title="Corrige códigos TMMOT/TMPEC baseado no tipo atual do produto">
+              🔄 Recodificar Produtos
             </button>
           )}
           <button onClick={abrirNovo} className="btn btn-primary">+ Novo Produto</button>
