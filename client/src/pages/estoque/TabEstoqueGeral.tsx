@@ -49,14 +49,14 @@ const inp     = 'bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm
 const sel     = inp + ' cursor-pointer';
 
 export function TabEstoqueGeral({ lojas }: { lojas: Loja[] }) {
-  const [data, setData]       = useState<GeralResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [busca, setBusca]     = useState('');
-  const [filtroLoja, setFiltroLoja]     = useState('');
-  const [filtroTipo, setFiltroTipo]     = useState('');
-  const [filtroStatus, setFiltroStatus] = useState('ESTOQUE');
-  const [secao, setSecao]     = useState<'motos' | 'pecas'>('motos');
-  const [buscaChassi, setBuscaChassi]   = useState('');
+  const [data, setData]             = useState<GeralResponse | null>(null);
+  const [loading, setLoading]       = useState(false);
+  const [busca, setBusca]           = useState('');
+  const [filtroLoja, setFiltroLoja] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [secao, setSecao]           = useState<'motos' | 'pecas'>('motos');
+  const [buscaChassi, setBuscaChassi] = useState('');
+  const [abaMotos, setAbaMotos]     = useState<'estoque' | 'movimentacao'>('estoque');
 
   function load() {
     setLoading(true);
@@ -71,43 +71,60 @@ export function TabEstoqueGeral({ lojas }: { lojas: Loja[] }) {
 
   useEffect(() => { load(); }, [filtroLoja, filtroTipo]);
 
-  const unidadesFilt = useMemo(() => {
+  // Aba "Estoque Ativo": ESTOQUE + RESERVADA
+  const motosAtivas = useMemo(() => {
     if (!data) return [];
-    let items = data.unidades;
-    if (filtroStatus) items = items.filter(u => u.status === filtroStatus);
+    const statusAtivo = ['ESTOQUE', 'RESERVADA'];
+    let items = data.unidades.filter(u => statusAtivo.includes(u.status));
     const q = busca.toLowerCase().trim();
-    if (!q && !buscaChassi.trim()) return items;
-    return items.filter(u => {
-      if (buscaChassi.trim()) {
-        return (u.chassi || '').toLowerCase().includes(buscaChassi.toLowerCase().trim());
-      }
-      return (
-        (u.chassi || '').toLowerCase().includes(q) ||
-        u.produto.nome.toLowerCase().includes(q) ||
-        (u.cor || '').toLowerCase().includes(q) ||
-        (u.codigoMotor || '').toLowerCase().includes(q) ||
-        (u.loja.nomeFantasia || '').toLowerCase().includes(q)
-      );
-    });
-  }, [data, busca, filtroStatus, buscaChassi]);
+    if (buscaChassi.trim()) return items.filter(u => (u.chassi || '').toLowerCase().includes(buscaChassi.toLowerCase().trim()));
+    if (!q) return items;
+    return items.filter(u =>
+      (u.chassi || '').toLowerCase().includes(q) ||
+      u.produto.nome.toLowerCase().includes(q) ||
+      (u.cor || '').toLowerCase().includes(q) ||
+      (u.codigoMotor || '').toLowerCase().includes(q) ||
+      (u.loja.nomeFantasia || '').toLowerCase().includes(q)
+    );
+  }, [data, busca, buscaChassi]);
+
+  // Aba "Movimentação de Chassi": VENDIDA + TRANSFERIDA
+  const motosMovimentacao = useMemo(() => {
+    if (!data) return [];
+    const statusMov = ['VENDIDA', 'TRANSFERIDA'];
+    let items = data.unidades.filter(u => statusMov.includes(u.status));
+    const q = busca.toLowerCase().trim();
+    if (buscaChassi.trim()) return items.filter(u => (u.chassi || '').toLowerCase().includes(buscaChassi.toLowerCase().trim()));
+    if (!q) return items;
+    return items.filter(u =>
+      (u.chassi || '').toLowerCase().includes(q) ||
+      u.produto.nome.toLowerCase().includes(q) ||
+      (u.cor || '').toLowerCase().includes(q) ||
+      (u.codigoMotor || '').toLowerCase().includes(q) ||
+      (u.loja.nomeFantasia || '').toLowerCase().includes(q)
+    );
+  }, [data, busca, buscaChassi]);
+
+  const unidadesFilt = abaMotos === 'estoque' ? motosAtivas : motosMovimentacao;
 
   const pecasFilt = useMemo(() => {
     if (!data) return [];
     const q = busca.toLowerCase().trim();
-    let items = data.pecas;
-    if (filtroStatus === 'ESTOQUE') items = items.filter(p => p.quantidade > 0);
+    let items = data.pecas.filter(p => p.quantidade > 0);
     if (!q) return items;
     return items.filter(p =>
       p.produto.nome.toLowerCase().includes(q) ||
       p.produto.codigo.toLowerCase().includes(q) ||
       (p.loja.nomeFantasia || '').toLowerCase().includes(q)
     );
-  }, [data, busca, filtroStatus]);
+  }, [data, busca]);
 
-  // KPIs
-  const totalMotosDisp = data?.unidades.filter(u => u.status === 'ESTOQUE').length ?? 0;
-  const totalPecasDisp = data?.pecas.filter(p => p.quantidade > 0).length ?? 0;
-  const totalPecasBaixo = data?.pecas.filter(p => p.quantidade > 0 && p.quantidade <= 2).length ?? 0;
+  const totalMotosEstoque   = data?.unidades.filter(u => u.status === 'ESTOQUE').length ?? 0;
+  const totalMotosReservada = data?.unidades.filter(u => u.status === 'RESERVADA').length ?? 0;
+  const totalMotosVendida   = data?.unidades.filter(u => u.status === 'VENDIDA').length ?? 0;
+  const totalMotosTrans     = data?.unidades.filter(u => u.status === 'TRANSFERIDA').length ?? 0;
+  const totalPecasDisp      = data?.pecas.filter(p => p.quantidade > 0).length ?? 0;
+  const totalPecasBaixo     = data?.pecas.filter(p => p.quantidade > 0 && p.quantidade <= 2).length ?? 0;
 
   const verCustos = data?.verCustos ?? false;
 
@@ -119,20 +136,28 @@ export function TabEstoqueGeral({ lojas }: { lojas: Loja[] }) {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl px-4 py-3">
             <p className="text-xs text-zinc-500 mb-1">Motos disponíveis</p>
-            <p className="text-2xl font-bold text-green-400">{totalMotosDisp}</p>
+            <p className="text-2xl font-bold text-green-400">{totalMotosEstoque}</p>
+            {totalMotosReservada > 0 && <p className="text-xs text-yellow-400 mt-0.5">{totalMotosReservada} reservada(s)</p>}
+          </div>
+          <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl px-4 py-3">
+            <p className="text-xs text-zinc-500 mb-1">Motos movimentadas</p>
+            <p className="text-2xl font-bold text-zinc-300">{totalMotosVendida + totalMotosTrans}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">{totalMotosVendida} vendida(s) · {totalMotosTrans} transf.</p>
           </div>
           <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl px-4 py-3">
             <p className="text-xs text-zinc-500 mb-1">Tipos de peça</p>
             <p className="text-2xl font-bold text-blue-400">{totalPecasDisp}</p>
           </div>
-          <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl px-4 py-3">
-            <p className="text-xs text-zinc-500 mb-1">Total de motos</p>
-            <p className="text-2xl font-bold text-zinc-300">{data.unidades.length}</p>
-          </div>
-          {totalPecasBaixo > 0 && (
+          {totalPecasBaixo > 0 ? (
             <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-xl px-4 py-3">
               <p className="text-xs text-yellow-500 mb-1">⚠ Peças com saldo baixo</p>
               <p className="text-2xl font-bold text-yellow-400">{totalPecasBaixo}</p>
+            </div>
+          ) : (
+            <div className="bg-zinc-800/50 border border-zinc-700 rounded-xl px-4 py-3">
+              <p className="text-xs text-zinc-500 mb-1">Total cadastrado</p>
+              <p className="text-2xl font-bold text-zinc-400">{data.unidades.length}</p>
+              <p className="text-xs text-zinc-600 mt-0.5">todas as motos</p>
             </div>
           )}
         </div>
@@ -164,29 +189,20 @@ export function TabEstoqueGeral({ lojas }: { lojas: Loja[] }) {
             <option value="MOTO">🏍 Somente Motos</option>
             <option value="PECA">🔩 Somente Peças</option>
           </select>
-          {filtroTipo !== 'PECA' && (
-            <select value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)} className={sel + ' text-sm'}>
-              <option value="">Todos os status</option>
-              <option value="ESTOQUE">Disponível</option>
-              <option value="VENDIDA">Vendida</option>
-              <option value="RESERVADA">Reservada</option>
-              <option value="TRANSFERIDA">Transferida</option>
-            </select>
-          )}
           <button onClick={load} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap">
             🔄 Atualizar
           </button>
         </div>
       </div>
 
-      {/* ── Toggle secção ────────────────────────────────────────────────────── */}
+      {/* ── Toggle secção principal (Motos / Peças) ───────────────────────────── */}
       {!filtroTipo && (
         <div className="flex gap-1 bg-zinc-800/50 border border-zinc-700 rounded-lg p-1 w-fit">
           <button
             onClick={() => setSecao('motos')}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${secao === 'motos' ? 'bg-orange-500 text-white' : 'text-zinc-400 hover:text-zinc-200'}`}
           >
-            🏍 Motos {data ? `(${unidadesFilt.length})` : ''}
+            🏍 Motos
           </button>
           <button
             onClick={() => setSecao('pecas')}
@@ -199,63 +215,113 @@ export function TabEstoqueGeral({ lojas }: { lojas: Loja[] }) {
 
       {loading && <div className="py-12 text-center text-zinc-400 text-sm">Carregando estoque...</div>}
 
-      {/* ── Tabela Motos ──────────────────────────────────────────────────────── */}
+      {/* ── Seção Motos ───────────────────────────────────────────────────────── */}
       {!loading && (secao === 'motos' || filtroTipo === 'MOTO') && (
-        <div className="overflow-x-auto">
-          {unidadesFilt.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-zinc-500 text-sm">Nenhuma moto encontrada</p>
-              {(busca || buscaChassi || filtroStatus) && (
-                <button onClick={() => { setBusca(''); setBuscaChassi(''); setFiltroStatus(''); }} className="text-xs text-orange-400 hover:text-orange-300 mt-2 underline">
-                  Limpar filtros
-                </button>
+        <div className="space-y-3">
+
+          {/* Sub-abas: Estoque Ativo / Movimentação de Chassi */}
+          <div className="flex gap-1 bg-zinc-900 border border-zinc-700 rounded-lg p-1 w-fit">
+            <button
+              onClick={() => setAbaMotos('estoque')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                abaMotos === 'estoque'
+                  ? 'bg-green-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-current" />
+              Estoque Ativo
+              {data && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${abaMotos === 'estoque' ? 'bg-green-800 text-green-200' : 'bg-zinc-700 text-zinc-400'}`}>
+                  {motosAtivas.length}
+                </span>
               )}
+            </button>
+            <button
+              onClick={() => setAbaMotos('movimentacao')}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                abaMotos === 'movimentacao'
+                  ? 'bg-zinc-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-current" />
+              Movimentação de Chassi
+              {data && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${abaMotos === 'movimentacao' ? 'bg-zinc-700 text-zinc-300' : 'bg-zinc-700 text-zinc-400'}`}>
+                  {motosMovimentacao.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Descrição da aba ativa */}
+          {abaMotos === 'movimentacao' && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-zinc-800/40 border border-zinc-700/50 rounded-lg text-xs text-zinc-500">
+              <span>📦</span>
+              <span>Unidades que saíram do estoque — vendidas ou transferidas para outra loja.</span>
             </div>
-          ) : (
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-800/30 text-zinc-400 text-xs">
-                  <th className="text-left px-3 py-2.5 font-medium">Chassi</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Modelo</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Cor</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Ano</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Localização</th>
-                  {verCustos && <th className="text-right px-3 py-2.5 font-medium">Custo</th>}
-                  <th className="text-left px-3 py-2.5 font-medium">Status</th>
-                  <th className="text-left px-3 py-2.5 font-medium hidden lg:table-cell">Entrada</th>
-                </tr>
-              </thead>
-              <tbody>
-                {unidadesFilt.map(u => (
-                  <tr key={u.id} className="border-b border-zinc-800/40 hover:bg-zinc-800/20 transition-colors group">
-                    <td className="px-3 py-2.5">
-                      <span className="font-mono text-orange-400 text-xs font-bold tracking-wider group-hover:text-orange-300">
-                        {u.chassi || <span className="text-zinc-600 font-normal">—</span>}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <span className="text-white text-sm font-medium">{u.produto.nome}</span>
-                    </td>
-                    <td className="px-3 py-2.5 text-zinc-300 text-xs">{u.cor || '—'}</td>
-                    <td className="px-3 py-2.5 text-zinc-400 text-xs">{u.ano || '—'}</td>
-                    <td className="px-3 py-2.5">
-                      <span className="text-xs text-zinc-300">{u.loja.nomeFantasia || '—'}</span>
-                    </td>
-                    {verCustos && (
-                      <td className="px-3 py-2.5 text-right text-zinc-400 text-xs">{fmtBRL(u.produto.custo)}</td>
-                    )}
-                    <td className="px-3 py-2.5">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CLS[u.status] || 'bg-zinc-700 text-zinc-400'}`}>
-                        {STATUS_LABEL[u.status] || u.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-zinc-600 text-xs hidden lg:table-cell">{fmtDate(u.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           )}
-          <p className="text-xs text-zinc-700 mt-1.5 px-1">{unidadesFilt.length} moto(s) exibida(s)</p>
+
+          {/* Tabela */}
+          <div className="overflow-x-auto">
+            {unidadesFilt.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="text-zinc-500 text-sm">
+                  {abaMotos === 'estoque' ? 'Nenhuma moto em estoque' : 'Nenhuma movimentação encontrada'}
+                </p>
+                {(busca || buscaChassi) && (
+                  <button onClick={() => { setBusca(''); setBuscaChassi(''); }} className="text-xs text-orange-400 hover:text-orange-300 mt-2 underline">
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+            ) : (
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-zinc-800 bg-zinc-800/30 text-zinc-400 text-xs">
+                    <th className="text-left px-3 py-2.5 font-medium">Chassi</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Modelo</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Cor</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Ano</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Localização</th>
+                    {verCustos && <th className="text-right px-3 py-2.5 font-medium">Custo</th>}
+                    <th className="text-left px-3 py-2.5 font-medium">Status</th>
+                    <th className="text-left px-3 py-2.5 font-medium hidden lg:table-cell">Entrada</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unidadesFilt.map(u => (
+                    <tr key={u.id} className={`border-b border-zinc-800/40 hover:bg-zinc-800/20 transition-colors group ${abaMotos === 'movimentacao' ? 'opacity-75' : ''}`}>
+                      <td className="px-3 py-2.5">
+                        <span className={`font-mono text-xs font-bold tracking-wider ${abaMotos === 'estoque' ? 'text-orange-400 group-hover:text-orange-300' : 'text-zinc-400'}`}>
+                          {u.chassi || <span className="text-zinc-600 font-normal">—</span>}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className="text-white text-sm font-medium">{u.produto.nome}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-zinc-300 text-xs">{u.cor || '—'}</td>
+                      <td className="px-3 py-2.5 text-zinc-400 text-xs">{u.ano || '—'}</td>
+                      <td className="px-3 py-2.5">
+                        <span className="text-xs text-zinc-300">{u.loja.nomeFantasia || '—'}</span>
+                      </td>
+                      {verCustos && (
+                        <td className="px-3 py-2.5 text-right text-zinc-400 text-xs">{fmtBRL(u.produto.custo)}</td>
+                      )}
+                      <td className="px-3 py-2.5">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_CLS[u.status] || 'bg-zinc-700 text-zinc-400'}`}>
+                          {STATUS_LABEL[u.status] || u.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-zinc-600 text-xs hidden lg:table-cell">{fmtDate(u.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            <p className="text-xs text-zinc-700 mt-1.5 px-1">{unidadesFilt.length} moto(s) exibida(s)</p>
+          </div>
         </div>
       )}
 
