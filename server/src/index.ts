@@ -331,15 +331,10 @@ async function initializeDatabase() {
     });
     console.log('Admin criado! Login: admin@teclemotos.com / 123456');
   } else {
-    const senhaCorreta = await bcrypt.default.compare('123456', adminExiste.senha);
-    if (!senhaCorreta) {
-      const senhaAdmin = await bcrypt.default.hash('123456', 10);
-      await prisma.user.update({
-        where: { id: adminExiste.id },
-        data: { senha: senhaAdmin, lojaId: null, grupoId: null, ativo: true }
-      });
-      console.log('Senha do admin corrigida para 123456');
-    }
+    await prisma.user.update({
+      where: { id: adminExiste.id },
+      data: { ativo: true }
+    });
   }
 }
 
