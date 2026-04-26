@@ -158,7 +158,7 @@ function ModalCadastroChassi({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = new Uint8Array(ev.target!.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
@@ -219,6 +219,25 @@ function ModalCadastroChassi({
 
           const grupos = Object.values(mapaGrupos);
           if (grupos.length === 0) { setImportErro('Nenhum modelo reconhecido na planilha.'); return; }
+
+          // ── Validação de slots por modelo ──
+          const errosSlots: string[] = [];
+          for (const g of grupos) {
+            try {
+              const slotsData = await api.get<any>(`/unidades/slots?produtoId=${g.produto.id}&lojaId=${lojaIdSel}`);
+              if (g.rows.length > slotsData.slotsDisponiveis) {
+                const extra = g.rows.length - slotsData.slotsDisponiveis;
+                errosSlots.push(
+                  `Operação não carregada! O Item ${g.produto.nome} tem mais Chassi importados que slots. ${extra}(${g.rows.length} vs ${slotsData.slotsDisponiveis}) Chassi${extra !== 1 ? 's' : ''} a mais!`
+                );
+              }
+            } catch { /* ignora erro de slots — valida no submit */ }
+          }
+          if (errosSlots.length > 0) {
+            setImportErro(errosSlots.join('\n'));
+            return;
+          }
+
           setMultiModeloGrupos(grupos);
           setMultiModeloErros(errosModelo);
           return;
@@ -2773,16 +2792,6 @@ function ViewEmpresa({
           {podeGerir && (
             <>
               <button
-                onClick={() => setShowEntradaAvulsa(true)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-                📦 Entrada Avulsa
-              </button>
-              <button
-                onClick={() => setShowImportacaoEstoque(true)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-                📊 Importar Planilha
-              </button>
-              <button
                 onClick={() => setShowCadastroChassi(true)}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
                 🏍️ Cadastrar Chassi
@@ -3112,7 +3121,10 @@ export function Estoque() {
 
       {/* Barra de abas principal */}
       <div className="flex items-center gap-0.5 border-b border-[#27272a] overflow-x-auto">
-        {TAB_LABELS.map(tab => (
+        {TAB_LABELS.filter(tab => {
+          if (tab.id === 'mov-estoque' || tab.id === 'mov-avulsa') return isAdmin;
+          return true;
+        }).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}

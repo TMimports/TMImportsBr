@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import * as XLSX from 'xlsx';
 
 interface Loja    { id: number; nomeFantasia: string; }
 interface Produto { id: number; nome: string; tipo: string; codigo: string; }
@@ -64,6 +65,11 @@ export function TabMovAvulsa({ lojas }: { lojas: Loja[] }) {
   const isEntrada = operacao === 'ENTRADA';
   const isSaida   = operacao === 'SAIDA';
   const isAjuste  = operacao === 'AJUSTE';
+
+  const fileEntradaRef = useRef<HTMLInputElement>(null);
+  const fileSaidaRef   = useRef<HTMLInputElement>(null);
+  const [importErroEntrada, setImportErroEntrada] = useState('');
+  const [importErroSaida,   setImportErroSaida]   = useState('');
 
   useEffect(() => {
     api.get<Produto[]>('/produtos?ativo=true')
@@ -133,6 +139,139 @@ export function TabMovAvulsa({ lojas }: { lojas: Loja[] }) {
       return { ...si, [field]: value };
     }));
   };
+
+  function baixarModeloEntrada() {
+    const anoAtual = new Date().getFullYear();
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Chassi', 'Modelo', 'Cor', 'Cód. Motor', 'Ano', 'Custo (R$)'],
+      ['9C2JKD...', 'TM13', 'Preto', 'MOT001', anoAtual, '8500,00'],
+      ['9C2JKD...', 'TM14', 'Branco', 'MOT002', anoAtual, '9200,00'],
+    ]);
+    ws['!cols'] = [{ wch: 24 }, { wch: 20 }, { wch: 10 }, { wch: 14 }, { wch: 8 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Entradas');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'modelo_entrada_avulsa.xlsx'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  function baixarModeloSaida() {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Chassi'],
+      ['9C2JKD...'],
+      ['9C2JKD...'],
+    ]);
+    ws['!cols'] = [{ wch: 24 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Saidas');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'modelo_saida_avulsa.xlsx'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  function importarPlanilhaEntrada(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportErroEntrada('');
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const wb = XLSX.read(evt.target?.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
+        if (data.length < 2) { setImportErroEntrada('Planilha vazia.'); return; }
+        const headers = (data[0] as any[]).map((h: any) => String(h).toLowerCase().trim());
+        const col = (names: string[]) => names.reduce((found, n) => found >= 0 ? found : headers.findIndex(h => h.includes(n)), -1);
+        const iChassi = col(['chassi', 'chassis']);
+        const iModelo = col(['modelo', 'model', 'produto', 'product']);
+        const iCor    = col(['cor', 'color']);
+        const iMotor  = col(['motor', 'cód']);
+        const iAno    = col(['ano', 'year']);
+        const iCusto  = col(['custo', 'cost', 'valor', 'price']);
+        if (iChassi === -1) { setImportErroEntrada('Coluna "Chassi" não encontrada na planilha.'); return; }
+        const rows = (data.slice(1) as any[][]).map(row => ({
+          chassi:     String(row[iChassi] ?? '').trim(),
+          modeloNome: iModelo >= 0 ? String(row[iModelo] ?? '').trim() : '',
+          cor:        iCor    >= 0 ? String(row[iCor]    ?? '').trim() : '',
+          codigoMotor: iMotor >= 0 ? String(row[iMotor]  ?? '').trim() : '',
+          ano:        iAno    >= 0 ? String(row[iAno]    ?? '').trim() : String(new Date().getFullYear()),
+          custo:      iCusto  >= 0 ? String(row[iCusto]  ?? '').trim() : '',
+        })).filter(r => r.chassi);
+        if (rows.length === 0) { setImportErroEntrada('Nenhum chassi encontrado na planilha.'); return; }
+        const errosModelo: string[] = [];
+        const mapaGrupos: Record<string, EntradaItem> = {};
+        for (const row of rows) {
+          const search = row.modeloNome.toLowerCase();
+          const matchProd = produtos.find(p => {
+            const nome = p.nome.toLowerCase();
+            const cod  = (p.codigo ?? '').toLowerCase();
+            return nome === search || nome.includes(search) || search.includes(nome) || cod === search;
+          });
+          if (!matchProd && row.modeloNome) {
+            if (!errosModelo.includes(row.modeloNome)) errosModelo.push(row.modeloNome);
+            continue;
+          }
+          const key = matchProd ? String(matchProd.id) : '__avulso__';
+          if (!mapaGrupos[key]) {
+            const ei = emptyEntradaItem();
+            ei.produtoId = matchProd ? String(matchProd.id) : '';
+            ei.chassis = [];
+            mapaGrupos[key] = ei;
+          }
+          mapaGrupos[key].chassis.push({ chassi: row.chassi, cor: row.cor, ano: row.ano || String(new Date().getFullYear()), custo: row.custo });
+        }
+        const grupos = Object.values(mapaGrupos);
+        if (grupos.length === 0) { setImportErroEntrada('Nenhum modelo reconhecido na planilha.'); return; }
+        if (errosModelo.length > 0) setImportErroEntrada(`⚠️ Modelos não reconhecidos: ${errosModelo.join(', ')}. Os demais foram importados.`);
+        setEntradaItems(grupos);
+      } catch { setImportErroEntrada('Erro ao ler a planilha. Verifique o formato.'); }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  }
+
+  async function importarPlanilhaSaida(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportErroSaida('');
+    if (!lojaId) { setImportErroSaida('Selecione a loja antes de importar.'); return; }
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const wb = XLSX.read(evt.target?.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: '' });
+        if (data.length < 2) { setImportErroSaida('Planilha vazia.'); return; }
+        const headers = (data[0] as any[]).map((h: any) => String(h).toLowerCase().trim());
+        const col = (names: string[]) => names.reduce((found, n) => found >= 0 ? found : headers.findIndex(h => h.includes(n)), -1);
+        const iChassi = col(['chassi', 'chassis']);
+        if (iChassi === -1) { setImportErroSaida('Coluna "Chassi" não encontrada na planilha.'); return; }
+        const chassisList = (data.slice(1) as any[][]).map(row => String(row[iChassi] ?? '').trim()).filter(c => c);
+        if (chassisList.length === 0) { setImportErroSaida('Nenhum chassi encontrado.'); return; }
+        const d = await api.get<{ unidades: UnidadeDisp[] }>(`/estoque/geral?lojaId=${lojaId}&statusUni=ESTOQUE`);
+        const unidades = d?.unidades || [];
+        const naoEncontrados: string[] = [];
+        const novosSaidaItems: SaidaItem[] = [];
+        for (const chassi of chassisList) {
+          const unidade = unidades.find(u => u.chassi?.toLowerCase() === chassi.toLowerCase());
+          if (!unidade) { naoEncontrados.push(chassi); continue; }
+          const item = emptySaidaItem();
+          item.produtoId = String(unidade.produto.id);
+          item.chassis   = unidades.filter(u => u.produto.id === unidade.produto.id && u.chassi);
+          item.chassiSel = chassi;
+          novosSaidaItems.push(item);
+        }
+        if (novosSaidaItems.length === 0) {
+          setImportErroSaida(`Nenhum chassi encontrado no estoque desta loja: ${naoEncontrados.join(', ')}`);
+          return;
+        }
+        if (naoEncontrados.length > 0) setImportErroSaida(`⚠️ Não encontrados no estoque: ${naoEncontrados.join(', ')}`);
+        setSaidaItems(novosSaidaItems);
+      } catch { setImportErroSaida('Erro ao ler a planilha ou ao consultar o estoque.'); }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  }
 
   function reset() {
     setEntradaItems([emptyEntradaItem()]);
@@ -323,15 +462,25 @@ export function TabMovAvulsa({ lojas }: { lojas: Loja[] }) {
       {/* ═══════════════════════════════════════════════════ */}
       {isEntrada && (
         <div className="bg-zinc-800/30 border border-zinc-700 rounded-xl p-4 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">2 — Itens de Entrada</p>
-            <button
-              onClick={addEntradaItem}
-              className="text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-2.5 py-1 rounded-lg transition-colors"
-            >
-              + Item
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={baixarModeloEntrada} className="text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                ⬇ Modelo .xlsx
+              </button>
+              <button onClick={() => fileEntradaRef.current?.click()} className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/40 hover:border-blue-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                📥 Importar planilha
+              </button>
+              <input ref={fileEntradaRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={importarPlanilhaEntrada} />
+              <button onClick={addEntradaItem} className="text-xs text-green-400 hover:text-green-300 border border-green-500/30 hover:border-green-400 px-2.5 py-1 rounded-lg transition-colors">
+                + Item
+              </button>
+            </div>
           </div>
+
+          {importErroEntrada && (
+            <p className={`text-xs px-3 py-2 rounded-lg ${importErroEntrada.startsWith('⚠️') ? 'bg-yellow-500/10 text-yellow-400' : 'bg-red-500/10 text-red-400'}`}>{importErroEntrada}</p>
+          )}
 
           <div className="space-y-4">
             {entradaItems.map((ei, idx) => {
@@ -434,15 +583,25 @@ export function TabMovAvulsa({ lojas }: { lojas: Loja[] }) {
       {/* ═══════════════════════════════════════════════════ */}
       {isSaida && (
         <div className="bg-zinc-800/30 border border-zinc-700 rounded-xl p-4 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">2 — Itens de Saída</p>
-            <button
-              onClick={addSaidaItem}
-              className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-2.5 py-1 rounded-lg transition-colors"
-            >
-              + Item
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button onClick={baixarModeloSaida} className="text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                ⬇ Modelo .xlsx
+              </button>
+              <button onClick={() => fileSaidaRef.current?.click()} className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/40 hover:border-blue-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                📥 Importar planilha
+              </button>
+              <input ref={fileSaidaRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={importarPlanilhaSaida} />
+              <button onClick={addSaidaItem} className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400 px-2.5 py-1 rounded-lg transition-colors">
+                + Item
+              </button>
+            </div>
           </div>
+
+          {importErroSaida && (
+            <p className={`text-xs px-3 py-2 rounded-lg ${importErroSaida.startsWith('⚠️') ? 'bg-yellow-500/10 text-yellow-400' : 'bg-red-500/10 text-red-400'}`}>{importErroSaida}</p>
+          )}
 
           <div className="space-y-3">
             {saidaItems.map((si, idx) => {

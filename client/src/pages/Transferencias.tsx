@@ -105,9 +105,13 @@ export function Transferencias() {
   const [carregandoChassi, setCarregandoChassi] = useState(false);
   const [erroAprovacao, setErroAprovacao] = useState('');
 
-  // Bulk selection
+  // Bulk selection (aprovação)
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set());
   const [aprovandoLote, setAprovandoLote] = useState(false);
+
+  // Bulk selection (recebimento em trânsito)
+  const [selecionadosTransito, setSelecionadosTransito] = useState<Set<number>>(new Set());
+  const [concluindoLote, setConcluindoLote] = useState(false);
 
   // Actions
   const [atualizando, setAtualizando] = useState<number | null>(null);
@@ -248,6 +252,42 @@ export function Transferencias() {
       setErroAcao(err.message || 'Erro ao aprovar em lote');
     } finally {
       setAprovandoLote(false);
+    }
+  };
+
+  const toggleSelecionadoTransito = (id: number) => {
+    setSelecionadosTransito(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleTodosTransito = () => {
+    const recebiveis = grupos.transito.filter(t => minhaLojaId === t.lojaDestino?.id || podeAprovar);
+    const todosSelected = recebiveis.length > 0 && recebiveis.every(t => selecionadosTransito.has(t.id));
+    if (todosSelected) {
+      setSelecionadosTransito(new Set());
+    } else {
+      setSelecionadosTransito(new Set(recebiveis.map(t => t.id)));
+    }
+  };
+
+  const concluirLote = async () => {
+    if (selecionadosTransito.size === 0) return;
+    if (!confirm(`Confirmar recebimento de ${selecionadosTransito.size} transferência(s)? O estoque será atualizado.`)) return;
+    setConcluindoLote(true);
+    setErroAcao('');
+    try {
+      for (const id of Array.from(selecionadosTransito)) {
+        await api.put(`/transferencias/${id}/concluir`, {});
+      }
+      setSelecionadosTransito(new Set());
+      await carregarTransferencias();
+    } catch (err: any) {
+      setErroAcao(err.message || 'Erro ao confirmar recebimento em lote');
+    } finally {
+      setConcluindoLote(false);
     }
   };
 
@@ -648,6 +688,27 @@ export function Transferencias() {
           </div>
         )}
 
+        {/* Barra de recebimento em lote (em trânsito) */}
+        {selecionadosTransito.size > 0 && (
+          <div className="mx-5 mb-2 mt-2 bg-blue-500/10 border border-blue-500/30 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-blue-300 text-sm font-medium">
+              📦 {selecionadosTransito.size} em trânsito selecionada{selecionadosTransito.size !== 1 ? 's' : ''}
+            </span>
+            <div className="flex gap-2">
+              <button onClick={() => setSelecionadosTransito(new Set())} className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
+                Limpar seleção
+              </button>
+              <button
+                onClick={concluirLote}
+                disabled={concluindoLote}
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors"
+              >
+                {concluindoLote ? 'Confirmando...' : `📦 Confirmar Recebimento (${selecionadosTransito.size})`}
+              </button>
+            </div>
+          </div>
+        )}
+
         {carregando ? (
           <div className="py-16 text-center text-zinc-500 text-sm">Carregando...</div>
         ) : listFiltrada.length === 0 ? (
@@ -658,7 +719,7 @@ export function Transferencias() {
           </div>
         ) : (
           <>
-          {/* Selecionar todos (apenas pendentes aprováveis) */}
+          {/* Selecionar todos pendentes aprováveis */}
           {podeAprovar && (filtroStatus === '' || filtroStatus === 'SOLICITADA') && grupos.pendentes.some(t => t.produto?.tipo !== 'MOTO' || t.unidadeFisica) && (
             <div className="px-4 py-2 border-b border-zinc-800 flex items-center gap-2">
               <input
@@ -673,6 +734,22 @@ export function Transferencias() {
               </label>
             </div>
           )}
+
+          {/* Selecionar todos em trânsito (recebiveis) */}
+          {(filtroStatus === '' || filtroStatus === 'APROVADA') && grupos.transito.some(t => minhaLojaId === t.lojaDestino?.id || podeAprovar) && (
+            <div className="px-4 py-2 border-b border-zinc-800 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="sel-todos-transito"
+                checked={grupos.transito.filter(t => minhaLojaId === t.lojaDestino?.id || podeAprovar).every(t => selecionadosTransito.has(t.id))}
+                onChange={toggleTodosTransito}
+                className="w-4 h-4 accent-blue-500 cursor-pointer"
+              />
+              <label htmlFor="sel-todos-transito" className="text-xs text-blue-400 cursor-pointer select-none">
+                Selecionar todos em trânsito (confirmar recebimento)
+              </label>
+            </div>
+          )}
           <div className="divide-y divide-zinc-800">
             {listFiltrada.map(t => {
               const isPendente  = t.status === 'SOLICITADA';
@@ -680,9 +757,16 @@ export function Transferencias() {
               const possoAprovar = podeAprovar && isPendente;
               const possoReceber = isTransito && (minhaLojaId === t.lojaDestino?.id || podeAprovar);
               const podeSelecionar = possoAprovar && (t.produto?.tipo !== 'MOTO' || !!t.unidadeFisica);
+              const podeReceberLote = possoReceber;
+
+              const rowBg = selecionados.has(t.id)
+                ? 'bg-orange-500/5'
+                : selecionadosTransito.has(t.id)
+                  ? 'bg-blue-500/5'
+                  : '';
 
               return (
-                <div key={t.id} className={`p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${selecionados.has(t.id) ? 'bg-orange-500/5' : ''}`}>
+                <div key={t.id} className={`p-4 flex flex-col sm:flex-row sm:items-center gap-3 ${rowBg}`}>
                   {podeSelecionar && (
                     <input
                       type="checkbox"
@@ -691,7 +775,15 @@ export function Transferencias() {
                       className="w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
                     />
                   )}
-                  {possoAprovar && !podeSelecionar && (
+                  {podeReceberLote && !podeSelecionar && (
+                    <input
+                      type="checkbox"
+                      checked={selecionadosTransito.has(t.id)}
+                      onChange={() => toggleSelecionadoTransito(t.id)}
+                      className="w-4 h-4 accent-blue-500 cursor-pointer flex-shrink-0"
+                    />
+                  )}
+                  {possoAprovar && !podeSelecionar && !podeReceberLote && (
                     <div className="w-4 h-4 flex-shrink-0" title="Chassi pendente — aprove individualmente">
                       <span className="text-yellow-500 text-xs">!</span>
                     </div>
