@@ -37,6 +37,7 @@ import notasFiscaisRoutes from './routes/notas-fiscais.js';
 import conciliacaoBancariaRoutes from './routes/conciliacao-bancaria.js';
 import relatoriosRoutes from './routes/relatorios.js';
 import whatsappRoutes from './routes/whatsapp.js';
+import logAtividadesRoutes from './routes/log-atividades.js';
 import { iniciarScheduler } from './services/scheduler.js';
 
 export const prisma = new PrismaClient({
@@ -142,6 +143,7 @@ app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/notas-fiscais', notasFiscaisRoutes);
 app.use('/api/conciliacao-bancaria', conciliacaoBancariaRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
+app.use('/api/log-atividades', logAtividadesRoutes);
 
 if (isDev) app.get('/api/debug-build', (req, res) => {
   const fs = require('fs');
@@ -200,9 +202,119 @@ if (!isDev) {
 
 const PORT = isDev ? 3001 : (process.env.PORT ? Number(process.env.PORT) : 5000);
 
+async function sincronizarColunas() {
+  const sqls: string[] = [
+    // --- Venda: colunas adicionadas após o deploy inicial ---
+    `ALTER TABLE "Venda" ADD COLUMN IF NOT EXISTS "observacoes" TEXT`,
+    `ALTER TABLE "Venda" ADD COLUMN IF NOT EXISTS "pagamentosJson" TEXT`,
+
+    // --- Enum FormaPagamento: valor COMBINADO ---
+    `ALTER TYPE "FormaPagamento" ADD VALUE IF NOT EXISTS 'COMBINADO'`,
+
+    // --- Loja: colunas de geolocalização ---
+    `ALTER TABLE "Loja" ADD COLUMN IF NOT EXISTS "regiao" TEXT`,
+    `ALTER TABLE "Loja" ADD COLUMN IF NOT EXISTS "cidade" TEXT`,
+    `ALTER TABLE "Loja" ADD COLUMN IF NOT EXISTS "uf" TEXT`,
+    `ALTER TABLE "Loja" ADD COLUMN IF NOT EXISTS "bairrosAtendidos" TEXT`,
+
+    // --- Enums do módulo Lead ---
+    `DO $$ BEGIN CREATE TYPE "OrigemLead" AS ENUM ('META','GOOGLE','SITE','WHATSAPP','INDICACAO','OUTRO','TESTE'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `DO $$ BEGIN CREATE TYPE "InteresseLead" AS ENUM ('MOTO','PECA','SERVICO','CURSO','OUTRO'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `DO $$ BEGIN CREATE TYPE "StatusLead" AS ENUM ('NOVO','EM_ATENDIMENTO','PROPOSTA_ENVIADA','GANHO','PERDIDO','SEM_RESPOSTA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `DO $$ BEGIN CREATE TYPE "PrioridadeLead" AS ENUM ('BAIXA','MEDIA','ALTA'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `DO $$ BEGIN CREATE TYPE "TipoInteracaoLead" AS ENUM ('LIGACAO','WHATSAPP','EMAIL','REUNIAO','VISITA','OBSERVACAO','FOLLOW_UP'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+
+    // --- Tabela Lead ---
+    `CREATE TABLE IF NOT EXISTS "Lead" (
+      "id"                     SERIAL PRIMARY KEY,
+      "nome"                   TEXT NOT NULL,
+      "telefone"               TEXT,
+      "email"                  TEXT,
+      "origem"                 "OrigemLead" NOT NULL DEFAULT 'OUTRO',
+      "campanha"               TEXT,
+      "interesse"              "InteresseLead",
+      "lojaId"                 INTEGER REFERENCES "Loja"("id"),
+      "vendedorId"             INTEGER REFERENCES "User"("id"),
+      "status"                 "StatusLead" NOT NULL DEFAULT 'NOVO',
+      "prioridade"             "PrioridadeLead",
+      "resumo"                 TEXT,
+      "proximaAcao"            TEXT,
+      "dataProximoFollowUp"    TIMESTAMP,
+      "observacoes"            TEXT,
+      "createdAt"              TIMESTAMP NOT NULL DEFAULT NOW(),
+      "updatedAt"              TIMESTAMP NOT NULL DEFAULT NOW(),
+      "interesseCorrigido"     BOOLEAN NOT NULL DEFAULT FALSE,
+      "mensagemWhatsApp"       TEXT,
+      "canalOrigem"            TEXT,
+      "dataRepasseVendedor"    TIMESTAMP,
+      "linkConversa"           TEXT,
+      "mensagemRecebida"       TEXT,
+      "repassadoPorId"         INTEGER REFERENCES "User"("id"),
+      "whatsappComercialOrigem" TEXT,
+      "bairroCliente"          TEXT,
+      "cidadeCliente"          TEXT,
+      "lojaSugerida"           TEXT,
+      "motivoLojaSugerida"     TEXT,
+      "regiaoCliente"          TEXT,
+      "ufCliente"              TEXT,
+      "origemRepasse"          TEXT
+    )`,
+
+    // --- Tabela LeadInteracao ---
+    `CREATE TABLE IF NOT EXISTS "LeadInteracao" (
+      "id"        SERIAL PRIMARY KEY,
+      "leadId"    INTEGER NOT NULL REFERENCES "Lead"("id") ON DELETE CASCADE,
+      "usuarioId" INTEGER NOT NULL REFERENCES "User"("id"),
+      "tipo"      "TipoInteracaoLead" NOT NULL DEFAULT 'OBSERVACAO',
+      "descricao" TEXT NOT NULL,
+      "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
+    )`,
+
+    // --- LogAuditoria: novos campos para auditoria de atividades ---
+    `ALTER TABLE "LogAuditoria" ALTER COLUMN "usuarioId"  DROP NOT NULL`,
+    `ALTER TABLE "LogAuditoria" ALTER COLUMN "entidade"   SET DEFAULT ''`,
+    `ALTER TABLE "LogAuditoria" ALTER COLUMN "entidadeId" DROP NOT NULL`,
+    `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "userName"  TEXT`,
+    `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "userRole"  TEXT`,
+    `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "detalhes"  TEXT`,
+    `ALTER TABLE "LogAuditoria" ADD COLUMN IF NOT EXISTS "ip"        TEXT`,
+
+    // --- Enum Role: SUPER_ADMIN (usuário oculto de acesso total) ---
+    `ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'SUPER_ADMIN' BEFORE 'ADMIN_GERAL'`,
+  ];
+
+  for (const sql of sqls) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err: any) {
+      console.warn(`[Sync] Aviso:`, err?.message?.slice(0, 120));
+    }
+  }
+  console.log('[Sync] Schema sincronizado com sucesso.');
+}
+
 async function initializeDatabase() {
+  await sincronizarColunas();
+
   const bcrypt = await import('bcryptjs');
-  
+
+  // ── SUPER_ADMIN oculto (não aparece na listagem de usuários) ──────────────
+  const superAdminExiste = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' as any } });
+  if (!superAdminExiste) {
+    const senhaSA = await bcrypt.default.hash('TM@master2024', 10);
+    await prisma.user.create({
+      data: {
+        nome: 'TM Master',
+        email: 'master@tmimports.com.br',
+        senha: senhaSA,
+        role: 'SUPER_ADMIN' as any,
+        ativo: true
+      }
+    });
+    console.log('[SUPER_ADMIN] Usuário master criado: master@tmimports.com.br');
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const adminExiste = await prisma.user.findFirst({ where: { role: 'ADMIN_GERAL' } });
   
   if (!adminExiste) {
@@ -219,15 +331,10 @@ async function initializeDatabase() {
     });
     console.log('Admin criado! Login: admin@teclemotos.com / 123456');
   } else {
-    const senhaCorreta = await bcrypt.default.compare('123456', adminExiste.senha);
-    if (!senhaCorreta) {
-      const senhaAdmin = await bcrypt.default.hash('123456', 10);
-      await prisma.user.update({
-        where: { id: adminExiste.id },
-        data: { senha: senhaAdmin, lojaId: null, grupoId: null, ativo: true }
-      });
-      console.log('Senha do admin corrigida para 123456');
-    }
+    await prisma.user.update({
+      where: { id: adminExiste.id },
+      data: { ativo: true }
+    });
   }
 }
 

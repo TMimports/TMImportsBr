@@ -82,7 +82,6 @@ const FIN_GROUP = group('fin-group', 'Financeiro', '💵', [
   { id: 'fin-categorias',     label: 'Categorias',     icon: '🏷' },
 ]);
 
-
 // Configurações
 const CONFIG_ITEM = item('configuracoes', 'Configurações', '⚙️');
 
@@ -93,13 +92,6 @@ const REDE_GROUP = group('rede-group', 'Rede de Franquias', '🏢', [
   { id: 'grupos',              label: 'Grupos / Franquias',  icon: '🏢' },
   { id: 'lojas',               label: 'Lojas',               icon: '🏪' },
   { id: 'financeiro-empresa',  label: 'Financeiro por Loja', icon: '💰' },
-]);
-
-// Grupo comercial para ADMIN_FINANCEIRO (acesso de leitura ao contexto de vendas)
-const COMERCIAL_FIN_GROUP = group('comercial-fin-group', 'Comercial', '🛍️', [
-  { id: 'clientes', label: 'Clientes', icon: '👤' },
-  { id: 'vendas',   label: 'Vendas',   icon: '🛍️' },
-  { id: 'os',       label: 'Ordens de Serviço', icon: '🔩' },
 ]);
 
 // Menu do Técnico — foco em OS e comissões
@@ -118,16 +110,15 @@ const menuItems: Record<string, NavEntry[]> = {
     VENDAS_GROUP(),
     FIN_GROUP,
     RELATORIOS_ITEM,
+    item('log-atividades', 'Log de Atividades', '🔍'),
     CONFIG_ITEM,
   ],
   ADMIN_FINANCEIRO: [
     item('dashboard', 'Dashboard', '📊'),
-    item('estoque',        'Estoque',        '📋'),
-    item('transferencias', 'Transferências', '🔄'),
-    CADASTROS_BASE_GROUP,
-    COMERCIAL_FIN_GROUP,
+    LOGISTICA_GROUP,
+    CADASTROS_GROUP,
+    VENDAS_GROUP(),
     FIN_GROUP,
-    item('comissoes', 'Comissões', '💸'),
     RELATORIOS_ITEM,
   ],
   ADMIN_REDE: [
@@ -197,7 +188,6 @@ function groupContainsPage(g: NavGroup, page: string) {
 
 const ROLES_CAN_SELECT_LOJA = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE', 'DONO_LOJA', 'ADMIN_COMERCIAL'];
 
-const ADMIN_ROLES = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { user, logout } = useAuth();
@@ -212,7 +202,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   };
   const canSelectLoja = user?.role ? ROLES_CAN_SELECT_LOJA.includes(user.role) : false;
 
-  const isTMImportsView = !selectedLojaId && ADMIN_ROLES.includes(user?.role || '');
+  const TM_IMPORTS_ROLES = ['SUPER_ADMIN', 'ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_COMERCIAL'];
+  const isTMImportsView = TM_IMPORTS_ROLES.includes(user?.role || '');
   const logoSrc  = isTMImportsView ? '/logo-tm.png' : '/logo.png';
   const logoAlt  = isTMImportsView ? 'TM Imports'  : 'Tecle Motos';
   const brandName = isTMImportsView ? 'TM Imports' : 'Tecle Motos';
@@ -510,19 +501,16 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </div>
           )}
 
-          {/* Instalar App (PWA) */}
-          {pwaInstallable && (
-            <Tooltip label="Instalar App">
-              <button
-                onClick={handlePwaInstall}
-                className={`w-full flex items-center rounded-lg text-xs font-medium text-orange-400 hover:text-white hover:bg-orange-500/20 border border-orange-500/30 transition-colors
-                  ${collapsed ? 'justify-center py-2.5' : 'gap-2 px-2.5 py-2'}`}>
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                {!collapsed && <span>Instalar App</span>}
-              </button>
-            </Tooltip>
+          {/* Instalar App (PWA) — só exibe quando sidebar expandida */}
+          {pwaInstallable && !collapsed && (
+            <button
+              onClick={handlePwaInstall}
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium text-orange-400 hover:text-white hover:bg-orange-500/20 transition-colors">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Instalar App</span>
+            </button>
           )}
 
           {/* Alterar senha */}

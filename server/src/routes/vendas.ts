@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../index.js';
 import { verifyToken, applyTenantFilter, requireRole, AuthRequest } from '../middleware/auth.js';
 import { InventoryService } from '../services/InventoryService.js';
+import { registrarLog, obterIp } from '../services/logService.js';
 
 const router = Router();
 
@@ -187,7 +188,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const { tipo, clienteId, vendedorId, lojaId, formaPagamento, parcelas, itens, valorTotalManual } = req.body;
+    const { tipo, clienteId, vendedorId, lojaId, formaPagamento, parcelas, itens, valorTotalManual, observacoes, pagamentosCompostos } = req.body;
 
     if (!clienteId || !lojaId || !formaPagamento || !itens?.length) {
       return res.status(400).json({ error: 'Dados incompletos' });
@@ -224,19 +225,30 @@ router.post('/', async (req: AuthRequest, res) => {
       let precoUnitario = Number(item.precoUnitario);
       let desconto = Number(item.desconto || 0);
 
-      if (item.produtoId) {
-        const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
-        if (produto) {
-          let maxDesconto = produto.tipo === 'MOTO' ? Number(config?.descontoMaxMoto || 3.5) : Number(config?.descontoMaxPeca || 10);
-          
-          if (userRole === 'GERENTE_LOJA') {
-            maxDesconto = maxDesconto * 2;
-          }
-          
-          if (desconto > maxDesconto) {
-            return res.status(400).json({ 
-              error: `Desconto de ${desconto}% excede o maximo permitido para seu perfil (${maxDesconto}%)` 
-            });
+      if (item.produtoId && desconto > 0) {
+        // ADMIN_GERAL, ADMIN_FINANCEIRO, ADMIN_REDE: sem limite de desconto
+        const rolesLivres = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
+        if (!rolesLivres.includes(userRole || '')) {
+          // Perfis operacionais: trava de 15%
+          const rolesCap15 = ['VENDEDOR', 'DONO_LOJA'];
+          if (rolesCap15.includes(userRole || '')) {
+            if (desconto > 15) {
+              return res.status(400).json({
+                error: `O desconto máximo permitido para este perfil é de 15%. Desconto informado: ${desconto}%`
+              });
+            }
+          } else {
+            // GERENTE_LOJA e outros: usa config * 2
+            const produto = await prisma.produto.findUnique({ where: { id: item.produtoId } });
+            if (produto) {
+              let maxDesconto = produto.tipo === 'MOTO' ? Number(config?.descontoMaxMoto || 3.5) : Number(config?.descontoMaxPeca || 10);
+              if (userRole === 'GERENTE_LOJA') maxDesconto = maxDesconto * 2;
+              if (desconto > maxDesconto) {
+                return res.status(400).json({
+                  error: `Desconto de ${desconto}% excede o máximo permitido para seu perfil (${maxDesconto}%)`
+                });
+              }
+            }
           }
         }
       }
@@ -279,6 +291,8 @@ router.post('/', async (req: AuthRequest, res) => {
         parcelas: parcelas ? Number(parcelas) : null,
         valorBruto,
         valorTotal,
+        observacoes: observacoes?.trim() || null,
+        pagamentosJson: pagamentosCompostos ? JSON.stringify(pagamentosCompostos) : null,
         confirmadaFinanceiro: confirmarAutomaticamente,
         createdBy: req.user!.id,
         itens: { create: itensProcessados }
@@ -347,10 +361,24 @@ router.post('/', async (req: AuthRequest, res) => {
       await criarGarantiasVenda(venda.id, Number(clienteId), venda.itens);
     }
 
+    registrarLog({
+      usuarioId:  req.user!.id,
+      userName:   req.user!.nome,
+      userRole:   req.user!.role,
+      acao:       tipoVenda === 'ORCAMENTO' ? 'CRIAR_ORCAMENTO' : 'CRIAR_VENDA',
+      entidade:   'VENDA',
+      entidadeId: venda.id,
+      detalhes:   `${tipoVenda === 'ORCAMENTO' ? 'Orçamento' : 'Venda'} #${venda.id} criado para "${(venda as any).cliente?.nome || clienteId}" — R$ ${valorTotal.toFixed(2)}`,
+      ip: obterIp(req),
+    });
+
     res.status(201).json(venda);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao criar venda:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    const msg = process.env.NODE_ENV === 'development'
+      ? (error?.message || String(error))
+      : 'Erro interno do servidor';
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -675,14 +703,15 @@ router.delete('/:id', requireRole('ADMIN_GERAL', 'GERENTE_LOJA', 'DONO_LOJA'), a
       }
     });
 
-    await prisma.logAuditoria.create({
-      data: {
-        usuarioId: req.user!.id,
-        acao: 'DELETE',
-        entidade: 'Venda',
-        entidadeId: Number(req.params.id),
-        dados: JSON.stringify(venda)
-      }
+    registrarLog({
+      usuarioId:  req.user!.id,
+      userName:   req.user!.nome,
+      userRole:   req.user!.role,
+      acao:       'EXCLUIR_VENDA',
+      entidade:   'VENDA',
+      entidadeId: Number(req.params.id),
+      detalhes:   `Venda/Orçamento #${req.params.id} excluído (tipo: ${venda.tipo}, valor: R$ ${Number(venda.valorTotal).toFixed(2)})`,
+      ip: obterIp(req),
     });
 
     res.json({ message: 'Orçamento excluído' });

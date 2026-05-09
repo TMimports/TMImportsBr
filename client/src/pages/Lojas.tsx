@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -11,6 +11,8 @@ interface Loja {
   razaoSocial: string;
   nomeFantasia: string;
   endereco?: string;
+  cidade?: string;
+  uf?: string;
   telefone?: string;
   email?: string;
   ativo: boolean;
@@ -111,31 +113,153 @@ function ModalDetalhes({ loja, onClose, onEditar }: { loja: Loja; onClose: () =>
 // ── Formulário (Criar / Editar) ────────────────────────────────────────────────
 
 function ModalForm({
-  form, setForm, grupos, saving, buscando, onBuscarCNPJ, onSubmit, onClose, editando,
+  form, setForm, grupos, saving, onSubmit, onClose, editando,
 }: {
   form: typeof emptyForm; setForm: React.Dispatch<React.SetStateAction<typeof emptyForm>>;
-  grupos: Grupo[]; saving: boolean; buscando: boolean;
-  onBuscarCNPJ: () => void; onSubmit: (e: React.FormEvent) => void;
+  grupos: Grupo[]; saving: boolean;
+  onSubmit: (e: React.FormEvent) => void;
   onClose: () => void; editando: boolean;
 }) {
   const inp = "w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500 transition-colors";
   const lbl = "block text-xs text-zinc-400 mb-1";
 
+  const [buscando, setBuscando] = useState(false);
+  const [cnpjStatus, setCnpjStatus] = useState<{ tipo: 'ok' | 'erro' | 'info'; msg: string } | null>(null);
+  const buscandoRef = useRef(false);
+
+  const buscarCNPJ = useCallback(async (cnpjDigits: string) => {
+    const digits = cnpjDigits.replace(/\D/g, '');
+    console.log('[CNPJ] buscarCNPJ chamado com:', cnpjDigits, '| digits:', digits, '| len:', digits.length);
+    if (digits.length !== 14) {
+      setCnpjStatus({ tipo: 'erro', msg: `Digite os 14 dígitos do CNPJ (atual: ${digits.length})` });
+      return;
+    }
+    if (buscandoRef.current) {
+      console.log('[CNPJ] Já buscando, ignorando.');
+      return;
+    }
+    buscandoRef.current = true;
+    setBuscando(true);
+    setCnpjStatus({ tipo: 'info', msg: `⏳ Buscando CNPJ ${digits}...` });
+    try {
+      console.log('[CNPJ] Chamando BrasilAPI...');
+      // Chamada DIRETA do browser para BrasilAPI (CORS: access-control-allow-origin: *)
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      console.log('[CNPJ] BrasilAPI status:', res.status);
+
+      if (!res.ok) {
+        throw new Error('CNPJ não encontrado na Receita Federal');
+      }
+
+      const data = await res.json();
+
+      const logradouro = [
+        data.descricao_tipo_logradouro,
+        data.logradouro,
+        data.numero,
+        data.complemento,
+      ].filter(Boolean).join(' ');
+
+      const telefone = data.ddd_telefone_1
+        ? data.ddd_telefone_1.replace(/\D/g, '').replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3')
+        : '';
+
+      const cep = String(data.cep || '').replace(/\D/g, '').replace(/^(\d{5})(\d{3})$/, '$1-$2');
+
+      setForm(prev => ({
+        ...prev,
+        cnpj: digits,
+        razaoSocial: data.razao_social || prev.razaoSocial,
+        nomeFantasia: data.nome_fantasia || data.razao_social || prev.nomeFantasia,
+        endereco: logradouro || prev.endereco,
+        cep: cep || prev.cep,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.municipio || prev.cidade,
+        uf: data.uf || prev.uf,
+        telefone: telefone || prev.telefone,
+        email: data.email || prev.email || '',
+      }));
+
+      setCnpjStatus({ tipo: 'ok', msg: '✅ Dados preenchidos com sucesso!' });
+      setTimeout(() => setCnpjStatus(null), 4000);
+    } catch (err: any) {
+      // Fallback: tenta pelo backend (caso BrasilAPI falhe no browser)
+      try {
+        const d = await api.get<any>(`/lojas/consultar-cnpj/${digits}`);
+        setForm(prev => ({
+          ...prev,
+          cnpj: digits,
+          razaoSocial: d.razaoSocial || prev.razaoSocial,
+          nomeFantasia: d.nomeFantasia || prev.nomeFantasia,
+          endereco: d.endereco || prev.endereco,
+          cep: d.cep || prev.cep,
+          bairro: d.bairro || prev.bairro,
+          cidade: d.cidade || prev.cidade,
+          uf: d.uf || prev.uf,
+          telefone: d.telefone || prev.telefone,
+          email: d.email || prev.email || '',
+        }));
+        setCnpjStatus({ tipo: 'ok', msg: '✅ Dados preenchidos com sucesso!' });
+        setTimeout(() => setCnpjStatus(null), 4000);
+      } catch (err2: any) {
+        const msg = err2?.message || err?.message || 'CNPJ não encontrado na Receita Federal';
+        setCnpjStatus({ tipo: 'erro', msg: `❌ ${msg}` });
+        setTimeout(() => setCnpjStatus(null), 5000);
+      }
+    } finally {
+      buscandoRef.current = false;
+      setBuscando(false);
+    }
+  }, [setForm]);
+
   return (
     <Modal title={editando ? '✏️ Editar Loja' : '🏪 Nova Loja'} onClose={onClose}>
       <form onSubmit={onSubmit} className="space-y-4">
+
+        {/* Toast de status CNPJ */}
+        {cnpjStatus && (
+          <div className={`rounded-lg px-4 py-2.5 text-sm font-medium border ${
+            cnpjStatus.tipo === 'ok'
+              ? 'bg-green-500/10 border-green-500/30 text-green-400'
+              : cnpjStatus.tipo === 'erro'
+              ? 'bg-red-500/10 border-red-500/30 text-red-400'
+              : 'bg-zinc-700/50 border-zinc-600 text-zinc-300'
+          }`}>
+            {cnpjStatus.msg}
+          </div>
+        )}
+
         {/* CNPJ */}
         <div>
           <label className={lbl}>CNPJ</label>
           <div className="flex gap-2">
-            <input value={form.cnpj} onChange={e => setForm(p => ({ ...p, cnpj: e.target.value }))}
-              className={inp} placeholder="00.000.000/0000-00" />
-            <button type="button" onClick={onBuscarCNPJ} disabled={buscando}
-              className="flex-shrink-0 bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap">
+            <input
+              value={form.cnpj}
+              onChange={e => {
+                const val = e.target.value;
+                setForm(p => ({ ...p, cnpj: val }));
+                if (val.replace(/\D/g, '').length === 14) {
+                  buscarCNPJ(val);
+                }
+              }}
+              className={inp}
+              placeholder="00.000.000/0000-00 ou 14 dígitos"
+              maxLength={18}
+              disabled={buscando}
+            />
+            <button
+              type="button"
+              disabled={buscando}
+              onClick={() => buscarCNPJ(form.cnpj)}
+              className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap">
               {buscando ? '⏳' : '🔍 Buscar'}
             </button>
           </div>
-          <p className="text-xs text-zinc-500 mt-1">Clique em Buscar para preencher automaticamente pela Receita Federal</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            Preenche automaticamente ao digitar o CNPJ completo
+          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -311,7 +435,6 @@ export function Lojas() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [buscando, setBuscando] = useState(false);
   const [busca, setBusca] = useState('');
 
   const [modalDetalhes, setModalDetalhes] = useState<Loja | null>(null);
@@ -349,38 +472,24 @@ export function Lojas() {
     loadGrupos();
   }, []);
 
-  const handleBuscarCNPJ = async () => {
-    const valorCnpj = String(form.cnpj || '');
-    const cnpjLimpo = valorCnpj.trim().replace(/\D/g, '');
-    console.log('[Buscar CNPJ] valorOriginal:', JSON.stringify(valorCnpj), '| cnpjLimpo:', cnpjLimpo, '| length:', cnpjLimpo.length);
-    if (cnpjLimpo.length !== 14) { flash('Digite um CNPJ válido com 14 dígitos', 'erro'); return; }
-    setBuscando(true);
-    try {
-      const d = await api.get<any>(`/lojas/consultar-cnpj/${cnpjLimpo}`);
-      setForm(p => ({
-        ...p,
-        cnpj: d.cnpj ?? p.cnpj,
-        razaoSocial: d.razaoSocial ?? p.razaoSocial,
-        nomeFantasia: d.nomeFantasia ?? p.nomeFantasia,
-        endereco: d.endereco ?? p.endereco,
-        cep: d.cep ?? p.cep,
-        bairro: d.bairro ?? p.bairro,
-        cidade: d.cidade ?? p.cidade,
-        uf: d.uf ?? p.uf,
-        telefone: d.telefone ?? p.telefone,
-        email: d.email ?? p.email,
-      }));
-    } catch (e: any) { flash(e.message || 'CNPJ não encontrado na Receita Federal', 'erro'); }
-    finally { setBuscando(false); }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
       const cnpjLimpo = form.cnpj.replace(/\D/g, '');
-      const enderecoFull = [form.endereco, form.bairro, form.cidade, form.uf, form.cep].filter(Boolean).join(', ');
-      const body = { ...form, cnpj: cnpjLimpo, endereco: enderecoFull };
+      const body = {
+        cnpj: cnpjLimpo,
+        razaoSocial: form.razaoSocial,
+        nomeFantasia: form.nomeFantasia,
+        endereco: form.endereco,
+        cep: form.cep,
+        bairro: form.bairro,
+        cidade: form.cidade,
+        uf: form.uf,
+        telefone: form.telefone,
+        email: form.email,
+        grupoId: form.grupoId,
+      };
       if (editando && form.id) {
         await api.put(`/lojas/${form.id}`, body);
         flash('Loja atualizada com sucesso!', 'ok');
@@ -400,7 +509,8 @@ export function Lojas() {
     setForm({
       id: loja.id, cnpj: loja.cnpj,
       razaoSocial: loja.razaoSocial, nomeFantasia: loja.nomeFantasia || '',
-      endereco: loja.endereco || '', cep: '', bairro: '', cidade: '', uf: '',
+      endereco: loja.endereco || '', cep: '', bairro: '',
+      cidade: loja.cidade || '', uf: loja.uf || '',
       telefone: loja.telefone || '', email: loja.email || '', grupoId: loja.grupoId,
     });
     setEditando(true);
@@ -523,8 +633,7 @@ export function Lojas() {
       {modalForm && (
         <ModalForm
           form={form} setForm={setForm}
-          grupos={grupos} saving={saving} buscando={buscando}
-          onBuscarCNPJ={handleBuscarCNPJ}
+          grupos={grupos} saving={saving}
           onSubmit={handleSubmit}
           onClose={() => { setModalForm(false); setForm(emptyForm); setEditando(false); }}
           editando={editando}

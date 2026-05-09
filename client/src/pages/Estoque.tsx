@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo, Fragment } from 'react';
+import { useEffect, useState, useMemo, useRef, Fragment } from 'react';
+import * as XLSX from 'xlsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useLojaContext } from '../contexts/LojaContext';
 import { api } from '../services/api';
@@ -119,9 +120,150 @@ function ModalCadastroChassi({
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
   const [resultado, setResultado] = useState<{ criados: number; erros: number; detalhesErros: string[] } | null>(null);
+  const [importErro, setImportErro] = useState('');
+  const fileImportRef = useRef<HTMLInputElement>(null);
+  const [slots, setSlots] = useState<{ estoqueQtd: number; chassisCadastrados: number; slotsDisponiveis: number } | null>(null);
+  const [multiModeloGrupos, setMultiModeloGrupos] = useState<{ produto: ProdutoMoto; rows: ChassiRow[] }[] | null>(null);
+  const [multiModeloErros, setMultiModeloErros] = useState<string[]>([]);
 
   const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
   const lbl = 'block text-xs text-zinc-400 mb-1';
+
+  function baixarModeloChassi() {
+    const nomeProduto = produtos.find(p => String(p.id) === produtoId)?.nome || 'Produto';
+    const anoAtual = new Date().getFullYear();
+    const sheetData = [
+      ['Chassi', 'Modelo', 'Cor', 'Cód. Motor', 'Ano'],
+      ['(obrigatório)', nomeProduto, '(opcional)', '(opcional)', '(opcional)'],
+      ['9C2HAXXXXXXXXXXXXX', nomeProduto, 'Preto', 'MOT001', anoAtual],
+      ['9C2HAXXXXXXXXXXXXY', nomeProduto, 'Branco', 'MOT002', anoAtual],
+      ['9C2HAXXXXXXXXXXXXXZ', nomeProduto, 'Azul', 'MOT003', anoAtual],
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+    ws['!cols'] = [{ wch: 24 }, { wch: 30 }, { wch: 12 }, { wch: 14 }, { wch: 8 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'Chassis');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'modelo_cadastro_chassis.xlsx';
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  function importarPlanilha(e: React.ChangeEvent<HTMLInputElement>) {
+    setImportErro('');
+    setMultiModeloGrupos(null);
+    setMultiModeloErros([]);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const data = new Uint8Array(ev.target!.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (raw.length < 2) { setImportErro('Planilha vazia ou sem dados.'); return; }
+
+        // Detecta índices pelas colunas do cabeçalho
+        const header = raw[0].map((h: any) => String(h).toLowerCase().trim());
+        const col = (terms: string[]) => header.findIndex((h: string) => terms.some(t => h.includes(t)));
+        const iChassi  = col(['chassi', 'chassis', 'chasi']);
+        const iCor     = col(['cor', 'color', 'colour']);
+        const iMotor   = col(['motor', 'cód', 'cod', 'codigo', 'engine']);
+        const iAno     = col(['ano', 'year', 'anio']);
+        const iModelo  = col(['modelo', 'model', 'produto', 'product']);
+
+        if (iChassi === -1) { setImportErro('Coluna "Chassi" não encontrada na planilha.'); return; }
+
+        const anoDefault = String(new Date().getFullYear());
+        const todasRows = raw.slice(1)
+          .filter((row: any[]) => String(row[iChassi] ?? '').trim())
+          .map((row: any[]) => ({
+            chassi:       String(row[iChassi] ?? '').trim(),
+            cor:          iCor   >= 0 ? String(row[iCor]   ?? '').trim() : '',
+            codigoMotor:  iMotor >= 0 ? String(row[iMotor] ?? '').trim() : '',
+            ano:          iAno   >= 0 && row[iAno] ? String(Math.round(Number(row[iAno]))) : anoDefault,
+            modeloNome:   iModelo >= 0 ? String(row[iModelo] ?? '').trim() : '',
+          }));
+
+        if (todasRows.length === 0) { setImportErro('Nenhuma linha com chassi encontrada.'); return; }
+
+        // ── Modo MULTI-MODELO: planilha tem coluna Modelo e nenhum produto selecionado ──
+        const temColunaModelo = iModelo >= 0 && todasRows.some(r => r.modeloNome);
+        if (temColunaModelo && !produtoId) {
+          const errosModelo: string[] = [];
+          const mapaGrupos: Record<string, { produto: ProdutoMoto; rows: ChassiRow[] }> = {};
+
+          for (const row of todasRows) {
+            const nomeModelo = row.modeloNome;
+            if (!nomeModelo) { errosModelo.push(`Chassi ${row.chassi}: sem modelo definido — ignorado`); continue; }
+
+            if (!mapaGrupos[nomeModelo]) {
+              const produtoEncontrado = produtos.find(p =>
+                p.nome.toLowerCase().includes(nomeModelo.toLowerCase()) ||
+                nomeModelo.toLowerCase().includes(p.nome.toLowerCase()) ||
+                p.codigo.toLowerCase() === nomeModelo.toLowerCase()
+              );
+              if (!produtoEncontrado) {
+                errosModelo.push(`Modelo "${nomeModelo}" não encontrado no sistema — chassis ignorados`);
+                continue;
+              }
+              mapaGrupos[nomeModelo] = { produto: produtoEncontrado, rows: [] };
+            }
+
+            const { modeloNome: _m, ...rowSemModelo } = row;
+            mapaGrupos[nomeModelo].rows.push(rowSemModelo as ChassiRow);
+          }
+
+          const grupos = Object.values(mapaGrupos);
+          if (grupos.length === 0) { setImportErro('Nenhum modelo reconhecido na planilha.'); return; }
+
+          // ── Validação de slots por modelo ──
+          const errosSlots: string[] = [];
+          for (const g of grupos) {
+            try {
+              const slotsData = await api.get<any>(`/unidades/slots?produtoId=${g.produto.id}&lojaId=${lojaIdSel}`);
+              if (g.rows.length > slotsData.slotsDisponiveis) {
+                const extra = g.rows.length - slotsData.slotsDisponiveis;
+                errosSlots.push(
+                  `Operação não carregada! O Item ${g.produto.nome} tem mais Chassi importados que slots. ${extra}(${g.rows.length} vs ${slotsData.slotsDisponiveis}) Chassi${extra !== 1 ? 's' : ''} a mais!`
+                );
+              }
+            } catch { /* ignora erro de slots — valida no submit */ }
+          }
+          if (errosSlots.length > 0) {
+            setImportErro(errosSlots.join('\n'));
+            return;
+          }
+
+          setMultiModeloGrupos(grupos);
+          setMultiModeloErros(errosModelo);
+          return;
+        }
+
+        // ── Modo SINGLE: comportamento original ──
+        const novasRows: ChassiRow[] = todasRows.map(({ modeloNome: _m, ...r }) => r as ChassiRow);
+
+        // Respeita o limite de slots disponíveis
+        if (slots !== null && novasRows.length > slots.slotsDisponiveis) {
+          const cortadas = novasRows.slice(0, slots.slotsDisponiveis);
+          setImportErro(
+            `⚠️ Planilha tinha ${novasRows.length} chassis, mas só há ${slots.slotsDisponiveis} slot(s) disponível(is) no estoque. ` +
+            `Foram importados apenas os primeiros ${slots.slotsDisponiveis}.`
+          );
+          setRows(cortadas.length > 0 ? cortadas : [emptyRow()]);
+          return;
+        }
+        setRows(novasRows);
+      } catch {
+        setImportErro('Erro ao ler a planilha. Verifique o formato do arquivo.');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  }
 
   useEffect(() => {
     api.get<any>('/produtos?tipo=MOTO&limit=200')
@@ -139,13 +281,71 @@ function ModalCadastroChassi({
       .catch(() => setFornecedores([]));
   }, [lojaIdSel]);
 
+  // Busca slots disponíveis ao selecionar produto + loja
+  useEffect(() => {
+    if (!produtoId || !lojaIdSel) { setSlots(null); return; }
+    api.get<any>(`/unidades/slots?produtoId=${produtoId}&lojaId=${lojaIdSel}`)
+      .then(d => setSlots(d as any))
+      .catch(() => setSlots(null));
+  }, [produtoId, lojaIdSel]);
+
   function updateRow(i: number, field: keyof ChassiRow, val: string) {
     setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // ── Modo MULTI-MODELO: submete um lote por grupo ──
+    if (multiModeloGrupos !== null) {
+      setSaving(true); setErro('');
+      let totalCriados = 0, totalErros = 0, todosDetalhes: string[] = [];
+      try {
+        for (const grupo of multiModeloGrupos) {
+          const itens = grupo.rows.filter(r => r.chassi.trim()).map(r => ({
+            chassi: r.chassi.trim(),
+            cor: r.cor.trim() || null,
+            codigoMotor: r.codigoMotor.trim() || null,
+            ano: Number(r.ano) || new Date().getFullYear(),
+          }));
+          if (itens.length === 0) continue;
+          const res = await api.post<{ criados: number; erros: number; detalhesErros: string[] }>(
+            '/unidades/manual/lote',
+            {
+              produtoId: grupo.produto.id,
+              lojaId: Number(lojaIdSel),
+              itens,
+              fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+              notaFiscalEntrada: notaFiscalEntrada.trim() || null,
+            }
+          );
+          totalCriados += res.criados;
+          totalErros += res.erros;
+          todosDetalhes.push(...(res.detalhesErros || []));
+        }
+        setResultado({ criados: totalCriados, erros: totalErros, detalhesErros: todosDetalhes });
+      } catch (e: any) { setErro(e.message || 'Erro ao cadastrar'); }
+      finally { setSaving(false); }
+      return;
+    }
+
     if (!produtoId) { setErro('Selecione um produto'); return; }
+
+    // Valida contra slots disponíveis
+    if (slots !== null) {
+      if (slots.slotsDisponiveis === 0) {
+        setErro(`Todos os ${slots.estoqueQtd} chassis já estão registrados para este produto nesta loja.`);
+        return;
+      }
+      if (modo === 'lote') {
+        const qtdValidas = rows.filter(r => r.chassi.trim()).length;
+        if (qtdValidas > slots.slotsDisponiveis) {
+          setErro(`Você tentou cadastrar ${qtdValidas} chassis, mas só há ${slots.slotsDisponiveis} vaga(s) disponível(is) no estoque (${slots.estoqueQtd} no estoque − ${slots.chassisCadastrados} já cadastrados).`);
+          return;
+        }
+      }
+    }
+
     setSaving(true); setErro('');
     try {
       if (modo === 'unitario') {
@@ -256,6 +456,31 @@ function ModalCadastroChassi({
             )}
           </div>
 
+          {/* Indicador de slots */}
+          {slots !== null && produtoId && (
+            <div className={`rounded-lg px-4 py-3 flex items-center gap-3 text-sm border ${
+              slots.slotsDisponiveis === 0
+                ? 'bg-red-500/10 border-red-500/30 text-red-300'
+                : slots.slotsDisponiveis <= 3
+                ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
+                : 'bg-green-500/10 border-green-500/30 text-green-300'
+            }`}>
+              <span className="text-xl">
+                {slots.slotsDisponiveis === 0 ? '🔴' : slots.slotsDisponiveis <= 3 ? '🟡' : '🟢'}
+              </span>
+              <div className="flex-1">
+                <p className="font-medium">
+                  {slots.slotsDisponiveis === 0
+                    ? 'Nenhum slot disponível'
+                    : `${slots.slotsDisponiveis} slot(s) disponível(is)`}
+                </p>
+                <p className="text-xs opacity-70 mt-0.5">
+                  {slots.estoqueQtd} no estoque · {slots.chassisCadastrados} chassi(s) já cadastrado(s)
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Origem / Fornecedor */}
           <div className="border border-zinc-800 rounded-lg p-4 space-y-3">
             <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium">📦 Origem do Produto</p>
@@ -290,21 +515,79 @@ function ModalCadastroChassi({
 
           {/* Linhas de chassi */}
           <div className="border-t border-zinc-800 pt-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <p className="text-xs text-zinc-400 uppercase tracking-wide">
-                {modo === 'unitario' ? 'Dados do Chassi' : `${rows.length} chassi(s) — clique em + para adicionar`}
+                {modo === 'unitario' ? 'Dados do Chassi' : `${rows.length} chassi(s)`}
               </p>
               {modo === 'lote' && (
-                <button type="button" onClick={() => setRows(p => [...p, emptyRow()])}
-                  className="text-xs text-orange-400 hover:text-orange-300 font-medium">
-                  + Adicionar linha
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Baixar modelo */}
+                  <button type="button" onClick={baixarModeloChassi}
+                    className="text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                    ⬇ Modelo .xlsx
+                  </button>
+                  {/* Importar planilha */}
+                  <button type="button" onClick={() => fileImportRef.current?.click()}
+                    className="text-xs text-blue-400 hover:text-blue-300 border border-blue-500/40 hover:border-blue-400 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                    📥 Importar planilha
+                  </button>
+                  <input ref={fileImportRef} type="file" accept=".xlsx,.xls,.csv"
+                    className="hidden" onChange={importarPlanilha} />
+                  {/* Adicionar linha manual */}
+                  <button type="button"
+                    onClick={() => setRows(p => [...p, emptyRow()])}
+                    disabled={slots !== null && rows.length >= slots.slotsDisponiveis}
+                    className="text-xs text-orange-400 hover:text-orange-300 font-medium disabled:opacity-30 disabled:cursor-not-allowed">
+                    + Linha
+                  </button>
+                </div>
               )}
             </div>
+            {importErro && (
+              <p className="text-xs text-red-400 mb-2 bg-red-500/10 px-3 py-2 rounded-lg">{importErro}</p>
+            )}
+
+            {/* ── Preview Multi-Modelo ── */}
+            {multiModeloGrupos !== null ? (
+              <div className="border border-blue-500/30 bg-blue-500/5 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-blue-300">📋 Importação Multi-Modelo detectada</p>
+                  <button type="button" onClick={() => { setMultiModeloGrupos(null); setMultiModeloErros([]); }}
+                    className="text-xs text-zinc-400 hover:text-white transition-colors">✕ Limpar</button>
+                </div>
+                {multiModeloErros.length > 0 && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                    <p className="text-xs text-yellow-300 font-medium mb-1">⚠️ Modelos não reconhecidos na planilha:</p>
+                    <ul className="text-xs text-yellow-300 space-y-0.5">
+                      {multiModeloErros.map((e, i) => <li key={i}>• {e}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {multiModeloGrupos.map((g, i) => (
+                    <div key={i} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
+                      <span className="text-sm text-white">{g.produto.nome}</span>
+                      <span className="text-xs bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded-full">
+                        {g.rows.length} chassi(s)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-500">
+                  Total: {multiModeloGrupos.reduce((acc, g) => acc + g.rows.length, 0)} chassis em {multiModeloGrupos.length} modelo(s)
+                </p>
+              </div>
+            ) : (
+              <>
+            {modo === 'lote' && rows.length > 1 && (
+              <p className="text-xs text-zinc-500 mb-2">
+                {rows.filter(r => r.chassi.trim()).length} chassi(s) com dados preenchidos
+              </p>
+            )}
 
             <div className="space-y-3">
               {rows.map((row, i) => (
-                <div key={i} className="grid grid-cols-4 gap-2 items-start">
+                <div key={i} className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-start">
                   <div className="col-span-2">
                     <label className={lbl}>Chassi {modo === 'unitario' ? '*' : ''}</label>
                     <input value={row.chassi} onChange={e => updateRow(i, 'chassi', e.target.value)}
@@ -320,7 +603,7 @@ function ModalCadastroChassi({
                     <input value={row.ano} onChange={e => updateRow(i, 'ano', e.target.value)}
                       type="number" min="2000" max="2030" className={inp} />
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2 sm:col-span-3">
                     <label className={lbl}>Cód. Motor</label>
                     <input value={row.codigoMotor} onChange={e => updateRow(i, 'codigoMotor', e.target.value)}
                       placeholder="Código do motor" className={inp} />
@@ -336,6 +619,8 @@ function ModalCadastroChassi({
                 </div>
               ))}
             </div>
+              </>
+            )}
           </div>
 
           {erro && <p className="text-red-400 text-sm">{erro}</p>}
@@ -344,9 +629,16 @@ function ModalCadastroChassi({
             <button type="button" onClick={onClose} className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm">
               Cancelar
             </button>
-            <button type="submit" disabled={saving}
+            <button type="submit"
+              disabled={saving || (multiModeloGrupos === null && slots !== null && slots.slotsDisponiveis === 0)}
               className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium">
-              {saving ? 'Salvando...' : modo === 'unitario' ? 'Cadastrar Chassi' : `Cadastrar ${rows.filter(r => r.chassi.trim()).length} Chassi(s)`}
+              {saving
+                ? 'Salvando...'
+                : multiModeloGrupos !== null
+                  ? `Cadastrar ${multiModeloGrupos.reduce((a, g) => a + g.rows.length, 0)} Chassi(s) em ${multiModeloGrupos.length} Modelo(s)`
+                  : modo === 'unitario'
+                    ? 'Cadastrar Chassi'
+                    : `Cadastrar ${rows.filter(r => r.chassi.trim()).length} Chassi(s)`}
             </button>
           </div>
         </form>
@@ -665,7 +957,7 @@ function BuscadorRede({ minhaLojaId, lojas, onVerLoja }: {
 
 // ─── TabGerencial ─────────────────────────────────────────────────────────────
 
-function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido, onVerUnitaria }: {
+function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido, onVerUnitaria, onRefresh }: {
   itens: ItemGerencial[];
   busca: string;
   lojas: Loja[];
@@ -673,6 +965,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   minhaLojaId: number | null;
   onTransferido?: () => void;
   onVerUnitaria?: (nome: string) => void;
+  onRefresh?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDestinoId, setExpandedDestinoId] = useState<number | ''>('');
@@ -681,10 +974,58 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   const [expandedErro, setExpandedErro] = useState('');
   const [expandedSucesso, setExpandedSucesso] = useState(false);
 
+  // Edit/Delete state
+  const [editandoItem, setEditandoItem] = useState<ItemGerencial | null>(null);
+  const [editForm, setEditForm] = useState({ precoVenda: '', estoqueMinimo: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErro, setEditErro] = useState('');
+  const [deletandoEstoqueId, setDeletandoEstoqueId] = useState<number | null>(null);
+
   const { user: userTabG } = useAuth();
   const verCustos = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(userTabG?.role || '');
   const isAdmin = minhaLojaId === null;
   const podeTransferir = isAdmin || lojaId === minhaLojaId;
+  const podeEditarEstoque = userTabG?.role === 'ADMIN_GERAL';
+
+  function abrirEditarItem(it: ItemGerencial) {
+    setEditandoItem(it);
+    setEditForm({ precoVenda: String(it.precoVenda || ''), estoqueMinimo: String(it.estoqueMinimo || 0) });
+    setEditErro('');
+  }
+
+  async function salvarEdicaoItem() {
+    if (!editandoItem) return;
+    setEditSaving(true); setEditErro('');
+    try {
+      await api.put(`/estoque/${editandoItem.id}`, {
+        precoVenda: editForm.precoVenda ? Number(editForm.precoVenda) : null,
+        estoqueMinimo: Number(editForm.estoqueMinimo || 0),
+      });
+      setEditandoItem(null);
+      onRefresh?.();
+    } catch (e: any) {
+      setEditErro(e.message || 'Erro ao salvar');
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function removerDoEstoque(it: ItemGerencial) {
+    const msg = it.quantidade > 0
+      ? `Não é possível remover "${it.nome}" pois há ${it.quantidade} unidade(s) em estoque. Zere o estoque antes.`
+      : `Remover "${it.nome}" do estoque desta loja?\nEsta ação não exclui o produto do catálogo, apenas remove o registro desta loja.`;
+    if (!confirm(msg)) return;
+    if (it.quantidade > 0) return;
+    setDeletandoEstoqueId(it.id);
+    try {
+      await api.delete(`/estoque/${it.id}`);
+      onRefresh?.();
+    } catch (e: any) {
+      alert(e.message || 'Erro ao remover do estoque');
+    } finally {
+      setDeletandoEstoqueId(null);
+    }
+  }
   const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
 
   const filtrados = useMemo(() => {
@@ -726,7 +1067,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
 
   const motos = filtrados.filter(i => i.tipo === 'MOTO');
   const pecas = filtrados.filter(i => i.tipo === 'PECA');
-  const colSpan = podeTransferir ? 8 : 7;
+  const colSpan = verCustos ? 9 : 7;
 
   function GrupoTipo({ titulo, lista }: { titulo: string; lista: ItemGerencial[] }) {
     if (!lista.length) return null;
@@ -744,7 +1085,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
                 {verCustos && <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (CM)</th>}
                 <th className="text-right p-3 font-medium hidden lg:table-cell">Valor (PV)</th>
                 <th className="text-left p-3 font-medium">Status</th>
-                {podeTransferir && <th className="text-center p-3 font-medium">Ação</th>}
+                <th className="text-right p-3 font-medium">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -777,37 +1118,56 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
                             : <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded border border-green-500/30">OK</span>
                         }
                       </td>
-                      {podeTransferir && (
-                        <td className="p-3 text-center">
-                          {it.tipo === 'MOTO' ? (
-                            <button
-                              onClick={() => onVerUnitaria?.(it.nome)}
-                              disabled={it.quantidade === 0}
-                              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
-                                it.quantidade === 0
-                                  ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
-                                  : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
-                              }`}
-                            >
-                              📋 Ver Unidades
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => toggleExpand(it.produtoId, it.quantidade)}
-                              className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
-                                isExp
-                                  ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
-                                  : it.quantidade === 0
-                                    ? 'opacity-40 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
-                                    : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
-                              }`}
-                              disabled={it.quantidade === 0 && !isExp}
-                            >
-                              {isExp ? '✕' : '↔'}
-                            </button>
+                      <td className="p-3">
+                        <div className="flex items-center gap-1 justify-end">
+                          {podeEditarEstoque && (
+                            <>
+                              <button
+                                onClick={() => abrirEditarItem(it)}
+                                title="Editar preço e estoque mínimo"
+                                className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-zinc-700/50 text-zinc-300 hover:bg-zinc-700 border-zinc-600"
+                              >✏️</button>
+                              <button
+                                onClick={() => removerDoEstoque(it)}
+                                disabled={deletandoEstoqueId === it.id}
+                                title={it.quantidade > 0 ? 'Zere o estoque antes de remover' : 'Remover do estoque desta loja'}
+                                className={`text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors ${
+                                  it.quantidade > 0
+                                    ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                    : 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20'
+                                } disabled:opacity-40`}
+                              >{deletandoEstoqueId === it.id ? '...' : '🗑️'}</button>
+                            </>
                           )}
-                        </td>
-                      )}
+                          {podeTransferir && (
+                            it.tipo === 'MOTO' ? (
+                              <button
+                                onClick={() => onVerUnitaria?.(it.nome)}
+                                disabled={it.quantidade === 0}
+                                className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                                  it.quantidade === 0
+                                    ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                    : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
+                                }`}
+                              >📋</button>
+                            ) : (
+                              <button
+                                onClick={() => toggleExpand(it.produtoId, it.quantidade)}
+                                className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                                  isExp
+                                    ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                                    : it.quantidade === 0
+                                      ? 'opacity-40 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                                      : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
+                                }`}
+                                disabled={it.quantidade === 0 && !isExp}
+                              >
+                                {isExp ? '✕' : '↔'}
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </td>
                     </tr>
 
                     {/* Painel inline de transferência */}
@@ -887,6 +1247,56 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
       {filtrados.length === 0 && (
         <div className="text-center py-12 text-zinc-500">Nenhum produto encontrado</div>
       )}
+
+      {/* ── Modal de edição de produto no estoque ── */}
+      {editandoItem && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-bold text-lg">✏️ Editar Produto</h3>
+              <button onClick={() => setEditandoItem(null)} className="text-zinc-400 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <p className="text-zinc-300 font-medium mb-1">{editandoItem.nome}</p>
+            <p className="text-zinc-500 text-xs font-mono mb-4">{editandoItem.codigo}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Preço de Venda (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editForm.precoVenda}
+                  onChange={e => setEditForm(f => ({ ...f, precoVenda: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                  placeholder="0,00"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Estoque Mínimo</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.estoqueMinimo}
+                  onChange={e => setEditForm(f => ({ ...f, estoqueMinimo: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                />
+              </div>
+            </div>
+            {editErro && <p className="text-red-400 text-sm mt-3">{editErro}</p>}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setEditandoItem(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-zinc-600 text-zinc-300 text-sm hover:bg-zinc-800 transition-colors"
+              >Cancelar</button>
+              <button
+                onClick={salvarEdicaoItem}
+                disabled={editSaving}
+                className="flex-1 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
+              >{editSaving ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -894,7 +1304,7 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
 // ─── TabUnitaria ──────────────────────────────────────────────────────────────
 
 function TabUnitaria({
-  itens, busca, lojas, lojaId, minhaLojaId, onTransferido
+  itens, busca, lojas, lojaId, minhaLojaId, onTransferido, onRefresh
 }: {
   itens: ItemUnitario[];
   busca: string;
@@ -902,6 +1312,7 @@ function TabUnitaria({
   lojaId: number;
   minhaLojaId: number | null;
   onTransferido?: () => void;
+  onRefresh?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [expandedDestinoId, setExpandedDestinoId] = useState<number | ''>('');
@@ -913,6 +1324,53 @@ function TabUnitaria({
   const [loteLoading, setLoteLoading] = useState(false);
   const [loteErro, setLoteErro] = useState('');
   const [loteSucesso, setLoteSucesso] = useState(false);
+
+  // Edit/Delete state
+  const [editandoUnidade, setEditandoUnidade] = useState<ItemUnitario | null>(null);
+  const [editForm, setEditForm] = useState({ chassi: '', cor: '', codigoMotor: '', ano: '' });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErro, setEditErro] = useState('');
+  const [deletandoId, setDeletandoId] = useState<number | null>(null);
+
+  const { user: userTabU } = useAuth();
+  const podeEditarExcluir = userTabU?.role === 'ADMIN_GERAL';
+
+  function abrirEditar(u: ItemUnitario) {
+    setEditandoUnidade(u);
+    setEditForm({ chassi: u.chassi || '', cor: u.cor || '', codigoMotor: u.codigoMotor || '', ano: String(u.ano || '') });
+    setEditErro('');
+  }
+
+  async function salvarEdicao() {
+    if (!editandoUnidade) return;
+    setEditSaving(true); setEditErro('');
+    try {
+      await api.put(`/unidades/${editandoUnidade.id}`, {
+        chassi: editForm.chassi.trim(),
+        cor: editForm.cor.trim(),
+        codigoMotor: editForm.codigoMotor.trim(),
+        ano: editForm.ano ? Number(editForm.ano) : undefined,
+      });
+      setEditandoUnidade(null);
+      onRefresh?.();
+    } catch (e: any) {
+      setEditErro(e.message || 'Erro ao salvar');
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function excluirUnidade(id: number) {
+    setDeletandoId(id);
+    try {
+      await api.delete(`/unidades/${id}`);
+      onRefresh?.();
+    } catch (e: any) {
+      alert(e.message || 'Erro ao excluir chassi');
+    } finally {
+      setDeletandoId(null);
+    }
+  }
 
   const isAdmin = minhaLojaId === null;
   const isOutraLoja = !isAdmin && lojaId !== minhaLojaId;
@@ -1077,22 +1535,42 @@ function TabUnitaria({
                       {u.status}
                     </span>
                   </td>
-                  <td className="p-3 text-center">
-                    <button
-                      onClick={() => podeAcionar && toggleExpand(u.id, isOutraLoja ? (minhaLojaId ?? undefined) : undefined)}
-                      disabled={!podeAcionar}
-                      className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
-                        !podeAcionar
-                          ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
-                          : isExp
-                            ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
-                            : isOutraLoja
-                              ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
-                              : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
-                      }`}
-                    >
-                      {isExp ? '✕' : isOutraLoja ? 'Solicitar' : '↔ Transferir'}
-                    </button>
+                  <td className="p-3">
+                    <div className="flex items-center gap-1 justify-end">
+                      {podeEditarExcluir && u.status === 'ESTOQUE' && (
+                        <>
+                          <button
+                            onClick={() => abrirEditar(u)}
+                            title="Editar chassi"
+                            className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-zinc-700/50 text-zinc-300 hover:bg-zinc-700 border-zinc-600"
+                          >✏️</button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Excluir chassi ${u.chassi || 'sem chassi'} de ${u.modeloNome}?\nEsta ação reduzirá o estoque em 1 unidade.`))
+                                excluirUnidade(u.id);
+                            }}
+                            disabled={deletandoId === u.id}
+                            title="Excluir chassi"
+                            className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20 disabled:opacity-40"
+                          >{deletandoId === u.id ? '...' : '🗑️'}</button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => podeAcionar && toggleExpand(u.id, isOutraLoja ? (minhaLojaId ?? undefined) : undefined)}
+                        disabled={!podeAcionar}
+                        className={`text-xs px-2.5 py-1.5 rounded-lg font-medium border transition-colors whitespace-nowrap ${
+                          !podeAcionar
+                            ? 'opacity-30 cursor-not-allowed bg-zinc-800 text-zinc-500 border-zinc-700'
+                            : isExp
+                              ? 'bg-zinc-700 text-zinc-300 border-zinc-600'
+                              : isOutraLoja
+                                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/30'
+                                : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/30'
+                        }`}
+                      >
+                        {isExp ? '✕' : isOutraLoja ? 'Solicitar' : '↔'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
 
@@ -1266,60 +1744,185 @@ function TabUnitaria({
           )}
         </div>
       )}
+
+      {/* ── Modal de edição de chassi ── */}
+      {editandoUnidade && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-[#27272a] rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-white font-bold text-lg">✏️ Editar Chassi</h3>
+              <button onClick={() => setEditandoUnidade(null)} className="text-zinc-400 hover:text-white text-xl leading-none">✕</button>
+            </div>
+            <p className="text-zinc-400 text-sm mb-4">{editandoUnidade.modeloNome}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Chassi</label>
+                <input
+                  value={editForm.chassi}
+                  onChange={e => setEditForm(f => ({ ...f, chassi: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 font-mono"
+                  placeholder="Número do chassi"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Cor</label>
+                <input
+                  value={editForm.cor}
+                  onChange={e => setEditForm(f => ({ ...f, cor: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                  placeholder="Ex: Branco Pérola"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Código do Motor</label>
+                <input
+                  value={editForm.codigoMotor}
+                  onChange={e => setEditForm(f => ({ ...f, codigoMotor: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 font-mono"
+                  placeholder="Código do motor"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Ano</label>
+                <input
+                  type="number"
+                  value={editForm.ano}
+                  onChange={e => setEditForm(f => ({ ...f, ano: e.target.value }))}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+                  placeholder="2024"
+                  min="2000" max="2030"
+                />
+              </div>
+            </div>
+            {editErro && <p className="text-red-400 text-sm mt-3">{editErro}</p>}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setEditandoUnidade(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-zinc-600 text-zinc-300 text-sm hover:bg-zinc-800 transition-colors"
+              >Cancelar</button>
+              <button
+                onClick={salvarEdicao}
+                disabled={editSaving}
+                className="flex-1 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors disabled:opacity-50"
+              >{editSaving ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── TabMovimentacao ──────────────────────────────────────────────────────────
 
+const TIPO_MOV_LABEL: Record<string, string> = {
+  ENTRADA: '📦 Entrada', SAIDA: '📤 Saída', PEDIDO_COMPRA: '🛒 Pedido Compra',
+  TRANSFERENCIA: '🔄 Transferência', AJUSTE: '⚙️ Ajuste', VENDA: '🛍️ Venda',
+  OS: '🔧 Ordem Serviço', DEVOLUCAO: '↩️ Devolução', PERDA: '❌ Perda',
+  AVARIA: '💥 Avaria', RESERVA: '🔒 Reserva', ENTRADA_AVULSA: '📥 Entrada Avulsa',
+  IMPORTACAO_ESTOQUE: '📊 Importação', AJUSTE_MANUAL: '✏️ Ajuste Manual',
+};
+const TIPO_MOV_COR: Record<string, string> = {
+  ENTRADA: 'bg-green-500/15 text-green-400 border-green-500/30',
+  ENTRADA_AVULSA: 'bg-green-500/15 text-green-400 border-green-500/30',
+  IMPORTACAO_ESTOQUE: 'bg-green-500/15 text-green-400 border-green-500/30',
+  SAIDA: 'bg-red-500/15 text-red-400 border-red-500/30',
+  PEDIDO_COMPRA: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  TRANSFERENCIA: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+  AJUSTE: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+  AJUSTE_MANUAL: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+  VENDA: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  OS: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  DEVOLUCAO: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+  PERDA: 'bg-red-700/15 text-red-500 border-red-700/30',
+  AVARIA: 'bg-red-700/15 text-red-500 border-red-700/30',
+  RESERVA: 'bg-yellow-600/15 text-yellow-500 border-yellow-600/30',
+};
+
 function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
-  const TIPO_COR: Record<string, string> = {
-    ENTRADA: 'text-green-400', SAIDA: 'text-red-400', PEDIDO_COMPRA: 'text-blue-400',
-    TRANSFERENCIA: 'text-purple-400', AJUSTE: 'text-yellow-400', VENDA: 'text-orange-400',
-    OS: 'text-orange-400', DEVOLUCAO: 'text-teal-400', PERDA: 'text-red-500',
-    AVARIA: 'text-red-500', RESERVA: 'text-yellow-500',
-  };
-  return (
-    <div className="overflow-x-auto">
-      {logs.length === 0
-        ? <div className="text-center py-12 text-zinc-500">Sem movimentações recentes</div>
-        : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
-                <th className="text-left p-3 font-medium">Data</th>
-                <th className="text-left p-3 font-medium">Tipo</th>
-                <th className="text-left p-3 font-medium">ID Mov.</th>
-                <th className="text-left p-3 font-medium">Produto</th>
-                <th className="text-right p-3 font-medium">Qtd</th>
-                <th className="text-right p-3 font-medium">Anterior</th>
-                <th className="text-right p-3 font-medium">Novo</th>
-                <th className="text-left p-3 font-medium">Usuário</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map(l => (
-                <tr key={l.id} className="border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors">
-                  <td className="p-3 text-zinc-400 text-xs">{fmtDate(l.createdAt)}</td>
-                  <td className="p-3">
-                    <span className={`text-xs font-medium ${TIPO_COR[l.tipo] || 'text-zinc-300'}`}>{l.tipo}</span>
-                  </td>
-                  <td className="p-3 text-zinc-500 text-xs font-mono">
-                    {l.origemId ? `#${l.origemId}` : `mov:${l.id}`}
-                  </td>
-                  <td className="p-3 text-zinc-200">{l.produto?.nome || '—'}</td>
-                  <td className={`p-3 text-right font-bold ${l.quantidade > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {l.quantidade > 0 ? '+' : ''}{l.quantidade}
-                  </td>
-                  <td className="p-3 text-right text-zinc-400">{l.quantidadeAnterior}</td>
-                  <td className="p-3 text-right text-white">{l.quantidadeNova}</td>
-                  <td className="p-3 text-zinc-400 text-xs">{l.usuario?.nome || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroBusca, setFiltroBusca] = useState('');
+
+  const tiposPresentes = useMemo(() => [...new Set(logs.map(l => l.tipo))].sort(), [logs]);
+
+  const filtrados = useMemo(() => {
+    return logs.filter(l => {
+      if (filtroTipo && l.tipo !== filtroTipo) return false;
+      if (filtroBusca) {
+        const q = filtroBusca.toLowerCase();
+        return (l.produto?.nome || '').toLowerCase().includes(q) ||
+               (l.usuario?.nome || '').toLowerCase().includes(q) ||
+               String(l.origemId || '').includes(q);
       }
+      return true;
+    });
+  }, [logs, filtroTipo, filtroBusca]);
+
+  return (
+    <div className="space-y-3">
+      {/* Filtros */}
+      <div className="flex gap-2 flex-wrap">
+        <input
+          value={filtroBusca}
+          onChange={e => setFiltroBusca(e.target.value)}
+          placeholder="🔍 Buscar produto, usuário..."
+          className="flex-1 min-w-40 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500"
+        />
+        <select
+          value={filtroTipo}
+          onChange={e => setFiltroTipo(e.target.value)}
+          className="bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+        >
+          <option value="">Todos os tipos</option>
+          {tiposPresentes.map(t => (
+            <option key={t} value={t}>{TIPO_MOV_LABEL[t] || t}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="overflow-x-auto">
+        {filtrados.length === 0
+          ? <div className="text-center py-12 text-zinc-500">Sem movimentações</div>
+          : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#27272a] text-zinc-400 text-xs">
+                  <th className="text-left p-3 font-medium">Data</th>
+                  <th className="text-left p-3 font-medium">Tipo</th>
+                  <th className="text-left p-3 font-medium">Ref.</th>
+                  <th className="text-left p-3 font-medium">Produto</th>
+                  <th className="text-right p-3 font-medium">Qtd</th>
+                  <th className="text-right p-3 font-medium">Anterior</th>
+                  <th className="text-right p-3 font-medium">Novo</th>
+                  <th className="text-left p-3 font-medium">Usuário</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtrados.map(l => (
+                  <tr key={l.id} className="border-b border-[#27272a] hover:bg-zinc-800/30 transition-colors">
+                    <td className="p-3 text-zinc-400 text-xs whitespace-nowrap">{fmtDate(l.createdAt)}</td>
+                    <td className="p-3">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded border ${TIPO_MOV_COR[l.tipo] || 'bg-zinc-700/50 text-zinc-300 border-zinc-600'}`}>
+                        {TIPO_MOV_LABEL[l.tipo] || l.tipo}
+                      </span>
+                    </td>
+                    <td className="p-3 text-zinc-500 text-xs font-mono">
+                      {l.origemId ? `#${l.origemId}` : `—`}
+                    </td>
+                    <td className="p-3 text-zinc-200">{l.produto?.nome || '—'}</td>
+                    <td className={`p-3 text-right font-bold ${l.quantidade > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {l.quantidade > 0 ? '+' : ''}{l.quantidade}
+                    </td>
+                    <td className="p-3 text-right text-zinc-400">{l.quantidadeAnterior}</td>
+                    <td className="p-3 text-right text-white font-medium">{l.quantidadeNova}</td>
+                    <td className="p-3 text-zinc-400 text-xs">{l.usuario?.nome || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        }
+      </div>
     </div>
   );
 }
@@ -1667,7 +2270,7 @@ function ModalEntradaAvulsa({
           </div>
         ) : (
           <div className="p-5 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Produto *</label>
                 <select value={produtoId} onChange={e => setProdutoId(e.target.value)} className={inp}>
@@ -1702,7 +2305,7 @@ function ModalEntradaAvulsa({
             )}
 
             {produtoSel && !isMoto && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={lbl}>Quantidade *</label>
                   <input type="number" min="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} className={inp} placeholder="1" />
@@ -1721,7 +2324,7 @@ function ModalEntradaAvulsa({
                   <button onClick={addChassi} className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 px-2 py-1 rounded">+ Adicionar Chassi</button>
                 </div>
                 {chassis.map((row, i) => (
-                  <div key={i} className="bg-zinc-800/50 rounded-lg p-3 grid grid-cols-4 gap-2 relative">
+                  <div key={i} className="bg-zinc-800/50 rounded-lg p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 relative">
                     <div>
                       <label className={lbl}>Chassi</label>
                       <input value={row.chassi} onChange={e => updateChassi(i, 'chassi', e.target.value)} className={inp} placeholder="9C2..." />
@@ -1746,7 +2349,7 @@ function ModalEntradaAvulsa({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={lbl}>Nota Fiscal de Entrada</label>
                 <input value={nfEntrada} onChange={e => setNfEntrada(e.target.value)} className={inp} placeholder="NFe 12345..." />
@@ -1866,9 +2469,246 @@ function ModalImportacaoEstoque({ onClose, onSucesso }: { onClose: () => void; o
   );
 }
 
+// ─── Tab de Importação Central (exclusivo TM Importação) ──────────────────────
+
+interface ImportSection {
+  key: string;
+  title: string;
+  icon: string;
+  desc: string;
+  endpoint: string;
+  modeloTipo: string;
+  campos: string[];
+  obs: string;
+}
+
+const IMPORT_SECTIONS: ImportSection[] = [
+  {
+    key: 'produtos',
+    title: 'Catálogo de Produtos',
+    icon: '📦',
+    desc: 'Cria ou atualiza produtos no catálogo global (Motos e Peças). Use antes de importar estoque.',
+    endpoint: '/api/importacao/produtos',
+    modeloTipo: 'produtos',
+    campos: ['Nome (obrigatório)', 'Tipo (Moto ou Peca)', 'Custo R$', 'Preço Venda R$', 'Margem %'],
+    obs: 'O tipo MOTO ou PEÇA é detectado automaticamente pelo nome caso a coluna Tipo esteja vazia.',
+  },
+  {
+    key: 'estoque',
+    title: 'Estoque por Loja',
+    icon: '🏪',
+    desc: 'Importa entradas de estoque distribuídas por loja. Cria produtos se não existirem. Registra LogEstoque.',
+    endpoint: '/api/importacao/estoque',
+    modeloTipo: 'estoque',
+    campos: ['Modelo (obrigatório)', 'Loja/Destino (obrigatório)', 'Cor', 'Custo R$', 'Chassi', 'Quantidade'],
+    obs: 'Loja pode ser "TM Recreio", "TM Barra", "TM Importação", etc. Se tiver chassi e for MOTO → cria UnidadeFisica.',
+  },
+  {
+    key: 'unidades',
+    title: 'Chassis / Unidades Físicas',
+    icon: '🏍️',
+    desc: 'Vincula chassis individualmente a produtos MOTO já cadastrados. Requer produto existente no catálogo.',
+    endpoint: '/api/importacao/unidades',
+    modeloTipo: 'unidades',
+    campos: ['Modelo (nome exato do produto)', 'Cor', 'Chassi', 'Motor', 'Ano'],
+    obs: 'O nome do modelo deve corresponder exatamente a um produto MOTO cadastrado.',
+  },
+];
+
+function TabImportacaoCentral() {
+  // Estado por seção: arquivo, loading, resultado
+  const [estados, setEstados] = useState<Record<string, { arquivo: File | null; loading: boolean; resultado: any; erro: string }>>(() =>
+    Object.fromEntries(IMPORT_SECTIONS.map(s => [s.key, { arquivo: null, loading: false, resultado: null, erro: '' }]))
+  );
+  const refProdutos = useRef<HTMLInputElement>(null);
+  const refEstoque  = useRef<HTMLInputElement>(null);
+  const refUnidades = useRef<HTMLInputElement>(null);
+  const fileRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
+    produtos: refProdutos,
+    estoque:  refEstoque,
+    unidades: refUnidades,
+  };
+
+  function setEstado(key: string, patch: Partial<typeof estados[string]>) {
+    setEstados(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  }
+
+  async function baixarModelo(tipo: string) {
+    try {
+      const res = await fetch(`/api/importacao/modelo/${tipo}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!res.ok) throw new Error('Falha ao baixar modelo');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `modelo_${tipo}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert('Erro ao baixar modelo: ' + e.message);
+    }
+  }
+
+  async function importar(section: ImportSection) {
+    const st = estados[section.key];
+    if (!st.arquivo) { setEstado(section.key, { erro: 'Selecione um arquivo' }); return; }
+    setEstado(section.key, { loading: true, erro: '', resultado: null });
+    try {
+      const fd = new FormData();
+      fd.append('arquivo', st.arquivo);
+      const res = await fetch(section.endpoint, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao importar');
+      setEstado(section.key, { resultado: data, arquivo: null });
+      if (fileRefs[section.key]?.current) fileRefs[section.key].current!.value = '';
+    } catch (e: any) {
+      setEstado(section.key, { erro: e.message });
+    } finally {
+      setEstado(section.key, { loading: false });
+    }
+  }
+
+  return (
+    <div className="p-4 space-y-5">
+      {/* Banner */}
+      <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 flex items-start gap-3">
+        <span className="text-2xl">🏭</span>
+        <div>
+          <p className="text-purple-300 font-semibold text-sm">Central de Importação — TM Importação</p>
+          <p className="text-zinc-400 text-xs mt-0.5">
+            Use esta área para popular o sistema: primeiro importe o catálogo de produtos, depois o estoque por loja e por último os chassis das motos.
+          </p>
+        </div>
+      </div>
+
+      {/* Ordem recomendada */}
+      <div className="flex gap-2 items-center text-xs text-zinc-500">
+        <span className="bg-zinc-800 px-2 py-1 rounded font-medium text-zinc-300">1. Catálogo</span>
+        <span>→</span>
+        <span className="bg-zinc-800 px-2 py-1 rounded font-medium text-zinc-300">2. Estoque por Loja</span>
+        <span>→</span>
+        <span className="bg-zinc-800 px-2 py-1 rounded font-medium text-zinc-300">3. Chassis</span>
+      </div>
+
+      {IMPORT_SECTIONS.map((section, idx) => {
+        const st = estados[section.key];
+        const resultado = st.resultado;
+
+        return (
+          <div key={section.key} className="bg-[#09090b] border border-[#27272a] rounded-xl overflow-hidden">
+            {/* Header da seção */}
+            <div className="px-4 py-3 bg-zinc-800/50 border-b border-[#27272a] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{section.icon}</span>
+                <div>
+                  <p className="text-white font-semibold text-sm">
+                    <span className="text-zinc-500 mr-2 text-xs font-normal">Passo {idx + 1}</span>
+                    {section.title}
+                  </p>
+                  <p className="text-zinc-400 text-xs mt-0.5">{section.desc}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => baixarModelo(section.modeloTipo)}
+                className="shrink-0 flex items-center gap-1.5 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Baixar Modelo
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {/* Colunas esperadas */}
+              <div className="flex flex-wrap gap-1">
+                {section.campos.map((c, i) => (
+                  <span key={i} className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded font-mono">{c}</span>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-500">{section.obs}</p>
+
+              {/* Upload */}
+              <div className="flex gap-2 items-center">
+                <input
+                  ref={fileRefs[section.key]}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={e => setEstado(section.key, { arquivo: e.target.files?.[0] ?? null, erro: '', resultado: null })}
+                  className="flex-1 bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-orange-500 file:text-white cursor-pointer"
+                />
+                <button
+                  onClick={() => importar(section)}
+                  disabled={st.loading || !st.arquivo}
+                  className="shrink-0 bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  {st.loading ? 'Importando...' : '📥 Importar'}
+                </button>
+              </div>
+
+              {st.erro && <p className="text-red-400 text-xs">{st.erro}</p>}
+
+              {/* Resultado */}
+              {resultado && (
+                <div className={`rounded-lg p-3 text-xs border ${resultado.erros > 0 ? 'bg-yellow-900/20 border-yellow-700/30' : 'bg-green-900/20 border-green-700/30'}`}>
+                  <p className={`font-semibold mb-2 ${resultado.erros > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {resultado.erros > 0 ? '⚠ Concluído com avisos' : '✓ Importação concluída!'}
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                    {resultado.totalLinhas     !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Linhas</p><p className="text-white font-bold">{resultado.totalLinhas}</p></div>}
+                    {resultado.criados         !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Criados</p><p className="text-orange-400 font-bold">{resultado.criados}</p></div>}
+                    {resultado.importados      !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Importados</p><p className="text-green-400 font-bold">{resultado.importados}</p></div>}
+                    {resultado.atualizados     !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Atualizados</p><p className="text-blue-400 font-bold">{resultado.atualizados}</p></div>}
+                    {resultado.entradasLancadas!== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Entradas</p><p className="text-green-400 font-bold">{resultado.entradasLancadas}</p></div>}
+                    {resultado.erros           !== undefined && <div className="bg-zinc-800/60 rounded p-2"><p className="text-zinc-400">Erros</p><p className="text-red-400 font-bold">{resultado.erros}</p></div>}
+                  </div>
+                  {/* Colunas detectadas */}
+                  {resultado.colunasDetectadas && (
+                    <div className="mt-1 mb-2">
+                      <p className="text-zinc-500 mb-1">Colunas mapeadas:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(resultado.colunasDetectadas).map(([k, v]: any) => (
+                          <span key={k} className="text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
+                            {k}: <span className="text-zinc-200">{v}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {resultado.detalhesErros?.length > 0 && (
+                    <div className="max-h-24 overflow-y-auto mt-1 space-y-0.5">
+                      {resultado.detalhesErros.map((e: string, i: number) => (
+                        <p key={i} className="text-red-400">{e}</p>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setEstado(section.key, { resultado: null })}
+                    className="mt-2 text-zinc-500 hover:text-zinc-300 text-xs underline"
+                  >
+                    Nova importação
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── View por Empresa ─────────────────────────────────────────────────────────
 
-type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes';
+type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes' | 'importacao';
 
 function ViewEmpresa({
   lojaId, minhaLojaId, isAprovador, onBack, refreshSolicitacoes, onSolicitacaoFeita, lojas, verCustos
@@ -1919,6 +2759,7 @@ function ViewEmpresa({
     { id: 'unitaria', label: isOutraLoja ? 'Unidades Disponíveis' : 'Unitária (Chassi)', count: data.unitaria.filter(u => isOutraLoja ? u.status === 'ESTOQUE' : true).length },
     { id: 'movimentacao', label: 'Movimentação', count: data.logsRecentes.length },
     { id: 'solicitacoes', label: isAprovador ? 'Solicitações' : 'Minhas Solicitações', highlight: isAprovador },
+    ...(lojaId === LOJA_IMPORTACAO_ID ? [{ id: 'importacao' as EmpresaTab, label: '📥 Importação Central', highlight: true }] : []),
   ];
 
   return (
@@ -1950,16 +2791,6 @@ function ViewEmpresa({
         <div className="flex items-center gap-2 flex-wrap">
           {podeGerir && (
             <>
-              <button
-                onClick={() => setShowEntradaAvulsa(true)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-                📦 Entrada Avulsa
-              </button>
-              <button
-                onClick={() => setShowImportacaoEstoque(true)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-                📊 Importar Planilha
-              </button>
               <button
                 onClick={() => setShowCadastroChassi(true)}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
@@ -2048,6 +2879,7 @@ function ViewEmpresa({
             minhaLojaId={minhaLojaId}
             onTransferido={onSolicitacaoFeita}
             onVerUnitaria={(nome) => { setBusca(nome); setAba('unitaria'); }}
+            onRefresh={() => setRefreshKey(k => k + 1)}
           />
         )}
         {aba === 'unitaria' && (
@@ -2058,6 +2890,7 @@ function ViewEmpresa({
             lojaId={lojaId}
             minhaLojaId={minhaLojaId}
             onTransferido={onSolicitacaoFeita}
+            onRefresh={() => setRefreshKey(k => k + 1)}
           />
         )}
         {aba === 'movimentacao' && <TabMovimentacao logs={data.logsRecentes} />}
@@ -2068,6 +2901,7 @@ function ViewEmpresa({
             refreshKey={refreshSolicitacoes}
           />
         )}
+        {aba === 'importacao' && <TabImportacaoCentral />}
       </Card>
 
       {showCadastroChassi && (
@@ -2287,7 +3121,10 @@ export function Estoque() {
 
       {/* Barra de abas principal */}
       <div className="flex items-center gap-0.5 border-b border-[#27272a] overflow-x-auto">
-        {TAB_LABELS.map(tab => (
+        {TAB_LABELS.filter(tab => {
+          if (tab.id === 'mov-estoque' || tab.id === 'mov-avulsa') return isAdmin;
+          return true;
+        }).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}

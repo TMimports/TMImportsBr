@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
-import { verifyToken, applyTenantFilter, AuthRequest } from '../middleware/auth.js';
+import { verifyToken, applyTenantFilter, AuthRequest, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -13,7 +13,79 @@ const goneHandler = (_req: any, res: any) => {
 router.get('/', goneHandler);
 router.get('/:id(\\d+)', goneHandler);
 router.post('/', goneHandler);
-router.put('/:id(\\d+)', goneHandler);
+
+// ── Editar dados do chassi ──────────────────────────────────────────────────
+router.put('/:id(\\d+)', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { chassi, cor, codigoMotor, ano } = req.body;
+    const user = req.user!;
+
+    const unidade = await prisma.unidadeFisica.findUnique({ where: { id } });
+    if (!unidade) return res.status(404).json({ error: 'Unidade não encontrada' });
+    if (unidade.status !== 'ESTOQUE') return res.status(400).json({ error: 'Só é possível editar unidades com status ESTOQUE' });
+    if (user.lojaId && user.lojaId !== unidade.lojaId) return res.status(403).json({ error: 'Acesso negado' });
+
+    if (chassi?.trim() && chassi.trim() !== unidade.chassi) {
+      const dup = await prisma.unidadeFisica.findFirst({ where: { chassi: chassi.trim(), id: { not: id } } });
+      if (dup) return res.status(400).json({ error: `Chassi "${chassi}" já cadastrado em outra unidade` });
+    }
+
+    const updated = await prisma.unidadeFisica.update({
+      where: { id },
+      data: {
+        chassi: chassi?.trim() || null,
+        cor: cor?.trim() || null,
+        codigoMotor: codigoMotor?.trim() || null,
+        ano: ano ? Number(ano) : undefined,
+      }
+    });
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erro interno' });
+  }
+});
+
+// ── Excluir chassi (apenas ESTOQUE) ────────────────────────────────────────
+router.delete('/:id(\\d+)', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    const user = req.user!;
+
+    const unidade = await prisma.unidadeFisica.findUnique({ where: { id } });
+    if (!unidade) return res.status(404).json({ error: 'Unidade não encontrada' });
+    if (unidade.status !== 'ESTOQUE') return res.status(400).json({ error: 'Não é possível excluir unidade com status ' + unidade.status });
+    if (user.lojaId && user.lojaId !== unidade.lojaId) return res.status(403).json({ error: 'Acesso negado' });
+
+    const estoqueAtual = await prisma.estoque.findUnique({
+      where: { produtoId_lojaId: { produtoId: unidade.produtoId, lojaId: unidade.lojaId } }
+    });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.unidadeFisica.delete({ where: { id } });
+      if (estoqueAtual) {
+        const nova = Math.max(0, estoqueAtual.quantidade - 1);
+        await tx.estoque.update({
+          where: { id: estoqueAtual.id },
+          data: { quantidade: nova }
+        });
+        await tx.logEstoque.create({
+          data: {
+            tipo: 'AJUSTE', origem: 'AJUSTE_MANUAL',
+            produtoId: unidade.produtoId, lojaId: unidade.lojaId,
+            quantidade: -1,
+            quantidadeAnterior: estoqueAtual.quantidade,
+            quantidadeNova: nova,
+            usuarioId: user.id,
+          }
+        });
+      }
+    });
+    res.json({ sucesso: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erro interno' });
+  }
+});
 
 // ── Cadastro manual de chassi ──────────────────────────────────────────────
 router.post('/manual', async (req: AuthRequest, res) => {
@@ -151,6 +223,38 @@ router.post('/manual/lote', async (req: AuthRequest, res) => {
   } catch (error: any) {
     console.error('Erro ao cadastrar chassi em lote:', error);
     return res.status(500).json({ error: error.message || 'Erro interno' });
+  }
+});
+
+// ── Slots disponíveis para cadastro de chassi ─────────────────────────────
+// Retorna quantas unidades do estoque ainda não têm chassi registrado
+router.get('/slots', async (req: AuthRequest, res) => {
+  try {
+    const produtoId = Number(req.query.produtoId);
+    const lojaId    = Number(req.query.lojaId);
+
+    if (!produtoId || !lojaId) {
+      return res.status(400).json({ error: 'produtoId e lojaId são obrigatórios' });
+    }
+
+    // Quantidade no estoque (tabela Estoque)
+    const estoque = await prisma.estoque.findUnique({
+      where: { produtoId_lojaId: { produtoId, lojaId } },
+      select: { quantidade: true },
+    });
+    const estoqueQtd = estoque?.quantidade ?? 0;
+
+    // Chassis já cadastrados em status ESTOQUE para esse produto+loja
+    const chassisCadastrados = await prisma.unidadeFisica.count({
+      where: { produtoId, lojaId, status: 'ESTOQUE' },
+    });
+
+    const slotsDisponiveis = Math.max(0, estoqueQtd - chassisCadastrados);
+
+    res.json({ estoqueQtd, chassisCadastrados, slotsDisponiveis });
+  } catch (error) {
+    console.error('Erro ao calcular slots:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 

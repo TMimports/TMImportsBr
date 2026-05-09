@@ -53,36 +53,39 @@ export async function verifyToken(req: AuthRequest, res: Response, next: NextFun
   }
 }
 
+// SUPER_ADMIN passa qualquer verificação de role automaticamente
+const isSuperAdmin = (role: Role) => role === 'SUPER_ADMIN';
+
 export function requireRole(...roles: Role[]) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: 'Não autenticado' });
     }
 
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Acesso negado' });
+    if (isSuperAdmin(req.user.role) || roles.includes(req.user.role)) {
+      return next();
     }
 
-    next();
+    return res.status(403).json({ error: 'Acesso negado' });
   };
 }
 
 export function requireAdminGeral(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!req.user || req.user.role !== 'ADMIN_GERAL') {
+  if (!req.user || (!isSuperAdmin(req.user.role) && req.user.role !== 'ADMIN_GERAL')) {
     return res.status(403).json({ error: 'Acesso restrito ao Administrador Geral' });
   }
   next();
 }
 
 export function requireAdminRede(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!req.user || !['ADMIN_GERAL', 'ADMIN_REDE'].includes(req.user.role)) {
+  if (!req.user || (!isSuperAdmin(req.user.role) && !['ADMIN_GERAL', 'ADMIN_REDE'].includes(req.user.role))) {
     return res.status(403).json({ error: 'Acesso restrito a Administradores' });
   }
   next();
 }
 
 export function requireGestorUsuarios(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!req.user || !['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user.role)) {
+  if (!req.user || (!isSuperAdmin(req.user.role) && !['ADMIN_GERAL', 'ADMIN_REDE', 'DONO_LOJA'].includes(req.user.role))) {
     return res.status(403).json({ error: 'Acesso negado' });
   }
   next();
@@ -94,7 +97,7 @@ export const READ_ONLY_ROLES: Role[] = ['ADMIN_COMERCIAL'];
 export function applyTenantFilter(req: AuthRequest): { grupoId?: number; lojaId?: number } {
   const { role, grupoId, lojaId } = req.user!;
 
-  if (role === 'ADMIN_GERAL') {
+  if (isSuperAdmin(role) || role === 'ADMIN_GERAL') {
     return {};
   }
 

@@ -111,7 +111,6 @@ router.post('/normalizar-codigos', requireAdminGeral, async (req: AuthRequest, r
     const prefixoTipo: Record<string, string> = { MOTO: 'MOT', PECA: 'PEC', SERVICO: 'SRV' };
     const todos = await prisma.produto.findMany({ orderBy: { id: 'asc' } });
     const semFormato = todos.filter(p => {
-      const prefixEsperado = `TM${prefixoTipo[p.tipo] || 'PRD'}`;
       return !p.codigo.startsWith('TM');
     });
     let atualizados = 0;
@@ -123,6 +122,46 @@ router.post('/normalizar-codigos', requireAdminGeral, async (req: AuthRequest, r
     res.json({ message: `${atualizados} produtos atualizados`, total: todos.length, atualizados });
   } catch (error) {
     console.error('Erro ao normalizar códigos de produto:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /api/produtos/recodificar — reatribui TODOS os códigos TMMOT/TMPEC/TMSRV
+// baseado no tipo atual do produto, renumerando sequencialmente por tipo (ordem por ID)
+router.post('/recodificar', requireAdminGeral, async (req: AuthRequest, res) => {
+  try {
+    const prefixoMap: Record<string, string> = { MOTO: 'TMMOT', PECA: 'TMPEC', SERVICO: 'TMSRV' };
+
+    // Busca todos ordenados por tipo e ID para manter sequência lógica
+    const todos = await prisma.produto.findMany({ orderBy: [{ tipo: 'asc' }, { id: 'asc' }] });
+
+    const contadores: Record<string, number> = { MOTO: 1, PECA: 1, SERVICO: 1 };
+    let atualizados = 0;
+
+    for (const p of todos) {
+      const prefixo = prefixoMap[p.tipo] || 'TMPRD';
+      const tipo = p.tipo in contadores ? p.tipo : 'PECA';
+      const seq = contadores[tipo]++;
+      const novoCodigo = `${prefixo}${String(seq).padStart(5, '0')}`;
+
+      if (p.codigo !== novoCodigo) {
+        await prisma.produto.update({ where: { id: p.id }, data: { codigo: novoCodigo } });
+        atualizados++;
+      }
+    }
+
+    res.json({
+      message: `Recodificação concluída — ${atualizados} produto(s) atualizados`,
+      total: todos.length,
+      atualizados,
+      contadores: {
+        MOTO: contadores.MOTO - 1,
+        PECA: contadores.PECA - 1,
+        SERVICO: contadores.SERVICO - 1
+      }
+    });
+  } catch (error) {
+    console.error('Erro ao recodificar produtos:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

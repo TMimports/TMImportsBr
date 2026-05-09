@@ -1021,7 +1021,7 @@ export function CrmLeadsBeta() {
               Configure a <strong className="text-zinc-300">região</strong>, os <strong className="text-zinc-300">bairros atendidos</strong> e a <strong className="text-zinc-300">cidade</strong> de cada loja.
               Quando um lead chegar com dados de localização, o sistema usará essas configurações para atribuir automaticamente ao vendedor correto via rodízio.
             </p>
-            <div className="mt-3 grid grid-cols-3 gap-3 text-xs text-zinc-400">
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-zinc-400">
               <div className="bg-zinc-800/60 rounded-lg px-3 py-2">
                 <p className="text-teal-400 font-semibold mb-1">Prioridade 1</p>
                 <p>lojaId explícito no payload</p>
@@ -1069,8 +1069,8 @@ export function CrmLeadsBeta() {
                           placeholder="Ex: Rio de Janeiro" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="col-span-2 sm:col-span-2">
                         <label className="block text-xs text-zinc-400 mb-1">Bairros Atendidos</label>
                         <input value={editandoLoja.bairrosAtendidos || ''}
                           onChange={e => setEditandoLoja(p => p ? { ...p, bairrosAtendidos: e.target.value } : p)}

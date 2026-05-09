@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../index.js';
 import { generateToken, verifyToken, AuthRequest } from '../middleware/auth.js';
+import { registrarLog, obterIp } from '../services/logService.js';
 
 const router = Router();
 
@@ -126,6 +127,17 @@ router.post('/trocar-senha', verifyToken, async (req: AuthRequest, res) => {
         senha: novaSenhaHash,
         mustChangePassword: false
       }
+    });
+
+    registrarLog({
+      usuarioId:  req.user!.id,
+      userName:   req.user!.nome,
+      userRole:   req.user!.role,
+      acao:       'TROCAR_SENHA',
+      entidade:   'USER',
+      entidadeId: req.user!.id,
+      detalhes:   `Senha alterada pelo próprio usuário`,
+      ip: obterIp(req),
     });
 
     res.json({ success: true, message: 'Senha alterada com sucesso' });

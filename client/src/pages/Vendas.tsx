@@ -1,16 +1,25 @@
 import { useEffect, useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLojaContext } from '../contexts/LojaContext';
 import { CustomSelect } from '../components/CustomSelect';
 
+interface UnidadeFisicaInfo {
+  chassi?: string | null;
+  codigoMotor?: string | null;
+}
+
 interface VendaItem {
   id: number;
   quantidade: number;
   precoUnitario: number;
   desconto: number;
-  produto: { nome: string };
+  unidadeFisicaId?: number;
+  produto?: { nome: string };
+  servico?: { nome: string };
+  unidadeFisica?: UnidadeFisicaInfo;
 }
 
 interface VendaFull {
@@ -19,11 +28,13 @@ interface VendaFull {
   valorTotal: number;
   valorBruto: number;
   formaPagamento: string;
+  parcelas?: number | null;
+  pagamentosJson?: string | null;
   confirmadaFinanceiro: boolean;
   observacoes?: string;
-  cliente: { id: number; nome: string; cpfCnpj?: string; telefone?: string; endereco?: string };
+  cliente: { id: number; nome: string; cpfCnpj?: string; telefone?: string; email?: string; endereco?: string };
   vendedor: { nome: string };
-  loja: { nomeFantasia: string; cnpj?: string; telefone?: string; endereco?: string };
+  loja: { id: number; nomeFantasia: string; cnpj?: string; telefone?: string; endereco?: string };
   itens: VendaItem[];
   createdAt: string;
 }
@@ -31,13 +42,17 @@ interface VendaFull {
 interface Venda {
   id: number;
   tipo: string;
-  cliente: { nome: string };
+  cliente: { nome: string; cpfCnpj?: string; telefone?: string };
   vendedor: { nome: string };
+  loja?: { id: number; nomeFantasia: string };
   valorTotal: number;
+  valorBruto?: number;
   formaPagamento: string;
+  parcelas?: number | null;
   confirmadaFinanceiro: boolean;
   deletedAt: string | null;
   createdAt: string;
+  itens?: VendaItem[];
 }
 
 interface Cliente {
@@ -63,6 +78,7 @@ interface ItemProduto {
   quantidade: number;
   preco: number;
   desconto: string;
+  descontoValor: string;
   tipo?: string;
   chassi?: string;
   motor?: string;
@@ -76,9 +92,17 @@ interface ItemMoto {
   quantidade: number;
   preco: number;
   desconto: string;
+  descontoValor: string;
   chassi: string;
   motor: string;
   displayName: string;
+}
+
+interface PagamentoComp {
+  tipo: string;
+  valor: string;
+  parcelas: string;
+  obs: string;
 }
 
 interface UnidadeDisponivel {
@@ -97,6 +121,17 @@ interface ConfigDescontos {
   descontoMaxMoto: number;
   descontoMaxPeca: number;
 }
+
+// Taxas da máquina — coluna D "Taxa Adulterada" da planilha
+const TAXAS_MAQUINA: Record<number, number> = {
+  1:  0.0604,   2:  0.0736,   3:  0.0799,   4:  0.0865,
+  5:  0.0931,   6:  0.0999,   7:  0.1097,   8:  0.1168,
+  9:  0.1240,   10: 0.1314,   11: 0.1390,   12: 0.1467,
+  13: 0.1606,   14: 0.1687,   15: 0.1770,   16: 0.1854,
+  17: 0.1941,   18: 0.2030,
+};
+
+const TODAS_PARCELAS = Array.from({ length: 18 }, (_, i) => i + 1);
 
 export function Vendas() {
   const { user } = useAuth();
@@ -118,11 +153,16 @@ export function Vendas() {
   const [showQuickCliente, setShowQuickCliente] = useState(false);
   const [quickCliente, setQuickCliente] = useState({ nome: '', cpfCnpj: '', telefone: '' });
   const [quickClienteLoading, setQuickClienteLoading] = useState(false);
+  const [buscaVendas, setBuscaVendas] = useState('');
+  const [filtroTipoVenda, setFiltroTipoVenda] = useState('');
+  const [filtroStatusVenda, setFiltroStatusVenda] = useState('');
+  const [formErro, setFormErro] = useState('');
 
   const [form, setForm] = useState({
     clienteId: '',
     lojaId: '',
     formaPagamento: 'PIX',
+    parcelas: '1',
     tipo: 'VENDA',
     observacoes: ''
   });
@@ -130,6 +170,7 @@ export function Vendas() {
   const [itensSelecionados, setItensSelecionados] = useState<ItemProduto[]>([]);
   const [motosSelecionadas, setMotosSelecionadas] = useState<ItemMoto[]>([]);
   const [unidadesDisponiveis, setUnidadesDisponiveis] = useState<UnidadeDisponivel[]>([]);
+  const [pagamentosCompostos, setPagamentosCompostos] = useState<PagamentoComp[]>([{ tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
 
   const loadProdutosLoja = async (lojaId: string) => {
     if (!lojaId) {
@@ -188,8 +229,14 @@ export function Vendas() {
     }
   }, [form.lojaId]);
 
+  // Papéis com trava de desconto em 15%
+  const rolesCap15 = ['VENDEDOR', 'DONO_LOJA'];
+  const rolesLivres = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'];
+  const userRole = user?.role || '';
+  const maxDescontoRole = rolesLivres.includes(userRole) ? 100 : rolesCap15.includes(userRole) ? 15 : (configDescontos.descontoMaxMoto * 2);
+
   const adicionarItem = () => {
-    setItensSelecionados([...itensSelecionados, { produtoId: '', quantidade: 1, preco: 0, desconto: '0', tipo: '', chassi: '', motor: '' }]);
+    setItensSelecionados([...itensSelecionados, { produtoId: '', quantidade: 1, preco: 0, desconto: '0', descontoValor: '0', tipo: '', chassi: '', motor: '' }]);
   };
 
   const removerItem = (index: number) => {
@@ -201,13 +248,23 @@ export function Vendas() {
     if (field === 'produtoId') {
       const produto = produtos.find(p => p.id === parseInt(value));
       if (produto && produto.estoque <= 0 && form.tipo === 'VENDA') return;
-      novos[index] = { ...novos[index], produtoId: value, preco: produto?.preco || 0, tipo: produto?.tipo || '' };
+      novos[index] = { ...novos[index], produtoId: value, preco: produto?.preco || 0, tipo: produto?.tipo || '', desconto: '0', descontoValor: '0' };
     } else if (field === 'quantidade') {
       const produto = produtos.find(p => p.id === parseInt(novos[index].produtoId));
       if (produto && form.tipo === 'VENDA' && produto.tipo !== 'MOTO') {
         value = Math.min(value, produto.estoque);
       }
       novos[index] = { ...novos[index], [field]: Math.max(1, value) };
+    } else if (field === 'desconto') {
+      // % → calcula valor fixo
+      const pct = parseFloat(value) || 0;
+      const subtotal = novos[index].preco * novos[index].quantidade;
+      novos[index] = { ...novos[index], desconto: value, descontoValor: (subtotal * pct / 100).toFixed(2) };
+    } else if (field === 'descontoValor') {
+      // R$ → calcula %
+      const subtotal = novos[index].preco * novos[index].quantidade;
+      const pct = subtotal > 0 ? (parseFloat(value) || 0) / subtotal * 100 : 0;
+      novos[index] = { ...novos[index], descontoValor: value, desconto: pct.toFixed(2) };
     } else {
       novos[index] = { ...novos[index], [field]: value };
     }
@@ -215,7 +272,7 @@ export function Vendas() {
   };
 
   const adicionarMoto = () => {
-    setMotosSelecionadas([...motosSelecionadas, { unidadeId: '', produtoId: '', quantidade: 1, preco: 0, desconto: '0', chassi: '', motor: '', displayName: '' }]);
+    setMotosSelecionadas([...motosSelecionadas, { unidadeId: '', produtoId: '', quantidade: 1, preco: 0, desconto: '0', descontoValor: '0', chassi: '', motor: '', displayName: '' }]);
   };
 
   const removerMoto = (index: number) => {
@@ -232,6 +289,8 @@ export function Vendas() {
           ...novas[index],
           produtoId: value,
           preco: produto.preco,
+          desconto: '0',
+          descontoValor: '0',
           unidadeId: unidade ? String(unidade.id) : '',
           chassi: unidade?.chassi || '',
           motor: unidade?.codigoMotor || '',
@@ -250,6 +309,15 @@ export function Vendas() {
       } else {
         novas[index] = { ...novas[index], unidadeId: '', chassi: '', motor: '' };
       }
+    } else if (field === 'desconto') {
+      // % → calcula valor fixo
+      const pct = parseFloat(value) || 0;
+      novas[index] = { ...novas[index], desconto: value, descontoValor: (novas[index].preco * pct / 100).toFixed(2) };
+    } else if (field === 'descontoValor') {
+      // R$ → calcula %
+      const preco = novas[index].preco;
+      const pct = preco > 0 ? (parseFloat(value) || 0) / preco * 100 : 0;
+      novas[index] = { ...novas[index], descontoValor: value, desconto: pct.toFixed(2) };
     } else {
       novas[index] = { ...novas[index], [field]: value };
     }
@@ -261,6 +329,50 @@ export function Vendas() {
   };
 
   const isCartao = form.formaPagamento === 'CARTAO_DEBITO' || form.formaPagamento === 'CARTAO_CREDITO';
+  const isCombinado = form.formaPagamento === 'COMBINADO';
+  const isCredito = form.formaPagamento === 'CARTAO_CREDITO' || form.formaPagamento === 'FINANCIAMENTO';
+
+  const totalPagamentosCompostos = pagamentosCompostos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+
+  // Total real que o cliente paga (entrada + financiado já com taxa da máquina)
+  const totalComEncargos = pagamentosCompostos.reduce((acc, p) => {
+    const val = parseFloat(p.valor) || 0;
+    const n = parseInt(p.parcelas) || 1;
+    const tipoCredito = p.tipo === 'CARTAO_CREDITO' || p.tipo === 'FINANCIAMENTO';
+    const taxa = tipoCredito ? (TAXAS_MAQUINA[n] ?? 0) : 0;
+    return acc + val * (1 + taxa);
+  }, 0);
+
+  const addPagamento = () => setPagamentosCompostos(prev => [...prev, { tipo: 'CARTAO_CREDITO', valor: '', parcelas: '1', obs: '' }]);
+  const removePagamento = (i: number) => setPagamentosCompostos(prev => prev.filter((_, idx) => idx !== i));
+  const updatePagamento = (i: number, field: keyof PagamentoComp, val: string) =>
+    setPagamentosCompostos(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: val } : p));
+
+  // Ao digitar o valor da entrada, auto-preenche o restante na última linha de crédito
+  const updateEntrada = (valor: string) => {
+    updatePagamento(0, 'valor', valor);
+    if (pagamentosCompostos.length >= 2) {
+      const total = calcularTotal();
+      const entrada = parseFloat(valor) || 0;
+      const restante = Math.max(0, total - entrada);
+      // Atualiza última linha com o restante
+      setPagamentosCompostos(prev => prev.map((p, idx) =>
+        idx === prev.length - 1 ? { ...p, valor: restante > 0 ? restante.toFixed(2) : '' } : idx === 0 ? { ...p, valor } : p
+      ));
+    }
+  };
+
+  // Ativa modo combinado com atalho entrada (PIX/Dinheiro) + crédito
+  const ativarCombinado = (tipoEntrada: string) => {
+    const total = calcularTotal();
+    setForm(f => ({ ...f, formaPagamento: 'COMBINADO' }));
+    setPagamentosCompostos([
+      { tipo: tipoEntrada, valor: '', parcelas: '1', obs: '' },
+      { tipo: 'CARTAO_CREDITO', valor: total > 0 ? total.toFixed(2) : '', parcelas: '1', obs: '' },
+    ]);
+  };
+
+  const precisaParcelas = (tipo: string) => tipo === 'CARTAO_CREDITO' || tipo === 'FINANCIAMENTO';
 
   const calcularTotal = () => {
     const totalPecas = itensSelecionados.reduce((acc, item) => {
@@ -282,21 +394,58 @@ export function Vendas() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErro('');
 
     if (!form.lojaId) {
-      alert('Selecione uma loja');
+      setFormErro('⚠️ Selecione uma loja antes de continuar.');
       return;
     }
 
     if (itensSelecionados.length === 0 && motosSelecionadas.length === 0) {
-      alert('Adicione pelo menos um produto ou moto');
+      setFormErro('⚠️ Adicione pelo menos um produto ou moto à venda.');
       return;
     }
 
     const motosIncompletas = motosSemDadosCompletos();
     if (motosIncompletas.length > 0) {
-      alert('Preencha o numero do chassi e motor para todas as motos');
+      setFormErro(`🏍️ Preencha o número de chassi e motor para todas as motos (${motosIncompletas.length} moto(s) incompleta(s)).`);
       return;
+    }
+
+    // Validação de desconto máximo no frontend
+    const todoItens = [...motosSelecionadas.map(m => ({ desconto: parseFloat(m.desconto) || 0, nome: m.displayName || 'Moto' })),
+                       ...itensSelecionados.map(i => ({ desconto: parseFloat(i.desconto) || 0, nome: i.displayName || 'Peça' }))];
+    for (const it of todoItens) {
+      if (it.desconto > maxDescontoRole) {
+        setFormErro(`⚠️ Desconto máximo permitido: ${maxDescontoRole}%. Um ou mais itens estão acima do limite.`);
+        return;
+      }
+    }
+
+    // Validação pagamento combinado
+    const totalFinal = calcularTotal();
+    if (isCombinado) {
+      const totalPag = pagamentosCompostos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+      if (Math.abs(totalPag - totalFinal) > 0.01) {
+        setFormErro(`⚠️ Soma dos pagamentos (R$ ${totalPag.toFixed(2)}) ≠ total da venda (R$ ${totalFinal.toFixed(2)}). Corrija os valores.`);
+        return;
+      }
+    }
+
+    // ── Calcular o valor final que o cliente irá pagar (com encargos) ──────
+    let valorParaSalvar: number;
+    if (isCombinado) {
+      // Para COMBINADO: soma de cada método já com sua taxa individual
+      valorParaSalvar = totalComEncargos;
+    } else if (isCredito) {
+      // Para Cartão Crédito / Financiamento: aplica a taxa da máquina
+      const nParcelas = parseInt(form.parcelas) || 1;
+      const taxa = TAXAS_MAQUINA[nParcelas] ?? 0;
+      const comTaxa = totalFinal * (1 + taxa);
+      valorParaSalvar = comTaxa % 1 !== 0 ? Math.ceil(comTaxa) : comTaxa;
+    } else {
+      // PIX, Dinheiro, Débito: sem encargo
+      valorParaSalvar = totalFinal;
     }
 
     setSaving(true);
@@ -332,9 +481,11 @@ export function Vendas() {
         lojaId: parseInt(form.lojaId),
         itens,
         formaPagamento: form.formaPagamento,
+        parcelas: isCombinado ? undefined : (parseInt(form.parcelas) || 1),
         tipo: form.tipo,
         observacoes: form.observacoes,
-        valorTotalManual: calcularTotal()
+        pagamentosCompostos: isCombinado ? pagamentosCompostos : undefined,
+        valorTotalManual: valorParaSalvar
       });
 
       setModalOpen(false);
@@ -342,11 +493,13 @@ export function Vendas() {
         clienteId: '',
         lojaId: lojas.length === 1 ? String(lojas[0].id) : '',
         formaPagamento: 'PIX',
+        parcelas: '1',
         tipo: 'VENDA',
         observacoes: ''
       });
       setItensSelecionados([]);
       setMotosSelecionadas([]);
+      setPagamentosCompostos([{ tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
       loadData();
 
       const vendaCompleta = await api.get<VendaFull>(`/vendas/${novaVenda.id}`);
@@ -401,42 +554,318 @@ export function Vendas() {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!printRef.current) return;
-    
-    const printContent = printRef.current.innerHTML;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    // ── Logo e identidade da marca ──────────────────────────────────────────
+    const nomeFantasia = (vendaDetalhada?.loja?.nomeFantasia || '').toLowerCase();
+    const isTMImports = vendaDetalhada?.loja?.id === 4
+      || nomeFantasia.includes('tm import')
+      || nomeFantasia.includes('importa');
+    const logoFile  = isTMImports ? 'logo-tm.png' : 'logo.png';
+    const brandName = isTMImports ? 'TM Imports' : 'Tecle Motos';
+    const brandSub  = isTMImports ? 'Tecnologia em Mobilidade Elétrica' : 'Motopeças e Scooters Elétricas';
+
+    // Converte logo para base64 (garante que aparece na impressão)
+    let logoUrl = `${window.location.origin}/${logoFile}`;
+    try {
+      const resp = await fetch(`/${logoFile}`);
+      const blob = await resp.blob();
+      logoUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+    } catch (_) { /* usa URL original como fallback */ }
+
+    // ── Tipo de documento ───────────────────────────────────────────────────
+    const isOrcamento = vendaDetalhada?.tipo === 'ORCAMENTO';
+
+    // ── Valores ─────────────────────────────────────────────────────────────
+    const valorBrutoNum  = Number(vendaDetalhada?.valorBruto || 0);
+    const valorTotalNum  = Number(vendaDetalhada?.valorTotal || 0);
+    // Soma dos itens após desconto (sem encargos da máquina)
+    const somaItens = (vendaDetalhada?.itens || []).reduce((acc: number, it: any) => {
+      const desc = Number(it.desconto || 0);
+      return acc + Number(it.precoUnitario) * it.quantidade * (1 - desc / 100);
+    }, 0);
+    const encargosNum = valorTotalNum > somaItens + 0.01 ? valorTotalNum - somaItens : 0;
+    const descontoNum = somaItens > valorTotalNum ? somaItens - valorTotalNum : 0;
+
+    // ── Parcelas ─────────────────────────────────────────────────────────────
+    const parcelas     = vendaDetalhada?.parcelas || 1;
+    const valorParcela = parcelas > 1 ? valorTotalNum / parcelas : 0;
+
+    // ── Pagamentos compostos (COMBINADO) ────────────────────────────────────
+    let pagamentosCompostos: {tipo:string; valor:number; parcelas:number; obs:string}[] = [];
+    if (vendaDetalhada?.formaPagamento === 'COMBINADO' && vendaDetalhada?.pagamentosJson) {
+      try { pagamentosCompostos = JSON.parse(vendaDetalhada.pagamentosJson); } catch (_) {}
+    }
+    const TAXAS: Record<number,number> = {
+      1:0.0604,2:0.0736,3:0.0799,4:0.0865,5:0.0931,6:0.0999,
+      7:0.1097,8:0.1168,9:0.1240,10:0.1314,11:0.1390,12:0.1467,
+      13:0.1606,14:0.1687,15:0.1770,16:0.1854,17:0.1941,18:0.2030
+    };
+    const precisaEncargo = (t: string) => t === 'CARTAO_CREDITO' || t === 'CARTAO' || t === 'CARTAO_DEBITO';
+    const labelPag = (t: string) => ({
+      PIX:'PIX', DINHEIRO:'Dinheiro', CARTAO:'Cartão', CARTAO_DEBITO:'Cartão Débito',
+      CARTAO_CREDITO:'Cartão Crédito', FINANCIAMENTO:'Financiamento',
+      BOLETO:'Boleto', COMBINADO:'Combinado'
+    }[t] || t);
+
+    // ── HTML das linhas de pagamento ─────────────────────────────────────────
+    const buildPagamentoHtml = (): string => {
+      const fp = vendaDetalhada?.formaPagamento || '';
+      if (fp === 'COMBINADO' && pagamentosCompostos.length) {
+        return pagamentosCompostos.map(p => {
+          const v  = Number(p.valor) || 0;
+          const n  = Number(p.parcelas) || 1;
+          const tx = precisaEncargo(p.tipo) ? (TAXAS[n] ?? 0) : 0;
+          const total = v * (1 + tx);
+          const porParcela = total / n;
+          const parcelaStr = n > 1
+            ? `${n}x de <strong>R$ ${porParcela.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> = R$ ${total.toLocaleString('pt-BR',{minimumFractionDigits:2})}`
+            : `<strong>R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> à vista`;
+          return `<div class="pag-row"><span class="pag-label">${labelPag(p.tipo)}</span><span>${parcelaStr}</span></div>`;
+        }).join('');
+      }
+      if ((fp === 'CARTAO_CREDITO' || fp === 'FINANCIAMENTO') && parcelas > 1) {
+        return `<div class="pag-row"><span class="pag-label">${labelPag(fp)}</span><span>${parcelas}x de <strong>R$ ${valorParcela.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong></span></div>`;
+      }
+      return `<div class="pag-row"><span class="pag-label">${labelPag(fp)}</span><span><strong>R$ ${valorTotalNum.toLocaleString('pt-BR',{minimumFractionDigits:2})}</strong> à vista</span></div>`;
+    };
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${vendaDetalhada?.tipo === 'ORCAMENTO' ? 'Orcamento' : 'Venda'} #${vendaDetalhada?.id}</title>
+          <title>${isOrcamento ? 'Orçamento' : 'Comprovante de Venda'} #${vendaDetalhada?.id}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-            .header h1 { font-size: 24px; margin-bottom: 5px; }
-            .header p { font-size: 12px; color: #666; }
-            .info-section { display: flex; justify-content: space-between; margin-bottom: 20px; }
-            .info-box { width: 48%; }
-            .info-box h3 { font-size: 14px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px; }
-            .info-box p { font-size: 12px; margin-bottom: 5px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 12px; }
-            th { background: #f5f5f5; }
-            .total { text-align: right; font-size: 16px; font-weight: bold; }
-            .obs { margin-top: 20px; padding: 10px; background: #f9f9f9; border: 1px solid #ccc; font-size: 12px; }
-            .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #666; }
-            .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
-            .badge-orcamento { background: #fef3c7; color: #92400e; }
-            .badge-venda { background: #d1fae5; color: #065f46; }
-            @media print { body { padding: 0; } }
+            body { font-family: Arial, sans-serif; color: #1a1a1a; background: #fff; }
+
+            /* ── Listra de topo ── */
+            .brand-stripe { display: flex; height: 20px; width: 100%; }
+            .stripe-black  { background: #0a0a0a; flex: 2; }
+            .stripe-orange { background: #f97316; flex: 5; }
+            .stripe-white  { background: #f0f0f0; flex: 1; }
+
+            /* ── Cabeçalho com logo ── */
+            .brand-header {
+              background: #111111;
+              display: flex; align-items: center; justify-content: space-between;
+              padding: 16px 32px;
+            }
+            .brand-header img { height: 60px; object-fit: contain; }
+            .brand-header-right { text-align: right; }
+            .doc-type  { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #f97316; text-transform: uppercase; }
+            .doc-num   { font-size: 22px; font-weight: 800; color: #fff; line-height: 1.1; }
+            .doc-meta  { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+            .loja-name { font-size: 12px; color: #d1d5db; margin-top: 3px; }
+            .orange-line { height: 3px; background: #f97316; }
+
+            /* ── Corpo ── */
+            .body-wrap { padding: 22px 32px; }
+
+            /* ── Info grid ── */
+            .info-grid { display: flex; gap: 24px; margin-bottom: 18px; }
+            .info-box  { flex: 1; }
+            .info-box-label {
+              font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+              color: #f97316; border-bottom: 1px solid #f97316; padding-bottom: 3px; margin-bottom: 7px;
+            }
+            .info-box p { font-size: 12px; margin-bottom: 2px; color: #222; }
+            .info-box .val { font-weight: 600; }
+
+            /* ── Tabela de itens ── */
+            table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 12px; }
+            thead tr { background: #111; color: #fff; }
+            th { padding: 7px 10px; font-size: 11px; font-weight: 600; text-align: left; }
+            th:nth-child(2),td:nth-child(2) { text-align: center; }
+            th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5) { text-align: right; }
+            tbody tr:nth-child(even) { background: #f8f8f8; }
+            td { padding: 7px 10px; border-bottom: 1px solid #eee; }
+
+            /* ── Totais ── */
+            .totals-wrap { display: flex; flex-direction: column; align-items: flex-end; margin: 10px 0 18px; }
+            .totals-row  { display: flex; justify-content: space-between; width: 260px; font-size: 12px; padding: 2px 0; color: #555; }
+            .totals-row.enc { color: #b45309; }
+            .totals-row.disc { color: #dc2626; }
+            .totals-final {
+              display: flex; justify-content: space-between; width: 260px;
+              font-size: 17px; font-weight: 800;
+              border-top: 2px solid #f97316; padding-top: 7px; margin-top: 5px;
+            }
+            .totals-final .amount { color: #16a34a; }
+
+            /* ── Pagamento detalhado ── */
+            .pag-section { margin: 14px 0; padding: 12px 14px; background: #fffbf5; border-left: 3px solid #f97316; }
+            .pag-title { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #f97316; margin-bottom: 8px; }
+            .pag-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; border-bottom: 1px solid #fde68a; }
+            .pag-row:last-child { border-bottom: none; }
+            .pag-label { color: #555; }
+
+            /* ── Parcela destaque ── */
+            .parcela-box {
+              text-align: center; background: #111; color: #fff;
+              border-radius: 6px; padding: 10px 20px; margin: 14px 0;
+              display: inline-block;
+            }
+            .parcela-box .n  { font-size: 28px; font-weight: 900; color: #f97316; line-height:1; }
+            .parcela-box .de { font-size: 11px; color: #9ca3af; }
+            .parcela-box .v  { font-size: 20px; font-weight: 800; }
+
+            /* ── Garantias / Obs ── */
+            .info-block {
+              margin-top: 14px; padding: 11px 14px;
+              background: #f9f9f9; border-left: 3px solid #f97316; font-size: 11px; color: #333;
+            }
+            .info-block strong { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #f97316; }
+
+            /* ── Rodapé ── */
+            .doc-footer {
+              margin-top: 28px; padding-top: 12px; border-top: 1px solid #e5e5e5;
+              text-align: center; font-size: 10px; color: #aaa;
+            }
+
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .parcela-box { display: inline-block !important; }
+            }
           </style>
         </head>
         <body>
-          ${printContent}
+
+          <!-- Listra de topo -->
+          <div class="brand-stripe">
+            <div class="stripe-black"></div>
+            <div class="stripe-orange"></div>
+            <div class="stripe-white"></div>
+          </div>
+
+          <!-- Cabeçalho com logo dinâmica -->
+          <div class="brand-header">
+            <img src="${logoUrl}" alt="${brandName}" />
+            <div class="brand-header-right">
+              <div class="doc-type">${isOrcamento ? 'Orçamento' : 'Comprovante de Venda'}</div>
+              <div class="doc-num">#${vendaDetalhada?.id?.toString().padStart(5, '0')}</div>
+              <div class="doc-meta">${vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</div>
+              <div class="loja-name">${vendaDetalhada?.loja?.nomeFantasia || ''}</div>
+            </div>
+          </div>
+          <div class="orange-line"></div>
+
+          <div class="body-wrap">
+
+            <!-- Cliente + Dados da venda -->
+            <div class="info-grid">
+              <div class="info-box">
+                <div class="info-box-label">Cliente</div>
+                <p class="val">${vendaDetalhada?.cliente?.nome || '-'}</p>
+                ${vendaDetalhada?.cliente?.cpfCnpj ? `<p>CPF/CNPJ: ${vendaDetalhada.cliente.cpfCnpj}</p>` : ''}
+                ${vendaDetalhada?.cliente?.telefone ? `<p>Tel: ${vendaDetalhada.cliente.telefone}</p>` : ''}
+                ${vendaDetalhada?.cliente?.email ? `<p>${vendaDetalhada.cliente.email}</p>` : ''}
+              </div>
+              <div class="info-box">
+                <div class="info-box-label">Dados da Venda</div>
+                <p>Vendedor: <span class="val">${vendaDetalhada?.vendedor?.nome || '-'}</span></p>
+                <p>Loja: <span class="val">${vendaDetalhada?.loja?.nomeFantasia || '-'}</span></p>
+                <p>CNPJ: <span class="val">${vendaDetalhada?.loja?.cnpj || '-'}</span></p>
+              </div>
+            </div>
+
+            <!-- Tabela de itens -->
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto / Serviço</th>
+                  <th>Qtd</th>
+                  <th>Preço Un.</th>
+                  <th>Desc.</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(vendaDetalhada?.itens || []).map((item: any) => {
+                  const desc    = Number(item.desconto || 0);
+                  const bruto   = Number(item.precoUnitario) * item.quantidade;
+                  const final   = bruto * (1 - desc / 100);
+                  const nome    = item.produto?.nome || item.servico?.nome || '-';
+                  const chassi  = item.unidadeFisica?.chassi;
+                  const motor   = item.unidadeFisica?.codigoMotor;
+                  const temUnit = chassi || motor;
+                  return `<tr>
+                    <td>
+                      <div style="font-weight:500">${nome}</div>
+                      ${temUnit ? `<div style="font-size:10px;color:#888;margin-top:2px">
+                        ${chassi ? `Chassi: <strong style="color:#555">${chassi}</strong>` : ''}
+                        ${chassi && motor ? ' &nbsp;|&nbsp; ' : ''}
+                        ${motor  ? `Motor: <strong style="color:#555">${motor}</strong>` : ''}
+                      </div>` : ''}
+                    </td>
+                    <td>${item.quantidade}</td>
+                    <td>R$ ${Number(item.precoUnitario).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                    <td style="color:${desc>0?'#ca8a04':'#bbb'}">${desc>0?desc+'%':'-'}</td>
+                    <td style="font-weight:600">R$ ${final.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+
+            <!-- Bloco de totais -->
+            <div class="totals-wrap">
+              ${valorBrutoNum > 0 && Math.abs(valorBrutoNum - somaItens) > 0.01 ? `<div class="totals-row"><span>Valor dos produtos:</span><span>R$ ${valorBrutoNum.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>` : ''}
+              ${descontoNum > 0.01 ? `<div class="totals-row disc"><span>Desconto aplicado:</span><span>- R$ ${descontoNum.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>` : ''}
+              ${encargosNum > 0.01 ? `<div class="totals-row enc"><span>Encargos da máquina:</span><span>+ R$ ${encargosNum.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>` : ''}
+              <div class="totals-final">
+                <span>TOTAL A PAGAR</span>
+                <span class="amount">R$ ${valorTotalNum.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+              </div>
+            </div>
+
+            <!-- Detalhamento de pagamento -->
+            <div class="pag-section">
+              <div class="pag-title">Condições de Pagamento</div>
+              ${buildPagamentoHtml()}
+            </div>
+
+            <!-- Destaque visual das parcelas (somente se parcelado simples) -->
+            ${parcelas > 1 && vendaDetalhada?.formaPagamento !== 'COMBINADO' ? `
+              <div style="text-align:center; margin: 16px 0;">
+                <div class="parcela-box">
+                  <div class="n">${parcelas}x</div>
+                  <div class="de">de</div>
+                  <div class="v">R$ ${valorParcela.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Garantias -->
+            ${(vendaDetalhada?.itens||[]).some((i: any) => i.unidadeFisicaId) && vendaDetalhada?.tipo === 'VENDA' ? `
+              <div class="info-block">
+                <strong>Garantias Inclusas</strong>
+                <p style="margin-top:6px">• Garantia Geral: 3 meses &nbsp;|&nbsp; • Motor: 12 meses &nbsp;|&nbsp; • Módulo: 12 meses &nbsp;|&nbsp; • Bateria: 12 meses</p>
+                <p style="margin-top:4px;color:#888;font-size:10px">* A garantia requer revisões a cada 3 meses. A primeira revisão é gratuita.</p>
+              </div>
+            ` : ''}
+
+            <!-- Observações -->
+            ${vendaDetalhada?.observacoes ? `
+              <div class="info-block" style="margin-top:10px">
+                <strong>Observações</strong>
+                <p style="margin-top:5px">${vendaDetalhada.observacoes}</p>
+              </div>
+            ` : ''}
+
+            <!-- Rodapé -->
+            <div class="doc-footer">
+              ${brandName} &nbsp;·&nbsp; ${brandSub}<br>
+              Documento gerado em ${new Date().toLocaleString('pt-BR')}
+            </div>
+
+          </div>
         </body>
       </html>
     `);
@@ -447,9 +876,143 @@ export function Vendas() {
   const pagamentoLabels: Record<string, string> = {
     PIX: 'PIX',
     DINHEIRO: 'Dinheiro',
-    CARTAO_DEBITO: 'Cartao Debito',
-    CARTAO_CREDITO: 'Cartao Credito',
-    FINANCIAMENTO: 'Financiamento'
+    CARTAO: 'Cartão',
+    CARTAO_DEBITO: 'Cartão Débito',
+    CARTAO_CREDITO: 'Cartão Crédito',
+    FINANCIAMENTO: 'Financiamento',
+    BOLETO: 'Boleto',
+    COMBINADO: 'Pagamento Combinado'
+  };
+
+  const handleExportExcel = () => {
+    const wb = XLSX.utils.book_new();
+
+    const fmtValor = (n: number) => Number(n.toFixed(2));
+    const labelPagXls = (t: string) => ({
+      PIX: 'Pix', DINHEIRO: 'Dinheiro', CARTAO: 'Cartão', CARTAO_DEBITO: 'Cartão Débito',
+      CARTAO_CREDITO: 'Cartão Crédito', FINANCIAMENTO: 'Financiamento',
+      BOLETO: 'Boleto', COMBINADO: 'Pagamento Combinado'
+    }[t] || t);
+
+    // ── Aba 1: Vendas Detalhadas (uma linha por item) ──────────────────────
+    const headers = [
+      'ID', 'Data/Hora', 'Tipo', 'Cliente', 'CPF/CNPJ', 'Telefone',
+      'Loja', 'Vendedor',
+      'Produto / Serviço', 'Especificação', 'Cor', 'Chassi', 'Cód Motor',
+      'Forma de Pagamento',
+      '1ª Forma', '1º Valor (R$)', '1ª Parcelas',
+      '2ª Forma', '2º Valor (R$)', '2ª Parcelas',
+      'Valor Base (R$)', 'Valor Final (R$)', 'Status Financeiro'
+    ];
+
+    const rows: (string | number)[][] = [];
+
+    vendas.filter(v => !v.deletedAt).forEach(v => {
+      // Extrair pagamentos compostos (COMBINADO)
+      let pag1Forma = '-', pag2Forma = '-';
+      let pag1Valor: number | string = '-', pag2Valor: number | string = '-';
+      let pag1Parcelas: number | string = '-', pag2Parcelas: number | string = '-';
+
+      if (v.formaPagamento === 'COMBINADO' && (v as any).pagamentosJson) {
+        try {
+          const compostos: {tipo: string; valor: number; parcelas?: number}[] = JSON.parse((v as any).pagamentosJson);
+          if (compostos[0]) {
+            pag1Forma = labelPagXls(compostos[0].tipo);
+            pag1Valor = fmtValor(Number(compostos[0].valor));
+            pag1Parcelas = Number(compostos[0].parcelas) || 1;
+          }
+          if (compostos[1]) {
+            pag2Forma = labelPagXls(compostos[1].tipo);
+            pag2Valor = fmtValor(Number(compostos[1].valor));
+            pag2Parcelas = Number(compostos[1].parcelas) || 1;
+          }
+        } catch (_) {}
+      } else {
+        pag1Forma = labelPagXls(v.formaPagamento);
+        pag1Valor = fmtValor(Number(v.valorTotal));
+        pag1Parcelas = v.parcelas || 1;
+      }
+
+      const dataHoraVenda = new Date(v.createdAt).toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      const tipo = v.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Venda';
+      const cliente = v.cliente?.nome || '-';
+      const cpf = v.cliente?.cpfCnpj || '-';
+      const tel = v.cliente?.telefone || '-';
+      const loja = v.loja?.nomeFantasia || '-';
+      const vendedor = v.vendedor?.nome || '-';
+      const formaPag = labelPagXls(v.formaPagamento);
+      const valorBase = fmtValor(Number(v.valorBruto || v.valorTotal));
+      const valorFinal = fmtValor(Number(v.valorTotal));
+      const statusFin = v.confirmadaFinanceiro ? 'Confirmada' : 'Pendente';
+
+      const itensDaVenda = v.itens || [];
+      if (itensDaVenda.length === 0) {
+        rows.push([
+          v.id, dataHoraVenda, tipo, cliente, cpf, tel, loja, vendedor,
+          '-', '-', '-', '-', '-',
+          formaPag,
+          pag1Forma, pag1Valor, pag1Parcelas,
+          pag2Forma, pag2Valor, pag2Parcelas,
+          valorBase, valorFinal, statusFin
+        ]);
+      } else {
+        itensDaVenda.forEach((item: any) => {
+          const nomeProduto = item.produto?.nome || item.servico?.nome || '-';
+          const especificacao = item.produto?.descricao || '-';
+          const cor = item.unidadeFisica?.cor || '-';
+          const chassi = item.unidadeFisica?.chassi || '-';
+          const motor = item.unidadeFisica?.codigoMotor || '-';
+          rows.push([
+            v.id, dataHoraVenda, tipo, cliente, cpf, tel, loja, vendedor,
+            nomeProduto, especificacao, cor, chassi, motor,
+            formaPag,
+            pag1Forma, pag1Valor, pag1Parcelas,
+            pag2Forma, pag2Valor, pag2Parcelas,
+            valorBase, valorFinal, statusFin
+          ]);
+        });
+      }
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [
+      { wch: 6 }, { wch: 16 }, { wch: 9 }, { wch: 28 }, { wch: 16 }, { wch: 14 },
+      { wch: 22 }, { wch: 22 },
+      { wch: 30 }, { wch: 28 }, { wch: 12 }, { wch: 20 }, { wch: 20 },
+      { wch: 20 },
+      { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 12 },
+      { wch: 14 }, { wch: 14 }, { wch: 16 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Vendas Detalhadas');
+
+    // ── Aba 2: Resumo por Vendedor ─────────────────────────────────────────
+    const porVendedor: Record<string, { qtd: number; total: number }> = {};
+    vendas.filter(v => !v.deletedAt).forEach(v => {
+      const nome = v.vendedor?.nome || 'Sem vendedor';
+      if (!porVendedor[nome]) porVendedor[nome] = { qtd: 0, total: 0 };
+      porVendedor[nome].qtd += 1;
+      porVendedor[nome].total += Number(v.valorTotal);
+    });
+    const resumoHeaders = ['Vendedor', 'Qtd Vendas', 'Total (R$)'];
+    const resumoRows = Object.entries(porVendedor).map(([nome, d]) => [
+      nome, d.qtd, fmtValor(d.total)
+    ]);
+    const wsResumo = XLSX.utils.aoa_to_sheet([resumoHeaders, ...resumoRows]);
+    wsResumo['!cols'] = [{ wch: 28 }, { wch: 12 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo por Vendedor');
+
+    // ── Exportar ───────────────────────────────────────────────────────────
+    const dataHora = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+    XLSX.writeFile(wb, `Vendas_${dataHora}.xlsx`);
+
+    api.post('/log-atividades/acao', {
+      acao: 'EXPORTAR_EXCEL',
+      entidade: 'VENDA',
+      detalhes: `Planilha de vendas exportada — ${vendas.filter(v => !v.deletedAt).length} registros`,
+    }).catch(() => {});
   };
 
   const criarClienteRapido = async () => {
@@ -476,20 +1039,88 @@ export function Vendas() {
     return <div className="flex items-center justify-center h-64">Carregando...</div>;
   }
 
+  const vendasFiltradas = vendas.filter(v => {
+    if (filtroTipoVenda && v.tipo !== filtroTipoVenda) return false;
+    if (filtroStatusVenda === 'confirmada' && !v.confirmadaFinanceiro) return false;
+    if (filtroStatusVenda === 'pendente' && v.confirmadaFinanceiro) return false;
+    if (filtroStatusVenda === 'cancelada' && !v.deletedAt) return false;
+    if (buscaVendas) {
+      const q = buscaVendas.toLowerCase();
+      return String(v.id).includes(q) ||
+        (v.cliente?.nome || '').toLowerCase().includes(q) ||
+        (v.vendedor?.nome || '').toLowerCase().includes(q) ||
+        (v.formaPagamento || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Vendas</h1>
-        <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova Venda</button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleExportExcel}
+            disabled={vendas.length === 0}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-600/50 bg-green-900/20 text-green-400 hover:bg-green-900/40 text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+              <polyline points="14 2 14 8 20 8" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+              <line x1="8" y1="13" x2="16" y2="13" stroke="white" strokeWidth="1.5"/>
+              <line x1="8" y1="17" x2="12" y2="17" stroke="white" strokeWidth="1.5"/>
+            </svg>
+            Exportar Excel
+          </button>
+          <button onClick={() => setModalOpen(true)} className="btn btn-primary">+ Nova Venda</button>
+        </div>
       </div>
 
-      {vendas.length === 0 ? (
+      {/* Filtros de busca */}
+      <div className="flex gap-2 flex-wrap mb-4">
+        <input
+          value={buscaVendas}
+          onChange={e => setBuscaVendas(e.target.value)}
+          placeholder="🔍 Buscar cliente, vendedor, ID..."
+          className="flex-1 min-w-40 bg-[#18181b] border border-[#27272a] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500"
+        />
+        <select
+          value={filtroTipoVenda}
+          onChange={e => setFiltroTipoVenda(e.target.value)}
+          className="bg-[#18181b] border border-[#27272a] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+        >
+          <option value="">Todos os tipos</option>
+          <option value="VENDA">Venda</option>
+          <option value="ORCAMENTO">Orçamento</option>
+        </select>
+        <select
+          value={filtroStatusVenda}
+          onChange={e => setFiltroStatusVenda(e.target.value)}
+          className="bg-[#18181b] border border-[#27272a] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+        >
+          <option value="">Todos os status</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="pendente">Pendente</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+        {(buscaVendas || filtroTipoVenda || filtroStatusVenda) && (
+          <button
+            onClick={() => { setBuscaVendas(''); setFiltroTipoVenda(''); setFiltroStatusVenda(''); }}
+            className="text-xs text-zinc-500 hover:text-zinc-300 px-2 transition-colors"
+          >✕ Limpar</button>
+        )}
+      </div>
+      {(buscaVendas || filtroTipoVenda || filtroStatusVenda) && (
+        <p className="text-xs text-zinc-500 mb-3">{vendasFiltradas.length} de {vendas.length} vendas</p>
+      )}
+
+      {vendasFiltradas.length === 0 ? (
         <div className="card p-8 text-center text-gray-500">
-          Nenhuma venda encontrada
+          {vendas.length === 0 ? 'Nenhuma venda encontrada' : 'Nenhuma venda corresponde ao filtro'}
         </div>
       ) : (
         <div className="space-y-3">
-          {vendas.map(venda => (
+          {vendasFiltradas.map(venda => (
             <div key={venda.id} className="card">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3">
@@ -531,8 +1162,8 @@ export function Vendas() {
                   <p className="text-gray-300">{pagamentoLabels[venda.formaPagamento] || venda.formaPagamento}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs">Data</p>
-                  <p className="text-gray-300">{new Date(venda.createdAt).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-gray-500 text-xs">Data / Hora</p>
+                  <p className="text-gray-300">{new Date(venda.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-zinc-700 flex justify-between items-center">
@@ -639,39 +1270,55 @@ export function Vendas() {
                           };
                         })}
                       />
-                      <div className="flex gap-2 items-center">
-                        <div className="relative w-28">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="100"
-                            value={item.desconto}
-                            onChange={(e) => atualizarMoto(index, 'desconto', e.target.value)}
-                            className="input text-sm pr-8 text-yellow-400"
-                            disabled={isCartao}
-                            placeholder="0"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
+                      <div className="flex gap-3 items-end flex-wrap">
+                        {!isCartao && (
+                          <>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-xs text-zinc-500">Desconto %</span>
+                              <div className={`flex items-center w-24 bg-zinc-800 border rounded-lg focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 focus-within:border-red-500' : 'border-zinc-700 focus-within:border-orange-500'}`}>
+                                <input
+                                  type="number" step="0.1" min="0" max={maxDescontoRole}
+                                  value={item.desconto}
+                                  onChange={(e) => atualizarMoto(index, 'desconto', e.target.value)}
+                                  className={`flex-1 min-w-0 bg-transparent py-2.5 pl-3 pr-1 text-sm outline-none border-none focus:ring-0 ${parseFloat(item.desconto) > maxDescontoRole ? 'text-red-400' : 'text-yellow-400'}`}
+                                  placeholder="0"
+                                />
+                                <span className="pr-2 text-gray-500 text-xs shrink-0 select-none">%</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-xs text-zinc-500">Desconto R$</span>
+                              <div className="flex items-center w-28 bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
+                                <span className="pl-2 pr-0.5 text-gray-500 text-xs shrink-0 select-none whitespace-nowrap">-R$</span>
+                                <input
+                                  type="number" step="0.01" min="0"
+                                  value={item.descontoValor}
+                                  onChange={(e) => atualizarMoto(index, 'descontoValor', e.target.value)}
+                                  className="flex-1 min-w-0 bg-transparent py-2.5 pr-2 text-sm text-yellow-400 outline-none border-none focus:ring-0"
+                                  placeholder="0,00"
+                                />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs text-zinc-500">Preço</span>
+                          <div className="flex items-center gap-1 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-2 py-1.5">
+                            <span className="text-gray-500 text-xs">R$</span>
+                            <span className="text-green-400 text-sm font-medium">{Number(item.preco).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          </div>
                         </div>
-                        <div className="relative w-32">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={item.preco}
-                            onChange={(e) => atualizarMoto(index, 'preco', parseFloat(e.target.value) || 0)}
-                            className="input text-sm pl-8 text-green-400"
-                          />
-                        </div>
-                        <button type="button" onClick={() => removerMoto(index)} className="text-red-500 hover:text-red-400">
-                          X
-                        </button>
+                        <button type="button" onClick={() => removerMoto(index)} className="text-red-500 hover:text-red-400 font-bold mb-1">✕</button>
                       </div>
                     </div>
                     {item.produtoId && !isCartao && (
-                      <p className="text-xs text-gray-500 mt-1 ml-1">Max desconto moto: {configDescontos.descontoMaxMoto}% (Gerentes: {configDescontos.descontoMaxMoto * 2}%)</p>
+                      <div className="mt-1 ml-1">
+                        {parseFloat(item.desconto) > maxDescontoRole ? (
+                          <p className="text-xs text-red-400 font-medium">⚠ O desconto máximo permitido para este perfil é de {maxDescontoRole}%.</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">Desconto máx. para este perfil: {maxDescontoRole}%</p>
+                        )}
+                      </div>
                     )}
                     {item.produtoId && (
                       <>
@@ -754,46 +1401,68 @@ export function Vendas() {
                         };
                       })}
                     />
-                    <div className="flex gap-2 items-center">
-                      <input
-                        type="number"
-                        min="1"
-                        max={maxQtd}
-                        value={item.quantidade}
-                        onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value) || 1)}
-                        className="input w-16"
-                      />
-                      <div className="relative w-28">
+                    <div className="flex gap-3 items-end flex-wrap">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-zinc-500">Qtd.</span>
                         <input
-                          type="number"
-                          step="0.1"
-                          min="0"
-                          max="100"
-                          value={item.desconto}
-                          onChange={(e) => atualizarItem(index, 'desconto', e.target.value)}
-                          className="input text-sm pr-8 text-yellow-400"
-                          disabled={isCartao}
-                          placeholder="0"
-                        />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 text-sm">%</span>
-                      </div>
-                      <div className="relative w-28">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.preco}
-                          onChange={(e) => atualizarItem(index, 'preco', parseFloat(e.target.value) || 0)}
-                          className="input text-sm pl-8 text-green-400"
+                          type="number" min="1" max={maxQtd}
+                          value={item.quantidade}
+                          onChange={(e) => atualizarItem(index, 'quantidade', parseInt(e.target.value) || 1)}
+                          className="input w-16"
                         />
                       </div>
-                      <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400">
-                        X
-                      </button>
+                      {!isCartao && (
+                        <>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-zinc-500">Desconto %</span>
+                            <div className={`flex items-center w-24 bg-zinc-800 border rounded-lg focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors ${parseFloat(item.desconto) > maxDescontoRole ? 'border-red-500 focus-within:border-red-500' : 'border-zinc-700 focus-within:border-orange-500'}`}>
+                              <input
+                                type="number" step="0.1" min="0" max={maxDescontoRole}
+                                value={item.desconto}
+                                onChange={(e) => atualizarItem(index, 'desconto', e.target.value)}
+                                className={`flex-1 min-w-0 bg-transparent py-2.5 pl-3 pr-1 text-sm outline-none border-none focus:ring-0 ${parseFloat(item.desconto) > maxDescontoRole ? 'text-red-400' : 'text-yellow-400'}`}
+                                placeholder="0"
+                              />
+                              <span className="pr-2 text-gray-500 text-xs shrink-0 select-none">%</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-zinc-500">Desconto R$</span>
+                            <div className="flex items-center w-28 bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
+                              <span className="pl-2 pr-0.5 text-gray-500 text-xs shrink-0 select-none whitespace-nowrap">-R$</span>
+                              <input
+                                type="number" step="0.01" min="0"
+                                value={item.descontoValor}
+                                onChange={(e) => atualizarItem(index, 'descontoValor', e.target.value)}
+                                className="flex-1 min-w-0 bg-transparent py-2.5 pr-2 text-sm text-yellow-400 outline-none border-none focus:ring-0"
+                                placeholder="0,00"
+                              />
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs text-zinc-500">Preço</span>
+                        <div className="flex items-center w-28 bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
+                          <span className="pl-2 pr-0.5 text-gray-500 text-xs shrink-0 select-none">R$</span>
+                          <input
+                            type="number" step="0.01" min="0"
+                            value={item.preco}
+                            onChange={(e) => atualizarItem(index, 'preco', parseFloat(e.target.value) || 0)}
+                            className="flex-1 min-w-0 bg-transparent py-2.5 pr-2 text-sm text-green-400 outline-none border-none focus:ring-0"
+                          />
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => removerItem(index)} className="text-red-500 hover:text-red-400 font-bold mb-1">✕</button>
                     </div>
                     {item.produtoId && !isCartao && (
-                      <p className="text-xs text-gray-500 mt-1">Max desconto peca: {configDescontos.descontoMaxPeca}% (Gerentes: {configDescontos.descontoMaxPeca * 2}%)</p>
+                      <div className="mt-1">
+                        {parseFloat(item.desconto) > maxDescontoRole ? (
+                          <p className="text-xs text-red-400 font-medium">⚠ O desconto máximo permitido para este perfil é de {maxDescontoRole}%.</p>
+                        ) : (
+                          <p className="text-xs text-gray-500">Desconto máx. para este perfil: {maxDescontoRole}%</p>
+                        )}
+                      </div>
                     )}
                   </div>
                   );
@@ -802,26 +1471,243 @@ export function Vendas() {
             )}
           </div>
 
-          <div>
-            <CustomSelect
-              label="Forma de Pagamento"
-              required
-              value={form.formaPagamento}
-              onChange={(val) => setForm({ ...form, formaPagamento: val })}
-              options={[
-                { value: 'PIX', label: 'PIX' },
-                { value: 'DINHEIRO', label: 'Dinheiro' },
-                { value: 'CARTAO_DEBITO', label: 'Cartao Debito' },
-                { value: 'CARTAO_CREDITO', label: 'Cartao Credito' },
-                { value: 'FINANCIAMENTO', label: 'Financiamento' }
-              ]}
-            />
-            {isCartao && (
-              <div className="mt-2 p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg flex items-start gap-2">
-                <span className="text-blue-400 text-lg">i</span>
-                <p className="text-sm text-blue-300">
-                  Vendas no cartao nao possuem desconto. O valor sera cobrado integralmente.
-                </p>
+          {/* ── PAGAMENTO ─────────────────────────────────────────── */}
+          <div className="space-y-3">
+            <div>
+              <CustomSelect
+                label="Forma de Pagamento"
+                required
+                value={form.formaPagamento}
+                onChange={(val) => {
+                  setForm(f => ({ ...f, formaPagamento: val, parcelas: '1' }));
+                  if (val === 'COMBINADO') {
+                    const total = calcularTotal();
+                    setPagamentosCompostos([
+                      { tipo: 'PIX', valor: '', parcelas: '1', obs: '' },
+                      { tipo: 'CARTAO_CREDITO', valor: total > 0 ? total.toFixed(2) : '', parcelas: '1', obs: '' },
+                    ]);
+                  } else {
+                    setPagamentosCompostos([{ tipo: 'PIX', valor: '', parcelas: '1', obs: '' }]);
+                  }
+                }}
+                options={[
+                  { value: 'PIX', label: '💰 PIX' },
+                  { value: 'DINHEIRO', label: '💵 Dinheiro' },
+                  { value: 'CARTAO_DEBITO', label: '💳 Cartão Débito' },
+                  { value: 'CARTAO_CREDITO', label: '💳 Cartão Crédito' },
+                  { value: 'FINANCIAMENTO', label: '🏦 Financiamento' },
+                  { value: 'COMBINADO', label: '🔀 Combinado (entrada + parcelamento)' }
+                ]}
+              />
+            </div>
+
+            {/* Aviso cartão sem desconto */}
+            {isCartao && !isCombinado && (
+              <div className="p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg flex items-start gap-2">
+                <span className="text-blue-400">ℹ</span>
+                <p className="text-sm text-blue-300">Vendas no cartão não possuem desconto. O valor será cobrado integralmente.</p>
+              </div>
+            )}
+
+            {/* Parcelas para crédito/financiamento simples */}
+            {isCredito && !isCombinado && (
+              <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl p-4 space-y-3">
+                <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium">💳 Parcelamento</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex-1 min-w-32">
+                    <label className="block text-xs text-zinc-400 mb-1">Nº de Parcelas</label>
+                    <select
+                      value={form.parcelas}
+                      onChange={e => setForm(f => ({ ...f, parcelas: e.target.value }))}
+                      className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+                    >
+                      {TODAS_PARCELAS.map(n => (
+                        <option key={n} value={n}>{n}x</option>
+                      ))}
+                    </select>
+                  </div>
+                  {calcularTotal() > 0 && (() => {
+                    const n = parseInt(form.parcelas) || 1;
+                    const base = calcularTotal();
+                    const taxa = TAXAS_MAQUINA[n] ?? 0;
+                    const totalComTaxa = base * (1 + taxa);
+                    const parcela = totalComTaxa / n;
+                    return (
+                      <div className="text-right">
+                        <p className="text-xs text-zinc-500">Valor por parcela</p>
+                        <p className="text-lg font-bold text-orange-400">
+                          R$ {parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-zinc-500">
+                          Taxa: {(taxa * 100).toFixed(2)}% · Total: R$ {totalComTaxa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+                {/* Atalho: adicionar entrada */}
+                <button
+                  type="button"
+                  onClick={() => ativarCombinado('PIX')}
+                  className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 hover:border-orange-400/50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  + Adicionar entrada (PIX/Dinheiro) antes do crédito
+                </button>
+              </div>
+            )}
+
+            {/* Atalho para pagamento simples (PIX/Dinheiro): adicionar crédito */}
+            {(form.formaPagamento === 'PIX' || form.formaPagamento === 'DINHEIRO') && (
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => ativarCombinado(form.formaPagamento)}
+                  className="text-xs text-zinc-400 hover:text-orange-300 border border-zinc-700 hover:border-orange-500/40 px-3 py-1.5 rounded-lg transition-colors">
+                  🔀 Dividir: entrada + parcelar restante no crédito
+                </button>
+              </div>
+            )}
+
+            {/* COMBINADO — UI principal redesenhada */}
+            {isCombinado && (
+              <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl overflow-hidden">
+                {/* Header com total */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700 bg-zinc-800">
+                  <p className="text-sm font-semibold text-orange-400">🔀 Pagamento Combinado</p>
+                  <div className="text-right">
+                    <p className="text-xs text-zinc-500">Base da venda</p>
+                    <p className="text-xs text-zinc-400">R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">Total a pagar (c/ encargos)</p>
+                    <p className="text-sm font-bold text-orange-300">R$ {totalComEncargos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  {pagamentosCompostos.map((pag, i) => {
+                    const valorPag = parseFloat(pag.valor) || 0;
+                    const nParcelas = parseInt(pag.parcelas) || 1;
+                    // Taxa da máquina aplicada ao valor parcelado
+                    const taxaMaq = precisaParcelas(pag.tipo) ? (TAXAS_MAQUINA[nParcelas] ?? 0) : 0;
+                    const valorComTaxa = valorPag * (1 + taxaMaq);
+                    const valorParc = precisaParcelas(pag.tipo) && valorPag > 0
+                      ? valorComTaxa / nParcelas
+                      : null;
+                    // Acumulado antes deste item
+                    const acumuladoAntes = pagamentosCompostos.slice(0, i).reduce((s, p) => s + (parseFloat(p.valor) || 0), 0);
+                    const restanteParaEste = Math.max(0, calcularTotal() - acumuladoAntes);
+
+                    return (
+                      <div key={i} className={`rounded-lg border p-3 space-y-2 ${i === 0 ? 'border-blue-500/40 bg-blue-500/5' : 'border-zinc-700 bg-zinc-900/40'}`}>
+                        {/* Label da linha */}
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${i === 0 ? 'bg-blue-500/20 text-blue-300' : 'bg-zinc-700 text-zinc-400'}`}>
+                            {i === 0 ? '💰 Entrada' : `💳 Pagamento ${i + 1}`}
+                          </span>
+                          {i === 0 && pagamentosCompostos.length === 2 && restanteParaEste > 0 && (
+                            <span className="text-xs text-zinc-500">Restante: R$ {restanteParaEste.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          )}
+                          {pagamentosCompostos.length > 1 && (
+                            <button type="button" onClick={() => removePagamento(i)} className="text-red-400 hover:text-red-300 text-xs ml-auto pl-2">✕</button>
+                          )}
+                        </div>
+
+                        {/* Campos */}
+                        <div className="flex gap-2 flex-wrap items-end">
+                          {/* Tipo */}
+                          <div className="flex-1 min-w-32">
+                            <label className="block text-xs text-zinc-400 mb-1">Forma</label>
+                            <select
+                              value={pag.tipo}
+                              onChange={(e) => updatePagamento(i, 'tipo', e.target.value)}
+                              className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                            >
+                              <option value="PIX">PIX</option>
+                              <option value="DINHEIRO">Dinheiro</option>
+                              <option value="CARTAO_DEBITO">Cartão Débito</option>
+                              <option value="CARTAO_CREDITO">Cartão Crédito</option>
+                              <option value="FINANCIAMENTO">Financiamento</option>
+                            </select>
+                          </div>
+
+                          {/* Valor */}
+                          <div className="w-36">
+                            <label className="block text-xs text-zinc-400 mb-1">Valor (R$)</label>
+                            <div className="flex items-center bg-zinc-800 border border-zinc-700 rounded-lg focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500/50 transition-colors">
+                              <span className="pl-2 pr-0.5 text-zinc-500 text-xs shrink-0 select-none">R$</span>
+                              <input
+                                type="number" step="0.01" min="0"
+                                value={pag.valor}
+                                onChange={(e) => i === 0 ? updateEntrada(e.target.value) : updatePagamento(i, 'valor', e.target.value)}
+                                className="flex-1 min-w-0 bg-transparent py-1.5 pr-2 text-sm text-white outline-none border-none focus:ring-0"
+                                placeholder="0,00"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Parcelas (só crédito/financiamento) */}
+                          {precisaParcelas(pag.tipo) && (
+                            <div className="w-24">
+                              <label className="block text-xs text-zinc-400 mb-1">Parcelas</label>
+                              <select
+                                value={pag.parcelas}
+                                onChange={(e) => updatePagamento(i, 'parcelas', e.target.value)}
+                                className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-2 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                              >
+                                {TODAS_PARCELAS.map(n => (
+                                  <option key={n} value={n}>{n}x</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Simulação taxa da máquina (crédito/financiamento) */}
+                        {precisaParcelas(pag.tipo) && valorPag > 0 && (
+                          <div className="rounded-lg bg-orange-950/30 border border-orange-500/20 px-3 py-2 space-y-1">
+                            <div className="flex items-center justify-between text-xs text-zinc-400">
+                              <span>Valor financiado</span>
+                              <span className="font-medium text-white">R$ {valorPag.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-zinc-400">
+                              <span>Taxa da máquina ({nParcelas}x)</span>
+                              <span className="text-yellow-400">+{(taxaMaq * 100).toFixed(2)}%</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-zinc-400">
+                              <span>Total com encargos</span>
+                              <span className="font-medium text-white">R$ {valorComTaxa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="border-t border-orange-500/20 pt-1 flex items-center justify-between">
+                              <span className="text-xs font-semibold text-orange-300">{nParcelas}x de</span>
+                              <span className="text-base font-bold text-orange-400">R$ {valorParc!.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Botão adicionar método */}
+                  <button type="button" onClick={addPagamento}
+                    className="w-full py-2 text-xs text-zinc-400 hover:text-orange-400 border border-dashed border-zinc-700 hover:border-orange-500/40 rounded-lg transition-colors">
+                    + Adicionar outra forma de pagamento
+                  </button>
+
+                  {/* Resumo do total */}
+                  <div className="space-y-1.5">
+                    {/* Alerta só quando há diferença não distribuída */}
+                    {Math.abs(totalPagamentosCompostos - calcularTotal()) >= 0.01 && (
+                      <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/30">
+                        <span>⚠ Valor não distribuído</span>
+                        <span>faltam R$ {Math.abs(totalPagamentosCompostos - calcularTotal()).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {/* Total real com encargos */}
+                    <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                      <span className="text-xs font-semibold text-orange-300">💳 Total a pagar pelo cliente</span>
+                      <span className="text-sm font-bold text-orange-400">
+                        R$ {totalComEncargos.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -902,14 +1788,26 @@ export function Vendas() {
               <div className="flex justify-between items-center text-lg font-bold border-t border-zinc-700 pt-2">
                 <span>Total a Pagar:</span>
                 <span className="text-green-400">
-                  R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(isCombinado ? totalComEncargos : calcularTotal()).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
+              {isCombinado && totalComEncargos > calcularTotal() && (
+                <div className="flex justify-between text-xs text-zinc-500">
+                  <span>Base do produto:</span>
+                  <span>R$ {calcularTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
             </div>
           </div>
 
+          {formErro && (
+            <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-400 text-sm font-medium">
+              {formErro}
+            </div>
+          )}
+
           <div className="flex gap-2 justify-end">
-            <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
+            <button type="button" onClick={() => { setModalOpen(false); setFormErro(''); }} className="btn btn-secondary">
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -919,115 +1817,220 @@ export function Vendas() {
         </form>
       </Modal>
 
-      <Modal isOpen={viewModalOpen} onClose={() => setViewModalOpen(false)} title={vendaDetalhada?.tipo === 'ORCAMENTO' ? 'Orcamento' : 'Comprovante de Venda'}>
+      <Modal isOpen={viewModalOpen} onClose={() => setViewModalOpen(false)} title={vendaDetalhada?.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Comprovante de Venda'}>
         <div className="space-y-4">
           <div ref={printRef}>
-            <div className="header text-center mb-4 pb-4 border-b border-zinc-700">
-              <h1 className="text-xl font-bold">
-                {vendaDetalhada?.tipo === 'ORCAMENTO' ? 'ORCAMENTO' : 'COMPROVANTE DE VENDA'}
-              </h1>
-              <p className="text-gray-400">#{vendaDetalhada?.id}</p>
-              <p className="text-sm text-gray-500">{vendaDetalhada?.loja?.nomeFantasia}</p>
-            </div>
+            {/* ── Logo dinâmica baseada na loja ── */}
+            {(() => {
+              const nf = (vendaDetalhada?.loja?.nomeFantasia || '').toLowerCase();
+              const isTM = vendaDetalhada?.loja?.id === 4
+                || nf.includes('tm import') || nf.includes('importa');
+              const logo = isTM ? '/logo-tm.png' : '/logo.png';
+              const brand = isTM ? 'TM Imports' : 'Tecle Motos';
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div className="info-box">
-                <h3 className="font-semibold text-sm mb-2 text-gray-400">Cliente</h3>
-                <p className="text-white">{vendaDetalhada?.cliente?.nome}</p>
-                {vendaDetalhada?.cliente?.cpfCnpj && <p className="text-sm text-gray-400">CPF/CNPJ: {vendaDetalhada.cliente.cpfCnpj}</p>}
-                {vendaDetalhada?.cliente?.telefone && <p className="text-sm text-gray-400">Tel: {vendaDetalhada.cliente.telefone}</p>}
-              </div>
-              <div className="info-box">
-                <h3 className="font-semibold text-sm mb-2 text-gray-400">Informacoes</h3>
-                <p className="text-sm text-gray-400">Data: {vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleDateString('pt-BR') : '-'}</p>
-                <p className="text-sm text-gray-400">Vendedor: {vendaDetalhada?.vendedor?.nome}</p>
-                <p className="text-sm text-gray-400">Pagamento: {pagamentoLabels[vendaDetalhada?.formaPagamento || ''] || vendaDetalhada?.formaPagamento}</p>
-              </div>
-            </div>
+              // Cálculos de valor
+              const somaIt = (vendaDetalhada?.itens || []).reduce((acc: number, it: any) => {
+                const d = Number(it.desconto || 0);
+                return acc + Number(it.precoUnitario) * it.quantidade * (1 - d / 100);
+              }, 0);
+              const vTotal = Number(vendaDetalhada?.valorTotal || 0);
+              const encargos = vTotal > somaIt + 0.01 ? vTotal - somaIt : 0;
+              const desconto  = somaIt > vTotal + 0.01  ? somaIt - vTotal  : 0;
 
-            <table className="w-full mb-4">
-              <thead>
-                <tr className="border-b border-zinc-700">
-                  <th className="text-left p-2 text-gray-400 text-sm">Produto</th>
-                  <th className="text-center p-2 text-gray-400 text-sm">Qtd</th>
-                  <th className="text-right p-2 text-gray-400 text-sm">Valor Unit.</th>
-                  <th className="text-right p-2 text-gray-400 text-sm">Desc.</th>
-                  <th className="text-right p-2 text-gray-400 text-sm">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {vendaDetalhada?.itens?.map((item, i) => {
-                  const desc = Number(item.desconto || 0);
-                  const subtotalBruto = Number(item.precoUnitario) * item.quantidade;
-                  const subtotalFinal = subtotalBruto * (1 - desc / 100);
-                  return (
-                    <tr key={i} className="border-b border-zinc-800">
-                      <td className="p-2">{item.produto?.nome}</td>
-                      <td className="p-2 text-center">{item.quantidade}</td>
-                      <td className="p-2 text-right">R$ {Number(item.precoUnitario).toFixed(2)}</td>
-                      <td className="p-2 text-right">
-                        {desc > 0 ? (
-                          <span className="text-yellow-400 font-semibold">{desc}%</span>
-                        ) : (
-                          <span className="text-gray-600">-</span>
-                        )}
-                      </td>
-                      <td className="p-2 text-right">
-                        {desc > 0 ? (
-                          <div>
-                            <span className="text-green-400">R$ {subtotalFinal.toFixed(2)}</span>
-                            <span className="text-red-400 text-xs block">-R$ {(subtotalBruto - subtotalFinal).toFixed(2)}</span>
-                          </div>
-                        ) : (
-                          <span>R$ {subtotalBruto.toFixed(2)}</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+              // Parcelas
+              const nParcelas = vendaDetalhada?.parcelas || 1;
+              const vParcela  = nParcelas > 1 ? vTotal / nParcelas : 0;
 
-            <div className="border-t border-zinc-700 pt-4 space-y-2">
-              {vendaDetalhada?.valorBruto && vendaDetalhada.valorBruto !== vendaDetalhada.valorTotal && (
+              // Pagamentos compostos
+              let pagsComp: {tipo:string; valor:number; parcelas:number}[] = [];
+              if (vendaDetalhada?.formaPagamento === 'COMBINADO' && vendaDetalhada?.pagamentosJson) {
+                try { pagsComp = JSON.parse(vendaDetalhada.pagamentosJson); } catch (_) {}
+              }
+              const TAXAS_M: Record<number,number> = {
+                1:0.0604,2:0.0736,3:0.0799,4:0.0865,5:0.0931,6:0.0999,
+                7:0.1097,8:0.1168,9:0.1240,10:0.1314,11:0.1390,12:0.1467,
+                13:0.1606,14:0.1687,15:0.1770,16:0.1854,17:0.1941,18:0.2030
+              };
+              const labelFP = (t: string) => ({
+                PIX:'PIX', DINHEIRO:'Dinheiro', CARTAO:'Cartão', CARTAO_DEBITO:'Cartão Débito',
+                CARTAO_CREDITO:'Cartão Crédito', FINANCIAMENTO:'Financiamento',
+                BOLETO:'Boleto', COMBINADO:'Combinado'
+              }[t] || t);
+
+              return (
                 <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Subtotal:</span>
-                    <span>R$ {Number(vendaDetalhada.valorBruto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  {/* Listra + cabeçalho dark */}
+                  <div className="-mx-4 -mt-2 mb-5">
+                    <div className="flex h-[16px]">
+                      <div className="flex-[2] bg-black" />
+                      <div className="flex-[5] bg-orange-500" />
+                      <div className="flex-[1] bg-zinc-200" />
+                    </div>
+                    <div className="bg-[#111111] flex items-center justify-between px-6 py-3">
+                      <img src={logo} alt={brand} className="h-12 object-contain" />
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold tracking-[2px] text-orange-500 uppercase">
+                          {vendaDetalhada?.tipo === 'ORCAMENTO' ? 'Orçamento' : 'Comprovante de Venda'}
+                        </p>
+                        <p className="text-2xl font-black text-white leading-tight">
+                          #{vendaDetalhada?.id?.toString().padStart(5, '0')}
+                        </p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          {vendaDetalhada?.createdAt
+                            ? new Date(vendaDetalhada.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            : ''}
+                        </p>
+                        <p className="text-[12px] text-gray-300 mt-1">{vendaDetalhada?.loja?.nomeFantasia}</p>
+                      </div>
+                    </div>
+                    <div className="h-[3px] bg-orange-500" />
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Desconto ({((1 - Number(vendaDetalhada.valorTotal) / Number(vendaDetalhada.valorBruto)) * 100).toFixed(1)}%):</span>
-                    <span className="text-red-400">- R$ {(Number(vendaDetalhada.valorBruto) - Number(vendaDetalhada.valorTotal)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+
+                  {/* Cliente + Dados */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <h3 className="text-[10px] font-bold tracking-widest text-orange-500 uppercase border-b border-orange-500/40 pb-1 mb-2">Cliente</h3>
+                      <p className="font-semibold text-white">{vendaDetalhada?.cliente?.nome}</p>
+                      {vendaDetalhada?.cliente?.cpfCnpj && <p className="text-sm text-gray-400">CPF/CNPJ: {vendaDetalhada.cliente.cpfCnpj}</p>}
+                      {vendaDetalhada?.cliente?.telefone && <p className="text-sm text-gray-400">Tel: {vendaDetalhada.cliente.telefone}</p>}
+                    </div>
+                    <div>
+                      <h3 className="text-[10px] font-bold tracking-widest text-orange-500 uppercase border-b border-orange-500/40 pb-1 mb-2">Informações</h3>
+                      <p className="text-sm text-gray-400">Vendedor: <span className="text-white">{vendaDetalhada?.vendedor?.nome}</span></p>
+                      <p className="text-sm text-gray-400">Loja: <span className="text-white">{vendaDetalhada?.loja?.nomeFantasia || '-'}</span></p>
+                      <p className="text-sm text-gray-400">Data: <span className="text-white">{vendaDetalhada?.createdAt ? new Date(vendaDetalhada.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}</span></p>
+                    </div>
                   </div>
+
+                  {/* Tabela de itens */}
+                  <div className="overflow-x-auto -mx-1">
+                    <table className="w-full min-w-[400px] mb-2 text-sm">
+                      <thead>
+                        <tr className="bg-zinc-900 border-b border-zinc-700">
+                          <th className="text-left p-2 text-gray-400">Produto</th>
+                          <th className="text-center p-2 text-gray-400">Qtd</th>
+                          <th className="text-right p-2 text-gray-400">Preço Un.</th>
+                          <th className="text-right p-2 text-gray-400">Desc.</th>
+                          <th className="text-right p-2 text-gray-400">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vendaDetalhada?.itens?.map((item, i) => {
+                          const desc    = Number(item.desconto || 0);
+                          const bruto   = Number(item.precoUnitario) * item.quantidade;
+                          const final   = bruto * (1 - desc / 100);
+                          const chassi  = item.unidadeFisica?.chassi;
+                          const motor   = item.unidadeFisica?.codigoMotor;
+                          return (
+                            <tr key={i} className="border-b border-zinc-800">
+                              <td className="p-2">
+                                <div>{item.produto?.nome || item.servico?.nome || '-'}</div>
+                                {(chassi || motor) && (
+                                  <div className="text-[10px] text-zinc-500 mt-0.5 space-x-2">
+                                    {chassi && <span>Chassi: <span className="text-zinc-400">{chassi}</span></span>}
+                                    {motor  && <span>Motor: <span className="text-zinc-400">{motor}</span></span>}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-2 text-center">{item.quantidade}</td>
+                              <td className="p-2 text-right">R$ {Number(item.precoUnitario).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="p-2 text-right">
+                                {desc > 0 ? <span className="text-yellow-400 font-semibold">{desc}%</span> : <span className="text-gray-600">-</span>}
+                              </td>
+                              <td className="p-2 text-right font-semibold">R$ {final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Totais */}
+                  <div className="flex flex-col items-end border-t border-zinc-700 pt-3 gap-1">
+                    {desconto > 0.01 && (
+                      <div className="flex justify-between w-56 text-sm">
+                        <span className="text-gray-400">Desconto:</span>
+                        <span className="text-red-400">- R$ {desconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {encargos > 0.01 && (
+                      <div className="flex justify-between w-56 text-sm">
+                        <span className="text-gray-400">Encargos da máquina:</span>
+                        <span className="text-yellow-500">+ R$ {encargos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between w-56 text-lg font-bold border-t-2 border-orange-500 pt-2 mt-1">
+                      <span className="text-gray-300">Total a Pagar:</span>
+                      <span className="text-green-400">R$ {vTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {/* Destaque parcelas */}
+                    {nParcelas > 1 && vendaDetalhada?.formaPagamento !== 'COMBINADO' && (
+                      <div className="flex justify-between w-56 text-sm text-gray-400 mt-0.5">
+                        <span>{nParcelas}x de:</span>
+                        <span className="text-orange-400 font-bold">R$ {vParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Condições de pagamento */}
+                  <div className="mt-3 p-3 bg-zinc-900 border-l-4 border-orange-500 rounded-r text-sm">
+                    <p className="text-[10px] font-bold tracking-widest text-orange-500 uppercase mb-2">Condições de Pagamento</p>
+                    {vendaDetalhada?.formaPagamento === 'COMBINADO' && pagsComp.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {pagsComp.map((p, pi) => {
+                          const v  = Number(p.valor) || 0;
+                          const n  = Number(p.parcelas) || 1;
+                          const tx = (p.tipo === 'CARTAO_CREDITO' || p.tipo === 'CARTAO') ? (TAXAS_M[n] ?? 0) : 0;
+                          const total = v * (1 + tx);
+                          const porParcela = total / n;
+                          return (
+                            <div key={pi} className="flex justify-between border-b border-zinc-800 pb-1 last:border-0">
+                              <span className="text-gray-400">{labelFP(p.tipo)}</span>
+                              <span className="text-white">
+                                {n > 1
+                                  ? <>{n}x de <span className="text-orange-400 font-bold">R$ {porParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span> = R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</>
+                                  : <span className="font-semibold">R$ {v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} à vista</span>
+                                }
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">{labelFP(vendaDetalhada?.formaPagamento || '')}</span>
+                        <span className="text-white font-semibold">
+                          {nParcelas > 1
+                            ? <>{nParcelas}x de <span className="text-orange-400">R$ {vParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></>
+                            : <>R$ {vTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} à vista</>
+                          }
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Garantias */}
+                  {vendaDetalhada?.itens?.some((it: any) => it.unidadeFisicaId) && vendaDetalhada?.tipo === 'VENDA' && (
+                    <div className="mt-3 p-3 bg-zinc-900 border-l-4 border-orange-500 rounded-r text-sm">
+                      <p className="text-[10px] font-bold tracking-widest text-orange-500 uppercase mb-2">Garantias Inclusas</p>
+                      <div className="space-y-0.5 text-gray-300">
+                        <p>• Garantia Geral: 3 meses</p>
+                        <p>• Motor: 12 meses &nbsp;|&nbsp; • Módulo: 12 meses &nbsp;|&nbsp; • Bateria: 12 meses</p>
+                      </div>
+                      <p className="mt-1.5 text-xs text-gray-500">* A garantia requer revisões a cada 3 meses. A primeira revisão é gratuita.</p>
+                    </div>
+                  )}
+
+                  {/* Observações */}
+                  {vendaDetalhada?.observacoes && (
+                    <div className="mt-3 p-3 bg-zinc-900 border-l-4 border-orange-500 rounded-r text-sm">
+                      <p className="text-[10px] font-bold tracking-widest text-orange-500 uppercase mb-1">Observações</p>
+                      <p className="text-gray-300">{vendaDetalhada.observacoes}</p>
+                    </div>
+                  )}
                 </>
-              )}
-              <div className="flex justify-between text-lg font-bold">
-                <span className="text-gray-400">Total:</span>
-                <span className="text-green-400">R$ {Number(vendaDetalhada?.valorTotal || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-              </div>
-            </div>
-
-            {vendaDetalhada?.itens?.some((item: any) => item.unidadeFisicaId) && vendaDetalhada?.tipo === 'VENDA' && (
-              <div className="mt-4 p-3 bg-zinc-800 rounded text-sm">
-                <strong className="text-gray-400">Garantias:</strong>
-                <div className="mt-2 space-y-1">
-                  <p>- Garantia Geral: 3 meses</p>
-                  <p>- Garantia Motor: 12 meses</p>
-                  <p>- Garantia Modulo: 12 meses</p>
-                  <p>- Garantia Bateria: 12 meses</p>
-                </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  * A garantia requer revisoes a cada 3 meses. A primeira revisao e gratuita.
-                </p>
-              </div>
-            )}
-
-            {vendaDetalhada?.observacoes && (
-              <div className="mt-4 p-3 bg-zinc-800 rounded text-sm">
-                <strong className="text-gray-400">Observacoes:</strong>
-                <p className="mt-1">{vendaDetalhada.observacoes}</p>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           <div className="flex gap-2 justify-end border-t border-zinc-700 pt-4">

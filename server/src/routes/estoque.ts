@@ -120,18 +120,30 @@ router.post(
               },
             });
 
-            // Atualizar custo do produto se informado
-            const custoUnit = item.custo ? Number(item.custo) : (custo ? Number(custo) : 0);
-            if (custoUnit > 0) await prisma.produto.update({ where: { id: Number(produtoId) }, data: { custo: custoUnit } });
-
             // Log de estoque (origem = ENTRADA_AVULSA)
             const estoqueAtual = await prisma.estoque.findUnique({ where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } } });
             const qtdAnterior = estoqueAtual?.quantidade ?? 0;
-            await prisma.estoque.upsert({
-              where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
-              update: { quantidade: { increment: 1 } },
-              create: { produtoId: Number(produtoId), lojaId: Number(lojaId), quantidade: 1 },
-            });
+
+            // Calcular custo médio ponderado (CMP)
+            const custoUnit = item.custo ? Number(item.custo) : (custo ? Number(custo) : 0);
+            if (custoUnit > 0) {
+              const custoAnterior = estoqueAtual?.custoMedio ? Number(estoqueAtual.custoMedio) : (produto.custo ? Number(produto.custo) : 0);
+              const novoCMP = qtdAnterior === 0
+                ? custoUnit
+                : (qtdAnterior * custoAnterior + 1 * custoUnit) / (qtdAnterior + 1);
+              await prisma.produto.update({ where: { id: Number(produtoId) }, data: { custo: novoCMP } });
+              await prisma.estoque.upsert({
+                where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+                update: { quantidade: { increment: 1 }, custoMedio: novoCMP },
+                create: { produtoId: Number(produtoId), lojaId: Number(lojaId), quantidade: 1, custoMedio: novoCMP },
+              });
+            } else {
+              await prisma.estoque.upsert({
+                where: { produtoId_lojaId: { produtoId: Number(produtoId), lojaId: Number(lojaId) } },
+                update: { quantidade: { increment: 1 } },
+                create: { produtoId: Number(produtoId), lojaId: Number(lojaId), quantidade: 1 },
+              });
+            }
             await prisma.logEstoque.create({
               data: {
                 tipo: 'ENTRADA', origem: 'ENTRADA_AVULSA', produtoId: Number(produtoId), lojaId: Number(lojaId),
@@ -460,6 +472,29 @@ router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', '
   } catch (error) {
     console.error('Erro ao atualizar estoque:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ─── Remover produto do estoque (apenas qtd=0 e sem chassi em ESTOQUE) ────────
+router.delete('/:id(\\d+)', requireRole('ADMIN_GERAL'), async (req: AuthRequest, res) => {
+  try {
+    const id = Number(req.params.id);
+    const estoque = await prisma.estoque.findUnique({
+      where: { id },
+      include: { produto: true }
+    });
+    if (!estoque) return res.status(404).json({ error: 'Registro de estoque não encontrado' });
+    if (estoque.quantidade > 0) return res.status(400).json({ error: `Estoque deve estar zerado para remover. Quantidade atual: ${estoque.quantidade}` });
+
+    const chassiAtivos = await prisma.unidadeFisica.count({
+      where: { produtoId: estoque.produtoId, lojaId: estoque.lojaId, status: 'ESTOQUE' }
+    });
+    if (chassiAtivos > 0) return res.status(400).json({ error: `Existem ${chassiAtivos} chassi(s) com status ESTOQUE. Remova-os primeiro.` });
+
+    await prisma.estoque.delete({ where: { id } });
+    res.json({ sucesso: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Erro interno' });
   }
 });
 

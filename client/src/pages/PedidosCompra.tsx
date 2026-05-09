@@ -353,24 +353,84 @@ function ModalPedido({ lojas, produtos, onSave, onClose }: {
   );
 }
 
+interface ChassiRow { chassi: string; cor: string; codigoMotor: string; ano: string; }
+const emptyChassi = (): ChassiRow => ({ chassi: '', cor: '', codigoMotor: '', ano: String(new Date().getFullYear()) });
+
+function buildChassiRows(qtd: number): ChassiRow[] {
+  return Array.from({ length: qtd }, emptyChassi);
+}
+
 function DetalhesPedido({ pedido, onClose, onAction, role }: {
   pedido: PedidoCompra; onClose: () => void;
   onAction: (id: number, acao: string) => Promise<void>; role: string;
 }) {
   const [loading, setLoading] = useState('');
 
+  // Estado para chassis por item (key = itemId)
+  const [chassisMap, setChassisMap] = useState<Record<number, ChassiRow[]>>(() => {
+    const init: Record<number, ChassiRow[]> = {};
+    pedido.itens.forEach(it => {
+      if (it.produto?.tipo === 'MOTO') {
+        init[it.id] = buildChassiRows(it.quantidade);
+      }
+    });
+    return init;
+  });
+  const [expandedItem, setExpandedItem] = useState<number | null>(null);
+  const [savingChassi, setSavingChassi] = useState<number | null>(null);
+  const [chassiResultado, setChassisResultado] = useState<Record<number, any>>({});
+
   const handleAction = async (acao: string) => {
     setLoading(acao);
     try { await onAction(pedido.id, acao); } finally { setLoading(''); }
   };
 
+  function updateChassiField(itemId: number, rowIdx: number, field: keyof ChassiRow, val: string) {
+    setChassisMap(prev => {
+      const rows = [...(prev[itemId] ?? [])];
+      rows[rowIdx] = { ...rows[rowIdx], [field]: val };
+      return { ...prev, [itemId]: rows };
+    });
+  }
+
+  async function salvarChassis(item: Item & { id: number }) {
+    const rows = chassisMap[item.id] ?? [];
+    const itens = rows.map(r => ({
+      chassi: r.chassi.trim() || null,
+      cor: r.cor.trim() || null,
+      codigoMotor: r.codigoMotor.trim() || null,
+      ano: r.ano ? Number(r.ano) : new Date().getFullYear(),
+    }));
+
+    setSavingChassi(item.id);
+    setChassisResultado(prev => ({ ...prev, [item.id]: null }));
+    try {
+      const res = await api.post('/unidades/manual/lote', {
+        produtoId: item.produtoId,
+        lojaId: pedido.lojaId,
+        itens,
+      });
+      setChassisResultado(prev => ({ ...prev, [item.id]: res }));
+      // Limpar linhas salvas com sucesso
+      if ((res as any).criados > 0) {
+        setChassisMap(prev => ({ ...prev, [item.id]: buildChassiRows(item.quantidade) }));
+      }
+    } catch (e: any) {
+      setChassisResultado(prev => ({ ...prev, [item.id]: { erro: e.message } }));
+    } finally {
+      setSavingChassi(null);
+    }
+  }
+
   const canAprovar = pedido.status === 'PENDENTE' && ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA'].includes(role);
   const canConfirmar = ['PENDENTE', 'APROVADO'].includes(pedido.status) && ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', 'GERENTE_LOJA'].includes(role);
   const canCancelar = pedido.status !== 'CONFIRMADO' && pedido.status !== 'CANCELADO' && ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA'].includes(role);
+  const motoItens = pedido.itens.filter(it => it.produto?.tipo === 'MOTO');
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
         <div className="p-6 border-b border-[#27272a] flex items-center justify-between sticky top-0 bg-[#18181b] z-10">
           <div>
             <h2 className="text-lg font-bold text-white">Pedido #{pedido.id}</h2>
@@ -381,7 +441,9 @@ function DetalhesPedido({ pedido, onClose, onAction, role }: {
             <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">×</button>
           </div>
         </div>
+
         <div className="p-4 sm:p-6 space-y-5">
+          {/* Info geral */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div><span className="text-zinc-400">Fornecedor</span><p className="text-white font-medium mt-0.5">{pedido.fornecedor}</p></div>
             <div><span className="text-zinc-400">Número</span><p className="text-white font-medium mt-0.5">{pedido.numero || '—'}</p></div>
@@ -405,13 +467,19 @@ function DetalhesPedido({ pedido, onClose, onAction, role }: {
             <div className="bg-[#09090b] border border-[#27272a] rounded-lg p-3 text-sm text-zinc-300">{pedido.observacoes}</div>
           )}
 
+          {/* Itens */}
           <div>
             <h3 className="text-sm font-semibold text-zinc-300 mb-3">Itens</h3>
             <div className="space-y-2">
               {pedido.itens.map(it => (
                 <div key={it.id} className="bg-[#09090b] border border-[#27272a] rounded-lg p-3 flex items-center justify-between text-sm">
                   <div>
-                    <p className="text-white font-medium">{it.produto?.nome || `Produto #${it.produtoId}`}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-white font-medium">{it.produto?.nome || `Produto #${it.produtoId}`}</p>
+                      {it.produto?.tipo === 'MOTO' && (
+                        <span className="text-xs bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded font-medium">MOTO</span>
+                      )}
+                    </div>
                     <p className="text-zinc-400 text-xs mt-0.5">{it.quantidade} un × {fmtBRL(Number(it.valorUnitario))}</p>
                   </div>
                   <span className="text-orange-500 font-semibold">{fmtBRL(Number(it.valorTotal))}</span>
@@ -423,6 +491,123 @@ function DetalhesPedido({ pedido, onClose, onAction, role }: {
             </div>
           </div>
 
+          {/* ── Seção de Chassis (somente para itens MOTO) ─────────────────── */}
+          {motoItens.length > 0 && (
+            <div className="border border-orange-500/30 bg-orange-500/5 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 border-b border-orange-500/20 flex items-center gap-2">
+                <span className="text-orange-400 text-base">🏍️</span>
+                <h3 className="text-sm font-semibold text-orange-300">Vincular Chassis</h3>
+                <span className="text-xs text-zinc-500">— informe os dados de cada unidade MOTO deste pedido</span>
+              </div>
+
+              <div className="p-4 space-y-5">
+                {motoItens.map(it => {
+                  const isExpanded = expandedItem === it.id;
+                  const rows = chassisMap[it.id] ?? [];
+                  const resultado = chassiResultado[it.id];
+
+                  return (
+                    <div key={it.id} className="space-y-3">
+                      {/* Cabeçalho do item */}
+                      <button
+                        onClick={() => setExpandedItem(isExpanded ? null : it.id)}
+                        className="w-full flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-sm font-medium">{it.produto?.nome}</span>
+                          <span className="text-xs text-zinc-500">{it.quantidade} unidade{it.quantidade > 1 ? 's' : ''}</span>
+                        </div>
+                        <span className="text-zinc-400 text-sm">{isExpanded ? '▲' : '▼'}</span>
+                      </button>
+
+                      {/* Formulário de chassis */}
+                      {isExpanded && (
+                        <div className="space-y-3 pl-2 border-l-2 border-orange-500/30">
+                          {rows.map((row, idx) => (
+                            <div key={idx} className="bg-[#09090b] border border-[#27272a] rounded-lg p-3 space-y-2">
+                              <p className="text-xs text-zinc-500 font-medium mb-2">Unidade {idx + 1}</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs text-zinc-400 block mb-1">Chassi</label>
+                                  <Input
+                                    value={row.chassi}
+                                    onChange={e => updateChassiField(it.id, idx, 'chassi', e.target.value)}
+                                    placeholder="Ex: 9BWZZZ377VT004251"
+                                    className="text-xs font-mono"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-zinc-400 block mb-1">Cor</label>
+                                  <Input
+                                    value={row.cor}
+                                    onChange={e => updateChassiField(it.id, idx, 'cor', e.target.value)}
+                                    placeholder="Ex: Branca"
+                                    className="text-xs"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-zinc-400 block mb-1">Código Motor</label>
+                                  <Input
+                                    value={row.codigoMotor}
+                                    onChange={e => updateChassiField(it.id, idx, 'codigoMotor', e.target.value)}
+                                    placeholder="Ex: EL1500BR"
+                                    className="text-xs font-mono"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs text-zinc-400 block mb-1">Ano</label>
+                                  <Input
+                                    value={row.ano}
+                                    onChange={e => updateChassiField(it.id, idx, 'ano', e.target.value)}
+                                    placeholder={String(new Date().getFullYear())}
+                                    className="text-xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Resultado */}
+                          {resultado && (
+                            <div className={`p-3 rounded-lg text-sm ${resultado.erro ? 'bg-red-500/10 border border-red-500/30 text-red-400' : 'bg-green-500/10 border border-green-500/30'}`}>
+                              {resultado.erro ? (
+                                resultado.erro
+                              ) : (
+                                <div className="space-y-1">
+                                  {resultado.criados > 0 && <p className="text-green-400 font-medium">✓ {resultado.criados} chassi(s) vinculado(s) com sucesso</p>}
+                                  {resultado.erros > 0 && (
+                                    <div>
+                                      <p className="text-yellow-400 text-xs">{resultado.erros} erro(s):</p>
+                                      <ul className="text-xs text-zinc-400 list-disc list-inside">
+                                        {resultado.detalhesErros?.map((e: string, i: number) => <li key={i}>{e}</li>)}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Botão salvar */}
+                          <div className="flex justify-end">
+                            <Button
+                              variant="primary"
+                              onClick={() => salvarChassis(it)}
+                              disabled={savingChassi === it.id}
+                            >
+                              {savingChassi === it.id ? 'Salvando...' : `Vincular ${it.quantidade} Chassi${it.quantidade > 1 ? 's' : ''}`}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Ações */}
           <div className="flex gap-2 flex-wrap">
             {canAprovar && (
               <Button variant="secondary" onClick={() => handleAction('aprovar')} disabled={!!loading}>

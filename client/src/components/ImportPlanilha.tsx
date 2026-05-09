@@ -14,6 +14,7 @@ interface Loja {
 export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [baixandoModelo, setBaixandoModelo] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
   const [lojaId, setLojaId] = useState('');
   const [lojas, setLojas] = useState<Loja[]>([]);
@@ -22,7 +23,7 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
   const handleOpenModal = async () => {
     setModalOpen(true);
     setResultado(null);
-    
+
     if (tipo === 'unidades') {
       try {
         const response = await fetch('/api/lojas', {
@@ -35,6 +36,29 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
       } catch (e) {
         console.error('Erro ao carregar lojas:', e);
       }
+    }
+  };
+
+  const handleBaixarModelo = async () => {
+    setBaixandoModelo(true);
+    try {
+      const response = await fetch(`/api/importacao/modelo/${tipo}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('Falha ao baixar modelo');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `modelo_importacao_${tipo}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert('Erro ao baixar modelo: ' + err.message);
+    } finally {
+      setBaixandoModelo(false);
     }
   };
 
@@ -52,29 +76,19 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
 
     const formData = new FormData();
     formData.append('arquivo', file);
-    if (lojaId) {
-      formData.append('lojaId', lojaId);
-    }
+    if (lojaId) formData.append('lojaId', lojaId);
 
     try {
-      console.log('Enviando arquivo para /api/importacao/' + tipo);
       const response = await fetch(`/api/importacao/${tipo}`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: formData
       });
 
-      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
-      
+
       if (!response.ok) {
-        setResultado({
-          sucesso: false,
-          erro: data.error || 'Erro ao importar'
-        });
+        setResultado({ sucesso: false, erro: data.error || 'Erro ao importar' });
       } else {
         setResultado(data);
         if (data.importados > 0 || data.criados > 0 || data.atualizados > 0) {
@@ -82,51 +96,35 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
         }
       }
     } catch (err: any) {
-      console.error('Erro na importacao:', err);
-      setResultado({
-        sucesso: false,
-        erro: err.message || 'Erro ao importar'
-      });
+      setResultado({ sucesso: false, erro: err.message || 'Erro ao importar' });
     } finally {
       setImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const tipoLabel = {
+  const tipoLabel: Record<string, string> = {
     produtos: 'Produtos',
-    servicos: 'Servicos',
+    servicos: 'Serviços',
     unidades: 'Unidades (Motos)'
   };
 
-  const getModeloInfo = () => {
-    switch (tipo) {
-      case 'produtos':
-        return {
-          colunas: ['Codigo', 'Produto', 'Valor de Custo', '...', 'Categoria do produto (Moto/Peca)'],
-          descricao: 'Sistema gera codigo automatico (TMMOT para motos, TMPEC para pecas) e calcula preco com formula Custo / Percentual'
-        };
-      case 'servicos':
-        return {
-          colunas: ['Nome', 'Preco', 'Duracao (min)'],
-          descricao: 'Duracao em minutos (15, 30, 45, 60). Deixe vazio para servicos fixos.'
-        };
-      case 'unidades':
-        return {
-          colunas: ['Produto (nome)', 'Cor', 'Chassi', 'Motor', 'Ano'],
-          descricao: 'Gera codigo automatico (TMUNI00001) e vincula ao produto moto cadastrado.'
-        };
-      default:
-        return {
-          colunas: ['Dados'],
-          descricao: 'Importar dados'
-        };
+  const instrucoes: Record<string, { colunas: string[]; obs: string }> = {
+    produtos: {
+      colunas: ['Nome (obrigatório)', 'Tipo (Moto ou Peca)', 'Custo R$', 'Preço Venda R$', 'Margem %'],
+      obs: 'O sistema detecta MOTO ou PEÇA automaticamente pelo nome caso a coluna Tipo esteja vazia. Baixe o modelo para ver os exemplos.'
+    },
+    servicos: {
+      colunas: ['Nome (obrigatório)', 'Preço R$ (obrigatório)', 'Duração em minutos'],
+      obs: 'Duração é opcional. Ex: 30, 60, 90 minutos.'
+    },
+    unidades: {
+      colunas: ['Modelo (nome exato do produto)', 'Cor', 'Chassi', 'Motor', 'Ano'],
+      obs: 'O nome do modelo deve bater exatamente com um produto cadastrado do tipo MOTO.'
     }
   };
 
-  const modelo = getModeloInfo();
+  const info = instrucoes[tipo];
 
   return (
     <>
@@ -134,26 +132,48 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
         Importar Planilha
       </button>
 
-      <Modal 
-        isOpen={modalOpen} 
-        onClose={() => setModalOpen(false)} 
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
         title={`Importar ${tipoLabel[tipo]}`}
       >
         <div className="space-y-4">
-          <div className="p-4 bg-zinc-700 rounded-lg">
-            <h4 className="font-medium mb-2">Formato esperado da planilha:</h4>
-            <div className="text-sm text-gray-300 space-y-1">
-              <p><strong>Colunas:</strong> {modelo.colunas.join(' | ')}</p>
-              <p className="text-gray-400">{modelo.descricao}</p>
+
+          {/* Instruções + botão modelo */}
+          <div className="p-4 bg-zinc-800 border border-zinc-700 rounded-xl space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-zinc-300 mb-1">Colunas esperadas:</p>
+                <div className="flex flex-wrap gap-1">
+                  {info.colunas.map((col, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-zinc-700 text-zinc-300 text-xs rounded font-mono">
+                      {col}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-500 mt-2">{info.obs}</p>
+              </div>
+              <button
+                onClick={handleBaixarModelo}
+                disabled={baixandoModelo}
+                className="btn btn-secondary text-xs whitespace-nowrap flex items-center gap-1.5 shrink-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {baixandoModelo ? 'Baixando...' : 'Baixar Modelo'}
+              </button>
             </div>
           </div>
 
+          {/* Seletor de loja para unidades */}
           {tipo === 'unidades' && (
             <div>
               <label className="label">Loja de destino *</label>
               <select
                 value={lojaId}
-                onChange={(e) => setLojaId(e.target.value)}
+                onChange={e => setLojaId(e.target.value)}
                 className="input"
                 required
               >
@@ -165,8 +185,9 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
             </div>
           )}
 
+          {/* Upload do arquivo */}
           <div>
-            <label className="label">Arquivo (XLS, XLSX ou CSV)</label>
+            <label className="label">Arquivo preenchido (XLS, XLSX ou CSV)</label>
             <input
               ref={fileInputRef}
               type="file"
@@ -177,33 +198,55 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
             />
           </div>
 
+          {/* Status importação */}
           {importing && (
-            <div className="p-4 bg-blue-500/20 rounded-lg text-center">
-              <p className="text-blue-400">Importando... Aguarde...</p>
+            <div className="p-4 bg-blue-500/20 border border-blue-500/30 rounded-xl text-center">
+              <p className="text-blue-400 text-sm">Importando... Aguarde...</p>
             </div>
           )}
 
+          {/* Resultado */}
           {resultado && (
-            <div className={`p-4 rounded-lg ${resultado.sucesso ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+            <div className={`p-4 rounded-xl border ${resultado.sucesso ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
               {resultado.sucesso ? (
-                <div>
-                  {(resultado.criados > 0 || resultado.importados > 0) && (
-                    <p className="text-green-400 font-medium">
-                      {resultado.criados || resultado.importados} {tipoLabel[tipo].toLowerCase()} criados!
+                <div className="space-y-2">
+                  {resultado.criados > 0 && (
+                    <p className="text-green-400 font-medium text-sm">
+                      ✓ {resultado.criados} {tipoLabel[tipo].toLowerCase()} criados
+                    </p>
+                  )}
+                  {resultado.importados > 0 && (
+                    <p className="text-green-400 font-medium text-sm">
+                      ✓ {resultado.importados} {tipoLabel[tipo].toLowerCase()} importados
                     </p>
                   )}
                   {resultado.atualizados > 0 && (
-                    <p className="text-blue-400 font-medium">
-                      {resultado.atualizados} {tipoLabel[tipo].toLowerCase()} atualizados!
+                    <p className="text-blue-400 font-medium text-sm">
+                      ↻ {resultado.atualizados} {tipoLabel[tipo].toLowerCase()} atualizados
                     </p>
                   )}
                   {resultado.criados === 0 && resultado.atualizados === 0 && !resultado.importados && (
-                    <p className="text-yellow-400 font-medium">Nenhum registro processado.</p>
+                    <p className="text-yellow-400 text-sm">Nenhum registro processado.</p>
                   )}
+
+                  {/* Colunas detectadas */}
+                  {resultado.colunasDetectadas && (
+                    <div className="mt-2 pt-2 border-t border-zinc-700">
+                      <p className="text-xs text-zinc-500 mb-1">Colunas detectadas:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Object.entries(resultado.colunasDetectadas).map(([k, v]: any) => (
+                          <span key={k} className="text-xs text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded">
+                            {k}: <span className="text-zinc-300">{v}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {resultado.erros > 0 && (
-                    <div className="mt-2">
+                    <div className="mt-2 pt-2 border-t border-zinc-700">
                       <p className="text-yellow-400 text-sm">{resultado.erros} linhas com erro:</p>
-                      <ul className="text-xs text-gray-400 mt-1 list-disc list-inside">
+                      <ul className="text-xs text-zinc-400 mt-1 list-disc list-inside space-y-0.5">
                         {resultado.detalhesErros?.map((err: string, i: number) => (
                           <li key={i}>{err}</li>
                         ))}
@@ -212,7 +255,7 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
                   )}
                 </div>
               ) : (
-                <p className="text-red-400">{resultado.erro}</p>
+                <p className="text-red-400 text-sm">{resultado.erro}</p>
               )}
             </div>
           )}
