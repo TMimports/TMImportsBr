@@ -158,7 +158,7 @@ function ModalCadastroChassi({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = new Uint8Array(ev.target!.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
@@ -207,10 +207,17 @@ function ModalCadastroChassi({
                 p.codigo.toLowerCase() === nomeModelo.toLowerCase()
               );
               if (!produtoEncontrado) {
-                errosModelo.push(`Modelo "${nomeModelo}" não encontrado no sistema — chassis ignorados`);
-                continue;
+                try {
+                  const novoProd = await api.post<ProdutoMoto>('/produtos', { nome: nomeModelo, tipo: 'MOTO' });
+                  setProdutos(prev => [...prev, novoProd]);
+                  mapaGrupos[nomeModelo] = { produto: novoProd, rows: [] };
+                } catch {
+                  errosModelo.push(`Modelo "${nomeModelo}" não encontrado e não pôde ser criado — chassis ignorados`);
+                  continue;
+                }
+              } else {
+                mapaGrupos[nomeModelo] = { produto: produtoEncontrado, rows: [] };
               }
-              mapaGrupos[nomeModelo] = { produto: produtoEncontrado, rows: [] };
             }
 
             const { modeloNome: _m, ...rowSemModelo } = row;
@@ -226,17 +233,6 @@ function ModalCadastroChassi({
 
         // ── Modo SINGLE: comportamento original ──
         const novasRows: ChassiRow[] = todasRows.map(({ modeloNome: _m, ...r }) => r as ChassiRow);
-
-        // Respeita o limite de slots disponíveis
-        if (slots !== null && novasRows.length > slots.slotsDisponiveis) {
-          const cortadas = novasRows.slice(0, slots.slotsDisponiveis);
-          setImportErro(
-            `⚠️ Planilha tinha ${novasRows.length} chassis, mas só há ${slots.slotsDisponiveis} slot(s) disponível(is) no estoque. ` +
-            `Foram importados apenas os primeiros ${slots.slotsDisponiveis}.`
-          );
-          setRows(cortadas.length > 0 ? cortadas : [emptyRow()]);
-          return;
-        }
         setRows(novasRows);
       } catch {
         setImportErro('Erro ao ler a planilha. Verifique o formato do arquivo.');
@@ -310,20 +306,14 @@ function ModalCadastroChassi({
       return;
     }
 
-    if (!produtoId) { setErro('Selecione um produto'); return; }
+    if (modo === 'unitario' && !produtoId) { setErro('Selecione um produto'); return; }
+    if (modo === 'lote' && !produtoId && multiModeloGrupos === null) { setErro('Selecione um modelo ou importe uma planilha com coluna Modelo'); return; }
 
-    // Valida contra slots disponíveis
-    if (slots !== null) {
+    // Valida slots apenas no modo unitário
+    if (modo === 'unitario' && slots !== null) {
       if (slots.slotsDisponiveis === 0) {
         setErro(`Todos os ${slots.estoqueQtd} chassis já estão registrados para este produto nesta loja.`);
         return;
-      }
-      if (modo === 'lote') {
-        const qtdValidas = rows.filter(r => r.chassi.trim()).length;
-        if (qtdValidas > slots.slotsDisponiveis) {
-          setErro(`Você tentou cadastrar ${qtdValidas} chassis, mas só há ${slots.slotsDisponiveis} vaga(s) disponível(is) no estoque (${slots.estoqueQtd} no estoque − ${slots.chassisCadastrados} já cadastrados).`);
-          return;
-        }
       }
     }
 
@@ -421,8 +411,8 @@ function ModalCadastroChassi({
           {/* Produto + Loja */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <label className={lbl}>Modelo / Produto *</label>
-              <select value={produtoId} onChange={e => setProdutoId(e.target.value)} required className={inp}>
+              <label className={lbl}>Modelo / Produto {modo === 'unitario' ? '*' : ''}</label>
+              <select value={produtoId} onChange={e => setProdutoId(e.target.value)} required={modo === 'unitario'} className={inp}>
                 <option value="">Selecione o modelo...</option>
                 {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
@@ -517,8 +507,7 @@ function ModalCadastroChassi({
                   {/* Adicionar linha manual */}
                   <button type="button"
                     onClick={() => setRows(p => [...p, emptyRow()])}
-                    disabled={slots !== null && rows.length >= slots.slotsDisponiveis}
-                    className="text-xs text-orange-400 hover:text-orange-300 font-medium disabled:opacity-30 disabled:cursor-not-allowed">
+                    className="text-xs text-orange-400 hover:text-orange-300 font-medium">
                     + Linha
                   </button>
                 </div>
@@ -611,7 +600,7 @@ function ModalCadastroChassi({
               Cancelar
             </button>
             <button type="submit"
-              disabled={saving || (multiModeloGrupos === null && slots !== null && slots.slotsDisponiveis === 0)}
+              disabled={saving || (modo === 'unitario' && multiModeloGrupos === null && slots !== null && slots.slotsDisponiveis === 0)}
               className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium">
               {saving
                 ? 'Salvando...'
@@ -2771,23 +2760,11 @@ function ViewEmpresa({
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {podeGerir && (
-            <>
-              <button
-                onClick={() => setShowEntradaAvulsa(true)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-                📦 Entrada Avulsa
-              </button>
-              <button
-                onClick={() => setShowImportacaoEstoque(true)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-                📊 Importar Planilha
-              </button>
-              <button
-                onClick={() => setShowCadastroChassi(true)}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-                🏍️ Cadastrar Chassi
-              </button>
-            </>
+            <button
+              onClick={() => setShowCadastroChassi(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+              🏍️ Cadastrar Chassi
+            </button>
           )}
           {t.alertasBaixoEstoque > 0 && (
             <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-3 py-1.5 rounded-lg text-sm">
