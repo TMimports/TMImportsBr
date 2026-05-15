@@ -279,26 +279,23 @@ function ModalCadastroChassi({
       let totalCriados = 0, totalErros = 0, todosDetalhes: string[] = [];
       try {
         for (const grupo of multiModeloGrupos) {
-          const itens = grupo.rows.filter(r => r.chassi.trim()).map(r => ({
-            chassi: r.chassi.trim(),
-            cor: r.cor.trim() || null,
-            codigoMotor: r.codigoMotor.trim() || null,
-            ano: Number(r.ano) || new Date().getFullYear(),
-          }));
-          if (itens.length === 0) continue;
-          const res = await api.post<{ criados: number; erros: number; detalhesErros: string[] }>(
-            '/unidades/manual/lote',
-            {
-              produtoId: grupo.produto.id,
-              lojaId: Number(lojaIdSel),
-              itens,
-              fornecedorId: fornecedorId ? Number(fornecedorId) : null,
-              notaFiscalEntrada: notaFiscalEntrada.trim() || null,
+          const itens = grupo.rows.filter(r => r.chassi.trim());
+          for (const r of itens) {
+            try {
+              await api.post('/estoque/entrada-moto', {
+                produtoId: grupo.produto.id,
+                lojaId: Number(lojaIdSel),
+                chassi: r.chassi.trim(),
+                cor: r.cor.trim() || null,
+                codigoMotor: r.codigoMotor.trim() || null,
+                ano: Number(r.ano) || new Date().getFullYear(),
+              });
+              totalCriados++;
+            } catch (err: any) {
+              totalErros++;
+              todosDetalhes.push(`${grupo.produto.nome} / ${r.chassi}: ${err.message}`);
             }
-          );
-          totalCriados += res.criados;
-          totalErros += res.erros;
-          todosDetalhes.push(...(res.detalhesErros || []));
+          }
         }
         setResultado({ criados: totalCriados, erros: totalErros, detalhesErros: todosDetalhes });
       } catch (e: any) { setErro(e.message || 'Erro ao cadastrar'); }
@@ -322,7 +319,7 @@ function ModalCadastroChassi({
       if (modo === 'unitario') {
         const row = rows[0];
         if (!row.chassi.trim()) { setErro('Chassi obrigatório'); setSaving(false); return; }
-        await api.post('/unidades/manual', {
+        await api.post('/estoque/entrada-moto', {
           produtoId: Number(produtoId),
           lojaId: Number(lojaIdSel),
           chassi: row.chassi.trim(),
@@ -330,29 +327,30 @@ function ModalCadastroChassi({
           codigoMotor: row.codigoMotor.trim() || null,
           ano: Number(row.ano) || new Date().getFullYear(),
           custo: custo ? Number(custo.replace(',', '.')) : undefined,
-          fornecedorId: fornecedorId ? Number(fornecedorId) : null,
-          notaFiscalEntrada: notaFiscalEntrada.trim() || null,
         });
         setResultado({ criados: 1, erros: 0, detalhesErros: [] });
       } else {
-        const itens = rows.filter(r => r.chassi.trim()).map(r => ({
-          chassi: r.chassi.trim(),
-          cor: r.cor.trim() || null,
-          codigoMotor: r.codigoMotor.trim() || null,
-          ano: Number(r.ano) || new Date().getFullYear(),
-        }));
+        const itens = rows.filter(r => r.chassi.trim());
         if (itens.length === 0) { setErro('Adicione pelo menos um chassi'); setSaving(false); return; }
-        const res = await api.post<{ criados: number; erros: number; detalhesErros: string[] }>(
-          '/unidades/manual/lote',
-          {
-            produtoId: Number(produtoId),
-            lojaId: Number(lojaIdSel),
-            itens,
-            fornecedorId: fornecedorId ? Number(fornecedorId) : null,
-            notaFiscalEntrada: notaFiscalEntrada.trim() || null,
+        let criados = 0, erros = 0;
+        const detalhesErros: string[] = [];
+        for (const r of itens) {
+          try {
+            await api.post('/estoque/entrada-moto', {
+              produtoId: Number(produtoId),
+              lojaId: Number(lojaIdSel),
+              chassi: r.chassi.trim(),
+              cor: r.cor.trim() || null,
+              codigoMotor: r.codigoMotor.trim() || null,
+              ano: Number(r.ano) || new Date().getFullYear(),
+            });
+            criados++;
+          } catch (err: any) {
+            erros++;
+            detalhesErros.push(`${r.chassi}: ${err.message}`);
           }
-        );
-        setResultado(res);
+        }
+        setResultado({ criados, erros, detalhesErros });
       }
     } catch (e: any) { setErro(e.message || 'Erro ao cadastrar'); }
     finally { setSaving(false); }
