@@ -119,7 +119,11 @@ function ModalCadastroChassi({
   const [rows, setRows] = useState<ChassiRow[]>([emptyRow()]);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState('');
-  const [resultado, setResultado] = useState<{ criados: number; erros: number; detalhesErros: string[] } | null>(null);
+  const [resultado, setResultado] = useState<{ criados: number; erros: number; detalhesErros: string[]; criadosIds: number[] } | null>(null);
+  const [showDesfazer, setShowDesfazer] = useState(false);
+  const [desfazendoConfirm, setDesfazendoConfirm] = useState('');
+  const [desfazendoLoading, setDesfazendoLoading] = useState(false);
+  const [desfazendoResult, setDesfazendoResult] = useState<{ excluidos: number; bloqueados: number; detalhes: string[] } | null>(null);
   const [importErro, setImportErro] = useState('');
   const fileImportRef = useRef<HTMLInputElement>(null);
   const [slots, setSlots] = useState<{ estoqueQtd: number; chassisCadastrados: number; slotsDisponiveis: number } | null>(null);
@@ -277,12 +281,13 @@ function ModalCadastroChassi({
     if (multiModeloGrupos !== null) {
       setSaving(true); setErro('');
       let totalCriados = 0, totalErros = 0, todosDetalhes: string[] = [];
+      const totalCriadosIds: number[] = [];
       try {
         for (const grupo of multiModeloGrupos) {
           const itens = grupo.rows.filter(r => r.chassi.trim());
           for (const r of itens) {
             try {
-              await api.post('/estoque/entrada-moto', {
+              const nova = await api.post<{ id: number }>('/estoque/entrada-moto', {
                 produtoId: grupo.produto.id,
                 lojaId: Number(lojaIdSel),
                 chassi: r.chassi.trim(),
@@ -291,13 +296,14 @@ function ModalCadastroChassi({
                 ano: Number(r.ano) || new Date().getFullYear(),
               });
               totalCriados++;
+              if (nova?.id) totalCriadosIds.push(nova.id);
             } catch (err: any) {
               totalErros++;
               todosDetalhes.push(`${grupo.produto.nome} / ${r.chassi}: ${err.message}`);
             }
           }
         }
-        setResultado({ criados: totalCriados, erros: totalErros, detalhesErros: todosDetalhes });
+        setResultado({ criados: totalCriados, erros: totalErros, detalhesErros: todosDetalhes, criadosIds: totalCriadosIds });
       } catch (e: any) { setErro(e.message || 'Erro ao cadastrar'); }
       finally { setSaving(false); }
       return;
@@ -319,7 +325,7 @@ function ModalCadastroChassi({
       if (modo === 'unitario') {
         const row = rows[0];
         if (!row.chassi.trim()) { setErro('Chassi obrigatório'); setSaving(false); return; }
-        await api.post('/estoque/entrada-moto', {
+        const nova = await api.post<{ id: number }>('/estoque/entrada-moto', {
           produtoId: Number(produtoId),
           lojaId: Number(lojaIdSel),
           chassi: row.chassi.trim(),
@@ -328,15 +334,16 @@ function ModalCadastroChassi({
           ano: Number(row.ano) || new Date().getFullYear(),
           custo: custo ? Number(custo.replace(',', '.')) : undefined,
         });
-        setResultado({ criados: 1, erros: 0, detalhesErros: [] });
+        setResultado({ criados: 1, erros: 0, detalhesErros: [], criadosIds: nova?.id ? [nova.id] : [] });
       } else {
         const itens = rows.filter(r => r.chassi.trim());
         if (itens.length === 0) { setErro('Adicione pelo menos um chassi'); setSaving(false); return; }
         let criados = 0, erros = 0;
         const detalhesErros: string[] = [];
+        const criadosIds: number[] = [];
         for (const r of itens) {
           try {
-            await api.post('/estoque/entrada-moto', {
+            const nova = await api.post<{ id: number }>('/estoque/entrada-moto', {
               produtoId: Number(produtoId),
               lojaId: Number(lojaIdSel),
               chassi: r.chassi.trim(),
@@ -345,12 +352,13 @@ function ModalCadastroChassi({
               ano: Number(r.ano) || new Date().getFullYear(),
             });
             criados++;
+            if (nova?.id) criadosIds.push(nova.id);
           } catch (err: any) {
             erros++;
             detalhesErros.push(`${r.chassi}: ${err.message}`);
           }
         }
-        setResultado({ criados, erros, detalhesErros });
+        setResultado({ criados, erros, detalhesErros, criadosIds });
       }
     } catch (e: any) { setErro(e.message || 'Erro ao cadastrar'); }
     finally { setSaving(false); }
@@ -371,6 +379,70 @@ function ModalCadastroChassi({
                 {resultado.detalhesErros.map((e, i) => <li key={i}>• {e}</li>)}
               </ul>
             )}
+            {/* ── Desfazer importação ── */}
+            {resultado.criadosIds.length > 0 && !desfazendoResult && (
+              <div className="mt-4 border-t border-zinc-800 pt-4">
+                {!showDesfazer ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowDesfazer(true)}
+                    className="text-xs text-red-400 hover:text-red-300 underline"
+                  >
+                    🔙 Desfazer esta importação ({resultado.criadosIds.length} chassi{resultado.criadosIds.length > 1 ? 's' : ''})
+                  </button>
+                ) : (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 space-y-3 text-left">
+                    <p className="text-sm font-medium text-red-400">⚠️ Confirmar exclusão de {resultado.criadosIds.length} chassis</p>
+                    <p className="text-xs text-zinc-400">Chassis com venda, transferência ativa ou OS ativa serão bloqueados.</p>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-1">Digite <strong className="text-white">CONFIRMAR</strong> para prosseguir:</label>
+                      <input
+                        value={desfazendoConfirm}
+                        onChange={e => setDesfazendoConfirm(e.target.value)}
+                        placeholder="CONFIRMAR"
+                        className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-red-500"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setShowDesfazer(false); setDesfazendoConfirm(''); }}
+                        className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-2 rounded-lg text-xs"
+                      >Cancelar</button>
+                      <button
+                        type="button"
+                        disabled={desfazendoConfirm !== 'CONFIRMAR' || desfazendoLoading}
+                        onClick={async () => {
+                          setDesfazendoLoading(true);
+                          try {
+                            const r = await api.post<{ excluidos: number; bloqueados: number; detalhes: string[] }>(
+                              '/estoque/chassi/excluir-lote', { ids: resultado.criadosIds }
+                            );
+                            setDesfazendoResult(r);
+                          } catch (e: any) {
+                            setDesfazendoResult({ excluidos: 0, bloqueados: resultado.criadosIds.length, detalhes: [e.message] });
+                          } finally { setDesfazendoLoading(false); }
+                        }}
+                        className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white px-3 py-2 rounded-lg text-xs font-medium"
+                      >{desfazendoLoading ? 'Excluindo...' : 'Excluir todos'}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {desfazendoResult && (
+              <div className="mt-4 border-t border-zinc-800 pt-4 text-left">
+                <p className="text-sm font-medium text-white mb-1">Resultado da exclusão:</p>
+                <p className="text-xs text-green-400">{desfazendoResult.excluidos} chassi(s) excluído(s)</p>
+                {desfazendoResult.bloqueados > 0 && <p className="text-xs text-yellow-400">{desfazendoResult.bloqueados} bloqueado(s) por vínculo</p>}
+                {desfazendoResult.detalhes.length > 0 && (
+                  <ul className="text-xs text-zinc-400 mt-1 space-y-0.5">
+                    {desfazendoResult.detalhes.map((d, i) => <li key={i}>• {d}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3 mt-5 justify-center">
               <button onClick={onSucesso} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-medium">
                 Concluir
@@ -1299,9 +1371,10 @@ function TabUnitaria({
   const [editSaving, setEditSaving] = useState(false);
   const [editErro, setEditErro] = useState('');
   const [deletandoId, setDeletandoId] = useState<number | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<ItemUnitario | null>(null);
 
   const { user: userTabU } = useAuth();
-  const podeEditarExcluir = userTabU?.role === 'ADMIN_GERAL';
+  const podeEditarExcluir = ['ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userTabU?.role || '');
 
   function abrirEditar(u: ItemUnitario) {
     setEditandoUnidade(u);
@@ -1513,10 +1586,7 @@ function TabUnitaria({
                             className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-zinc-700/50 text-zinc-300 hover:bg-zinc-700 border-zinc-600"
                           >✏️</button>
                           <button
-                            onClick={() => {
-                              if (confirm(`Excluir chassi ${u.chassi || 'sem chassi'} de ${u.modeloNome}?\nEsta ação reduzirá o estoque em 1 unidade.`))
-                                excluirUnidade(u.id);
-                            }}
+                            onClick={() => setConfirmDeleteItem(u)}
                             disabled={deletandoId === u.id}
                             title="Excluir chassi"
                             className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20 disabled:opacity-40"
@@ -1710,6 +1780,33 @@ function TabUnitaria({
               {loteErro && <p className="text-red-400 text-xs w-full">{loteErro}</p>}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Modal de confirmação de exclusão individual ── */}
+      {confirmDeleteItem && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-red-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-white font-bold text-lg mb-1">🗑️ Excluir Chassi</h3>
+            <p className="text-zinc-300 text-sm mb-1">
+              Chassi <span className="font-mono text-white">{confirmDeleteItem.chassi || '—'}</span>
+            </p>
+            <p className="text-zinc-400 text-sm mb-4">{confirmDeleteItem.modeloNome}</p>
+            <p className="text-xs text-zinc-500 mb-5">
+              Esta ação reduzirá o estoque em 1 unidade. Chassis vinculados a venda, transferência ativa ou OS não poderão ser excluídos.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteItem(null)}
+                className="flex-1 px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-sm transition-colors"
+              >Cancelar</button>
+              <button
+                disabled={deletandoId === confirmDeleteItem.id}
+                onClick={() => { excluirUnidade(confirmDeleteItem.id); setConfirmDeleteItem(null); }}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-50"
+              >{deletandoId === confirmDeleteItem.id ? 'Excluindo...' : 'Excluir'}</button>
+            </div>
+          </div>
         </div>
       )}
 

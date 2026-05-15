@@ -577,6 +577,87 @@ router.get('/consolidado', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'), async
   }
 });
 
+// ─── EXCLUSÃO EM LOTE DE CHASSI ──────────────────────────────────────────────
+router.post('/chassi/excluir-lote', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
+  const { ids } = req.body as { ids: number[] };
+  if (!Array.isArray(ids) || ids.length === 0)
+    return res.status(400).json({ error: 'Lista de IDs obrigatória' });
+
+  let excluidos = 0, bloqueados = 0;
+  const detalhes: string[] = [];
+
+  for (const rawId of ids) {
+    const id = Number(rawId);
+    try {
+      const unidade = await prisma.unidadeFisica.findUnique({
+        where: { id },
+        include: {
+          itensVenda:     { select: { id: true } },
+          transferencias: { select: { id: true, status: true } },
+          ordensServico:  { select: { id: true, status: true } },
+        },
+      });
+
+      if (!unidade) { detalhes.push(`ID ${id}: não encontrado`); bloqueados++; continue; }
+
+      if (unidade.status === 'VENDIDA' || unidade.itensVenda.length > 0) {
+        detalhes.push(`Chassi ${unidade.chassi || id}: vinculado a venda — bloqueado`); bloqueados++; continue;
+      }
+
+      const transferAtiva = unidade.transferencias.find(t => ['SOLICITADA', 'APROVADA'].includes(t.status));
+      if (transferAtiva) {
+        detalhes.push(`Chassi ${unidade.chassi || id}: em transferência ativa — bloqueado`); bloqueados++; continue;
+      }
+
+      const osAtiva = unidade.ordensServico.find(os => os.status !== 'EXECUTADA');
+      if (osAtiva) {
+        detalhes.push(`Chassi ${unidade.chassi || id}: em OS ativa — bloqueado`); bloqueados++; continue;
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.unidadeFisica.delete({ where: { id } });
+
+        const estoque = await tx.estoque.findUnique({
+          where: { produtoId_lojaId: { produtoId: unidade.produtoId, lojaId: unidade.lojaId } },
+        });
+        const qtdAnterior = estoque?.quantidade ?? 0;
+        const qtdNova = Math.max(0, qtdAnterior - 1);
+        if (estoque) {
+          await tx.estoque.update({ where: { id: estoque.id }, data: { quantidade: qtdNova } });
+        }
+        await tx.logEstoque.create({
+          data: {
+            tipo: 'SAIDA',
+            origem: 'EXCLUSAO_MANUAL',
+            origemId: id,
+            produtoId: unidade.produtoId,
+            lojaId: unidade.lojaId,
+            quantidade: 1,
+            quantidadeAnterior: qtdAnterior,
+            quantidadeNova: qtdNova,
+            usuarioId: req.user!.id,
+          },
+        });
+        await tx.logAuditoria.create({
+          data: {
+            usuarioId: req.user!.id,
+            acao: 'EXCLUSAO_CHASSI_LOTE',
+            entidade: 'UnidadeFisica',
+            entidadeId: id,
+            dados: JSON.stringify({ chassi: unidade.chassi }),
+          },
+        });
+      });
+      excluidos++;
+    } catch {
+      detalhes.push(`ID ${id}: erro interno ao excluir`);
+      bloqueados++;
+    }
+  }
+
+  res.json({ excluidos, bloqueados, detalhes });
+});
+
 // ─── ENTRADA MANUAL DE MOTO ──────────────────────────────────────────────────
 router.post('/entrada-moto', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
   try {
