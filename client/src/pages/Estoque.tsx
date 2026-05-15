@@ -88,6 +88,269 @@ const STATUS_TRANSFERENCIA: Record<string, { label: string; cls: string }> = {
 
 const LOJA_IMPORTACAO_ID = 4;
 
+// ─── ModalCadastroChassi ───────────────────────────────────────────────────────
+
+interface ProdutoMoto { id: number; nome: string; codigo: string; }
+interface FornecedorBasico { id: number; razaoSocial: string; nomeFantasia?: string | null; }
+
+interface ChassiRow { chassi: string; cor: string; codigoMotor: string; ano: string; }
+
+const emptyRow = (): ChassiRow => ({ chassi: '', cor: '', codigoMotor: '', ano: String(new Date().getFullYear()) });
+
+function ModalCadastroChassi({
+  lojaId, lojas, isAdmin, onClose, onSucesso
+}: {
+  lojaId: number; lojas: Loja[]; isAdmin: boolean;
+  onClose: () => void; onSucesso: () => void;
+}) {
+  const [produtos, setProdutos] = useState<ProdutoMoto[]>([]);
+  const [fornecedores, setFornecedores] = useState<FornecedorBasico[]>([]);
+  const [produtoId, setProdutoId] = useState('');
+  const [lojaIdSel, setLojaIdSel] = useState(String(lojaId));
+  const [custo, setCusto] = useState('');
+  const [fornecedorId, setFornecedorId] = useState('');
+  const [notaFiscalEntrada, setNotaFiscalEntrada] = useState('');
+  const [modo, setModo] = useState<'unitario' | 'lote'>('unitario');
+  const [rows, setRows] = useState<ChassiRow[]>([emptyRow()]);
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState('');
+  const [resultado, setResultado] = useState<{ criados: number; erros: number; detalhesErros: string[] } | null>(null);
+
+  const inp = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
+  const lbl = 'block text-xs text-zinc-400 mb-1';
+
+  useEffect(() => {
+    api.get<any>('/produtos?tipo=MOTO&limit=200')
+      .then(d => {
+        const dataAny: any = d;
+        const listaProdutos = Array.isArray(dataAny) ? dataAny : dataAny?.produtos ?? [];
+        setProdutos(listaProdutos.filter((p: any) => p.tipo === 'MOTO'));
+      })
+      .catch(() => setProdutos([]));
+    api.get<any>(`/fornecedores?lojaId=${lojaIdSel}&limit=200`)
+      .then(d => {
+        const raw: any = d;
+        setFornecedores(Array.isArray(raw) ? raw : raw?.fornecedores ?? []);
+      })
+      .catch(() => setFornecedores([]));
+  }, [lojaIdSel]);
+
+  function updateRow(i: number, field: keyof ChassiRow, val: string) {
+    setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!produtoId) { setErro('Selecione um produto'); return; }
+    setSaving(true); setErro('');
+    try {
+      if (modo === 'unitario') {
+        const row = rows[0];
+        if (!row.chassi.trim()) { setErro('Chassi obrigatório'); setSaving(false); return; }
+        await api.post('/unidades/manual', {
+          produtoId: Number(produtoId),
+          lojaId: Number(lojaIdSel),
+          chassi: row.chassi.trim(),
+          cor: row.cor.trim() || null,
+          codigoMotor: row.codigoMotor.trim() || null,
+          ano: Number(row.ano) || new Date().getFullYear(),
+          custo: custo ? Number(custo.replace(',', '.')) : undefined,
+          fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+          notaFiscalEntrada: notaFiscalEntrada.trim() || null,
+        });
+        setResultado({ criados: 1, erros: 0, detalhesErros: [] });
+      } else {
+        const itens = rows.filter(r => r.chassi.trim()).map(r => ({
+          chassi: r.chassi.trim(),
+          cor: r.cor.trim() || null,
+          codigoMotor: r.codigoMotor.trim() || null,
+          ano: Number(r.ano) || new Date().getFullYear(),
+        }));
+        if (itens.length === 0) { setErro('Adicione pelo menos um chassi'); setSaving(false); return; }
+        const res = await api.post<{ criados: number; erros: number; detalhesErros: string[] }>(
+          '/unidades/manual/lote',
+          {
+            produtoId: Number(produtoId),
+            lojaId: Number(lojaIdSel),
+            itens,
+            fornecedorId: fornecedorId ? Number(fornecedorId) : null,
+            notaFiscalEntrada: notaFiscalEntrada.trim() || null,
+          }
+        );
+        setResultado(res);
+      }
+    } catch (e: any) { setErro(e.message || 'Erro ao cadastrar'); }
+    finally { setSaving(false); }
+  }
+
+  if (resultado) {
+    return (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+          <div className="text-center">
+            <p className="text-4xl mb-3">{resultado.erros === 0 ? '✅' : '⚠️'}</p>
+            <h3 className="text-lg font-bold text-white mb-2">
+              {resultado.criados} chassi(s) cadastrado(s)
+              {resultado.erros > 0 && ` · ${resultado.erros} erro(s)`}
+            </h3>
+            {resultado.detalhesErros.length > 0 && (
+              <ul className="text-xs text-red-400 mt-2 text-left space-y-1">
+                {resultado.detalhesErros.map((e, i) => <li key={i}>• {e}</li>)}
+              </ul>
+            )}
+            <div className="flex gap-3 mt-5 justify-center">
+              <button onClick={onSucesso} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg text-sm font-medium">
+                Concluir
+              </button>
+              {resultado.erros > 0 && (
+                <button onClick={() => setResultado(null)} className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm">
+                  Cadastrar mais
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-white">🏍️ Cadastrar Chassi</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">✕</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Modo */}
+          <div className="flex gap-2">
+            {(['unitario', 'lote'] as const).map(m => (
+              <button key={m} type="button" onClick={() => { setModo(m); setRows([emptyRow()]); }}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${modo === m ? 'bg-orange-500 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
+                {m === 'unitario' ? '1️⃣ Unitário' : '📋 Lote (vários)'}
+              </button>
+            ))}
+          </div>
+
+          {/* Produto + Loja */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className={lbl}>Modelo / Produto *</label>
+              <select value={produtoId} onChange={e => setProdutoId(e.target.value)} required className={inp}>
+                <option value="">Selecione o modelo...</option>
+                {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </select>
+            </div>
+            {isAdmin && (
+              <div className="sm:col-span-2">
+                <label className={lbl}>Loja *</label>
+                <select value={lojaIdSel} onChange={e => setLojaIdSel(e.target.value)} className={inp}>
+                  {lojas.map(l => <option key={l.id} value={l.id}>{l.nomeFantasia}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Origem / Fornecedor */}
+          <div className="border border-zinc-800 rounded-lg p-4 space-y-3">
+            <p className="text-xs text-zinc-400 uppercase tracking-wide font-medium">📦 Origem do Produto</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className={lbl}>Fornecedor</label>
+                <select value={fornecedorId} onChange={e => setFornecedorId(e.target.value)} className={inp}>
+                  <option value="">Selecione o fornecedor...</option>
+                  {fornecedores.map(f => (
+                    <option key={f.id} value={f.id}>
+                      {f.nomeFantasia ? `${f.nomeFantasia} (${f.razaoSocial})` : f.razaoSocial}
+                    </option>
+                  ))}
+                </select>
+                {fornecedores.length === 0 && (
+                  <p className="text-xs text-zinc-500 mt-1">Nenhum fornecedor cadastrado nesta loja</p>
+                )}
+              </div>
+              <div>
+                <label className={lbl}>Nota Fiscal de Entrada</label>
+                <input value={notaFiscalEntrada} onChange={e => setNotaFiscalEntrada(e.target.value)}
+                  placeholder="Ex: NF-e 001234" className={inp} />
+              </div>
+              {modo === 'unitario' && (
+                <div>
+                  <label className={lbl}>Custo de Aquisição (R$)</label>
+                  <input value={custo} onChange={e => setCusto(e.target.value)} placeholder="0,00" className={inp} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Linhas de chassi */}
+          <div className="border-t border-zinc-800 pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-zinc-400 uppercase tracking-wide">
+                {modo === 'unitario' ? 'Dados do Chassi' : `${rows.length} chassi(s) — clique em + para adicionar`}
+              </p>
+              {modo === 'lote' && (
+                <button type="button" onClick={() => setRows(p => [...p, emptyRow()])}
+                  className="text-xs text-orange-400 hover:text-orange-300 font-medium">
+                  + Adicionar linha
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {rows.map((row, i) => (
+                <div key={i} className="grid grid-cols-4 gap-2 items-start">
+                  <div className="col-span-2">
+                    <label className={lbl}>Chassi {modo === 'unitario' ? '*' : ''}</label>
+                    <input value={row.chassi} onChange={e => updateRow(i, 'chassi', e.target.value)}
+                      placeholder="9C2HBxxxxx..." className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Cor</label>
+                    <input value={row.cor} onChange={e => updateRow(i, 'cor', e.target.value)}
+                      placeholder="Preto" className={inp} />
+                  </div>
+                  <div>
+                    <label className={lbl}>Ano</label>
+                    <input value={row.ano} onChange={e => updateRow(i, 'ano', e.target.value)}
+                      type="number" min="2000" max="2030" className={inp} />
+                  </div>
+                  <div className="col-span-3">
+                    <label className={lbl}>Cód. Motor</label>
+                    <input value={row.codigoMotor} onChange={e => updateRow(i, 'codigoMotor', e.target.value)}
+                      placeholder="Código do motor" className={inp} />
+                  </div>
+                  {modo === 'lote' && rows.length > 1 && (
+                    <div className="flex items-end pb-0.5">
+                      <button type="button" onClick={() => setRows(p => p.filter((_, idx) => idx !== i))}
+                        className="w-full py-2 text-red-400 hover:text-red-300 bg-red-500/10 rounded-lg text-xs">
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {erro && <p className="text-red-400 text-sm">{erro}</p>}
+
+          <div className="flex gap-2 justify-end pt-2 border-t border-zinc-800">
+            <button type="button" onClick={onClose} className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg text-sm">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-2 rounded-lg text-sm font-medium">
+              {saving ? 'Salvando...' : modo === 'unitario' ? 'Cadastrar Chassi' : `Cadastrar ${rows.filter(r => r.chassi.trim()).length} Chassi(s)`}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── KpiBlock ─────────────────────────────────────────────────────────────────
 
 function KpiBlock({ label, value, sub, color }: { label: string; value: React.ReactNode; sub?: string; color?: string }) {
@@ -1057,150 +1320,6 @@ function TabMovimentacao({ logs }: { logs: LogEstoque[] }) {
   );
 }
 
-// ─── ModalEntradaMoto ─────────────────────────────────────────────────────────
-
-interface ProdutoMoto { id: number; nome: string; }
-
-function ModalEntradaMoto({ lojaId, lojas, onClose, onSaved }: {
-  lojaId?: number | null;
-  lojas?: Loja[];
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [produtos, setProdutos] = useState<ProdutoMoto[]>([]);
-  const [form, setForm] = useState({
-    produtoId: '', lojaIdSel: lojaId ? String(lojaId) : '', cor: '', chassi: '', codigoMotor: '',
-    ano: String(new Date().getFullYear()), custo: '', precoVenda: '',
-  });
-  const [saving, setSaving] = useState(false);
-  const [erro, setErro] = useState('');
-
-  useEffect(() => {
-    api.get<any[]>('/produtos')
-      .then(data => setProdutos(
-        data.filter((p: any) => p.tipo === 'MOTO').map((p: any) => ({ id: p.id, nome: p.nome }))
-      ))
-      .catch(() => setProdutos([]));
-  }, []);
-
-  function set(field: string, value: string) {
-    setForm(f => ({ ...f, [field]: value }));
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const destinoLojaId = lojaId ?? Number(form.lojaIdSel);
-    if (!form.produtoId || !form.chassi.trim() || !destinoLojaId) {
-      setErro('Produto, chassi e empresa de destino são obrigatórios');
-      return;
-    }
-    setSaving(true);
-    setErro('');
-    try {
-      await api.post('/estoque/entrada-moto', {
-        produtoId: Number(form.produtoId),
-        lojaId: destinoLojaId,
-        chassi: form.chassi.trim(),
-        codigoMotor: form.codigoMotor.trim() || null,
-        cor: form.cor.trim() || null,
-        ano: form.ano ? Number(form.ano) : new Date().getFullYear(),
-        custo: form.custo ? Number(form.custo) : undefined,
-        precoVenda: form.precoVenda ? Number(form.precoVenda) : undefined,
-      });
-      onSaved();
-    } catch (e: any) {
-      setErro(e?.message || 'Erro ao cadastrar moto');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#18181b] border border-[#27272a] rounded-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-[#27272a]">
-          <h2 className="text-white font-semibold text-base">+ Entrada de Moto</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white text-lg leading-none">✕</button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {!lojaId && lojas && lojas.length > 0 && (
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Empresa / Loja de Destino *</label>
-              <Select value={form.lojaIdSel} onChange={e => set('lojaIdSel', e.target.value)} required>
-                <option value="">Selecione a empresa...</option>
-                {lojas.map(l => (
-                  <option key={l.id} value={l.id}>
-                    {l.id === LOJA_IMPORTACAO_ID ? `🏭 ${l.nomeFantasia}` : `🏪 ${l.nomeFantasia}`}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
-          <div>
-            <label className="text-xs text-zinc-400 block mb-1">Modelo / Produto *</label>
-            <Select value={form.produtoId} onChange={e => set('produtoId', e.target.value)} required>
-              <option value="">Selecione o modelo...</option>
-              {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </Select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Cor</label>
-              <Input value={form.cor} onChange={e => set('cor', e.target.value)} placeholder="Ex: Vermelho" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Ano</label>
-              <Input type="number" value={form.ano} onChange={e => set('ano', e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs text-zinc-400 block mb-1">Chassi *</label>
-            <Input
-              value={form.chassi}
-              onChange={e => set('chassi', e.target.value.toUpperCase())}
-              placeholder="Ex: 9C2JC5110SR000001"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-xs text-zinc-400 block mb-1">Código do Motor</label>
-            <Input
-              value={form.codigoMotor}
-              onChange={e => set('codigoMotor', e.target.value.toUpperCase())}
-              placeholder="Ex: JC51E-1234567"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Custo (R$)</label>
-              <Input type="number" step="0.01" min="0" value={form.custo} onChange={e => set('custo', e.target.value)} placeholder="0,00" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-400 block mb-1">Preço Venda (R$)</label>
-              <Input type="number" step="0.01" min="0" value={form.precoVenda} onChange={e => set('precoVenda', e.target.value)} placeholder="0,00" />
-            </div>
-          </div>
-          {erro && <p className="text-red-400 text-sm">{erro}</p>}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button" onClick={onClose}
-              className="flex-1 py-2 rounded-lg border border-[#27272a] text-zinc-400 hover:text-white text-sm transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit" disabled={saving}
-              className="flex-1 py-2 rounded-lg bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white text-sm font-medium transition-colors"
-            >
-              {saving ? 'Salvando...' : 'Cadastrar'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 // ─── TabSolicitacoes ──────────────────────────────────────────────────────────
 
 function TabSolicitacoes({
@@ -1347,24 +1466,17 @@ function TabSolicitacoes({
 
 // ─── View Consolidada (Admin) ─────────────────────────────────────────────────
 
-function ViewConsolidada({ onSelectEmpresa, lojas, canEntrarMoto }: {
-  onSelectEmpresa: (lojaId: number) => void;
-  lojas: Loja[];
-  canEntrarMoto: boolean;
-}) {
+function ViewConsolidada({ onSelectEmpresa }: { onSelectEmpresa: (lojaId: number) => void; }) {
   const [data, setData] = useState<ConsolidadoResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
-  const [modalEntrada, setModalEntrada] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
     api.get<ConsolidadoResponse>('/estoque/consolidado')
       .then(d => setData(d && d.totais ? d : null))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [refreshKey]);
+  }, []);
 
   const empresas = useMemo(() => {
     if (!data) return [];
@@ -1381,31 +1493,13 @@ function ViewConsolidada({ onSelectEmpresa, lojas, canEntrarMoto }: {
 
   return (
     <div className="space-y-6">
-      {modalEntrada && (
-        <ModalEntradaMoto
-          lojas={lojas}
-          onClose={() => setModalEntrada(false)}
-          onSaved={() => { setModalEntrada(false); setRefreshKey(k => k + 1); }}
-        />
-      )}
-
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 flex-1">
-          <KpiBlock label="Empresas" value={t.totalEmpresas} color="text-white" />
-          <KpiBlock label="Motos" value={t.totalMotos} color="text-orange-400" />
-          <KpiBlock label="Peças" value={t.totalPecas} color="text-blue-400" />
-          <KpiBlock label="Custo Total" value={fmtBRL(t.valorTotalCusto)} color="text-zinc-200" />
-          <KpiBlock label="Valor Venda" value={fmtBRL(t.valorTotalVenda)} color="text-green-400" />
-          <KpiBlock label="Alertas" value={t.totalAlertas} color={t.totalAlertas > 0 ? 'text-yellow-400' : 'text-zinc-400'} />
-        </div>
-        {canEntrarMoto && (
-          <button
-            onClick={() => setModalEntrada(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500/30 text-sm font-medium transition-colors whitespace-nowrap"
-          >
-            + Entrada de Moto
-          </button>
-        )}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <KpiBlock label="Empresas" value={t.totalEmpresas} color="text-white" />
+        <KpiBlock label="Motos" value={t.totalMotos} color="text-orange-400" />
+        <KpiBlock label="Peças" value={t.totalPecas} color="text-blue-400" />
+        <KpiBlock label="Custo Total" value={fmtBRL(t.valorTotalCusto)} color="text-zinc-200" />
+        <KpiBlock label="Valor Venda" value={fmtBRL(t.valorTotalVenda)} color="text-green-400" />
+        <KpiBlock label="Alertas" value={t.totalAlertas} color={t.totalAlertas > 0 ? 'text-yellow-400' : 'text-zinc-400'} />
       </div>
 
       <Card className="p-4">
@@ -1469,6 +1563,305 @@ function ViewConsolidada({ onSelectEmpresa, lojas, canEntrarMoto }: {
   );
 }
 
+// ─── Modal Entrada Avulsa ─────────────────────────────────────────────────────
+
+interface ProdutoSimples { id: number; nome: string; tipo: string; codigo: string; }
+interface EntradaChassiRow { chassi: string; cor: string; ano: string; custo: string; }
+
+function ModalEntradaAvulsa({
+  lojaId, lojas, isAdmin, onClose, onSucesso,
+}: {
+  lojaId: number; lojas: Loja[]; isAdmin: boolean;
+  onClose: () => void; onSucesso: () => void;
+}) {
+  const inp  = 'w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 placeholder-zinc-500';
+  const lbl  = 'block text-xs text-zinc-400 mb-1';
+
+  const [produtos, setProdutos]     = useState<ProdutoSimples[]>([]);
+  const [produtoId, setProdutoId]   = useState('');
+  const [lojaDestino, setLojaDestino] = useState(String(lojaId));
+  const [quantidade, setQuantidade] = useState('1');
+  const [custo, setCusto]           = useState('');
+  const [fornecedor, setFornecedor] = useState('');
+  const [nfEntrada, setNfEntrada]   = useState('');
+  const [observacao, setObservacao] = useState('');
+  const [chassis, setChassis]       = useState<EntradaChassiRow[]>([{ chassi: '', cor: '', ano: String(new Date().getFullYear()), custo: '' }]);
+  const [saving, setSaving]         = useState(false);
+  const [erro, setErro]             = useState('');
+  const [resultado, setResultado]   = useState<any>(null);
+
+  useEffect(() => {
+    api.get<ProdutoSimples[]>('/produtos').then(d => setProdutos(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+
+  const produtoSel = produtos.find(p => String(p.id) === produtoId);
+  const isMoto = produtoSel?.tipo === 'MOTO';
+
+  const addChassi = () => setChassis(prev => [...prev, { chassi: '', cor: '', ano: String(new Date().getFullYear()), custo: '' }]);
+  const removeChassi = (i: number) => setChassis(prev => prev.filter((_, idx) => idx !== i));
+  const updateChassi = (i: number, field: keyof EntradaChassiRow, val: string) =>
+    setChassis(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r));
+
+  const handleSubmit = async () => {
+    if (!produtoId) { setErro('Selecione um produto'); return; }
+    if (!lojaDestino) { setErro('Selecione a loja de destino'); return; }
+    if (isMoto && chassis.filter(r => r.chassi.trim()).length === 0) { setErro('Informe ao menos um chassi'); return; }
+    if (!isMoto && (!quantidade || Number(quantidade) < 1)) { setErro('Informe uma quantidade válida'); return; }
+
+    setSaving(true); setErro('');
+    try {
+      const body: any = {
+        produtoId: Number(produtoId),
+        lojaId: Number(lojaDestino),
+        tipo: isMoto ? 'MOTO' : 'PECA',
+        custo: custo ? Number(custo.replace(',', '.')) : undefined,
+        notaFiscalEntrada: nfEntrada || undefined,
+        observacao: observacao || undefined,
+      };
+      if (isMoto) {
+        body.chassis = chassis.filter(r => r.chassi.trim()).map(r => ({
+          chassi: r.chassi.trim(), cor: r.cor.trim() || undefined,
+          ano: r.ano ? Number(r.ano) : undefined,
+          custo: r.custo ? Number(r.custo.replace(',', '.')) : undefined,
+        }));
+      } else {
+        body.quantidade = Number(quantidade);
+      }
+
+      const res: any = await api.post('/estoque/entrada-avulsa', body);
+      setResultado(res);
+    } catch (e: any) {
+      setErro(e.message || 'Erro ao registrar entrada');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-zinc-800 sticky top-0 bg-zinc-900 z-10">
+          <h2 className="text-lg font-bold text-white">📦 Entrada Avulsa de Estoque</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">×</button>
+        </div>
+
+        {resultado ? (
+          <div className="p-6 space-y-4">
+            <div className="bg-green-900/30 border border-green-700/40 rounded-xl p-4 text-center">
+              <p className="text-green-400 font-semibold text-lg mb-1">✓ Entrada registrada com sucesso!</p>
+              {isMoto && <p className="text-zinc-300 text-sm">{resultado.criados} chassi(s) cadastrado(s)</p>}
+              {!isMoto && <p className="text-zinc-300 text-sm">{resultado.quantidade} unidade(s) adicionada(s) ao estoque</p>}
+              {resultado.erros?.length > 0 && (
+                <div className="mt-3 text-left">
+                  <p className="text-yellow-400 text-xs font-medium mb-1">Avisos:</p>
+                  {resultado.erros.map((e: string, i: number) => <p key={i} className="text-red-400 text-xs">{e}</p>)}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={onSucesso} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-medium text-sm">Fechar e Atualizar</button>
+              <button onClick={() => setResultado(null)} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg text-sm">Nova Entrada</button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Produto *</label>
+                <select value={produtoId} onChange={e => setProdutoId(e.target.value)} className={inp}>
+                  <option value="">Selecione o produto</option>
+                  {['MOTO', 'PECA'].map(t => (
+                    <optgroup key={t} label={t === 'MOTO' ? '🏍️ Motos' : '🔧 Peças'}>
+                      {produtos.filter(p => p.tipo === t).map(p => <option key={p.id} value={p.id}>{p.nome} ({p.codigo})</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              {isAdmin ? (
+                <div>
+                  <label className={lbl}>Loja de Destino *</label>
+                  <select value={lojaDestino} onChange={e => setLojaDestino(e.target.value)} className={inp}>
+                    {lojas.map(l => <option key={l.id} value={l.id}>{l.nomeFantasia}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className={lbl}>Loja de Destino</label>
+                  <input readOnly value={lojas.find(l => l.id === lojaId)?.nomeFantasia ?? ''} className={inp + ' opacity-60 cursor-not-allowed'} />
+                </div>
+              )}
+            </div>
+
+            {produtoSel && (
+              <div className="bg-zinc-800/50 rounded-lg px-4 py-2 text-xs text-zinc-400 flex gap-4">
+                <span>Tipo: <span className={isMoto ? 'text-orange-400' : 'text-blue-400'}>{isMoto ? '🏍️ Moto' : '🔧 Peça'}</span></span>
+                <span>Código: <span className="text-zinc-300 font-mono">{produtoSel.codigo}</span></span>
+              </div>
+            )}
+
+            {produtoSel && !isMoto && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={lbl}>Quantidade *</label>
+                  <input type="number" min="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} className={inp} placeholder="1" />
+                </div>
+                <div>
+                  <label className={lbl}>Custo Unitário (R$)</label>
+                  <input type="text" value={custo} onChange={e => setCusto(e.target.value)} className={inp} placeholder="0,00" />
+                </div>
+              </div>
+            )}
+
+            {produtoSel && isMoto && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-zinc-300">Chassis a cadastrar</label>
+                  <button onClick={addChassi} className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 px-2 py-1 rounded">+ Adicionar Chassi</button>
+                </div>
+                {chassis.map((row, i) => (
+                  <div key={i} className="bg-zinc-800/50 rounded-lg p-3 grid grid-cols-4 gap-2 relative">
+                    <div>
+                      <label className={lbl}>Chassi</label>
+                      <input value={row.chassi} onChange={e => updateChassi(i, 'chassi', e.target.value)} className={inp} placeholder="9C2..." />
+                    </div>
+                    <div>
+                      <label className={lbl}>Cor</label>
+                      <input value={row.cor} onChange={e => updateChassi(i, 'cor', e.target.value)} className={inp} placeholder="Preto" />
+                    </div>
+                    <div>
+                      <label className={lbl}>Ano</label>
+                      <input type="number" value={row.ano} onChange={e => updateChassi(i, 'ano', e.target.value)} className={inp} placeholder="2024" />
+                    </div>
+                    <div>
+                      <label className={lbl}>Custo (R$)</label>
+                      <input value={row.custo} onChange={e => updateChassi(i, 'custo', e.target.value)} className={inp} placeholder="0,00" />
+                    </div>
+                    {chassis.length > 1 && (
+                      <button onClick={() => removeChassi(i)} className="absolute top-2 right-2 text-red-400 hover:text-red-300 text-xs">✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>Nota Fiscal de Entrada</label>
+                <input value={nfEntrada} onChange={e => setNfEntrada(e.target.value)} className={inp} placeholder="NFe 12345..." />
+              </div>
+              <div>
+                <label className={lbl}>Fornecedor (opcional)</label>
+                <input value={fornecedor} onChange={e => setFornecedor(e.target.value)} className={inp} placeholder="Nome do fornecedor" />
+              </div>
+            </div>
+            <div>
+              <label className={lbl}>Observações</label>
+              <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={2} className={inp + ' resize-none'} placeholder="Motivo da entrada avulsa..." />
+            </div>
+
+            {erro && <p className="text-red-400 text-sm">{erro}</p>}
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={onClose} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg text-sm">Cancelar</button>
+              <button onClick={handleSubmit} disabled={saving || !produtoId}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2.5 rounded-lg font-medium text-sm">
+                {saving ? 'Salvando...' : '✓ Registrar Entrada'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Modal Importação de Estoque via Planilha ──────────────────────────────────
+
+function ModalImportacaoEstoque({ onClose, onSucesso }: { onClose: () => void; onSucesso: () => void; }) {
+  const [arquivo, setArquivo]   = useState<File | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [resultado, setResultado] = useState<any>(null);
+  const [erro, setErro]         = useState('');
+
+  const handleUpload = async () => {
+    if (!arquivo) { setErro('Selecione um arquivo'); return; }
+    setLoading(true); setErro('');
+    try {
+      const formData = new FormData();
+      formData.append('arquivo', arquivo);
+      const res = await fetch('/api/importacao/estoque', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData,
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erro ao importar'); }
+      setResultado(await res.json());
+    } catch (e: any) {
+      setErro(e.message || 'Erro ao importar planilha');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between p-5 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-white">📊 Importar Planilha de Estoque</h2>
+          <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl">×</button>
+        </div>
+        <div className="p-5 space-y-4">
+          {!resultado ? (
+            <>
+              <div className="bg-zinc-800/50 rounded-lg p-4 text-xs text-zinc-400 space-y-1">
+                <p className="font-medium text-zinc-300 mb-2">Formato esperado (colunas no cabeçalho):</p>
+                <p>• <span className="text-orange-400">Modelo</span> — nome do produto/modelo (obrigatório)</p>
+                <p>• <span className="text-orange-400">Estoque</span> — nome da loja/unidade de destino (obrigatório)</p>
+                <p>• Cor, CIF/Custo, Chassi, Quantidade (opcionais)</p>
+                <p className="mt-2 text-zinc-500">Exemplos de nomes de loja: "TM Recreio", "TM Campo Grande", "TM Importação"</p>
+                <p className="text-zinc-500">Valores monetários: R$ 7.000,00 | 7000 | 7.000,00</p>
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1">Arquivo (.xlsx, .xls, .csv)</label>
+                <input type="file" accept=".xlsx,.xls,.csv"
+                  onChange={e => { setArquivo(e.target.files?.[0] ?? null); setErro(''); }}
+                  className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-orange-500 file:text-white cursor-pointer" />
+              </div>
+              {erro && <p className="text-red-400 text-sm">{erro}</p>}
+              <div className="flex gap-3">
+                <button onClick={onClose} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg text-sm">Cancelar</button>
+                <button onClick={handleUpload} disabled={loading || !arquivo}
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2.5 rounded-lg font-medium text-sm">
+                  {loading ? 'Importando...' : '📥 Importar'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className={`rounded-xl p-4 ${resultado.erros > 0 ? 'bg-yellow-900/20 border border-yellow-700/30' : 'bg-green-900/20 border border-green-700/30'}`}>
+                <p className={`font-semibold mb-3 ${resultado.erros > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                  {resultado.erros > 0 ? '⚠ Importação concluída com avisos' : '✓ Importação concluída!'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="bg-zinc-800/50 rounded p-2"><p className="text-zinc-400 text-xs">Total de linhas</p><p className="text-white font-bold">{resultado.totalLinhas}</p></div>
+                  <div className="bg-zinc-800/50 rounded p-2"><p className="text-zinc-400 text-xs">Entradas lançadas</p><p className="text-green-400 font-bold">{resultado.entradasLancadas}</p></div>
+                  <div className="bg-zinc-800/50 rounded p-2"><p className="text-zinc-400 text-xs">Produtos criados</p><p className="text-orange-400 font-bold">{resultado.produtosCriados}</p></div>
+                  <div className="bg-zinc-800/50 rounded p-2"><p className="text-zinc-400 text-xs">Erros</p><p className="text-red-400 font-bold">{resultado.erros}</p></div>
+                </div>
+                {resultado.detalhesErros?.length > 0 && (
+                  <div className="mt-3 max-h-32 overflow-y-auto space-y-1">
+                    {resultado.detalhesErros.map((e: string, i: number) => <p key={i} className="text-red-400 text-xs">{e}</p>)}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={onSucesso} className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-medium text-sm">Fechar e Atualizar</button>
+                <button onClick={() => setResultado(null)} className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white py-2.5 rounded-lg text-sm">Nova Importação</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── View por Empresa ─────────────────────────────────────────────────────────
 
 type EmpresaTab = 'gerencial' | 'unitaria' | 'movimentacao' | 'solicitacoes';
@@ -1485,16 +1878,17 @@ function ViewEmpresa({
   lojas: Loja[];
   verCustos: boolean;
 }) {
-  const { user: userVE } = useAuth();
   const [data, setData] = useState<EmpresaDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<EmpresaTab>('gerencial');
   const [busca, setBusca] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [modalEntrada, setModalEntrada] = useState(false);
+  const [showCadastroChassi, setShowCadastroChassi]       = useState(false);
+  const [showEntradaAvulsa, setShowEntradaAvulsa]         = useState(false);
+  const [showImportacaoEstoque, setShowImportacaoEstoque] = useState(false);
   const isOutraLoja = minhaLojaId !== null && lojaId !== minhaLojaId;
-  const podeEntrarMoto = !isOutraLoja && ['ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userVE?.role || '');
+  const podeGerir = !isOutraLoja; // pode cadastrar chassi nesta loja
 
   useEffect(() => {
     setLoading(true);
@@ -1550,29 +1944,32 @@ function ViewEmpresa({
           <p className="text-xs text-zinc-500 mt-0.5">Grupo: {e.grupoNome}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {podeGerir && (
+            <>
+              <button
+                onClick={() => setShowEntradaAvulsa(true)}
+                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+                📦 Entrada Avulsa
+              </button>
+              <button
+                onClick={() => setShowImportacaoEstoque(true)}
+                className="bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+                📊 Importar Planilha
+              </button>
+              <button
+                onClick={() => setShowCadastroChassi(true)}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+                🏍️ Cadastrar Chassi
+              </button>
+            </>
+          )}
           {t.alertasBaixoEstoque > 0 && (
             <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-3 py-1.5 rounded-lg text-sm">
               ⚠ {t.alertasBaixoEstoque} alerta{t.alertasBaixoEstoque > 1 ? 's' : ''} de estoque baixo
             </div>
           )}
-          {podeEntrarMoto && (
-            <button
-              onClick={() => setModalEntrada(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/20 border border-orange-500/40 text-orange-400 hover:bg-orange-500/30 text-sm font-medium transition-colors"
-            >
-              + Entrada de Moto
-            </button>
-          )}
         </div>
       </div>
-
-      {modalEntrada && (
-        <ModalEntradaMoto
-          lojaId={lojaId}
-          onClose={() => setModalEntrada(false)}
-          onSaved={() => { setModalEntrada(false); setRefreshKey(k => k + 1); }}
-        />
-      )}
 
       {/* Aviso de outra loja */}
       {isOutraLoja && (
@@ -1668,6 +2065,33 @@ function ViewEmpresa({
           />
         )}
       </Card>
+
+      {showCadastroChassi && (
+        <ModalCadastroChassi
+          lojaId={lojaId}
+          lojas={lojas}
+          isAdmin={minhaLojaId === null}
+          onClose={() => setShowCadastroChassi(false)}
+          onSucesso={() => { setShowCadastroChassi(false); setRefreshKey(k => k + 1); setAba('unitaria'); }}
+        />
+      )}
+
+      {showEntradaAvulsa && (
+        <ModalEntradaAvulsa
+          lojaId={lojaId}
+          lojas={lojas}
+          isAdmin={minhaLojaId === null}
+          onClose={() => setShowEntradaAvulsa(false)}
+          onSucesso={() => { setShowEntradaAvulsa(false); setRefreshKey(k => k + 1); }}
+        />
+      )}
+
+      {showImportacaoEstoque && (
+        <ModalImportacaoEstoque
+          onClose={() => setShowImportacaoEstoque(false)}
+          onSucesso={() => { setShowImportacaoEstoque(false); setRefreshKey(k => k + 1); }}
+        />
+      )}
     </div>
   );
 }
@@ -1857,11 +2281,7 @@ export function Estoque() {
           onVerLoja={handleVerLoja}
         />
       ) : showConsolidado ? (
-        <ViewConsolidada
-          onSelectEmpresa={setLojaId}
-          lojas={lojasSorted}
-          canEntrarMoto={['ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'].includes(role)}
-        />
+        <ViewConsolidada onSelectEmpresa={setLojaId} />
       ) : lojaId ? (
         <ViewEmpresa
           lojaId={lojaId}
