@@ -241,8 +241,11 @@ router.post('/', async (req: AuthRequest, res) => {
         }
       }
 
-      if (formaPagamento === 'CARTAO_DEBITO' || formaPagamento === 'CARTAO_CREDITO') {
-        desconto = 0;
+      if ((formaPagamento === 'CARTAO_DEBITO' || formaPagamento === 'CARTAO_CREDITO') && desconto > 0) {
+        const tipoCartao = formaPagamento === 'CARTAO_DEBITO' ? 'cartão de débito' : 'cartão de crédito';
+        return res.status(400).json({
+          error: `Pagamento com ${tipoCartao} não permite desconto. Remova o desconto ou escolha outra forma de pagamento.`
+        });
       }
 
       const subtotalBruto = precoUnitario * item.quantidade;

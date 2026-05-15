@@ -115,8 +115,8 @@ export function ImportPlanilha({ tipo, onSuccess }: ImportPlanilhaProps) {
         };
       case 'unidades':
         return {
-          colunas: ['Produto (nome)', 'Cor', 'Chassi', 'Motor', 'Ano'],
-          descricao: 'Gera codigo automatico (TMUNI00001) e vincula ao produto moto cadastrado.'
+          colunas: ['Modelo', 'Cor', 'Chassi', 'Motor', 'Ano'],
+          descricao: 'Coluna Modelo é usada para buscar ou criar o produto automaticamente (tipo MOTO). Chassis duplicados são ignorados com relatório.'
         };
       default:
         return {

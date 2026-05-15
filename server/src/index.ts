@@ -75,7 +75,13 @@ prisma.$connect().then(async () => {
 const app = express();
 const isDev = process.env.NODE_ENV !== 'production';
 
-app.use(cors());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  : isDev
+    ? ['http://localhost:3001', 'http://localhost:5173', 'http://localhost:5000']
+    : ['https://sistematmimports.com', 'https://www.sistematmimports.com'];
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
 
 app.use('/api', (req, res, next) => {
@@ -86,27 +92,6 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-if (isDev) {
-  app.get('/api/setup', async (req, res) => {
-    try {
-      const bcrypt = await import('bcryptjs');
-      let admin = await prisma.user.findFirst({ where: { email: 'admin@teclemotos.com' } });
-      if (!admin) {
-        const senha = await bcrypt.default.hash('123456', 10);
-        admin = await prisma.user.create({
-          data: { nome: 'Admin Geral', email: 'admin@teclemotos.com', senha, role: 'ADMIN_GERAL', ativo: true }
-        });
-        res.json({ status: 'Admin criado!', email: 'admin@teclemotos.com', senha: '123456' });
-      } else {
-        const senha = await bcrypt.default.hash('123456', 10);
-        await prisma.user.update({ where: { id: admin.id }, data: { senha, ativo: true, lojaId: null, grupoId: null } });
-        res.json({ status: 'Senha resetada!', email: 'admin@teclemotos.com', senha: '123456' });
-      }
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-}
 
 app.use('/api/auth', authRoutes);
 app.use('/api/grupos', gruposRoutes);
@@ -216,17 +201,7 @@ async function initializeDatabase() {
         ativo: true
       }
     });
-    console.log('Admin criado! Login: admin@teclemotos.com / 123456');
-  } else {
-    const senhaCorreta = await bcrypt.default.compare('123456', adminExiste.senha);
-    if (!senhaCorreta) {
-      const senhaAdmin = await bcrypt.default.hash('123456', 10);
-      await prisma.user.update({
-        where: { id: adminExiste.id },
-        data: { senha: senhaAdmin, lojaId: null, grupoId: null, ativo: true }
-      });
-      console.log('Senha do admin corrigida para 123456');
-    }
+    console.log('Admin criado! Login: admin@teclemotos.com / 123456 — troque a senha imediatamente.');
   }
 }
 
