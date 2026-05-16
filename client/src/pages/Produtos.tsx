@@ -233,6 +233,7 @@ export function Produtos() {
           result.ignorados = (result.ignorados || 0) + ignoradasNumericas.length;
         }
         setImportResultado(result);
+        setFiltroTipo('TODOS');
         loadProdutos();
       } catch (err: any) {
         setImportErro(err.message || 'Erro ao processar a planilha.');

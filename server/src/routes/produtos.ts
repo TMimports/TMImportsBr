@@ -198,7 +198,7 @@ router.post('/importar-tabela-precos', requireAdminGeral, async (req: AuthReques
         if (produtoExistente) {
           await prisma.produto.update({
             where: { id: produtoExistente.id },
-            data: dadosPreco,
+            data: { ...dadosPreco, ativo: true },
           });
 
           // Limpar overrides zero nos estoques quando preço é atualizado
