@@ -375,45 +375,61 @@ router.delete('/produto/:produtoId/loja/:lojaId/definitivo', requireAdminGeral, 
 
     if (!produto) return res.status(404).json({ error: 'Produto não encontrado' });
 
-    // Bloquear se qualquer unidade está vendida
+    // ── Regras de bloqueio (retornam 400, nunca 500) ──────────────────────────
     const vendidas = unidades.filter(u => u.status === 'VENDIDA' || u.itensVenda.length > 0);
     if (vendidas.length > 0)
       return res.status(400).json({
         error: `${vendidas.length} unidade(s) já vendida(s) — não é possível excluir`,
       });
 
-    // Bloquear se há venda direta de peça no produto
-    const vendaPeca = await prisma.itemVenda.count({ where: { produtoId } });
+    const vendaPeca = await prisma.itemVenda.count({ where: { produtoId, unidadeFisicaId: null } });
     if (vendaPeca > 0)
       return res.status(400).json({
-        error: `"${produto.nome}" tem ${vendaPeca} venda(s) de peça — não é possível excluir`,
+        error: `"${produto.nome}" tem ${vendaPeca} venda(s) de peça vinculada(s) — não é possível excluir`,
       });
 
-    // Bloquear se há transferência ativa
-    const temTransfAtiva = unidades.some(u =>
-      u.transferencias.some(t => ['SOLICITADA', 'APROVADA'].includes(t.status))
-    );
-    if (temTransfAtiva)
-      return res.status(400).json({ error: 'Há transferência ativa para este produto — cancele antes' });
+    const transfAtiva = await prisma.transferencia.count({
+      where: { produtoId, OR: [{ lojaOrigemId: lojaId }, { lojaDestinoId: lojaId }], status: { in: ['SOLICITADA', 'APROVADA'] } },
+    });
+    if (transfAtiva > 0)
+      return res.status(400).json({ error: 'Há transferência ativa para este produto — cancele antes de excluir' });
 
+    // ── Execução em transação ─────────────────────────────────────────────────
     let deletedUnits = 0;
     let deletedStock = false;
     let deletedProduct = false;
 
     await prisma.$transaction(async (tx) => {
-      // 1. Excluir UnidadeFisica da loja
-      for (const u of unidades) {
-        await tx.unidadeFisica.delete({ where: { id: u.id } });
-        deletedUnits++;
+      const unidadeIds = unidades.map(u => u.id);
+
+      if (unidadeIds.length > 0) {
+        // Nulificar FKs opcionais que apontam para UnidadeFisica (evita erro de FK)
+        await tx.garantia.updateMany({
+          where: { unidadeFisicaId: { in: unidadeIds } },
+          data:  { unidadeFisicaId: null },
+        });
+        await tx.ordemServico.updateMany({
+          where: { unidadeFisicaId: { in: unidadeIds } },
+          data:  { unidadeFisicaId: null },
+        });
+        await tx.transferencia.updateMany({
+          where: { unidadeFisicaId: { in: unidadeIds } },
+          data:  { unidadeFisicaId: null },
+        });
+        // Revisao tem FK não-nulável → deletar antes
+        await tx.revisao.deleteMany({ where: { unidadeFisicaId: { in: unidadeIds } } });
+        // Agora é seguro deletar as unidades físicas
+        await tx.unidadeFisica.deleteMany({ where: { id: { in: unidadeIds } } });
+        deletedUnits = unidadeIds.length;
       }
 
-      // 2. Excluir registro de Estoque da loja
+      // Deletar registro de Estoque desta loja
       if (estoqueRec) {
         await tx.estoque.delete({ where: { id: estoqueRec.id } });
         deletedStock = true;
       }
 
-      // 3. Log de auditoria
+      // Log de auditoria
       await tx.logAuditoria.create({
         data: {
           usuarioId: req.user!.id,
@@ -424,27 +440,69 @@ router.delete('/produto/:produtoId/loja/:lojaId/definitivo', requireAdminGeral, 
         },
       });
 
-      // 4. Verificar se produto ainda existe em outras lojas
-      const outrosEstoques  = await tx.estoque.count({ where: { produtoId } });
-      const outrasUnidades  = await tx.unidadeFisica.count({ where: { produtoId } });
-      const outrasVendas    = await tx.itemVenda.count({ where: { produtoId } });
+      // ── Decisão sobre o Produto global ────────────────────────────────────
+      const outrosEstoques = await tx.estoque.count({ where: { produtoId } });
+      const outrasUnidades = await tx.unidadeFisica.count({ where: { produtoId } });
+      const outrasVendas   = await tx.itemVenda.count({ where: { produtoId } });
 
-      if (outrosEstoques === 0 && outrasUnidades === 0 && outrasVendas === 0) {
-        await tx.produto.delete({ where: { id: produtoId } });
-        deletedProduct = true;
+      let productKeptReason: string | null = null;
+
+      if (outrosEstoques > 0 || outrasUnidades > 0 || outrasVendas > 0) {
+        // Produto ainda tem referências em outras lojas — não mexer
+        productKeptReason = 'Produto mantido: ainda existe em outras lojas ou possui vendas';
+      } else {
+        // Nenhum estoque ativo restante — verificar histórico
+        const temLog      = await tx.logEstoque.count({ where: { produtoId } });
+        const temTransf   = await tx.transferencia.count({ where: { produtoId } });
+        const temPedidos  = await tx.itemPedidoCompra.count({ where: { produtoId } });
+
+        if (temLog > 0 || temTransf > 0 || temPedidos > 0) {
+          // Tem histórico: arquivar (não deletar) para preservar rastreabilidade
+          await tx.produto.update({ where: { id: produtoId }, data: { ativo: false } });
+          deletedProduct = true;
+          productKeptReason = 'Produto arquivado (possui histórico de movimentações — não pode ser excluído permanentemente)';
+        } else {
+          // Sem nenhum vínculo — exclusão definitiva segura
+          await tx.produto.delete({ where: { id: produtoId } });
+          deletedProduct = true;
+        }
       }
+
+      // Armazenar razão no log de auditoria (atualizar o registro criado acima)
+      if (productKeptReason) {
+        await tx.logAuditoria.create({
+          data: {
+            usuarioId: req.user!.id,
+            acao: 'PRODUTO_MANTIDO',
+            entidade: 'Produto',
+            entidadeId: produtoId,
+            dados: JSON.stringify({ razao: productKeptReason }),
+          },
+        });
+      }
+
+      // Expor productKeptReason para o res.json fora da transação
+      (req as any)._productKeptReason = productKeptReason;
     });
+
+    const productKeptReason: string | null = (req as any)._productKeptReason ?? null;
 
     res.json({
       ok: true,
-      message: `"${produto.nome}" removido${deletedProduct ? ' e produto excluído do catálogo' : ' desta loja'}. ${deletedUnits} unidade(s) deletada(s).`,
+      message: deletedProduct
+        ? productKeptReason?.includes('arquivado')
+          ? `"${produto.nome}" removido desta loja e arquivado no catálogo. ${deletedUnits} unidade(s) deletada(s).`
+          : `"${produto.nome}" removido e excluído do catálogo. ${deletedUnits} unidade(s) deletada(s).`
+        : `"${produto.nome}" removido desta loja. ${deletedUnits} unidade(s) deletada(s).`,
       deletedUnits,
       deletedStock,
       deletedProduct,
+      productKeptReason,
     });
-  } catch (error) {
-    console.error('Erro na exclusão definitiva:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+  } catch (error: any) {
+    const detail = error?.message || String(error);
+    console.error('Erro na exclusão definitiva:', detail);
+    res.status(500).json({ error: `Erro interno: ${detail}` });
   }
 });
 
