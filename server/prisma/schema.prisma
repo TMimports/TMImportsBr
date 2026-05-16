@@ -99,6 +99,10 @@ model Produto {
   custo             Decimal            @db.Decimal(10, 2)
   percentualLucro   Decimal            @db.Decimal(5, 2)
   preco             Decimal            @db.Decimal(10, 2)
+  precoTabela       Decimal?           @db.Decimal(10, 2)
+  precoCartao       Decimal?           @db.Decimal(10, 2)
+  parcela10x        Decimal?           @db.Decimal(10, 2)
+  precoDinheiro     Decimal?           @db.Decimal(10, 2)
   ativo             Boolean            @default(true)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
