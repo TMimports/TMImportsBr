@@ -353,6 +353,126 @@ router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', '
   }
 });
 
+// ─── REMOVER PRODUTO DO ESTOQUE DE UMA LOJA ──────────────────────────────────
+router.delete('/:id(\\d+)', requireRole('ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'), async (req: AuthRequest, res) => {
+  const id = Number(req.params.id);
+  try {
+    const estoqueRec = await prisma.estoque.findUnique({
+      where: { id },
+      include: { produto: { select: { id: true, nome: true } } },
+    });
+    if (!estoqueRec) return res.status(404).json({ error: 'Registro de estoque não encontrado' });
+
+    // Controle de acesso por loja
+    const filter = applyTenantFilter(req);
+    if (filter.lojaId && filter.lojaId !== estoqueRec.lojaId)
+      return res.status(403).json({ error: 'Acesso negado a este registro de estoque' });
+
+    const { produtoId, lojaId } = estoqueRec;
+
+    // Bloquear se há vendas vinculadas ao produto
+    const vendasVinculadas = await prisma.itemVenda.count({ where: { produtoId } });
+    if (vendasVinculadas > 0)
+      return res.status(400).json({ error: `"${estoqueRec.produto.nome}" tem ${vendasVinculadas} venda(s) — não pode ser excluído` });
+
+    // Bloquear se há transferências ativas
+    const transferAtiva = await prisma.transferencia.count({
+      where: {
+        produtoId,
+        OR: [{ lojaOrigemId: lojaId }, { lojaDestinoId: lojaId }],
+        status: { in: ['SOLICITADA', 'APROVADA'] },
+      },
+    });
+    if (transferAtiva > 0)
+      return res.status(400).json({ error: `"${estoqueRec.produto.nome}" tem transferência ativa — cancele antes de excluir` });
+
+    // Verificar unidades físicas da loja
+    const unidades = await prisma.unidadeFisica.findMany({
+      where: { produtoId, lojaId },
+      include: {
+        itensVenda:     { select: { id: true } },
+        transferencias: { select: { id: true, status: true } },
+        ordensServico:  { select: { id: true, status: true } },
+      },
+    });
+
+    const bloqueadas = unidades.filter(u =>
+      u.status === 'VENDIDA' ||
+      u.itensVenda.length > 0 ||
+      u.transferencias.some(t => ['SOLICITADA', 'APROVADA'].includes(t.status)) ||
+      u.ordensServico.some(os => os.status !== 'EXECUTADA')
+    );
+    if (bloqueadas.length > 0)
+      return res.status(400).json({ error: `${bloqueadas.length} unidade(s) vinculada(s) a venda/transferência/OS — não é possível excluir` });
+
+    let deletedUnits = 0;
+    let deletedProduct = false;
+
+    await prisma.$transaction(async (tx) => {
+      // Excluir unidades físicas e criar log para cada uma
+      for (const u of unidades) {
+        await tx.unidadeFisica.delete({ where: { id: u.id } });
+        await tx.logEstoque.create({
+          data: {
+            tipo: 'SAIDA',
+            origem: 'EXCLUSAO_MANUAL',
+            origemId: u.id,
+            produtoId,
+            lojaId,
+            quantidade: 1,
+            quantidadeAnterior: estoqueRec.quantidade - deletedUnits,
+            quantidadeNova: Math.max(0, estoqueRec.quantidade - deletedUnits - 1),
+            usuarioId: req.user!.id,
+          },
+        });
+        deletedUnits++;
+      }
+
+      // Excluir o registro de Estoque
+      await tx.estoque.delete({ where: { id } });
+
+      await tx.logAuditoria.create({
+        data: {
+          usuarioId: req.user!.id,
+          acao: 'EXCLUSAO_ESTOQUE',
+          entidade: 'Estoque',
+          entidadeId: id,
+          dados: JSON.stringify({ produtoId, lojaId, deletedUnits }),
+        },
+      });
+
+      // Se produto não tem mais nenhum vínculo, arquivar (soft delete)
+      const remainingEstoque  = await tx.estoque.count({ where: { produtoId } });
+      const remainingUnidades = await tx.unidadeFisica.count({ where: { produtoId } });
+      const remainingVendas   = await tx.itemVenda.count({ where: { produtoId } });
+
+      if (remainingEstoque === 0 && remainingUnidades === 0 && remainingVendas === 0) {
+        await tx.produto.update({ where: { id: produtoId }, data: { ativo: false } });
+        await tx.logAuditoria.create({
+          data: {
+            usuarioId: req.user!.id,
+            acao: 'ARQUIVAR_PRODUTO',
+            entidade: 'Produto',
+            entidadeId: produtoId,
+            dados: JSON.stringify({ nome: estoqueRec.produto.nome }),
+          },
+        });
+        deletedProduct = true;
+      }
+    });
+
+    res.json({
+      ok: true,
+      message: `${estoqueRec.produto.nome} removido${deletedProduct ? ' e arquivado' : ''}. ${deletedUnits} unidade(s) excluída(s).`,
+      deletedUnits,
+      deletedProduct,
+    });
+  } catch (error) {
+    console.error('Erro ao remover estoque:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // ─── VISÃO GERENCIAL POR EMPRESA / CNPJ ──────────────────────────────────────
 router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
   try {
@@ -401,10 +521,13 @@ router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
     const totalMotos    = motosEstoque.reduce((s, e) => s + e.quantidade, 0);
     const totalPecas    = pecasEstoque.reduce((s, e) => s + e.quantidade, 0);
     const valorTotalCM  = estoques.reduce((s, e) => {
-      const cm = e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo);
+      const cm = (e.custoMedio !== null && Number(e.custoMedio) > 0) ? Number(e.custoMedio) : Number(e.produto.custo);
       return s + cm * e.quantidade;
     }, 0);
-    const valorTotalPreco = estoques.reduce((s, e) => s + Number(e.produto.preco) * e.quantidade, 0);
+    const valorTotalPreco = estoques.reduce((s, e) => {
+      const pv = (e.precoVenda !== null && Number(e.precoVenda) > 0) ? Number(e.precoVenda) : Number(e.produto.preco);
+      return s + pv * e.quantidade;
+    }, 0);
     const alertasBaixo  = estoques.filter(e => e.quantidade <= e.estoqueMinimo && e.estoqueMinimo > 0).length;
     const semGiro       = estoques.filter(e => e.quantidade === 0).length;
 
@@ -418,12 +541,12 @@ router.get('/empresa/:lojaId', async (req: AuthRequest, res) => {
       quantidade: e.quantidade,
       estoqueMinimo: e.estoqueMinimo,
       estoqueMaximo: e.estoqueMaximo,
-      custoMedio: e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo),
-      precoVenda: e.precoVenda ? Number(e.precoVenda) : Number(e.produto.preco),
-      precoVendaLoja: e.precoVenda ? Number(e.precoVenda) : null,
+      custoMedio: (e.custoMedio !== null && Number(e.custoMedio) > 0) ? Number(e.custoMedio) : Number(e.produto.custo),
+      precoVenda: (e.precoVenda !== null && Number(e.precoVenda) > 0) ? Number(e.precoVenda) : Number(e.produto.preco),
+      precoVendaLoja: (e.precoVenda !== null && Number(e.precoVenda) > 0) ? Number(e.precoVenda) : null,
       precoVendaBase: Number(e.produto.preco),
-      valorTotalCusto: (e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo)) * e.quantidade,
-      valorTotalPreco: (e.precoVenda ? Number(e.precoVenda) : Number(e.produto.preco)) * e.quantidade,
+      valorTotalCusto: ((e.custoMedio !== null && Number(e.custoMedio) > 0) ? Number(e.custoMedio) : Number(e.produto.custo)) * e.quantidade,
+      valorTotalPreco: ((e.precoVenda !== null && Number(e.precoVenda) > 0) ? Number(e.precoVenda) : Number(e.produto.preco)) * e.quantidade,
       alerta: e.quantidade <= e.estoqueMinimo && e.estoqueMinimo > 0,
       semEstoque: e.quantidade === 0,
     }));
@@ -537,10 +660,13 @@ router.get('/consolidado', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO'), async
       const totalMotos  = loja.estoques.filter(e => e.produto.tipo === 'MOTO').reduce((s, e) => s + e.quantidade, 0);
       const totalPecas  = loja.estoques.filter(e => e.produto.tipo === 'PECA').reduce((s, e) => s + e.quantidade, 0);
       const valorCusto  = loja.estoques.reduce((s, e) => {
-        const cm = e.custoMedio ? Number(e.custoMedio) : Number(e.produto.custo);
+        const cm = (e.custoMedio !== null && Number(e.custoMedio) > 0) ? Number(e.custoMedio) : Number(e.produto.custo);
         return s + cm * e.quantidade;
       }, 0);
-      const valorPreco  = loja.estoques.reduce((s, e) => s + Number(e.produto.preco) * e.quantidade, 0);
+      const valorPreco  = loja.estoques.reduce((s, e) => {
+        const pv = (e.precoVenda !== null && Number(e.precoVenda) > 0) ? Number(e.precoVenda) : Number(e.produto.preco);
+        return s + pv * e.quantidade;
+      }, 0);
       const alertas     = loja.estoques.filter(e => e.quantidade <= e.estoqueMinimo && e.estoqueMinimo > 0).length;
 
       return {

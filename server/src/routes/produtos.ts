@@ -98,6 +98,21 @@ router.put('/:id', requireAdminGeral, async (req: AuthRequest, res) => {
       data
     });
 
+    // Limpar overrides zero: quando custo/preço do produto é atualizado,
+    // registros de Estoque com 0 explícito voltam a usar o valor do Produto.
+    if (custo !== undefined) {
+      await prisma.estoque.updateMany({
+        where: { produtoId: Number(req.params.id), custoMedio: 0 },
+        data: { custoMedio: null },
+      });
+    }
+    if (preco !== undefined) {
+      await prisma.estoque.updateMany({
+        where: { produtoId: Number(req.params.id), precoVenda: 0 },
+        data: { precoVenda: null },
+      });
+    }
+
     res.json(produto);
   } catch (error) {
     console.error('Erro ao atualizar produto:', error);
