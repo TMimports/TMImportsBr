@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
-import { verifyToken, applyTenantFilter, AuthRequest, requireRole } from '../middleware/auth.js';
+import { verifyToken, applyTenantFilter, AuthRequest, requireRole, requireAdminGeral } from '../middleware/auth.js';
 import { InventoryService } from '../services/InventoryService.js';
 import { gerarNumeroSerieUnidade } from './importacao.js';
 
@@ -349,6 +349,101 @@ router.put('/:id', requireRole('ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'DONO_LOJA', '
     res.json(estoque);
   } catch (error) {
     console.error('Erro ao atualizar estoque:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// ─── EXCLUSÃO DEFINITIVA (somente ADMIN_GERAL) ───────────────────────────────
+router.delete('/produto/:produtoId/loja/:lojaId/definitivo', requireAdminGeral, async (req: AuthRequest, res) => {
+  const produtoId = Number(req.params.produtoId);
+  const lojaId    = Number(req.params.lojaId);
+  if (isNaN(produtoId) || isNaN(lojaId))
+    return res.status(400).json({ error: 'IDs inválidos' });
+
+  try {
+    const [produto, estoqueRec, unidades] = await Promise.all([
+      prisma.produto.findUnique({ where: { id: produtoId } }),
+      prisma.estoque.findUnique({ where: { produtoId_lojaId: { produtoId, lojaId } } }),
+      prisma.unidadeFisica.findMany({
+        where: { produtoId, lojaId },
+        include: {
+          itensVenda:     { select: { id: true } },
+          transferencias: { select: { id: true, status: true } },
+        },
+      }),
+    ]);
+
+    if (!produto) return res.status(404).json({ error: 'Produto não encontrado' });
+
+    // Bloquear se qualquer unidade está vendida
+    const vendidas = unidades.filter(u => u.status === 'VENDIDA' || u.itensVenda.length > 0);
+    if (vendidas.length > 0)
+      return res.status(400).json({
+        error: `${vendidas.length} unidade(s) já vendida(s) — não é possível excluir`,
+      });
+
+    // Bloquear se há venda direta de peça no produto
+    const vendaPeca = await prisma.itemVenda.count({ where: { produtoId } });
+    if (vendaPeca > 0)
+      return res.status(400).json({
+        error: `"${produto.nome}" tem ${vendaPeca} venda(s) de peça — não é possível excluir`,
+      });
+
+    // Bloquear se há transferência ativa
+    const temTransfAtiva = unidades.some(u =>
+      u.transferencias.some(t => ['SOLICITADA', 'APROVADA'].includes(t.status))
+    );
+    if (temTransfAtiva)
+      return res.status(400).json({ error: 'Há transferência ativa para este produto — cancele antes' });
+
+    let deletedUnits = 0;
+    let deletedStock = false;
+    let deletedProduct = false;
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Excluir UnidadeFisica da loja
+      for (const u of unidades) {
+        await tx.unidadeFisica.delete({ where: { id: u.id } });
+        deletedUnits++;
+      }
+
+      // 2. Excluir registro de Estoque da loja
+      if (estoqueRec) {
+        await tx.estoque.delete({ where: { id: estoqueRec.id } });
+        deletedStock = true;
+      }
+
+      // 3. Log de auditoria
+      await tx.logAuditoria.create({
+        data: {
+          usuarioId: req.user!.id,
+          acao: 'EXCLUSAO_DEFINITIVA',
+          entidade: 'Produto',
+          entidadeId: produtoId,
+          dados: JSON.stringify({ produtoNome: produto.nome, lojaId, deletedUnits, deletedStock }),
+        },
+      });
+
+      // 4. Verificar se produto ainda existe em outras lojas
+      const outrosEstoques  = await tx.estoque.count({ where: { produtoId } });
+      const outrasUnidades  = await tx.unidadeFisica.count({ where: { produtoId } });
+      const outrasVendas    = await tx.itemVenda.count({ where: { produtoId } });
+
+      if (outrosEstoques === 0 && outrasUnidades === 0 && outrasVendas === 0) {
+        await tx.produto.delete({ where: { id: produtoId } });
+        deletedProduct = true;
+      }
+    });
+
+    res.json({
+      ok: true,
+      message: `"${produto.nome}" removido${deletedProduct ? ' e produto excluído do catálogo' : ' desta loja'}. ${deletedUnits} unidade(s) deletada(s).`,
+      deletedUnits,
+      deletedStock,
+      deletedProduct,
+    });
+  } catch (error) {
+    console.error('Erro na exclusão definitiva:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

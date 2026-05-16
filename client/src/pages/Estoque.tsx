@@ -1020,12 +1020,17 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
   const [editSaving, setEditSaving] = useState(false);
   const [editErro, setEditErro] = useState('');
   const [deletandoEstoqueId, setDeletandoEstoqueId] = useState<number | null>(null);
+  const [confirmExcluirDef, setConfirmExcluirDef] = useState<ItemGerencial | null>(null);
+  const [confirmTexto, setConfirmTexto] = useState('');
+  const [excluindoDef, setExcluindoDef] = useState(false);
+  const [excluirDefMsg, setExcluirDefMsg] = useState('');
 
   const { user: userTabG } = useAuth();
   const verCustos = ['ADMIN_GERAL', 'ADMIN_FINANCEIRO', 'ADMIN_REDE'].includes(userTabG?.role || '');
   const isAdmin = minhaLojaId === null;
   const podeTransferir = isAdmin || lojaId === minhaLojaId;
   const podeEditarEstoque = userTabG?.role === 'ADMIN_GERAL';
+  const podeExcluirDefinitivo = userTabG?.role === 'ADMIN_GERAL';
 
   function abrirEditarItem(it: ItemGerencial) {
     setEditandoItem(it);
@@ -1066,6 +1071,25 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
       setDeletandoEstoqueId(null);
     }
   }
+
+  async function excluirDefinitivo() {
+    if (!confirmExcluirDef) return;
+    setExcluindoDef(true); setExcluirDefMsg('');
+    try {
+      const r = await api.delete<{ message: string; deletedUnits: number; deletedProduct: boolean }>(
+        `/estoque/produto/${confirmExcluirDef.produtoId}/loja/${lojaId}/definitivo`
+      );
+      setConfirmExcluirDef(null);
+      setConfirmTexto('');
+      setExcluirDefMsg(`✅ ${r.message}`);
+      onRefresh?.();
+    } catch (e: any) {
+      setExcluirDefMsg(`❌ ${e.message}`);
+    } finally {
+      setExcluindoDef(false);
+    }
+  }
+
   const lojaAtualNome = lojas.find(l => l.id === lojaId)?.nomeFantasia || 'Esta Loja';
 
   const filtrados = useMemo(() => {
@@ -1179,6 +1203,13 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
                               >{deletandoEstoqueId === it.id ? '...' : '🗑️'}</button>
                             </>
                           )}
+                          {podeExcluirDefinitivo && (
+                            <button
+                              onClick={() => { setConfirmExcluirDef(it); setConfirmTexto(''); setExcluirDefMsg(''); }}
+                              title="Excluir definitivamente (Admin Principal)"
+                              className="text-xs px-2 py-1.5 rounded-lg font-medium border transition-colors bg-red-600/20 text-red-400 hover:bg-red-600/40 border-red-600/40"
+                            >🗑️ Definitivo</button>
+                          )}
                           {podeTransferir && (
                             it.tipo === 'MOTO' ? (
                               <button
@@ -1288,6 +1319,56 @@ function TabGerencial({ itens, busca, lojas, lojaId, minhaLojaId, onTransferido,
         <div className="text-center py-12 text-zinc-500">Nenhum produto encontrado</div>
       )}
 
+      {/* ── Mensagem de resultado de exclusão definitiva ── */}
+      {excluirDefMsg && (
+        <div className={`mt-3 px-4 py-3 rounded-lg text-sm font-medium ${excluirDefMsg.startsWith('✅') ? 'bg-green-500/10 text-green-400 border border-green-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30'}`}>
+          {excluirDefMsg}
+          <button onClick={() => setExcluirDefMsg('')} className="ml-3 text-xs opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
+
+      {/* ── Modal de confirmação de exclusão definitiva ── */}
+      {confirmExcluirDef && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#18181b] border border-red-600/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-white font-bold text-lg mb-1">🗑️ Exclusão Definitiva</h3>
+            <p className="text-zinc-300 text-sm mb-1 font-medium">{confirmExcluirDef.nome}</p>
+            <p className="text-zinc-500 text-xs mb-4">
+              Remove todas as unidades e o registro de estoque desta loja.
+              Se o produto não tiver mais vínculos em nenhuma loja, será excluído do catálogo.
+            </p>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4">
+              <p className="text-xs text-red-400 font-medium">
+                ⚠️ Esta ação é irreversível. Chassis sem venda serão deletados permanentemente.
+              </p>
+            </div>
+            <label className="block text-xs text-zinc-400 mb-1">
+              Digite <strong className="text-white">CONFIRMAR</strong> para prosseguir:
+            </label>
+            <input
+              value={confirmTexto}
+              onChange={e => setConfirmTexto(e.target.value)}
+              placeholder="CONFIRMAR"
+              className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:border-red-500"
+            />
+            {excluirDefMsg && (
+              <p className={`text-xs mb-3 ${excluirDefMsg.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>{excluirDefMsg}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setConfirmExcluirDef(null); setConfirmTexto(''); setExcluirDefMsg(''); }}
+                className="flex-1 px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-sm transition-colors"
+              >Cancelar</button>
+              <button
+                disabled={confirmTexto !== 'CONFIRMAR' || excluindoDef}
+                onClick={excluirDefinitivo}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white text-sm font-bold transition-colors"
+              >{excluindoDef ? 'Excluindo...' : 'Excluir'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Modal de edição de produto no estoque ── */}
       {editandoItem && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -1374,7 +1455,7 @@ function TabUnitaria({
   const [confirmDeleteItem, setConfirmDeleteItem] = useState<ItemUnitario | null>(null);
 
   const { user: userTabU } = useAuth();
-  const podeEditarExcluir = ['ADMIN_GERAL', 'DONO_LOJA', 'GERENTE_LOJA'].includes(userTabU?.role || '');
+  const podeEditarExcluir = userTabU?.role === 'ADMIN_GERAL';
 
   function abrirEditar(u: ItemUnitario) {
     setEditandoUnidade(u);
