@@ -837,7 +837,6 @@ model Lead {
   lojaId      Int?
   usuarioId   Int?
   createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
   loja        Loja?           @relation(fields: [lojaId], references: [id])
   usuario     User?           @relation(fields: [usuarioId], references: [id])
   interacoes  LeadInteracao[]
@@ -851,7 +850,6 @@ model LeadInteracao {
   resultado String?
   usuarioId Int?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   usuario   User?    @relation(fields: [usuarioId], references: [id])
 }
