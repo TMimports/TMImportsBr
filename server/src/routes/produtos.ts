@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { prisma } from '../index.js';
 import { verifyToken, requireAdminGeral, AuthRequest } from '../middleware/auth.js';
 
@@ -125,12 +125,11 @@ router.put('/:id', requireAdminGeral, async (req: AuthRequest, res) => {
 // Normaliza nomes de modelo para evitar duplicidade:
 // "TM 11" = "TM-11" = "TM11", "MÔNACO" = "MONACO", "E-TREK" = "ETREK" = "E TREK"
 function normalizarModelo(nome: string): string {
-  return nome
-    .trim()
-    .toUpperCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // remove acentos (range Unicode correto)
-    .replace(/[\s\-_.]+/g, '');      // remove espaços, hífens, pontos, underscores
+  const nfd = nome.trim().toUpperCase().normalize('NFD');
+  return [...nfd].filter(c => {
+    const cp = c.codePointAt(0) ?? 0;
+    return !((cp >= 0x0300 && cp <= 0x036F) || cp === 0x0327 || cp === 0x0328);
+  }).join('').replace(/[\s\-_.]+/g, '');
 }
 
 function ehNumeroPuro(v: string): boolean {

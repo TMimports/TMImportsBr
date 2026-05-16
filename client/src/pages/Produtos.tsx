@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { api } from '../services/api';
 import { Modal } from '../components/Modal';
@@ -108,41 +108,77 @@ export function Produtos() {
         const data = new Uint8Array(ev.target!.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
 
-        // Encontrar aba "Tabela de Preços" ou primeira aba
-        const sheetName =
-          wb.SheetNames.find(n =>
-            n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s/g, '').includes('tabeladepreco')
-          ) || wb.SheetNames[0];
+        // ── Remove acentos: usa codepoints para evitar problema de regex com combining chars
+        const removeAcentos = (s: string) => {
+          const nfd = String(s).normalize('NFD');
+          return [...nfd].filter(c => {
+            const cp = c.codePointAt(0) ?? 0;
+            // U+0300-U+036F: combining diacriticals | U+0327: cedilha | U+0328: ogonek
+            return !((cp >= 0x0300 && cp <= 0x036F) || cp === 0x0327 || cp === 0x0328);
+          }).join('');
+        };
+
+        const normH = (h: any) => removeAcentos(String(h).toLowerCase().trim());
+
+        // ── Encontrar aba correta ─────────────────────────────────────────────
+        // 1ª tentativa: nome da aba contém "tabela" e "preco"
+        const normSheet = (n: string) => removeAcentos(n.toLowerCase()).replace(/\s+/g, '');
+
+        let targetSheet = wb.SheetNames.find(n => {
+          const ns = normSheet(n);
+          return ns.includes('tabeladepreco') || ns === 'tabeladeprecos' || ns === 'tabelaprecos';
+        });
+
+        // 2ª tentativa: qualquer aba cujo A1 seja "Modelo" (varre todas)
+        if (!targetSheet) {
+          for (const sName of wb.SheetNames) {
+            const sRaw: any[][] = XLSX.utils.sheet_to_json(wb.Sheets[sName], { header: 1, defval: '' });
+            if (sRaw.length > 0 && normH(sRaw[0][0]) === 'modelo') {
+              targetSheet = sName;
+              break;
+            }
+          }
+        }
+
+        // 3ª tentativa: aba que contenha "tabela" no nome
+        if (!targetSheet) {
+          targetSheet = wb.SheetNames.find(n => normSheet(n).includes('tabela'));
+        }
+
+        const sheetName = targetSheet ?? wb.SheetNames[0];
         const ws = wb.Sheets[sheetName];
         const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-        if (raw.length < 2) { setImportErro('Planilha vazia ou sem dados.'); setImportando(false); return; }
-
-        // ── Normalizar cabeçalho: minúsculo + sem acento + trim ──────────────
-        const normH = (h: any) =>
-          String(h).toLowerCase().trim()
-            .normalize('NFD').replace(/[̀-ͯ]/g, '');
+        if (raw.length < 2) {
+          setImportErro(`Aba "${sheetName}" está vazia ou sem dados. Abas disponíveis: ${wb.SheetNames.join(', ')}`);
+          setImportando(false); return;
+        }
 
         const header = raw[0].map(normH);
 
-        // Mapa nome→índice para matching exato
+        // Mapa nome→índice para matching exato (nome normalizado)
         const hMap: Record<string, number> = {};
         header.forEach((h, i) => { if (h) hMap[h] = i; });
 
-        // Prioridade: nome exato normalizado → fallback fuzzy
+        // Prioridade: exato → fallback fuzzy
         const findCol = (exactos: string[], fuzzy: string[] = []): number => {
           for (const e of exactos) if (hMap[e] !== undefined) return hMap[e];
           return header.findIndex(h => fuzzy.some(t => h.includes(t)));
         };
 
-        const iModelo   = findCol(['modelo'],                              ['model', 'nome']);
-        const iDe       = findCol(['de'],                                  ['tabela', 'preco de', 'antigo']);
-        const iCartao   = findCol(['por cartao 10x', 'cartao 10x'],        ['cartao', 'card']);
-        const iParcela  = findCol(['parcela 10x', 'parcela'],              ['installment']);
-        const iDinheiro = findCol(['dinheiro ou pix', 'dinheiro/pix'],     ['dinheiro', 'pix', 'avista']);
+        const iModelo   = findCol(['modelo'],                           ['model', 'nome']);
+        const iDe       = findCol(['de'],                               ['tabela', 'preco de', 'antigo']);
+        const iCartao   = findCol(['por cartao 10x', 'cartao 10x'],     ['cartao', 'card']);
+        const iParcela  = findCol(['parcela 10x', 'parcela'],           ['installment']);
+        const iDinheiro = findCol(['dinheiro ou pix', 'dinheiro/pix'],  ['dinheiro', 'pix', 'avista']);
 
         if (iModelo === -1) {
-          setImportErro('Coluna "Modelo" não encontrada. Verifique se a aba é "Tabela de Preços" e o cabeçalho A1 é "Modelo".');
+          const cabecalhos = header.filter(Boolean).join(' | ');
+          setImportErro(
+            `Coluna "Modelo" não encontrada na aba "${sheetName}". ` +
+            `Cabeçalhos encontrados: [${cabecalhos || '(vazio)'}]. ` +
+            `Abas disponíveis: ${wb.SheetNames.join(', ')}.`
+          );
           setImportando(false); return;
         }
 
@@ -505,3 +541,4 @@ export function Produtos() {
     </div>
   );
 }
+
