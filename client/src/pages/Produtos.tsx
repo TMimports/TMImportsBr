@@ -110,24 +110,44 @@ export function Produtos() {
 
         // Encontrar aba "Tabela de Preços" ou primeira aba
         const sheetName =
-          wb.SheetNames.find(n => n.toLowerCase().replace(/\s/g, '').includes('tabeladepreco') || n.toLowerCase().includes('tabela')) ||
-          wb.SheetNames[0];
+          wb.SheetNames.find(n =>
+            n.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s/g, '').includes('tabeladepreco')
+          ) || wb.SheetNames[0];
         const ws = wb.Sheets[sheetName];
         const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
         if (raw.length < 2) { setImportErro('Planilha vazia ou sem dados.'); setImportando(false); return; }
 
-        // Detectar cabeçalho: Modelo, De, Por Cartão 10x, Parcela 10x, Dinheiro ou PIX
-        const header = raw[0].map((h: any) => String(h).toLowerCase().trim());
-        const col = (terms: string[]) => header.findIndex((h: string) => terms.some(t => h.includes(t)));
+        // ── Normalizar cabeçalho: minúsculo + sem acento + trim ──────────────
+        const normH = (h: any) =>
+          String(h).toLowerCase().trim()
+            .normalize('NFD').replace(/[̀-ͯ]/g, '');
 
-        const iModelo   = col(['modelo', 'model', 'produto', 'nome']);
-        const iDe       = col(['de ', ' de', 'tabela', 'original', 'antigo']);
-        const iCartao   = col(['cartão', 'cartao', 'card', '10x', 'parcelado']);
-        const iParcela  = col(['parcela', 'installment']);
-        const iDinheiro = col(['dinheiro', 'pix', 'avista', 'à vista', 'cash']);
+        const header = raw[0].map(normH);
 
-        if (iModelo === -1) { setImportErro('Coluna "Modelo" não encontrada na planilha.'); setImportando(false); return; }
+        // Mapa nome→índice para matching exato
+        const hMap: Record<string, number> = {};
+        header.forEach((h, i) => { if (h) hMap[h] = i; });
+
+        // Prioridade: nome exato normalizado → fallback fuzzy
+        const findCol = (exactos: string[], fuzzy: string[] = []): number => {
+          for (const e of exactos) if (hMap[e] !== undefined) return hMap[e];
+          return header.findIndex(h => fuzzy.some(t => h.includes(t)));
+        };
+
+        const iModelo   = findCol(['modelo'],                              ['model', 'nome']);
+        const iDe       = findCol(['de'],                                  ['tabela', 'preco de', 'antigo']);
+        const iCartao   = findCol(['por cartao 10x', 'cartao 10x'],        ['cartao', 'card']);
+        const iParcela  = findCol(['parcela 10x', 'parcela'],              ['installment']);
+        const iDinheiro = findCol(['dinheiro ou pix', 'dinheiro/pix'],     ['dinheiro', 'pix', 'avista']);
+
+        if (iModelo === -1) {
+          setImportErro('Coluna "Modelo" não encontrada. Verifique se a aba é "Tabela de Preços" e o cabeçalho A1 é "Modelo".');
+          setImportando(false); return;
+        }
+
+        // Função para checar se o valor é número puro (não pode ser nome de modelo)
+        const ehNumeroPuro = (v: string) => v !== '' && !isNaN(Number(v.replace(',', '.').replace(/\s/g, '')));
 
         interface LinhaTabela {
           modelo: string;
@@ -137,20 +157,45 @@ export function Produtos() {
           dinheiroOuPix: number | null;
         }
 
+        const ignoradasNumericas: string[] = [];
+
         const linhas: LinhaTabela[] = raw.slice(1)
-          .filter((row: any[]) => String(row[iModelo] ?? '').trim())
+          .filter((row: any[]) => {
+            const modelo = String(row[iModelo] ?? '').trim();
+            if (!modelo) return false; // linha vazia
+            const nomNorm = normalizarModelo(modelo);
+            if (nomNorm === 'MODELO' || nomNorm === 'PRODUTO' || nomNorm === '') return false; // cabeçalho repetido
+            if (ehNumeroPuro(modelo)) {
+              ignoradasNumericas.push(`Linha ignorada: Modelo="${modelo}" é um número (possível erro de coluna)`);
+              return false;
+            }
+            return true;
+          })
           .map((row: any[]) => ({
-            modelo:       String(row[iModelo] ?? '').trim(),
-            de:           iDe      >= 0 ? parseNum(row[iDe])      : null,
-            porCartao10x: iCartao  >= 0 ? parseNum(row[iCartao])  : null,
-            parcela10x:   iParcela >= 0 ? parseNum(row[iParcela]) : null,
-            dinheiroOuPix:iDinheiro>= 0 ? parseNum(row[iDinheiro]): null,
-          }))
-          .filter((l: LinhaTabela) => normalizarModelo(l.modelo) !== 'MODELO' && normalizarModelo(l.modelo) !== 'PRODUTO');
+            modelo:        String(row[iModelo] ?? '').trim(),
+            de:            iDe      >= 0 ? parseNum(row[iDe])      : null,
+            porCartao10x:  iCartao  >= 0 ? parseNum(row[iCartao])  : null,
+            parcela10x:    iParcela >= 0 ? parseNum(row[iParcela]) : null,
+            dinheiroOuPix: iDinheiro >= 0 ? parseNum(row[iDinheiro]) : null,
+          }));
+
+        if (linhas.length === 0 && ignoradasNumericas.length > 0) {
+          setImportErro(
+            `Todas as linhas foram ignoradas porque o sistema detectou números na coluna Modelo. ` +
+            `Verifique se o cabeçalho "Modelo" está na célula A1 da aba "Tabela de Preços". ` +
+            `Colunas detectadas — Modelo:${iModelo} De:${iDe} Cartão:${iCartao} Parcela:${iParcela} Dinheiro:${iDinheiro}`
+          );
+          setImportando(false); return;
+        }
 
         if (linhas.length === 0) { setImportErro('Nenhuma linha de produto encontrada na planilha.'); setImportando(false); return; }
 
         const result = await api.post<ImportResultado>('/produtos/importar-tabela-precos', { linhas });
+        // Adicionar avisos de linhas numéricas ao resultado
+        if (ignoradasNumericas.length > 0) {
+          result.erros = [...(result.erros || []), ...ignoradasNumericas];
+          result.ignorados = (result.ignorados || 0) + ignoradasNumericas.length;
+        }
         setImportResultado(result);
         loadProdutos();
       } catch (err: any) {

@@ -129,8 +129,13 @@ function normalizarModelo(nome: string): string {
     .trim()
     .toUpperCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '') // remove acentos
+    .replace(/[̀-ͯ]/g, '') // remove acentos (range Unicode correto)
     .replace(/[\s\-_.]+/g, '');      // remove espaços, hífens, pontos, underscores
+}
+
+function ehNumeroPuro(v: string): boolean {
+  const s = v.trim().replace(',', '.').replace(/\s/g, '');
+  return s !== '' && !isNaN(Number(s)) && isFinite(Number(s));
 }
 
 interface LinhaTabela {
@@ -162,12 +167,15 @@ router.post('/importar-tabela-precos', requireAdminGeral, async (req: AuthReques
       const modelo = (linha.modelo || '').toString().trim();
 
       // Ignorar linhas vazias ou cabeçalhos repetidos
-      if (
-        !modelo ||
-        normalizarModelo(modelo) === 'MODELO' ||
-        normalizarModelo(modelo) === 'PRODUTO' ||
-        normalizarModelo(modelo) === ''
-      ) {
+      const nomNorm = normalizarModelo(modelo);
+      if (!modelo || nomNorm === 'MODELO' || nomNorm === 'PRODUTO' || nomNorm === '') {
+        ignorados++;
+        continue;
+      }
+
+      // Rejeitar se modelo for número puro (erro de coluna na leitura)
+      if (ehNumeroPuro(modelo)) {
+        erros.push(`Ignorado: Modelo="${modelo}" é um número puro — verifique as colunas da planilha`);
         ignorados++;
         continue;
       }
