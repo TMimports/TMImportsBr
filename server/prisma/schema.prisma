@@ -23,6 +23,8 @@ model Loja {
   razaoSocial           String
   nomeFantasia          String?
   endereco              String?
+  cidade                String?
+  uf                    String?
   telefone              String?
   email                 String?
   ativo                 Boolean            @default(true)
@@ -52,6 +54,7 @@ model Loja {
   unidades              UnidadeFisica[]
   usuarios              User[]
   vendas                Venda[]
+  leads                 Lead[]
 }
 
 model User {
@@ -88,6 +91,8 @@ model User {
   grupo                     Grupo?             @relation(fields: [grupoId], references: [id])
   loja                      Loja?              @relation(fields: [lojaId], references: [id])
   vendas                    Venda[]            @relation("VendaVendedor")
+  leads                     Lead[]
+  leadInteracoes            LeadInteracao[]
 }
 
 model Produto {
@@ -236,6 +241,7 @@ model Venda {
   valorBruto           Decimal?       @db.Decimal(10, 2)
   parcelas             Int?
   confirmadaFinanceiro Boolean        @default(false)
+  pagamentosJson       String?
   deletedAt            DateTime?
   deletedBy            Int?
   createdAt            DateTime       @default(now())
@@ -394,6 +400,10 @@ model LogAuditoria {
   entidade   String
   entidadeId Int?
   dados      String?
+  detalhes   String?
+  ip         String?
+  userName   String?
+  userRole   String?
   createdAt  DateTime @default(now())
   usuario    User     @relation(fields: [usuarioId], references: [id])
 }
@@ -815,6 +825,37 @@ model DisparoWhatsApp {
   template           TemplateWhatsApp? @relation(fields: [templateId], references: [id])
 }
 
+model Lead {
+  id          Int             @id @default(autoincrement())
+  nome        String
+  telefone    String?
+  email       String?
+  cpf         String?
+  status      String?
+  origem      String?
+  observacoes String?
+  lojaId      Int?
+  usuarioId   Int?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  loja        Loja?           @relation(fields: [lojaId], references: [id])
+  usuario     User?           @relation(fields: [usuarioId], references: [id])
+  interacoes  LeadInteracao[]
+}
+
+model LeadInteracao {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  tipo      String?
+  descricao String?
+  resultado String?
+  usuarioId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  usuario   User?    @relation(fields: [usuarioId], references: [id])
+}
+
 enum Role {
   ADMIN_GERAL
   ADMIN_REDE
@@ -823,6 +864,8 @@ enum Role {
   VENDEDOR
   TECNICO
   ADMIN_FINANCEIRO
+  SUPER_ADMIN
+  ADMIN_COMERCIAL
 }
 
 enum StatusPedidoCompra {
@@ -862,6 +905,7 @@ enum FormaPagamento {
   CARTAO_DEBITO
   CARTAO_CREDITO
   FINANCIAMENTO
+  COMBINADO
 }
 
 enum StatusTransferencia {
